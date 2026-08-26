@@ -62,6 +62,7 @@ export function AddColumnDialog({ translation, onAdd, onClose }: AddColumnDialog
               return (
                 <button
                   className="column-type-card"
+                  data-column-kind={kind}
                   key={kind}
                   type="button"
                   onClick={() => chooseKind(kind)}

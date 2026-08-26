@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { type MouseEvent, useState } from "react";
 import type { Translation } from "../i18n/translations";
+import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { ComposerDialog } from "./composer-dialog";
 
 export interface TimelinePost {
@@ -41,9 +42,16 @@ interface PostCardProps {
   accountId: string;
   translation: Translation;
   onOpen?: () => void;
+  display?: DisplayPreferences;
 }
 
-export function PostCard({ post, accountId, translation, onOpen }: PostCardProps) {
+export function PostCard({
+  post,
+  accountId,
+  translation,
+  onOpen,
+  display = defaultDisplayPreferences,
+}: PostCardProps) {
   const [liked, setLiked] = useState(post.liked);
   const [reposted, setReposted] = useState(post.reposted);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
@@ -128,7 +136,7 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
             {renderPostText(post.text)}
           </button>
         )}
-        {post.media.length > 0 && (
+        {post.media.length > 0 && display.mediaPreview && (
           <div className="post-media">
             {post.media.map((media) =>
               media.type === "video" || media.type === "animated_gif" ? (
@@ -136,6 +144,7 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
                   key={media.id}
                   controls
                   muted
+                  autoPlay={display.videoAutoplay}
                   preload="metadata"
                   poster={media.previewUrl}
                   src={media.url}
@@ -144,6 +153,15 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
                 <img key={media.id} loading="lazy" src={media.url} alt="" />
               ),
             )}
+          </div>
+        )}
+        {post.media.length > 0 && !display.mediaPreview && (
+          <div className="post-media-links">
+            {post.media.map((media) => (
+              <a key={media.id} href={media.url} target="_blank" rel="noreferrer">
+                {translation.viewMedia}
+              </a>
+            ))}
           </div>
         )}
         <footer className="post-actions">

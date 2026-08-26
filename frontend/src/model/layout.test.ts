@@ -53,7 +53,7 @@ describe("layout storage", () => {
     expect(storage.getItem(layoutStorageKey)).toBeNull();
   });
 
-  test("force-migrates version 1 layout to version 2", () => {
+  test("force-migrates version 1 layout to the current version", () => {
     const storage = new MemoryStorage();
     storage.setItem(
       layoutStorageKey,
@@ -68,10 +68,33 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(2);
+    expect(migrated.version).toBe(3);
     expect(migrated.columns[0]?.target).toBeNull();
     expect(migrated.activeAccountId).toBeNull();
-    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(2);
+    expect(migrated.display.mediaPreview).toBe(true);
+    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(3);
+  });
+
+  test("migrates version 2 layout while preserving columns and account", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        version: 2,
+        columns: [{ id: "home", kind: "home", target: null }],
+        navItems: [...createDefaultLayout().navItems],
+        locale: "ja",
+        theme: "dark",
+        activeAccountId: "account-1",
+      }),
+    );
+
+    const migrated = loadLayout(storage);
+
+    expect(migrated.version).toBe(3);
+    expect(migrated.columns).toHaveLength(1);
+    expect(migrated.activeAccountId).toBe("account-1");
+    expect(migrated.display.accentColor).toBe("blue");
   });
 
   test("moves an item without mutating the source", () => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import type { ColumnConfig } from "../model/layout";
+import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 
@@ -13,9 +14,15 @@ interface TimelineColumnProps {
   column: ColumnConfig;
   accountId: string | null;
   translation: Translation;
+  display?: DisplayPreferences;
 }
 
-export function TimelineColumn({ column, accountId, translation }: TimelineColumnProps) {
+export function TimelineColumn({
+  column,
+  accountId,
+  translation,
+  display = defaultDisplayPreferences,
+}: TimelineColumnProps) {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -137,6 +144,7 @@ export function TimelineColumn({ column, accountId, translation }: TimelineColum
           post={post}
           accountId={accountId}
           translation={translation}
+          display={display}
           onOpen={() => setSelectedPostId(post.id)}
         />
       ))}
@@ -157,6 +165,7 @@ export function TimelineColumn({ column, accountId, translation }: TimelineColum
           postId={selectedPostId}
           accountId={accountId}
           translation={translation}
+          display={display}
           onClose={() => setSelectedPostId(null)}
         />
       )}

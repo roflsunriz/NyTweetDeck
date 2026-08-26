@@ -1,4 +1,13 @@
-import type { ColumnKind, Locale, NavItemId, Theme } from "../model/layout";
+import type {
+  AccentColor,
+  ColumnKind,
+  Density,
+  FontSize,
+  Locale,
+  NavItemId,
+  Theme,
+} from "../model/layout";
+import { localeOverrides } from "./locale-overrides";
 
 export interface Translation {
   appName: string;
@@ -38,6 +47,7 @@ export interface Translation {
   bookmark: string;
   share: string;
   downloadMedia: string;
+  viewMedia: string;
   askGrok: string;
   postMenu: string;
   userId: string;
@@ -60,6 +70,13 @@ export interface Translation {
   closeDetail: string;
   language: string;
   theme: string;
+  displayAndAccessibility: string;
+  fontSize: string;
+  accentColor: string;
+  density: string;
+  reduceMotion: string;
+  mediaPreview: string;
+  videoAutoplay: string;
   xApiSetup: string;
   xApiVersion: string;
   ready: string;
@@ -97,9 +114,14 @@ export interface Translation {
   unsupportedLoginStep: string;
   localeName: Record<Locale, string>;
   themeName: Record<Theme, string>;
+  fontSizeName: Record<FontSize, string>;
+  accentColorName: Record<AccentColor, string>;
+  densityName: Record<Density, string>;
   nav: Record<NavItemId, string>;
   column: Record<ColumnKind, { title: string; description: string }>;
 }
+
+export type TranslationOverride = Partial<Translation>;
 
 const translations: Partial<Record<Locale, Translation>> = {
   ja: {
@@ -140,6 +162,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     bookmark: "履歴に保存",
     share: "共有",
     downloadMedia: "メディアをダウンロード",
+    viewMedia: "メディアを表示",
     askGrok: "Grokに聞く",
     postMenu: "ポストメニュー",
     userId: "ユーザーID",
@@ -162,6 +185,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     closeDetail: "詳細を閉じる",
     language: "表示言語",
     theme: "テーマ",
+    displayAndAccessibility: "アクセシビリティ、表示、データ使用量",
+    fontSize: "文字サイズ",
+    accentColor: "色",
+    density: "表示密度",
+    reduceMotion: "動きを減らす",
+    mediaPreview: "画像と動画のプレビューを表示",
+    videoAutoplay: "動画を自動再生",
     xApiSetup: "Android API設定",
     xApiVersion: "解析済みAPI版",
     ready: "準備済み",
@@ -212,6 +242,16 @@ const translations: Partial<Record<Locale, Translation>> = {
       ur: "اردو",
     },
     themeName: { system: "システム設定", light: "ライト", dark: "ダーク" },
+    fontSizeName: { small: "小", default: "標準", large: "大" },
+    accentColorName: {
+      blue: "青",
+      yellow: "黄",
+      pink: "ピンク",
+      purple: "紫",
+      orange: "オレンジ",
+      green: "緑",
+    },
+    densityName: { comfortable: "標準", compact: "コンパクト" },
     nav: {
       compose: "ポストを作成",
       search: "検索",
@@ -278,6 +318,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     bookmark: "Save to history",
     share: "Share",
     downloadMedia: "Download media",
+    viewMedia: "View media",
     askGrok: "Ask Grok",
     postMenu: "Post menu",
     userId: "User ID",
@@ -300,6 +341,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     closeDetail: "Close details",
     language: "Language",
     theme: "Theme",
+    displayAndAccessibility: "Accessibility, display, and data usage",
+    fontSize: "Font size",
+    accentColor: "Color",
+    density: "Display density",
+    reduceMotion: "Reduce motion",
+    mediaPreview: "Show image and video previews",
+    videoAutoplay: "Autoplay videos",
     xApiSetup: "Android API setup",
     xApiVersion: "Analyzed API version",
     ready: "Ready",
@@ -350,6 +398,16 @@ const translations: Partial<Record<Locale, Translation>> = {
       ur: "اردو",
     },
     themeName: { system: "System", light: "Light", dark: "Dark" },
+    fontSizeName: { small: "Small", default: "Default", large: "Large" },
+    accentColorName: {
+      blue: "Blue",
+      yellow: "Yellow",
+      pink: "Pink",
+      purple: "Purple",
+      orange: "Orange",
+      green: "Green",
+    },
+    densityName: { comfortable: "Comfortable", compact: "Compact" },
     nav: {
       compose: "Compose",
       search: "Search",
@@ -384,9 +442,27 @@ const translations: Partial<Record<Locale, Translation>> = {
 };
 
 export function translate(locale: Locale): Translation {
-  const translation = translations[locale] ?? translations.en ?? translations.ja;
-  if (translation === undefined) {
+  const exact = translations[locale];
+  if (exact !== undefined) {
+    return exact;
+  }
+  const base = translations.en ?? translations.ja;
+  if (base === undefined) {
     throw new Error("翻訳辞書がありません。");
   }
-  return translation;
+  const override = localeOverrides[locale];
+  if (override === undefined) {
+    return base;
+  }
+  return {
+    ...base,
+    ...override,
+    localeName: override.localeName ?? base.localeName,
+    themeName: override.themeName ?? base.themeName,
+    fontSizeName: override.fontSizeName ?? base.fontSizeName,
+    accentColorName: override.accentColorName ?? base.accentColorName,
+    densityName: override.densityName ?? base.densityName,
+    nav: override.nav ?? base.nav,
+    column: override.column ?? base.column,
+  };
 }

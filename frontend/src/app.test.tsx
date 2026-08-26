@@ -60,15 +60,30 @@ describe("NyTweetDeck shell", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "設定" }));
-    await user.selectOptions(screen.getByLabelText("表示言語"), "en");
+    await user.selectOptions(screen.getByTestId("setting-language"), "en");
 
     expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();
-    await user.selectOptions(screen.getByLabelText("Theme"), "light");
+    await user.selectOptions(screen.getByTestId("setting-theme"), "light");
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(document.documentElement.lang).toBe("en");
-    await user.selectOptions(screen.getByLabelText("Language"), "ar");
+    await user.selectOptions(screen.getByTestId("setting-language"), "ar");
     expect(document.documentElement.lang).toBe("ar");
     expect(document.documentElement.dir).toBe("rtl");
+    await user.selectOptions(screen.getByTestId("setting-font-size"), "large");
+    await user.selectOptions(screen.getByTestId("setting-accent-color"), "purple");
+    await user.selectOptions(screen.getByTestId("setting-density"), "compact");
+    await user.click(screen.getByTestId("setting-reduce-motion"));
+    expect(document.documentElement.dataset.fontSize).toBe("large");
+    expect(document.documentElement.dataset.accent).toBe("purple");
+    expect(document.documentElement.dataset.density).toBe("compact");
+    expect(document.documentElement.dataset.reduceMotion).toBe("true");
+    const stored = JSON.parse(String(window.localStorage.getItem("nytweetdeck.layout"))) as {
+      version: number;
+      display: { accentColor: string; reduceMotion: boolean };
+    };
+    expect(stored.version).toBe(3);
+    expect(stored.display.accentColor).toBe("purple");
+    expect(stored.display.reduceMotion).toBe(true);
   });
 
   test("opens direct messages and trends from the default menu", async () => {

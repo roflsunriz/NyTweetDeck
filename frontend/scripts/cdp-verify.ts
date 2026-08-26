@@ -191,7 +191,7 @@ for (const viewport of viewports) {
 
   for (let index = 0; index < viewport.columns; index += 1) {
     const clicked = await client.evaluate<boolean>(`(() => {
-      const button = document.querySelector(".large-add-button, .inline-add-column");
+      const button = document.querySelector('[data-action="add-column"]');
       if (!(button instanceof HTMLButtonElement)) return false;
       button.click();
       return true;
@@ -201,7 +201,7 @@ for (const viewport of viewports) {
     }
     await waitForCondition("document.querySelector('[role=\"dialog\"]') !== null");
     const added = await client.evaluate<boolean>(`(() => {
-      const button = document.querySelector(".column-type-card");
+      const button = document.querySelector('[role="dialog"] [data-column-kind="home"]');
       if (!(button instanceof HTMLButtonElement)) return false;
       button.click();
       return true;
@@ -251,8 +251,7 @@ await client.call("Emulation.setDeviceMetricsOverride", {
 });
 await reload();
 const settingsClicked = await client.evaluate<boolean>(`(() => {
-  const button = [...document.querySelectorAll("button")]
-    .find((candidate) => candidate.getAttribute("aria-label") === "設定");
+  const button = document.querySelector('[data-action="open-settings"]');
   if (!(button instanceof HTMLButtonElement)) return false;
   button.click();
   return true;
@@ -261,8 +260,8 @@ if (!settingsClicked) {
   throw new Error("設定ダイアログを開けませんでした。");
 }
 await waitForCondition("document.querySelector('[role=\"dialog\"]') !== null");
-await waitForCondition('document.querySelector(".device-profile-form") !== null');
-await waitForCondition('document.querySelector(".account-vault-setup") !== null');
+await waitForCondition('document.querySelector("[data-testid=x-api-setup]") !== null');
+await waitForCondition('document.querySelector("[data-testid=account-vault-setup]") !== null');
 const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const panel = document.querySelector(".modal-panel");
   if (!(panel instanceof HTMLElement)) return { found: false };
@@ -282,6 +281,31 @@ const settingsScreenshot = await client.call<{ data: string }>("Page.captureScre
 const settingsScreenshotPath = resolve(import.meta.dir, "../../target/ui-settings-768x1024.png");
 await Bun.write(settingsScreenshotPath, Buffer.from(settingsScreenshot.data, "base64"));
 results.push({ view: "settings", ...settingsMetrics, screenshotPath: settingsScreenshotPath });
+
+const rtlSelected = await client.evaluate<boolean>(`(() => {
+  const select = document.querySelector('[data-testid="setting-language"]');
+  if (!(select instanceof HTMLSelectElement)) return false;
+  select.value = "ar";
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+})()`);
+if (!rtlSelected) {
+  throw new Error("RTL検証用の言語を選択できませんでした。");
+}
+await waitForCondition('document.documentElement.dir === "rtl"');
+const rtlMetrics = await client.evaluate<Record<string, unknown>>(`({
+  direction: document.documentElement.dir,
+  language: document.documentElement.lang,
+  documentOverflow: document.documentElement.scrollWidth > innerWidth,
+  settingsTitle: document.querySelector(".modal-header h2")?.textContent
+})`);
+const rtlScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const rtlScreenshotPath = resolve(import.meta.dir, "../../target/ui-settings-rtl-768x1024.png");
+await Bun.write(rtlScreenshotPath, Buffer.from(rtlScreenshot.data, "base64"));
+results.push({ view: "settings-rtl", ...rtlMetrics, screenshotPath: rtlScreenshotPath });
 
 console.info(JSON.stringify(results, null, 2));
 if (browserErrors.length > 0) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Translation } from "../i18n/translations";
+import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { ComposerDialog } from "./composer-dialog";
 import { Modal } from "./modal";
 import { PostCard, type TimelinePost } from "./post-card";
@@ -15,6 +16,7 @@ interface PostDetailDialogProps {
   accountId: string;
   translation: Translation;
   onClose: () => void;
+  display?: DisplayPreferences;
 }
 
 export function PostDetailDialog({
@@ -22,6 +24,7 @@ export function PostDetailDialog({
   accountId,
   translation,
   onClose,
+  display = defaultDisplayPreferences,
 }: PostDetailDialogProps) {
   const [detail, setDetail] = useState<PostDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +60,12 @@ export function PostDetailDialog({
             <p>{translation.loading}</p>
           ) : (
             <>
-              <PostCard post={detail.post} accountId={accountId} translation={translation} />
+              <PostCard
+                post={detail.post}
+                accountId={accountId}
+                translation={translation}
+                display={display}
+              />
               <button
                 className="primary-button detail-reply-button"
                 type="button"
@@ -75,6 +83,7 @@ export function PostDetailDialog({
                     post={reply}
                     accountId={accountId}
                     translation={translation}
+                    display={display}
                   />
                 ))
               )}

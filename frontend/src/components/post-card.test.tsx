@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
+import { defaultDisplayPreferences } from "../model/layout";
 import { PostCard, type TimelinePost } from "./post-card";
 
 const originalFetch = globalThis.fetch;
@@ -68,6 +69,42 @@ describe("post actions", () => {
     expect(screen.getByRole("button", { name: "リポスト" })).toBeDefined();
     await user.click(screen.getByRole("button", { name: "引用" }));
     expect(screen.getByRole("heading", { name: "引用" })).toBeDefined();
+  });
+
+  test("honors media preview and video autoplay data settings", () => {
+    const mediaPost = {
+      ...post(),
+      media: [
+        {
+          id: "video-1",
+          type: "video",
+          url: "https://video.example/video.mp4",
+          previewUrl: "https://video.example/preview.jpg",
+        },
+      ],
+    };
+    const first = render(
+      <PostCard
+        post={mediaPost}
+        accountId="account-1"
+        translation={translate("ja")}
+        display={{ ...defaultDisplayPreferences, mediaPreview: false }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "メディアを表示" })).toBeDefined();
+    expect(first.container.querySelector("video")).toBeNull();
+    first.unmount();
+
+    const second = render(
+      <PostCard
+        post={mediaPost}
+        accountId="account-1"
+        translation={translate("ja")}
+        display={{ ...defaultDisplayPreferences, videoAutoplay: true }}
+      />,
+    );
+    expect(second.container.querySelector("video")?.autoplay).toBe(true);
   });
 });
 

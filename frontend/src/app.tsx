@@ -85,6 +85,10 @@ export function App() {
     document.documentElement.lang = layout.locale;
     document.documentElement.dir = rtlLocales.includes(layout.locale) ? "rtl" : "ltr";
     document.documentElement.dataset.theme = resolveTheme(layout.theme);
+    document.documentElement.dataset.fontSize = layout.display.fontSize;
+    document.documentElement.dataset.accent = layout.display.accentColor;
+    document.documentElement.dataset.density = layout.display.density;
+    document.documentElement.dataset.reduceMotion = String(layout.display.reduceMotion);
   }, [layout]);
 
   useEffect(() => {
@@ -116,6 +120,8 @@ export function App() {
 
   const setLocale = (locale: Locale) => setLayout((current) => ({ ...current, locale }));
   const setTheme = (theme: Theme) => setLayout((current) => ({ ...current, theme }));
+  const setDisplay = (display: AppLayout["display"]) =>
+    setLayout((current) => ({ ...current, display }));
   const setNavigationItems = (navItems: NavItemId[]) =>
     setLayout((current) => ({ ...current, navItems }));
   const setActiveAccount = (activeAccountId: string) => {
@@ -173,6 +179,7 @@ export function App() {
             return (
               <button
                 className="nav-button"
+                data-nav-item={item}
                 type="button"
                 key={item}
                 draggable
@@ -193,6 +200,7 @@ export function App() {
           })}
           <button
             className="nav-button add-nav-button"
+            data-action="edit-menu"
             type="button"
             aria-label={translation.addColumn}
             onClick={() => setDialog("menu")}
@@ -203,6 +211,7 @@ export function App() {
         <div className="secondary-actions">
           <button
             className="nav-button"
+            data-action="switch-account"
             type="button"
             aria-label={translation.accountSwitcher}
             onClick={() => setDialog("accounts")}
@@ -211,6 +220,7 @@ export function App() {
           </button>
           <button
             className="nav-button"
+            data-action="open-settings"
             type="button"
             aria-label={translation.settings}
             onClick={() => setDialog("settings")}
@@ -225,6 +235,7 @@ export function App() {
           <section className="empty-state">
             <button
               className="large-add-button"
+              data-action="add-column"
               type="button"
               aria-label={translation.addColumn}
               onClick={() => setDialog("columns")}
@@ -266,6 +277,7 @@ export function App() {
                     </div>
                     <button
                       className="icon-button"
+                      data-action="remove-column"
                       type="button"
                       aria-label={translation.removeColumn(columnText.title)}
                       onClick={() => removeColumn(column.id)}
@@ -283,6 +295,7 @@ export function App() {
                       column={column}
                       accountId={layout.activeAccountId}
                       translation={translation}
+                      display={layout.display}
                     />
                   )}
                 </article>
@@ -290,6 +303,7 @@ export function App() {
             })}
             <button
               className="inline-add-column"
+              data-action="add-column"
               type="button"
               aria-label={translation.addColumn}
               onClick={() => setDialog("columns")}
@@ -313,8 +327,10 @@ export function App() {
           translation={translation}
           locale={layout.locale}
           theme={layout.theme}
+          display={layout.display}
           onLocaleChange={setLocale}
           onThemeChange={setTheme}
+          onDisplayChange={setDisplay}
           onClose={() => setDialog(null)}
         />
       )}

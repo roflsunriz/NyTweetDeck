@@ -1,5 +1,5 @@
 export const layoutStorageKey = "nytweetdeck.layout";
-export const layoutVersion = 2 as const;
+export const layoutVersion = 3 as const;
 
 export const columnKinds = [
   "home",
@@ -50,6 +50,27 @@ export const supportedLocales = [
 export type Locale = (typeof supportedLocales)[number];
 export const rtlLocales: readonly Locale[] = ["ar", "ur"];
 export type Theme = "system" | "light" | "dark";
+export type FontSize = "small" | "default" | "large";
+export type AccentColor = "blue" | "yellow" | "pink" | "purple" | "orange" | "green";
+export type Density = "comfortable" | "compact";
+
+export interface DisplayPreferences {
+  fontSize: FontSize;
+  accentColor: AccentColor;
+  density: Density;
+  reduceMotion: boolean;
+  mediaPreview: boolean;
+  videoAutoplay: boolean;
+}
+
+export const defaultDisplayPreferences: DisplayPreferences = {
+  fontSize: "default",
+  accentColor: "blue",
+  density: "comfortable",
+  reduceMotion: false,
+  mediaPreview: true,
+  videoAutoplay: false,
+};
 
 export interface ColumnConfig {
   id: string;
@@ -64,6 +85,7 @@ export interface AppLayout {
   locale: Locale;
   theme: Theme;
   activeAccountId: string | null;
+  display: DisplayPreferences;
 }
 
 export interface StorageLike {
@@ -80,6 +102,7 @@ export function createDefaultLayout(): AppLayout {
     locale: "ja",
     theme: "system",
     activeAccountId: null,
+    display: { ...defaultDisplayPreferences },
   };
 }
 
@@ -102,6 +125,16 @@ export function loadLayout(storage: StorageLike): AppLayout {
         locale: candidate.locale,
         theme: candidate.theme,
         activeAccountId: null,
+        display: { ...defaultDisplayPreferences },
+      };
+      saveLayout(storage, migrated);
+      return migrated;
+    }
+    if (isLegacyLayoutV2(candidate)) {
+      const migrated: AppLayout = {
+        ...candidate,
+        version: layoutVersion,
+        display: { ...defaultDisplayPreferences },
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -144,7 +177,8 @@ function isAppLayout(value: unknown): value is AppLayout {
   if (
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
-    !isNullableString(value.activeAccountId)
+    !isNullableString(value.activeAccountId) ||
+    !isDisplayPreferences(value.display)
   ) {
     return false;
   }
@@ -152,6 +186,25 @@ function isAppLayout(value: unknown): value is AppLayout {
     return false;
   }
   if (new Set(value.navItems).size !== value.navItems.length) {
+    return false;
+  }
+  return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
+}
+
+function isLegacyLayoutV2(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
+  version: 2;
+} {
+  if (!isRecord(value) || value.version !== 2) {
+    return false;
+  }
+  if (
+    !isLocale(value.locale) ||
+    !isTheme(value.theme) ||
+    !isNullableString(value.activeAccountId)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) {
     return false;
   }
   return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
@@ -169,7 +222,7 @@ function isColumnConfig(value: unknown): value is ColumnConfig {
 
 function isLegacyLayoutV1(value: unknown): value is Omit<
   AppLayout,
-  "version" | "activeAccountId"
+  "version" | "activeAccountId" | "display"
 > & {
   version: 1;
   columns: Array<Omit<ColumnConfig, "target">>;
@@ -213,6 +266,18 @@ function isLocale(value: unknown): value is Locale {
 
 function isTheme(value: unknown): value is Theme {
   return value === "system" || value === "light" || value === "dark";
+}
+
+function isDisplayPreferences(value: unknown): value is DisplayPreferences {
+  return (
+    isRecord(value) &&
+    ["small", "default", "large"].includes(String(value.fontSize)) &&
+    ["blue", "yellow", "pink", "purple", "orange", "green"].includes(String(value.accentColor)) &&
+    ["comfortable", "compact"].includes(String(value.density)) &&
+    typeof value.reduceMotion === "boolean" &&
+    typeof value.mediaPreview === "boolean" &&
+    typeof value.videoAutoplay === "boolean"
+  );
 }
 
 function isNullableString(value: unknown): value is string | null {
