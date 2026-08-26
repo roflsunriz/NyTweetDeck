@@ -73,12 +73,29 @@ Javaソース中で直接確認できたRESTパス145件は [android-rest-endpoi
 - ポスト詳細: `tweet_result_by_id_query`
 - 会話: `conversation_timeline_v2`
 - 投稿、削除、いいね解除を含む各Mutation
+- リストメンバー追加・削除: `list_member_add` / `list_member_remove`
+- フォロー・ミュート・ブロック: `/1.1/friendships/create.json`、`/1.1/mutes/users/create.json`、`/1.1/blocks/create.json`
+- Exploreの非ポスト要素: `TimelineTrend`の`name`、`url`、`description`、`rank`、`trendMetadata`
+- 通知の非ポスト要素: `TimelineNotification`の`id`、`url`、`socialContext`
+
+## Live Pipeline
+
+`com.twitter.network.livepipeline`の要求・SSEパーサー・event typeを追跡し、次を確認しました。
+
+- 接続: `GET /1.1/live_pipeline/events?topic=...`
+- ヘッダー: `Accept: text/event-stream`と通常の認証済みAndroidヘッダー
+- topic形式: `/{event_type}/{entity_id}`
+- 確認済みevent type: `tweet_engagement`、`dm_update`、`dm_typing`、`live_content`
+- SSEの`data:`には`topic`と、event typeをキーに持つ`payload`が入る
+- Android側の再接続は500msから16秒までのバックオフ、最大10回
+
+通常のホーム・ユーザー・リストへ新規ポストを配送するevent typeは、この版のレジストリには存在しません。NyTweetDeckは推測topicや定期ポーリングを追加せず、表示中ポストの数字とDMに確認済みtopicを使用します。通常タイムラインは自分の投稿・返信・操作が成功した場合にローカルSSEで更新します。
 
 ## 未確定事項
 
 - App Attestationが各エンドポイントで必須になる条件
 - OCFが返す二要素認証、Security Key、Passkey、Captchaの実際の組み合わせ
 - 実アカウントごとのFeature Switch値とGraphQL`features`入力
-- リアルタイム更新に利用できるAndroid側イベント経路と切断時の回復条件
+- 実アカウントで`tweet_engagement`と`dm_update`を購読した場合のpayload実例
 
 これらは仮値で埋めず、許可された実通信または追加のbytecode解析で確定します。

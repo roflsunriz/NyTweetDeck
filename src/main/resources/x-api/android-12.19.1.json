@@ -20,7 +20,11 @@
     "notificationsAll": "/2/notifications/all.json",
     "notificationsMentions": "/2/notifications/mentions.json",
     "search": "/2/search/adaptive.json",
-    "dmInboxTrusted": "/1.1/dm/inbox_timeline/trusted.json"
+    "dmInboxTrusted": "/1.1/dm/inbox_timeline/trusted.json",
+    "livePipelineEvents": "/1.1/live_pipeline/events",
+    "followUser": "/1.1/friendships/create.json",
+    "muteUser": "/1.1/mutes/users/create.json",
+    "blockUser": "/1.1/blocks/create.json"
   },
   "featureKeys": [
     "grok_translations_timeline_user_bio_auto_translation_is_enabled",
@@ -159,6 +163,18 @@
       "key": "bookmark_delete",
       "operationId": "G-V_AGDp-QKivnyTUCtTjA",
       "operationName": "BookmarkDelete",
+      "type": "MUTATION"
+    },
+    "listMemberAdd": {
+      "key": "list_member_add",
+      "operationId": "8OIBEhmjp8Dz5YsVXyvfmQ",
+      "operationName": "ListMemberAdd",
+      "type": "MUTATION"
+    },
+    "listMemberRemove": {
+      "key": "list_member_remove",
+      "operationId": "tDzvU3wqZ_7FWir8A7k5wQ",
+      "operationName": "ListMemberRemove",
       "type": "MUTATION"
     }
   }

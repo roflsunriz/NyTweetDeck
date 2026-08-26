@@ -28,6 +28,7 @@ export function TimelineColumn({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [liveError, setLiveError] = useState(false);
   const loadingRef = useRef(false);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
@@ -87,13 +88,61 @@ export function TimelineColumn({
     }
     const params = new URLSearchParams({ accountId });
     const source = new EventSource(`/api/v1/events/timeline?${params}`);
-    const reload = () => void load();
-    source.addEventListener("timeline-update", reload);
+    const handleUpdate = (event: MessageEvent<string>) => {
+      try {
+        const update = JSON.parse(event.data) as { reason?: string };
+        if (update.reason === "live:error") {
+          setLiveError(true);
+          return;
+        }
+        if (update.reason?.startsWith("live:") === true) {
+          setLiveError(false);
+        }
+      } catch {
+        // Unknown local event data still requests a safe refresh.
+      }
+      void load();
+    };
+    source.addEventListener("timeline-update", handleUpdate);
     return () => {
-      source.removeEventListener("timeline-update", reload);
+      source.removeEventListener("timeline-update", handleUpdate);
       source.close();
     };
   }, [accountId, load]);
+
+  useEffect(() => {
+    if (accountId === null || posts.length === 0) {
+      return;
+    }
+    const controller = new AbortController();
+    const subscriberId = `timeline:${column.id}`;
+    void fetch(`/api/v1/live/subscriptions/${encodeURIComponent(subscriberId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountId, postIds: posts.slice(0, 100).map((post) => post.id) }),
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          setLiveError(true);
+        }
+      })
+      .catch((subscriptionError) => {
+        if (
+          !(subscriptionError instanceof DOMException && subscriptionError.name === "AbortError")
+        ) {
+          setLiveError(true);
+        }
+      });
+    return () => {
+      controller.abort();
+      const params = new URLSearchParams({ accountId });
+      void fetch(`/api/v1/live/subscriptions/${encodeURIComponent(subscriberId)}?${params}`, {
+        method: "DELETE",
+        keepalive: true,
+      });
+    };
+  }, [accountId, column.id, posts]);
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -160,6 +209,7 @@ export function TimelineColumn({
         </button>
       )}
       {error !== null && <p className="inline-error">{error}</p>}
+      {liveError && <p className="inline-warning">{translation.liveUpdateUnavailable}</p>}
       {selectedPostId !== null && (
         <PostDetailDialog
           postId={selectedPostId}
@@ -177,6 +227,10 @@ function timelineKind(kind: ColumnConfig["kind"]): string {
   switch (kind) {
     case "home":
       return "homeForYou";
+    case "following":
+      return "homeFollowing";
+    case "search":
+      return "search";
     case "history":
       return "history";
     case "user":

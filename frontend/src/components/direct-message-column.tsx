@@ -20,13 +20,19 @@ interface DirectMessagePage {
 interface DirectMessageColumnProps {
   accountId: string | null;
   translation: Translation;
+  subscriptionId?: string;
 }
 
-export function DirectMessageColumn({ accountId, translation }: DirectMessageColumnProps) {
+export function DirectMessageColumn({
+  accountId,
+  translation,
+  subscriptionId = "direct-messages",
+}: DirectMessageColumnProps) {
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveError, setLiveError] = useState(false);
   const loadingRef = useRef(false);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
@@ -77,6 +83,68 @@ export function DirectMessageColumn({ accountId, translation }: DirectMessageCol
     setCursor(null);
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (accountId === null || typeof EventSource === "undefined") {
+      return;
+    }
+    const params = new URLSearchParams({ accountId });
+    const source = new EventSource(`/api/v1/events/timeline?${params}`);
+    const handleUpdate = (event: MessageEvent<string>) => {
+      try {
+        const update = JSON.parse(event.data) as { reason?: string };
+        if (update.reason === "live:error") {
+          setLiveError(true);
+          return;
+        }
+        if (update.reason === "live:dm_update") {
+          setLiveError(false);
+          void load();
+        }
+      } catch {
+        // Ignore unrelated local events for the DM inbox.
+      }
+    };
+    source.addEventListener("timeline-update", handleUpdate);
+    return () => {
+      source.removeEventListener("timeline-update", handleUpdate);
+      source.close();
+    };
+  }, [accountId, load]);
+
+  useEffect(() => {
+    if (accountId === null) {
+      return;
+    }
+    const controller = new AbortController();
+    const id = `messages:${subscriptionId}`;
+    void fetch(`/api/v1/live/subscriptions/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountId, postIds: [], directMessages: true }),
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          setLiveError(true);
+        }
+      })
+      .catch((subscriptionError) => {
+        if (
+          !(subscriptionError instanceof DOMException && subscriptionError.name === "AbortError")
+        ) {
+          setLiveError(true);
+        }
+      });
+    return () => {
+      controller.abort();
+      const params = new URLSearchParams({ accountId });
+      void fetch(`/api/v1/live/subscriptions/${encodeURIComponent(id)}?${params}`, {
+        method: "DELETE",
+        keepalive: true,
+      });
+    };
+  }, [accountId, subscriptionId]);
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -149,6 +217,7 @@ export function DirectMessageColumn({ accountId, translation }: DirectMessageCol
         </button>
       )}
       {error !== null && <p className="inline-error">{error}</p>}
+      {liveError && <p className="inline-warning">{translation.liveUpdateUnavailable}</p>}
     </div>
   );
 }

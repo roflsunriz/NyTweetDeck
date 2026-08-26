@@ -39,7 +39,9 @@ BunのHTMLエントリーポイントをBun bundlerへ渡し、`target/classes/s
 11. 投稿・返信・ポスト操作が成功すると、アカウント別SSEで表示中カラムを再取得する。
 12. アカウント切替画面からAndroid OCFログインを開始し、動的subtaskを完了後、OAuth token/secretをブラウザへ返さずVaultへ暗号化保存する。
 13. 主要10言語と日本語、RTL、文字サイズ、色、密度、動き、メディア表示を変更し、レイアウトv3として自動保存・復元する。
+14. 表示中ポストの数字とDMをAndroid Live Pipelineで購読し、切断時だけ指数バックオフで再接続してローカルSSEへ転送する。
+15. CIとReleaseでパッケージ済みJARを起動し、Chromeで複数画面幅、永続化、設定、RTLを自動操作する。
 
 ## 次の接続点
 
-解析対象のAPKMからAPIホスト、GraphQL操作ID、RESTパス、標準ヘッダー、OCFログインと`open_account`、OAuth 1.0a署名方式、DM受信箱、Explore、Live Pipelineの接続仕様まで確認済みです。Guest認証、OCF状態機械とブラウザUI、端末プロファイル、暗号化Vault、GraphQL Feature Switch、タイムライン正規化、主要Mutation、ローカルSSE更新も実装済みです。残る外部X上の新規投稿イベントと実ログインの実地確認は、Androidクライアント資格情報の抽出・利用に対する明示承認後に行います。
+解析対象のAPKMからAPIホスト、GraphQL操作ID、RESTパス、標準ヘッダー、OCFログインと`open_account`、OAuth 1.0a署名方式、DM受信箱、Explore、Live Pipelineの接続仕様まで確認済みです。Guest認証、OCF状態機械とブラウザUI、端末プロファイル、暗号化Vault、GraphQL Feature Switch、タイムライン正規化、主要Mutation、Android Live PipelineとローカルSSE更新も実装済みです。通常タイムラインの新規ポスト用event typeは解析版に存在しないため、推測topicや定期ポーリングは使用しません。実ログインと確認済みLive Pipeline payloadの実地確認は、Androidクライアント資格情報の抽出・利用に対する明示承認後に行います。

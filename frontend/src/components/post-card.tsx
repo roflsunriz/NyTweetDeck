@@ -9,9 +9,10 @@ import {
   Repeat2,
   Share2,
 } from "lucide-react";
-import { type MouseEvent, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
+import { useRelativeTime } from "../model/relative-time";
 import { ComposerDialog } from "./composer-dialog";
 
 export interface TimelinePost {
@@ -63,7 +64,7 @@ export function PostCard({
   const [replying, setReplying] = useState(false);
   const [quoting, setQuoting] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const time = relativeTime(post.createdAt);
+  const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
   const postUrl = `https://x.com/${post.author.username}/status/${post.id}`;
 
   const mutate = async (action: string, onSuccess: () => void) => {
@@ -91,6 +92,24 @@ export function PostCard({
       await navigator.clipboard.writeText(postUrl);
     }
   };
+  const openFromCard = (event: MouseEvent<HTMLElement>) => {
+    if (onOpen === undefined) {
+      return;
+    }
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("button, a, summary, input, select, textarea")
+    ) {
+      return;
+    }
+    onOpen();
+  };
+  const openFromKeyboard = (event: KeyboardEvent<HTMLElement>) => {
+    if (onOpen !== undefined && event.target === event.currentTarget && event.key === "Enter") {
+      onOpen();
+    }
+  };
 
   if (hidden) {
     return null;
@@ -98,7 +117,14 @@ export function PostCard({
 
   return (
     <>
-      <article className="post-card" data-post-id={post.id}>
+      <article
+        className="post-card"
+        data-post-id={post.id}
+        aria-label={onOpen === undefined ? undefined : translation.postDetail}
+        tabIndex={onOpen === undefined ? undefined : 0}
+        onClick={openFromCard}
+        onKeyDown={openFromKeyboard}
+      >
         <header>
           {post.author.avatarUrl !== null ? (
             <img src={post.author.avatarUrl} alt="" loading="lazy" />
@@ -123,8 +149,9 @@ export function PostCard({
             <Bot aria-hidden="true" size={16} />
           </a>
           <PostMenu
+            accountId={accountId}
+            userId={post.author.id}
             postUrl={postUrl}
-            username={post.author.username}
             translation={translation}
             onHide={() => setHidden(true)}
           />
@@ -315,22 +342,24 @@ function renderPostText(text: string) {
 }
 
 function PostMenu({
+  accountId,
+  userId,
   postUrl,
-  username,
   translation,
   onHide,
 }: {
+  accountId: string;
+  userId: string;
   postUrl: string;
-  username: string;
   translation: Translation;
   onHide: () => void;
 }) {
-  const profileUrl = `https://x.com/${username}`;
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [completedAction, setCompletedAction] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [listEditor, setListEditor] = useState(false);
+  const [listId, setListId] = useState("");
   const links = [
-    [translation.followUser, profileUrl],
-    [translation.manageLists, "https://x.com/i/lists"],
-    [translation.muteUser, profileUrl],
-    [translation.blockUser, profileUrl],
     [translation.postActivity, `${postUrl}/analytics`],
     [translation.embedPost, `https://publish.twitter.com/#query=${encodeURIComponent(postUrl)}`],
     [
@@ -339,6 +368,51 @@ function PostMenu({
     ],
     [translation.requestCommunityNote, "https://x.com/i/communitynotes"],
   ] as const;
+  const userAction = async (action: "follow" | "mute" | "block") => {
+    if (action === "block" && !window.confirm(translation.confirmBlock)) {
+      return;
+    }
+    setBusyAction(action);
+    setCompletedAction(null);
+    setError(false);
+    try {
+      const response = await fetch(
+        `/api/v1/users/${encodeURIComponent(userId)}/actions/${action}?accountId=${encodeURIComponent(accountId)}`,
+        { method: "POST" },
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      setCompletedAction(action);
+    } catch {
+      setError(true);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+  const listAction = async (action: "add" | "remove") => {
+    if (!/^\d{1,30}$/.test(listId)) {
+      setError(true);
+      return;
+    }
+    setBusyAction(`list-${action}`);
+    setCompletedAction(null);
+    setError(false);
+    try {
+      const response = await fetch(
+        `/api/v1/users/${encodeURIComponent(userId)}/lists/${encodeURIComponent(listId)}/${action}?accountId=${encodeURIComponent(accountId)}`,
+        { method: "POST" },
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      setCompletedAction(`list-${action}`);
+    } catch {
+      setError(true);
+    } finally {
+      setBusyAction(null);
+    }
+  };
   return (
     <details className="post-overflow">
       <summary aria-label={translation.postMenu}>
@@ -348,11 +422,56 @@ function PostMenu({
         <button type="button" onClick={onHide}>
           {translation.notInterested}
         </button>
+        {(
+          [
+            ["follow", translation.followUser],
+            ["mute", translation.muteUser],
+            ["block", translation.blockUser],
+          ] as const
+        ).map(([action, label]) => (
+          <button
+            key={action}
+            type="button"
+            disabled={busyAction !== null}
+            onClick={() => userAction(action)}
+          >
+            {label}
+            {completedAction === action ? ` · ${translation.userActionCompleted}` : ""}
+          </button>
+        ))}
+        <button type="button" onClick={() => setListEditor((current) => !current)}>
+          {translation.manageLists}
+        </button>
+        {listEditor && (
+          <div className="list-membership-editor">
+            <input
+              aria-label={translation.listId}
+              inputMode="numeric"
+              pattern="[0-9]+"
+              maxLength={30}
+              value={listId}
+              onChange={(event) => setListId(event.target.value)}
+            />
+            <button type="button" disabled={busyAction !== null} onClick={() => listAction("add")}>
+              {translation.addToList}
+              {completedAction === "list-add" ? ` · ${translation.userActionCompleted}` : ""}
+            </button>
+            <button
+              type="button"
+              disabled={busyAction !== null}
+              onClick={() => listAction("remove")}
+            >
+              {translation.removeFromList}
+              {completedAction === "list-remove" ? ` · ${translation.userActionCompleted}` : ""}
+            </button>
+          </div>
+        )}
         {links.map(([label, href]) => (
           <a key={label} href={href} target="_blank" rel="noreferrer">
             {label}
           </a>
         ))}
+        {error && <p className="post-menu-error">{translation.userActionFailed}</p>}
       </div>
     </details>
   );
@@ -392,27 +511,5 @@ function Action({
 function compactNumber(value: number): string {
   return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(
     value,
-  );
-}
-
-function relativeTime(value: string | null): string | null {
-  if (value === null) {
-    return null;
-  }
-  const milliseconds = new Date(value).getTime() - Date.now();
-  if (!Number.isFinite(milliseconds)) {
-    return null;
-  }
-  const minutes = Math.round(milliseconds / 60_000);
-  if (Math.abs(minutes) < 60) {
-    return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(minutes, "minute");
-  }
-  const hours = Math.round(minutes / 60);
-  if (Math.abs(hours) < 24) {
-    return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(hours, "hour");
-  }
-  return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
-    Math.round(hours / 24),
-    "day",
   );
 }

@@ -113,6 +113,7 @@ export function AccountVaultSetup({ translation }: AccountVaultSetupProps) {
         current === null ? current : { ...current, unlocked: false, unlockedAt: null },
       );
       setAccounts([]);
+      window.dispatchEvent(new Event("nytweetdeck:vault-locked"));
     } catch {
       setError(translation.vaultOperationError);
     } finally {

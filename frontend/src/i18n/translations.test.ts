@@ -15,6 +15,8 @@ describe("translation coverage", () => {
       if (locale !== "en") {
         expect(translate(locale).settings).not.toBe(english.settings);
         expect(translate(locale).column.home.title).not.toBe(english.column.home.title);
+        expect(translate(locale).followUser).not.toBe(english.followUser);
+        expect(translate(locale).manageLists).not.toBe(english.manageLists);
       }
     }
   });

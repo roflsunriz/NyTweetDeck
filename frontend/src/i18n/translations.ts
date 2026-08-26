@@ -16,6 +16,7 @@ export interface Translation {
   columnTarget: string;
   userTargetHint: string;
   listTargetHint: string;
+  searchTargetHint: string;
   confirmAddColumn: string;
   back: string;
   editMenu: string;
@@ -36,8 +37,15 @@ export interface Translation {
   loadMore: string;
   noPosts: string;
   timelineLoadError: string;
+  liveUpdateUnavailable: string;
   messageLoadError: string;
   noMessages: string;
+  noTrends: string;
+  trendLoadError: string;
+  trends: string;
+  noNotifications: string;
+  notificationLoadError: string;
+  notifications: string;
   reply: string;
   repost: string;
   quote: string;
@@ -54,12 +62,18 @@ export interface Translation {
   notInterested: string;
   followUser: string;
   manageLists: string;
+  listId: string;
+  addToList: string;
+  removeFromList: string;
   muteUser: string;
   blockUser: string;
   postActivity: string;
   embedPost: string;
   reportPost: string;
   requestCommunityNote: string;
+  confirmBlock: string;
+  userActionCompleted: string;
+  userActionFailed: string;
   composeTitle: string;
   postPlaceholder: string;
   publishPost: string;
@@ -131,6 +145,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     columnTarget: "対象",
     userTargetHint: "ユーザーIDを入力",
     listTargetHint: "リストIDを入力",
+    searchTargetHint: "検索語句を入力",
     confirmAddColumn: "このカラムを追加",
     back: "戻る",
     editMenu: "メインメニューを編集",
@@ -151,8 +166,15 @@ const translations: Partial<Record<Locale, Translation>> = {
     loadMore: "さらに読み込む",
     noPosts: "表示するポストがありません。",
     timelineLoadError: "タイムラインを読み込めませんでした。",
+    liveUpdateUnavailable: "リアルタイム更新へ接続できません。再接続を試行しています。",
     messageLoadError: "ダイレクトメッセージを読み込めませんでした。",
     noMessages: "表示するダイレクトメッセージがありません。",
+    noTrends: "表示するトレンドがありません。",
+    trendLoadError: "トレンドを読み込めませんでした。",
+    trends: "トレンド",
+    noNotifications: "表示する通知がありません。",
+    notificationLoadError: "通知を読み込めませんでした。",
+    notifications: "通知",
     reply: "返信",
     repost: "リポスト",
     quote: "引用",
@@ -169,12 +191,18 @@ const translations: Partial<Record<Locale, Translation>> = {
     notInterested: "このポストに興味がない",
     followUser: "フォロー",
     manageLists: "リストから追加と削除",
+    listId: "リストID",
+    addToList: "リストに追加",
+    removeFromList: "リストから削除",
     muteUser: "ミュート",
     blockUser: "ブロック",
     postActivity: "ポストアクティビティ",
     embedPost: "埋め込み",
     reportPost: "報告",
     requestCommunityNote: "コミュニティノートリクエスト",
+    confirmBlock: "このユーザーをブロックしますか？",
+    userActionCompleted: "完了",
+    userActionFailed: "ユーザー操作に失敗しました。",
     composeTitle: "ポストを作成",
     postPlaceholder: "いまどうしてる？",
     publishPost: "ポストする",
@@ -272,6 +300,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     },
     column: {
       home: { title: "おすすめ", description: "おすすめのポストを時系列で表示" },
+      following: { title: "フォロー中", description: "フォロー中の最新ポストを表示" },
+      search: { title: "検索", description: "指定した検索語句の最新ポストを表示" },
       notifications: { title: "通知", description: "返信やフォローなどの通知を表示" },
       history: { title: "履歴", description: "保存したポストや閲覧履歴を表示" },
       user: { title: "ユーザー", description: "指定したユーザーのポストを表示" },
@@ -287,6 +317,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     columnTarget: "Target",
     userTargetHint: "Enter a user ID",
     listTargetHint: "Enter a list ID",
+    searchTargetHint: "Enter a search query",
     confirmAddColumn: "Add this column",
     back: "Back",
     editMenu: "Edit main menu",
@@ -307,8 +338,15 @@ const translations: Partial<Record<Locale, Translation>> = {
     loadMore: "Load more",
     noPosts: "No posts to display.",
     timelineLoadError: "Could not load the timeline.",
+    liveUpdateUnavailable: "Real-time updates are unavailable. Reconnecting…",
     messageLoadError: "Could not load direct messages.",
     noMessages: "No direct messages to display.",
+    noTrends: "No trends to display.",
+    trendLoadError: "Could not load trends.",
+    trends: "Trends",
+    noNotifications: "No notifications to display.",
+    notificationLoadError: "Could not load notifications.",
+    notifications: "Notifications",
     reply: "Reply",
     repost: "Repost",
     quote: "Quote",
@@ -325,12 +363,18 @@ const translations: Partial<Record<Locale, Translation>> = {
     notInterested: "Not interested in this post",
     followUser: "Follow",
     manageLists: "Add or remove from Lists",
+    listId: "List ID",
+    addToList: "Add to List",
+    removeFromList: "Remove from List",
     muteUser: "Mute",
     blockUser: "Block",
     postActivity: "Post activity",
     embedPost: "Embed",
     reportPost: "Report",
     requestCommunityNote: "Request Community Note",
+    confirmBlock: "Block this user?",
+    userActionCompleted: "Done",
+    userActionFailed: "The user action failed.",
     composeTitle: "Compose post",
     postPlaceholder: "What is happening?",
     publishPost: "Post",
@@ -428,6 +472,11 @@ const translations: Partial<Record<Locale, Translation>> = {
     },
     column: {
       home: { title: "For you", description: "Show recommended posts in chronological order" },
+      following: {
+        title: "Following",
+        description: "Show the latest posts from followed accounts",
+      },
+      search: { title: "Search", description: "Show the latest posts matching a query" },
       notifications: {
         title: "Notifications",
         description: "Show replies, follows, and other alerts",

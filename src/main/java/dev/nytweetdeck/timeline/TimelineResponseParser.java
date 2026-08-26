@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -35,7 +36,12 @@ public class TimelineResponseParser {
             var posts = new LinkedHashMap<String, Post>();
             var cursor = new String[1];
             visit(root, posts, cursor);
-            return new TimelinePage(new ArrayList<>(posts.values()), cursor[0]);
+            var sortedPosts = new ArrayList<>(posts.values());
+            sortedPosts.sort(Comparator.comparing(
+                            TimelineResponseParser::sortableTime,
+                            Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(Post::id, Comparator.reverseOrder()));
+            return new TimelinePage(sortedPosts, cursor[0]);
         } catch (JacksonException | IllegalArgumentException exception) {
             throw new XApiHttpException("タイムライン応答を解析できません。", exception);
         }
@@ -208,6 +214,17 @@ public class TimelineResponseParser {
             } catch (RuntimeException ignored) {
                 return value;
             }
+        }
+    }
+
+    private static Instant sortableTime(Post post) {
+        if (post.createdAt() == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(post.createdAt());
+        } catch (RuntimeException exception) {
+            return null;
         }
     }
 

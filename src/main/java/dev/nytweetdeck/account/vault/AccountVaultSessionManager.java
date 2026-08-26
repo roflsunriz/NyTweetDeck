@@ -6,18 +6,28 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Service
 public class AccountVaultSessionManager {
 
     private final EncryptedAccountVault vault;
+    private final ApplicationEventPublisher eventPublisher;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private List<AccountSecrets> accounts = List.of();
     private char[] passphrase;
     private Instant unlockedAt;
 
     public AccountVaultSessionManager(EncryptedAccountVault vault) {
+        this(vault, ignored -> {});
+    }
+
+    @Autowired
+    public AccountVaultSessionManager(
+            EncryptedAccountVault vault, ApplicationEventPublisher eventPublisher) {
         this.vault = vault;
+        this.eventPublisher = eventPublisher;
     }
 
     public VaultStatus status() {
@@ -61,6 +71,7 @@ public class AccountVaultSessionManager {
         } finally {
             lock.writeLock().unlock();
         }
+        eventPublisher.publishEvent(new VaultLockedEvent());
     }
 
     public List<AccountSummary> accountSummaries() {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
@@ -105,6 +105,60 @@ describe("post actions", () => {
       />,
     );
     expect(second.container.querySelector("video")?.autoplay).toBe(true);
+  });
+
+  test("executes follow from the post menu through the authenticated local API", async () => {
+    let requestedUrl = "";
+    globalThis.fetch = (async (input) => {
+      requestedUrl = String(input);
+      return Response.json({ userId: "42", action: "follow" });
+    }) as typeof fetch;
+    const user = userEvent.setup();
+    render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
+
+    await user.click(screen.getByLabelText("ポストメニュー"));
+    await user.click(screen.getByRole("button", { name: "フォロー" }));
+
+    await screen.findByRole("button", { name: "フォロー · 完了" });
+    expect(requestedUrl).toContain("/api/v1/users/42/actions/follow?accountId=account-1");
+  });
+
+  test("adds the post author to a selected list through the Android mutation", async () => {
+    let requestedUrl = "";
+    globalThis.fetch = (async (input) => {
+      requestedUrl = String(input);
+      return Response.json({ userId: "42", listId: "84", action: "add" });
+    }) as typeof fetch;
+    const user = userEvent.setup();
+    render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
+
+    await user.click(screen.getByLabelText("ポストメニュー"));
+    await user.click(screen.getByRole("button", { name: "リストから追加と削除" }));
+    await user.type(screen.getByLabelText("リストID"), "84");
+    await user.click(screen.getByRole("button", { name: "リストに追加" }));
+
+    await screen.findByRole("button", { name: "リストに追加 · 完了" });
+    expect(requestedUrl).toContain("/api/v1/users/42/lists/84/add?accountId=account-1");
+  });
+
+  test("opens details by clicking or pressing Enter on the post card surface", async () => {
+    const onOpen = mock(() => undefined);
+    const user = userEvent.setup();
+    render(
+      <PostCard
+        post={post()}
+        accountId="account-1"
+        translation={translate("ja")}
+        onOpen={onOpen}
+      />,
+    );
+    const card = screen.getByRole("article", { name: "ポストの詳細" });
+
+    await user.click(card);
+    card.focus();
+    await user.keyboard("{Enter}");
+
+    expect(onOpen).toHaveBeenCalledTimes(2);
   });
 });
 

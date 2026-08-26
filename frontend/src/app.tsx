@@ -28,8 +28,10 @@ import { ComposerDialog } from "./components/composer-dialog";
 import { DirectMessageColumn } from "./components/direct-message-column";
 import { MenuEditorDialog } from "./components/menu-editor-dialog";
 import { LoginDialog } from "./components/login-dialog";
+import { NotificationsColumn } from "./components/notifications-column";
 import { SettingsDialog } from "./components/settings-dialog";
 import { TimelineColumn } from "./components/timeline-column";
+import { TrendsColumn } from "./components/trends-column";
 import { translate } from "./i18n/translations";
 import {
   type AppLayout,
@@ -62,6 +64,17 @@ const navIcons: Record<NavItemId, LucideIcon> = {
   spaces: Radio,
 };
 
+const externalNavigation: Partial<Record<NavItemId, string>> = {
+  chat: "https://x.com/i/chat",
+  grok: "https://x.com/i/grok",
+  premium: "https://x.com/i/premium_sign_up",
+  communities: "https://x.com/i/communities",
+  creatorStudio: "https://business.x.com/en/products/media-studio",
+  business: "https://business.x.com",
+  ads: "https://ads.x.com",
+  spaces: "https://x.com/i/spaces/start",
+};
+
 function createColumnId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `column-${Date.now()}-${Math.random()}`;
 }
@@ -76,7 +89,7 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 export function App() {
   const [layout, setLayout] = useState<AppLayout>(() => loadLayout(window.localStorage));
   const [dialog, setDialog] = useState<
-    "accounts" | "columns" | "composer" | "login" | "menu" | "settings" | null
+    "accounts" | "columns" | "composer" | "login" | "menu" | "search" | "settings" | null
   >(null);
   const translation = useMemo(() => translate(layout.locale), [layout.locale]);
 
@@ -102,6 +115,13 @@ export function App() {
     mediaQuery.addEventListener("change", updateTheme);
     return () => mediaQuery.removeEventListener("change", updateTheme);
   }, [layout.theme]);
+
+  useEffect(() => {
+    const clearActiveAccount = () =>
+      setLayout((current) => ({ ...current, activeAccountId: null }));
+    window.addEventListener("nytweetdeck:vault-locked", clearActiveAccount);
+    return () => window.removeEventListener("nytweetdeck:vault-locked", clearActiveAccount);
+  }, []);
 
   const addColumn = (kind: ColumnKind, target: string | null) => {
     setLayout((current) => ({
@@ -159,11 +179,24 @@ export function App() {
     } else if (item === "notifications") {
       addColumn("notifications", null);
     } else if (item === "search") {
-      setDialog("columns");
+      setDialog("search");
     } else if (item === "messages") {
       addColumn("messages", null);
     } else if (item === "trends") {
       addColumn("trends", null);
+    } else if (item === "following") {
+      addColumn("following", null);
+    } else if (item === "profile") {
+      if (layout.activeAccountId === null) {
+        setDialog("accounts");
+      } else {
+        addColumn("user", layout.activeAccountId);
+      }
+    } else {
+      const url = externalNavigation[item];
+      if (url !== undefined) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
     }
   };
 
@@ -289,7 +322,16 @@ export function App() {
                     <DirectMessageColumn
                       accountId={layout.activeAccountId}
                       translation={translation}
+                      subscriptionId={column.id}
                     />
+                  ) : column.kind === "notifications" ? (
+                    <NotificationsColumn
+                      accountId={layout.activeAccountId}
+                      translation={translation}
+                      display={layout.display}
+                    />
+                  ) : column.kind === "trends" ? (
+                    <TrendsColumn accountId={layout.activeAccountId} translation={translation} />
                   ) : (
                     <TimelineColumn
                       column={column}
@@ -318,6 +360,14 @@ export function App() {
       {dialog === "columns" && (
         <AddColumnDialog
           translation={translation}
+          onAdd={addColumn}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "search" && (
+        <AddColumnDialog
+          translation={translation}
+          initialKind="search"
           onAdd={addColumn}
           onClose={() => setDialog(null)}
         />

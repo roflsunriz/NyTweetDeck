@@ -12,9 +12,9 @@ afterEach(() => {
 
 describe("direct message column", () => {
   test("loads the authenticated Android inbox", async () => {
-    let requestedUrl = "";
+    const requestedUrls: string[] = [];
     globalThis.fetch = (async (input) => {
-      requestedUrl = String(input);
+      requestedUrls.push(String(input));
       return Response.json({
         messages: [
           {
@@ -36,6 +36,7 @@ describe("direct message column", () => {
 
     await screen.findByText("hello");
     expect(screen.getByText("@alice")).toBeDefined();
-    expect(requestedUrl).toContain("/api/v1/messages?accountId=account-1");
+    expect(requestedUrls).toContain("/api/v1/messages?accountId=account-1");
+    expect(requestedUrls).toContain("/api/v1/live/subscriptions/messages%3Adirect-messages");
   });
 });

@@ -1,3 +1,8 @@
+param(
+    [switch]$NoBrowser,
+    [switch]$ExitAfterReady
+)
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
@@ -31,7 +36,12 @@ try {
     if (-not $ready) {
         throw 'NyTweetDeckの起動が30秒以内に完了しませんでした。'
     }
-    Start-Process 'http://127.0.0.1:18080'
+    if (-not $NoBrowser) {
+        Start-Process 'http://127.0.0.1:18080'
+    }
+    if ($ExitAfterReady) {
+        return
+    }
     Wait-Process -Id $process.Id
 }
 finally {

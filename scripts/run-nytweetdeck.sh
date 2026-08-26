@@ -39,12 +39,18 @@ if [ "$READY" -ne 1 ]; then
   exit 1
 fi
 
-if command -v xdg-open >/dev/null 2>&1; then
+if [ "${NYTWEETDECK_NO_BROWSER:-0}" = "1" ]; then
+  :
+elif command -v xdg-open >/dev/null 2>&1; then
   xdg-open http://127.0.0.1:18080 >/dev/null 2>&1 || true
 elif command -v open >/dev/null 2>&1; then
   open http://127.0.0.1:18080
 else
   echo "ブラウザで http://127.0.0.1:18080 を開いてください。"
+fi
+
+if [ "${NYTWEETDECK_EXIT_AFTER_READY:-0}" = "1" ]; then
+  exit 0
 fi
 
 wait "$APP_PID"

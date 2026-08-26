@@ -3,6 +3,8 @@ export const layoutVersion = 3 as const;
 
 export const columnKinds = [
   "home",
+  "following",
+  "search",
   "notifications",
   "history",
   "user",

@@ -38,8 +38,27 @@ jobs:
           bun run test
           bun audit
 
+      - name: Validate release tag and source branch
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_VERSION#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "リリースタグはvから始まるSemVerで指定してください。" >&2
+            exit 1
+          fi
+          git fetch origin main --depth=1
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
       - name: Build application
-        run: mvn --batch-mode --no-transfer-progress clean verify
+        run: >-
+          mvn --batch-mode --no-transfer-progress
+          "-Drevision=${RELEASE_VERSION}" clean verify
+
+      - name: Verify packaged browser UI
+        run: bash ./scripts/verify-ui.sh "target/nytweetdeck-${RELEASE_VERSION}.jar"
 
       - name: Audit Maven dependencies
         shell: pwsh
@@ -48,11 +67,11 @@ jobs:
       - name: Package release
         shell: bash
         run: |
-          APP_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           mkdir -p dist/NyTweetDeck
-          cp "target/nytweetdeck-${APP_VERSION}.jar" dist/NyTweetDeck/NyTweetDeck.jar
+          cp "target/nytweetdeck-${RELEASE_VERSION}.jar" dist/NyTweetDeck/NyTweetDeck.jar
           cp scripts/run-nytweetdeck.ps1 scripts/run-nytweetdeck.cmd scripts/run-nytweetdeck.sh dist/NyTweetDeck/
-          cp README.md CHANGELOG.md dist/NyTweetDeck/
+          cp README.md CHANGELOG.md how-to-update.md dist/NyTweetDeck/
+          cp -r docs dist/NyTweetDeck/
           chmod +x dist/NyTweetDeck/run-nytweetdeck.sh
           cd dist
           zip -r "NyTweetDeck-${GITHUB_REF_NAME}.zip" NyTweetDeck

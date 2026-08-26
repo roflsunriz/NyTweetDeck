@@ -27,6 +27,11 @@ describe("account vault setup", () => {
       return new Response(null, { status: 204 });
     }) as typeof fetch;
     const user = userEvent.setup();
+    let lockEvents = 0;
+    const onLocked = () => {
+      lockEvents += 1;
+    };
+    window.addEventListener("nytweetdeck:vault-locked", onLocked);
     render(<AccountVaultSetup translation={translate("ja")} />);
 
     const passphraseField = await screen.findByLabelText("Vaultパスフレーズ");
@@ -45,5 +50,8 @@ describe("account vault setup", () => {
     expect(screen.queryByDisplayValue("correct horse battery staple")).toBeNull();
     const createRequest = requests.find((request) => request.url.endsWith("/create"));
     expect(createRequest?.body).toContain('"passphrase":"correct horse battery staple"');
+    await user.click(screen.getByRole("button", { name: "Vaultをロック" }));
+    expect(lockEvents).toBe(1);
+    window.removeEventListener("nytweetdeck:vault-locked", onLocked);
   });
 });

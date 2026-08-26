@@ -44,6 +44,9 @@ jobs:
       - name: Verify application
         run: mvn --batch-mode --no-transfer-progress verify
 
+      - name: Verify packaged browser UI
+        run: bash ./scripts/verify-ui.sh
+
       - name: Audit Maven dependencies
         shell: pwsh
         run: ./scripts/audit-maven.ps1

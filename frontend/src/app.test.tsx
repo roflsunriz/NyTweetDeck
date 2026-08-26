@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./app";
 
 const originalFetch = globalThis.fetch;
+const originalOpen = window.open;
 
 describe("NyTweetDeck shell", () => {
   beforeEach(() => {
@@ -30,6 +31,7 @@ describe("NyTweetDeck shell", () => {
   afterEach(() => {
     cleanup();
     globalThis.fetch = originalFetch;
+    window.open = originalOpen;
   });
 
   test("adds, persists, and removes a column", async () => {
@@ -96,4 +98,76 @@ describe("NyTweetDeck shell", () => {
     expect(screen.getByRole("heading", { name: "メッセージ" })).toBeDefined();
     expect(screen.getByRole("heading", { name: "トレンド" })).toBeDefined();
   });
+
+  test("creates a targeted search column from the default search menu", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "検索" }));
+    await user.type(screen.getByPlaceholderText("検索語句を入力"), "NyTweetDeck");
+    await user.click(screen.getByRole("button", { name: "このカラムを追加" }));
+
+    expect(screen.getByRole("heading", { name: "検索: NyTweetDeck" })).toBeDefined();
+  });
+
+  test("reorders navigation and columns through drag and drop and persists the order", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const navigationTransfer = dataTransfer();
+    const compose = screen.getByRole("button", { name: "ポストを作成" });
+    const search = screen.getByRole("button", { name: "検索" });
+
+    fireEvent.dragStart(compose, { dataTransfer: navigationTransfer });
+    fireEvent.drop(search, { dataTransfer: navigationTransfer });
+
+    await user.click(screen.getByRole("button", { name: "ホーム" }));
+    await user.click(screen.getByRole("button", { name: "通知" }));
+    const homeColumn = screen.getByRole("heading", { name: "おすすめ" }).closest("article");
+    const notificationColumn = screen.getByRole("heading", { name: "通知" }).closest("article");
+    if (homeColumn === null || notificationColumn === null) {
+      throw new Error("並べ替え対象のカラムが見つかりません。");
+    }
+    const columnTransfer = dataTransfer();
+    fireEvent.dragStart(homeColumn, { dataTransfer: columnTransfer });
+    fireEvent.drop(notificationColumn, { dataTransfer: columnTransfer });
+
+    const stored = JSON.parse(String(window.localStorage.getItem("nytweetdeck.layout"))) as {
+      navItems: string[];
+      columns: Array<{ kind: string }>;
+    };
+    expect(stored.navItems.slice(0, 2)).toEqual(["search", "compose"]);
+    expect(stored.columns.map((column) => column.kind)).toEqual(["notifications", "home"]);
+  });
+
+  test("activates optional following and official web menu destinations", async () => {
+    let openedUrl = "";
+    window.open = ((url) => {
+      openedUrl = String(url);
+      return null;
+    }) as typeof window.open;
+    const user = userEvent.setup();
+    const view = render(<App />);
+    const editMenu = view.container.querySelector('[data-action="edit-menu"]');
+    if (!(editMenu instanceof HTMLButtonElement)) {
+      throw new Error("メニュー編集ボタンが見つかりません。");
+    }
+
+    await user.click(editMenu);
+    await user.click(screen.getByRole("button", { name: "フォローする" }));
+    await user.click(screen.getByRole("button", { name: "Grok" }));
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+    await user.click(screen.getByRole("button", { name: "フォローする" }));
+    expect(screen.getByRole("heading", { name: "フォロー中" })).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "Grok" }));
+    expect(openedUrl).toBe("https://x.com/i/grok");
+  });
 });
+
+function dataTransfer(): DataTransfer {
+  const entries = new Map<string, string>();
+  return {
+    setData: (type: string, value: string) => entries.set(type, value),
+    getData: (type: string) => entries.get(type) ?? "",
+  } as unknown as DataTransfer;
+}

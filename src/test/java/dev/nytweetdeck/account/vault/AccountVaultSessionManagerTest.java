@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.json.JsonMapper;
@@ -48,6 +49,22 @@ class AccountVaultSessionManagerTest {
 
         assertThat(passphrase).containsOnly('\0');
         assertThat(controller.status().unlocked()).isTrue();
+    }
+
+    @Test
+    void publishesAnEventAfterSecretsAreClearedOnLock() {
+        var events = new ArrayList<Object>();
+        var vault = new EncryptedAccountVault(
+                JsonMapper.builder().build(),
+                temporaryDirectory.resolve("event-accounts.vault"),
+                new SecureRandom(new byte[] {1, 2, 3, 4}));
+        var manager = new AccountVaultSessionManager(vault, events::add);
+        manager.create("correct horse battery staple".toCharArray());
+
+        manager.lock();
+
+        assertThat(manager.status().unlocked()).isFalse();
+        assertThat(events).singleElement().isInstanceOf(VaultLockedEvent.class);
     }
 
     private AccountVaultSessionManager createManager() {

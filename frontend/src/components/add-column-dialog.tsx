@@ -6,6 +6,7 @@ import {
   Home,
   List,
   Mail,
+  Search,
   type LucideIcon,
   UserRound,
 } from "lucide-react";
@@ -18,10 +19,13 @@ interface AddColumnDialogProps {
   translation: Translation;
   onAdd: (kind: ColumnKind, target: string | null) => void;
   onClose: () => void;
+  initialKind?: ColumnKind;
 }
 
 const icons: Record<ColumnKind, LucideIcon> = {
   home: Home,
+  following: UserRound,
+  search: Search,
   notifications: Bell,
   history: Clock3,
   user: UserRound,
@@ -30,12 +34,17 @@ const icons: Record<ColumnKind, LucideIcon> = {
   trends: Flame,
 };
 
-export function AddColumnDialog({ translation, onAdd, onClose }: AddColumnDialogProps) {
-  const [pendingKind, setPendingKind] = useState<ColumnKind | null>(null);
+export function AddColumnDialog({
+  translation,
+  onAdd,
+  onClose,
+  initialKind,
+}: AddColumnDialogProps) {
+  const [pendingKind, setPendingKind] = useState<ColumnKind | null>(initialKind ?? null);
   const [target, setTarget] = useState("");
 
   const chooseKind = (kind: ColumnKind) => {
-    if (kind === "user" || kind === "list") {
+    if (kind === "user" || kind === "list" || kind === "search") {
       setPendingKind(kind);
       setTarget("");
       return;
@@ -91,7 +100,11 @@ export function AddColumnDialog({ translation, onAdd, onClose }: AddColumnDialog
               required
               maxLength={200}
               placeholder={
-                pendingKind === "user" ? translation.userTargetHint : translation.listTargetHint
+                pendingKind === "user"
+                  ? translation.userTargetHint
+                  : pendingKind === "search"
+                    ? translation.searchTargetHint
+                    : translation.listTargetHint
               }
               value={target}
               onChange={(event) => setTarget(event.target.value)}
