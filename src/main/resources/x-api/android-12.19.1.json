@@ -19,7 +19,8 @@
     "homeFollowing": "/2/timeline/home_latest.json",
     "notificationsAll": "/2/notifications/all.json",
     "notificationsMentions": "/2/notifications/mentions.json",
-    "search": "/2/search/adaptive.json"
+    "search": "/2/search/adaptive.json",
+    "dmInboxTrusted": "/1.1/dm/inbox_timeline/trusted.json"
   },
   "featureKeys": [
     "grok_translations_timeline_user_bio_auto_translation_is_enabled",
@@ -92,6 +93,12 @@
       "key": "search_timeline",
       "operationId": "Cw4mGS_lykQpyPf6S3H1Aw",
       "operationName": "SearchTimeline",
+      "type": "QUERY"
+    },
+    "trends": {
+      "key": "explore",
+      "operationId": "Asx7PE5Vg58zyneJkLAnMw",
+      "operationName": "Explore",
       "type": "QUERY"
     },
     "postDetail": {

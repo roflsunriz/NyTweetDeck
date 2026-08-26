@@ -1,4 +1,14 @@
-import { ArrowLeft, Bell, Clock3, Home, List, type LucideIcon, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  Bell,
+  Clock3,
+  Flame,
+  Home,
+  List,
+  Mail,
+  type LucideIcon,
+  UserRound,
+} from "lucide-react";
 import { type FormEvent, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { columnKinds, type ColumnKind } from "../model/layout";
@@ -16,6 +26,8 @@ const icons: Record<ColumnKind, LucideIcon> = {
   history: Clock3,
   user: UserRound,
   list: List,
+  messages: Mail,
+  trends: Flame,
 };
 
 export function AddColumnDialog({ translation, onAdd, onClose }: AddColumnDialogProps) {

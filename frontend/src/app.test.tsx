@@ -37,7 +37,9 @@ describe("NyTweetDeck shell", () => {
     const firstRender = render(<App />);
 
     expect(screen.getByText("カラムがありません")).toBeDefined();
-    const addColumnButton = screen.getAllByRole("button", { name: "カラムを追加" }).at(0);
+    const addColumnButton = screen
+      .getAllByRole("button", { name: "カラムを追加" })
+      .find((button) => button.classList.contains("large-add-button"));
     if (addColumnButton === undefined) {
       throw new Error("カラム追加ボタンが見つかりません。");
     }
@@ -64,5 +66,19 @@ describe("NyTweetDeck shell", () => {
     await user.selectOptions(screen.getByLabelText("Theme"), "light");
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(document.documentElement.lang).toBe("en");
+    await user.selectOptions(screen.getByLabelText("Language"), "ar");
+    expect(document.documentElement.lang).toBe("ar");
+    expect(document.documentElement.dir).toBe("rtl");
+  });
+
+  test("opens direct messages and trends from the default menu", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "ダイレクトメッセージ" }));
+    await user.click(screen.getByRole("button", { name: "トレンド" }));
+
+    expect(screen.getByRole("heading", { name: "メッセージ" })).toBeDefined();
+    expect(screen.getByRole("heading", { name: "トレンド" })).toBeDefined();
   });
 });

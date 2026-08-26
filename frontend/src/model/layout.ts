@@ -1,10 +1,18 @@
 export const layoutStorageKey = "nytweetdeck.layout";
 export const layoutVersion = 2 as const;
 
-export const columnKinds = ["home", "notifications", "history", "user", "list"] as const;
+export const columnKinds = [
+  "home",
+  "notifications",
+  "history",
+  "user",
+  "list",
+  "messages",
+  "trends",
+] as const;
 export type ColumnKind = (typeof columnKinds)[number];
 
-export const navItemIds = [
+export const defaultNavItemIds = [
   "compose",
   "search",
   "home",
@@ -12,8 +20,35 @@ export const navItemIds = [
   "messages",
   "trends",
 ] as const;
-export type NavItemId = (typeof navItemIds)[number];
-export type Locale = "ja" | "en";
+export const availableNavItemIds = [
+  ...defaultNavItemIds,
+  "following",
+  "chat",
+  "grok",
+  "premium",
+  "profile",
+  "communities",
+  "creatorStudio",
+  "business",
+  "ads",
+  "spaces",
+] as const;
+export type NavItemId = (typeof availableNavItemIds)[number];
+export const supportedLocales = [
+  "ja",
+  "en",
+  "zh",
+  "hi",
+  "es",
+  "fr",
+  "ar",
+  "pt",
+  "bn",
+  "ru",
+  "ur",
+] as const;
+export type Locale = (typeof supportedLocales)[number];
+export const rtlLocales: readonly Locale[] = ["ar", "ur"];
 export type Theme = "system" | "light" | "dark";
 
 export interface ColumnConfig {
@@ -41,7 +76,7 @@ export function createDefaultLayout(): AppLayout {
   return {
     version: layoutVersion,
     columns: [],
-    navItems: [...navItemIds],
+    navItems: [...defaultNavItemIds],
     locale: "ja",
     theme: "system",
     activeAccountId: null,
@@ -169,11 +204,11 @@ function isColumnKind(value: unknown): value is ColumnKind {
 }
 
 function isNavItemId(value: unknown): value is NavItemId {
-  return typeof value === "string" && navItemIds.includes(value as NavItemId);
+  return typeof value === "string" && availableNavItemIds.includes(value as NavItemId);
 }
 
 function isLocale(value: unknown): value is Locale {
-  return value === "ja" || value === "en";
+  return typeof value === "string" && supportedLocales.includes(value as Locale);
 }
 
 function isTheme(value: unknown): value is Theme {

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 class PostActionServiceTest {
 
-    private final PostActionService service = new PostActionService(null);
+    private final PostActionService service = new PostActionService(null, null);
 
     @Test
     void mapsAndroidMutationVariablesForEverySupportedAction() {

@@ -1,6 +1,17 @@
-import { BarChart3, Bookmark, Download, Heart, MessageCircle, Repeat2, Share2 } from "lucide-react";
+import {
+  BarChart3,
+  Bot,
+  Bookmark,
+  Download,
+  Heart,
+  MessageCircle,
+  MoreHorizontal,
+  Repeat2,
+  Share2,
+} from "lucide-react";
 import { useState } from "react";
 import type { Translation } from "../i18n/translations";
+import { ComposerDialog } from "./composer-dialog";
 
 export interface TimelinePost {
   id: string;
@@ -41,7 +52,10 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
   const [bookmarkCount, setBookmarkCount] = useState(post.bookmarkCount);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [replying, setReplying] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const time = relativeTime(post.createdAt);
+  const postUrl = `https://x.com/${post.author.username}/status/${post.id}`;
 
   const mutate = async (action: string, onSuccess: () => void) => {
     setBusyAction(action);
@@ -62,116 +76,193 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
     }
   };
   const share = async () => {
-    const url = `https://x.com/${post.author.username}/status/${post.id}`;
     if (navigator.share !== undefined) {
-      await navigator.share({ title: post.author.displayName, text: post.text, url });
+      await navigator.share({ title: post.author.displayName, text: post.text, url: postUrl });
     } else {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(postUrl);
     }
   };
 
+  if (hidden) {
+    return null;
+  }
+
   return (
-    <article className="post-card" data-post-id={post.id}>
-      <header>
-        {post.author.avatarUrl !== null ? (
-          <img src={post.author.avatarUrl} alt="" loading="lazy" />
-        ) : (
-          <span className="avatar-placeholder" aria-hidden="true" />
-        )}
-        <div>
-          <strong>{post.author.displayName}</strong>
-          <span>@{post.author.username}</span>
-        </div>
-        {time !== null && <time dateTime={post.createdAt ?? undefined}>{time}</time>}
-      </header>
-      {onOpen === undefined ? (
-        <p className="post-text">{post.text}</p>
-      ) : (
-        <button className="post-open-button post-text" type="button" onClick={onOpen}>
-          {post.text}
-        </button>
-      )}
-      {post.media.length > 0 && (
-        <div className="post-media">
-          {post.media.map((media) =>
-            media.type === "video" || media.type === "animated_gif" ? (
-              <video
-                key={media.id}
-                controls
-                muted
-                preload="metadata"
-                poster={media.previewUrl}
-                src={media.url}
-              />
-            ) : (
-              <img key={media.id} loading="lazy" src={media.url} alt="" />
-            ),
+    <>
+      <article className="post-card" data-post-id={post.id}>
+        <header>
+          {post.author.avatarUrl !== null ? (
+            <img src={post.author.avatarUrl} alt="" loading="lazy" />
+          ) : (
+            <span className="avatar-placeholder" aria-hidden="true" />
           )}
-        </div>
-      )}
-      <footer className="post-actions">
-        <Action disabled icon={MessageCircle} label={translation.reply} count={post.replyCount} />
-        <Action
-          icon={Repeat2}
-          label={translation.repost}
-          count={repostCount}
-          active={reposted}
-          disabled={busyAction !== null}
-          onClick={() =>
-            mutate(reposted ? "undoRepost" : "repost", () => {
-              setReposted((current) => !current);
-              setRepostCount((current) => Math.max(0, current + (reposted ? -1 : 1)));
-            })
-          }
-        />
-        <Action
-          icon={Heart}
-          label={translation.like}
-          count={likeCount}
-          active={liked}
-          disabled={busyAction !== null}
-          onClick={() =>
-            mutate(liked ? "unlike" : "like", () => {
-              setLiked((current) => !current);
-              setLikeCount((current) => Math.max(0, current + (liked ? -1 : 1)));
-            })
-          }
-        />
-        <Action disabled icon={BarChart3} label={translation.views} count={post.viewCount} />
-        <Action
-          icon={Bookmark}
-          label={translation.bookmark}
-          count={bookmarkCount}
-          active={bookmarked}
-          disabled={busyAction !== null}
-          onClick={() =>
-            mutate(bookmarked ? "removeBookmark" : "bookmark", () => {
-              setBookmarked((current) => !current);
-              setBookmarkCount((current) => Math.max(0, current + (bookmarked ? -1 : 1)));
-            })
-          }
-        />
-        <button
-          type="button"
-          className="post-action"
-          aria-label={translation.share}
-          onClick={share}
-        >
-          <Share2 aria-hidden="true" size={16} />
-        </button>
-        {post.media[0] !== undefined && (
+          <div>
+            <strong>{post.author.displayName}</strong>
+            <span>@{post.author.username}</span>
+          </div>
+          {time !== null && <time dateTime={post.createdAt ?? undefined}>{time}</time>}
           <a
-            className="post-action"
-            aria-label={translation.downloadMedia}
-            href={post.media[0].url}
-            download
+            className="post-header-action"
+            aria-label={translation.askGrok}
+            href={`https://x.com/i/grok?text=${encodeURIComponent(`Analyze this post: ${postUrl}`)}`}
+            target="_blank"
+            rel="noreferrer"
           >
-            <Download aria-hidden="true" size={16} />
+            <Bot aria-hidden="true" size={16} />
           </a>
+          <PostMenu
+            postUrl={postUrl}
+            username={post.author.username}
+            translation={translation}
+            onHide={() => setHidden(true)}
+          />
+        </header>
+        {onOpen === undefined ? (
+          <p className="post-text">{post.text}</p>
+        ) : (
+          <button className="post-open-button post-text" type="button" onClick={onOpen}>
+            {post.text}
+          </button>
         )}
-      </footer>
-      {actionError !== null && <p className="post-action-error">{actionError}</p>}
-    </article>
+        {post.media.length > 0 && (
+          <div className="post-media">
+            {post.media.map((media) =>
+              media.type === "video" || media.type === "animated_gif" ? (
+                <video
+                  key={media.id}
+                  controls
+                  muted
+                  preload="metadata"
+                  poster={media.previewUrl}
+                  src={media.url}
+                />
+              ) : (
+                <img key={media.id} loading="lazy" src={media.url} alt="" />
+              ),
+            )}
+          </div>
+        )}
+        <footer className="post-actions">
+          <Action
+            icon={MessageCircle}
+            label={translation.reply}
+            count={post.replyCount}
+            onClick={() => setReplying(true)}
+          />
+          <Action
+            icon={Repeat2}
+            label={translation.repost}
+            count={repostCount}
+            active={reposted}
+            disabled={busyAction !== null}
+            onClick={() =>
+              mutate(reposted ? "undoRepost" : "repost", () => {
+                setReposted((current) => !current);
+                setRepostCount((current) => Math.max(0, current + (reposted ? -1 : 1)));
+              })
+            }
+          />
+          <Action
+            icon={Heart}
+            label={translation.like}
+            count={likeCount}
+            active={liked}
+            disabled={busyAction !== null}
+            onClick={() =>
+              mutate(liked ? "unlike" : "like", () => {
+                setLiked((current) => !current);
+                setLikeCount((current) => Math.max(0, current + (liked ? -1 : 1)));
+              })
+            }
+          />
+          <Action disabled icon={BarChart3} label={translation.views} count={post.viewCount} />
+          <Action
+            icon={Bookmark}
+            label={translation.bookmark}
+            count={bookmarkCount}
+            active={bookmarked}
+            disabled={busyAction !== null}
+            onClick={() =>
+              mutate(bookmarked ? "removeBookmark" : "bookmark", () => {
+                setBookmarked((current) => !current);
+                setBookmarkCount((current) => Math.max(0, current + (bookmarked ? -1 : 1)));
+              })
+            }
+          />
+          <button
+            type="button"
+            className="post-action"
+            aria-label={translation.share}
+            onClick={share}
+          >
+            <Share2 aria-hidden="true" size={16} />
+          </button>
+          {post.media[0] !== undefined && (
+            <a
+              className="post-action"
+              aria-label={translation.downloadMedia}
+              href={post.media[0].url}
+              download
+            >
+              <Download aria-hidden="true" size={16} />
+            </a>
+          )}
+        </footer>
+        {actionError !== null && <p className="post-action-error">{actionError}</p>}
+      </article>
+      {replying && (
+        <ComposerDialog
+          translation={translation}
+          accountId={accountId}
+          inReplyToPostId={post.id}
+          onClose={() => setReplying(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function PostMenu({
+  postUrl,
+  username,
+  translation,
+  onHide,
+}: {
+  postUrl: string;
+  username: string;
+  translation: Translation;
+  onHide: () => void;
+}) {
+  const profileUrl = `https://x.com/${username}`;
+  const links = [
+    [translation.followUser, profileUrl],
+    [translation.manageLists, "https://x.com/i/lists"],
+    [translation.muteUser, profileUrl],
+    [translation.blockUser, profileUrl],
+    [translation.postActivity, `${postUrl}/analytics`],
+    [translation.embedPost, `https://publish.twitter.com/#query=${encodeURIComponent(postUrl)}`],
+    [
+      translation.reportPost,
+      `https://x.com/i/safety/report_story?tweet_id=${postUrl.split("/").at(-1)}`,
+    ],
+    [translation.requestCommunityNote, "https://x.com/i/communitynotes"],
+  ] as const;
+  return (
+    <details className="post-overflow">
+      <summary aria-label={translation.postMenu}>
+        <MoreHorizontal aria-hidden="true" size={17} />
+      </summary>
+      <div>
+        <button type="button" onClick={onHide}>
+          {translation.notInterested}
+        </button>
+        {links.map(([label, href]) => (
+          <a key={label} href={href} target="_blank" rel="noreferrer">
+            {label}
+          </a>
+        ))}
+      </div>
+    </details>
   );
 }
 

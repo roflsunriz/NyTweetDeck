@@ -9,6 +9,8 @@ export interface Translation {
   listTargetHint: string;
   confirmAddColumn: string;
   back: string;
+  editMenu: string;
+  editMenuDescription: string;
   noColumns: string;
   noColumnsDescription: string;
   close: string;
@@ -25,7 +27,8 @@ export interface Translation {
   loadMore: string;
   noPosts: string;
   timelineLoadError: string;
-  notificationsPending: string;
+  messageLoadError: string;
+  noMessages: string;
   reply: string;
   repost: string;
   like: string;
@@ -33,6 +36,17 @@ export interface Translation {
   bookmark: string;
   share: string;
   downloadMedia: string;
+  askGrok: string;
+  postMenu: string;
+  notInterested: string;
+  followUser: string;
+  manageLists: string;
+  muteUser: string;
+  blockUser: string;
+  postActivity: string;
+  embedPost: string;
+  reportPost: string;
+  requestCommunityNote: string;
   composeTitle: string;
   postPlaceholder: string;
   publishPost: string;
@@ -73,13 +87,18 @@ export interface Translation {
   vaultOperationError: string;
   accounts: string;
   noAccounts: string;
+  loginAccount: string;
+  continueLogin: string;
+  selectLoginChoice: string;
+  loginFailed: string;
+  unsupportedLoginStep: string;
   localeName: Record<Locale, string>;
   themeName: Record<Theme, string>;
   nav: Record<NavItemId, string>;
   column: Record<ColumnKind, { title: string; description: string }>;
 }
 
-const translations: Record<Locale, Translation> = {
+const translations: Partial<Record<Locale, Translation>> = {
   ja: {
     appName: "NyTweetDeck",
     addColumn: "カラムを追加",
@@ -89,12 +108,14 @@ const translations: Record<Locale, Translation> = {
     listTargetHint: "リストIDを入力",
     confirmAddColumn: "このカラムを追加",
     back: "戻る",
+    editMenu: "メインメニューを編集",
+    editMenuDescription: "表示する項目を選び、閉じた後にドラッグして並べ替えられます。",
     noColumns: "カラムがありません",
     noColumnsDescription: "追加ボタンから最初のカラムを作成できます。",
     close: "閉じる",
     removeColumn: (title) => `${title}を削除`,
     loginRequired: "ログインが必要です",
-    loginRequiredDescription: "Xアカウント接続機能は、Android版APIの解析後にここへ接続されます。",
+    loginRequiredDescription: "Vaultを解除し、使用するXアカウントを選択してください。",
     settings: "設定",
     accountSwitcher: "アカウント切り替え",
     selectAccount: "アカウントを選択",
@@ -105,7 +126,8 @@ const translations: Record<Locale, Translation> = {
     loadMore: "さらに読み込む",
     noPosts: "表示するポストがありません。",
     timelineLoadError: "タイムラインを読み込めませんでした。",
-    notificationsPending: "通知REST APIは接続準備中です。",
+    messageLoadError: "ダイレクトメッセージを読み込めませんでした。",
+    noMessages: "表示するダイレクトメッセージがありません。",
     reply: "返信",
     repost: "リポスト",
     like: "いいね",
@@ -113,6 +135,17 @@ const translations: Record<Locale, Translation> = {
     bookmark: "履歴に保存",
     share: "共有",
     downloadMedia: "メディアをダウンロード",
+    askGrok: "Grokに聞く",
+    postMenu: "ポストメニュー",
+    notInterested: "このポストに興味がない",
+    followUser: "フォロー",
+    manageLists: "リストから追加と削除",
+    muteUser: "ミュート",
+    blockUser: "ブロック",
+    postActivity: "ポストアクティビティ",
+    embedPost: "埋め込み",
+    reportPost: "報告",
+    requestCommunityNote: "コミュニティノートリクエスト",
     composeTitle: "ポストを作成",
     postPlaceholder: "いまどうしてる？",
     publishPost: "ポストする",
@@ -154,7 +187,24 @@ const translations: Record<Locale, Translation> = {
     vaultOperationError: "アカウントVaultを操作できませんでした。",
     accounts: "保存済みアカウント",
     noAccounts: "保存済みアカウントはありません。",
-    localeName: { ja: "日本語", en: "English" },
+    loginAccount: "Xアカウントにログイン",
+    continueLogin: "続ける",
+    selectLoginChoice: "選択してください",
+    loginFailed: "Xアカウントへログインできませんでした。設定と入力を確認してください。",
+    unsupportedLoginStep: "この認証手順には現在の端末では対応できません。",
+    localeName: {
+      ja: "日本語",
+      en: "English",
+      zh: "中文",
+      hi: "हिन्दी",
+      es: "Español",
+      fr: "Français",
+      ar: "العربية",
+      pt: "Português",
+      bn: "বাংলা",
+      ru: "Русский",
+      ur: "اردو",
+    },
     themeName: { system: "システム設定", light: "ライト", dark: "ダーク" },
     nav: {
       compose: "ポストを作成",
@@ -163,6 +213,16 @@ const translations: Record<Locale, Translation> = {
       notifications: "通知",
       messages: "ダイレクトメッセージ",
       trends: "トレンド",
+      following: "フォローする",
+      chat: "チャット",
+      grok: "Grok",
+      premium: "プレミアム",
+      profile: "プロフィール",
+      communities: "コミュニティ",
+      creatorStudio: "クリエイタースタジオ",
+      business: "ビジネス",
+      ads: "広告",
+      spaces: "スペースを作成",
     },
     column: {
       home: { title: "おすすめ", description: "おすすめのポストを時系列で表示" },
@@ -170,6 +230,8 @@ const translations: Record<Locale, Translation> = {
       history: { title: "履歴", description: "保存したポストや閲覧履歴を表示" },
       user: { title: "ユーザー", description: "指定したユーザーのポストを表示" },
       list: { title: "リスト", description: "アカウントに紐付くリストを表示" },
+      messages: { title: "メッセージ", description: "信頼済みDM受信箱を表示" },
+      trends: { title: "トレンド", description: "Exploreの話題とポストを表示" },
     },
   },
   en: {
@@ -181,12 +243,14 @@ const translations: Record<Locale, Translation> = {
     listTargetHint: "Enter a list ID",
     confirmAddColumn: "Add this column",
     back: "Back",
+    editMenu: "Edit main menu",
+    editMenuDescription: "Choose visible items, then drag them to reorder after closing.",
     noColumns: "No columns yet",
     noColumnsDescription: "Use the add button to create your first column.",
     close: "Close",
     removeColumn: (title) => `Remove ${title}`,
     loginRequired: "Sign-in required",
-    loginRequiredDescription: "X account connectivity will appear here after Android API analysis.",
+    loginRequiredDescription: "Unlock the vault and select the X account to use.",
     settings: "Settings",
     accountSwitcher: "Switch account",
     selectAccount: "Select account",
@@ -197,7 +261,8 @@ const translations: Record<Locale, Translation> = {
     loadMore: "Load more",
     noPosts: "No posts to display.",
     timelineLoadError: "Could not load the timeline.",
-    notificationsPending: "The notifications REST API is being connected.",
+    messageLoadError: "Could not load direct messages.",
+    noMessages: "No direct messages to display.",
     reply: "Reply",
     repost: "Repost",
     like: "Like",
@@ -205,6 +270,17 @@ const translations: Record<Locale, Translation> = {
     bookmark: "Save to history",
     share: "Share",
     downloadMedia: "Download media",
+    askGrok: "Ask Grok",
+    postMenu: "Post menu",
+    notInterested: "Not interested in this post",
+    followUser: "Follow",
+    manageLists: "Add or remove from Lists",
+    muteUser: "Mute",
+    blockUser: "Block",
+    postActivity: "Post activity",
+    embedPost: "Embed",
+    reportPost: "Report",
+    requestCommunityNote: "Request Community Note",
     composeTitle: "Compose post",
     postPlaceholder: "What is happening?",
     publishPost: "Post",
@@ -246,7 +322,24 @@ const translations: Record<Locale, Translation> = {
     vaultOperationError: "Could not operate the account vault.",
     accounts: "Saved accounts",
     noAccounts: "No saved accounts yet.",
-    localeName: { ja: "日本語", en: "English" },
+    loginAccount: "Sign in to X",
+    continueLogin: "Continue",
+    selectLoginChoice: "Select an option",
+    loginFailed: "Could not sign in to X. Check setup and your input.",
+    unsupportedLoginStep: "This authentication step is not supported on this device.",
+    localeName: {
+      ja: "日本語",
+      en: "English",
+      zh: "中文",
+      hi: "हिन्दी",
+      es: "Español",
+      fr: "Français",
+      ar: "العربية",
+      pt: "Português",
+      bn: "বাংলা",
+      ru: "Русский",
+      ur: "اردو",
+    },
     themeName: { system: "System", light: "Light", dark: "Dark" },
     nav: {
       compose: "Compose",
@@ -255,6 +348,16 @@ const translations: Record<Locale, Translation> = {
       notifications: "Notifications",
       messages: "Direct messages",
       trends: "Trends",
+      following: "Following",
+      chat: "Chat",
+      grok: "Grok",
+      premium: "Premium",
+      profile: "Profile",
+      communities: "Communities",
+      creatorStudio: "Creator Studio",
+      business: "Business",
+      ads: "Ads",
+      spaces: "Create a Space",
     },
     column: {
       home: { title: "For you", description: "Show recommended posts in chronological order" },
@@ -265,10 +368,16 @@ const translations: Record<Locale, Translation> = {
       history: { title: "History", description: "Show saved posts and viewing history" },
       user: { title: "User", description: "Show posts from a selected user" },
       list: { title: "List", description: "Show a list connected to your account" },
+      messages: { title: "Messages", description: "Show the trusted DM inbox" },
+      trends: { title: "Trends", description: "Show Explore topics and posts" },
     },
   },
 };
 
 export function translate(locale: Locale): Translation {
-  return translations[locale] ?? translations.ja;
+  const translation = translations[locale] ?? translations.en ?? translations.ja;
+  if (translation === undefined) {
+    throw new Error("翻訳辞書がありません。");
+  }
+  return translation;
 }

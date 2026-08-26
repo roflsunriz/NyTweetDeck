@@ -43,6 +43,19 @@ describe("post actions", () => {
     await screen.findByText("タイムラインを読み込めませんでした。");
     expect(bookmarkButton.textContent).toBe("4");
   });
+
+  test("opens reply composer and the complete overflow menu", async () => {
+    const user = userEvent.setup();
+    render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
+
+    await user.click(screen.getByRole("button", { name: "返信" }));
+    expect(screen.getByRole("heading", { name: "返信" })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+    await user.click(screen.getByLabelText("ポストメニュー"));
+
+    expect(screen.getByRole("button", { name: "このポストに興味がない" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "コミュニティノートリクエスト" })).toBeDefined();
+  });
 });
 
 function post(): TimelinePost {

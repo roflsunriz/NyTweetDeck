@@ -11,10 +11,10 @@ class PostServiceTest {
         assertThatThrownBy(() -> PostService.validatePostId("invalid"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("形式");
-        assertThatThrownBy(() -> new PostService(null, null).create("account", "", null))
+        assertThatThrownBy(() -> new PostService(null, null, null).create("account", "", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("1〜4000");
-        assertThatThrownBy(() -> new PostService(null, null).create(
+        assertThatThrownBy(() -> new PostService(null, null, null).create(
                         "account", "a".repeat(4001), null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("1〜4000");

@@ -34,9 +34,11 @@ BunのHTMLエントリーポイントをBun bundlerへ渡し、`target/classes/s
 6. 再読み込み後もカラムと表示設定が復元される。
 7. 設定画面からAndroid端末プロファイルを保存する。
 8. 暗号化アカウントVaultを作成、解除、ロックする。
-9. 選択アカウントでホーム、ユーザー、リスト、履歴、検索カラムを取得する。
+9. 選択アカウントでホーム、通知、ユーザー、リスト、履歴、検索、トレンド、DM受信箱カラムを取得する。
 10. cursorで過去ページを追加し、いいね、リポスト、履歴保存を実行する。
+11. 投稿・返信・ポスト操作が成功すると、アカウント別SSEで表示中カラムを再取得する。
+12. アカウント切替画面からAndroid OCFログインを開始し、動的subtaskを完了後、OAuth token/secretをブラウザへ返さずVaultへ暗号化保存する。
 
 ## 次の接続点
 
-解析対象のAPKMからAPIホスト、GraphQL操作ID、RESTパス、標準ヘッダー、OCFログイン、OAuth 1.0a署名方式まで確認済みです。Guest認証、OCF状態機械、端末プロファイル、暗号化Vault、GraphQL Feature Switch、タイムライン正規化、主要Mutationも実装済みです。次は、通知REST API、投稿詳細・返信・投稿作成、メニュー並べ替えを接続し、明示承認後に実ログインを検証します。
+解析対象のAPKMからAPIホスト、GraphQL操作ID、RESTパス、標準ヘッダー、OCFログインと`open_account`、OAuth 1.0a署名方式、DM受信箱、Explore、Live Pipelineの接続仕様まで確認済みです。Guest認証、OCF状態機械とブラウザUI、端末プロファイル、暗号化Vault、GraphQL Feature Switch、タイムライン正規化、主要Mutation、ローカルSSE更新も実装済みです。残る外部X上の新規投稿イベントと実ログインの実地確認は、Androidクライアント資格情報の抽出・利用に対する明示承認後に行います。

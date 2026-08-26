@@ -1,20 +1,33 @@
 import {
+  BadgeCheck,
   Bell,
+  BriefcaseBusiness,
   CircleUserRound,
+  Clapperboard,
   Flame,
   Home,
   Mail,
+  Megaphone,
+  MessageCircleMore,
   Minus,
   PenLine,
   Plus,
+  Radio,
   Search,
   Settings,
+  Sparkles,
+  UserPlus,
+  UserRound,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AddColumnDialog } from "./components/add-column-dialog";
 import { AccountSwitcherDialog } from "./components/account-switcher-dialog";
 import { ComposerDialog } from "./components/composer-dialog";
+import { DirectMessageColumn } from "./components/direct-message-column";
+import { MenuEditorDialog } from "./components/menu-editor-dialog";
+import { LoginDialog } from "./components/login-dialog";
 import { SettingsDialog } from "./components/settings-dialog";
 import { TimelineColumn } from "./components/timeline-column";
 import { translate } from "./i18n/translations";
@@ -26,6 +39,7 @@ import {
   moveItem,
   type NavItemId,
   saveLayout,
+  rtlLocales,
   type Theme,
 } from "./model/layout";
 
@@ -36,6 +50,16 @@ const navIcons: Record<NavItemId, LucideIcon> = {
   notifications: Bell,
   messages: Mail,
   trends: Flame,
+  following: UserPlus,
+  chat: MessageCircleMore,
+  grok: Sparkles,
+  premium: BadgeCheck,
+  profile: UserRound,
+  communities: Users,
+  creatorStudio: Clapperboard,
+  business: BriefcaseBusiness,
+  ads: Megaphone,
+  spaces: Radio,
 };
 
 function createColumnId(): string {
@@ -51,14 +75,15 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 
 export function App() {
   const [layout, setLayout] = useState<AppLayout>(() => loadLayout(window.localStorage));
-  const [dialog, setDialog] = useState<"accounts" | "columns" | "composer" | "settings" | null>(
-    null,
-  );
+  const [dialog, setDialog] = useState<
+    "accounts" | "columns" | "composer" | "login" | "menu" | "settings" | null
+  >(null);
   const translation = useMemo(() => translate(layout.locale), [layout.locale]);
 
   useEffect(() => {
     saveLayout(window.localStorage, layout);
     document.documentElement.lang = layout.locale;
+    document.documentElement.dir = rtlLocales.includes(layout.locale) ? "rtl" : "ltr";
     document.documentElement.dataset.theme = resolveTheme(layout.theme);
   }, [layout]);
 
@@ -91,6 +116,8 @@ export function App() {
 
   const setLocale = (locale: Locale) => setLayout((current) => ({ ...current, locale }));
   const setTheme = (theme: Theme) => setLayout((current) => ({ ...current, theme }));
+  const setNavigationItems = (navItems: NavItemId[]) =>
+    setLayout((current) => ({ ...current, navItems }));
   const setActiveAccount = (activeAccountId: string) => {
     setLayout((current) => ({ ...current, activeAccountId }));
     setDialog(null);
@@ -127,6 +154,10 @@ export function App() {
       addColumn("notifications", null);
     } else if (item === "search") {
       setDialog("columns");
+    } else if (item === "messages") {
+      addColumn("messages", null);
+    } else if (item === "trends") {
+      addColumn("trends", null);
     }
   };
 
@@ -147,7 +178,6 @@ export function App() {
                 draggable
                 aria-label={translation.nav[item]}
                 onClick={() => activateNavigation(item)}
-                disabled={item === "messages" || item === "trends"}
                 onDragStart={(event) => event.dataTransfer.setData("text/plain", `nav:${item}`)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
@@ -165,7 +195,7 @@ export function App() {
             className="nav-button add-nav-button"
             type="button"
             aria-label={translation.addColumn}
-            onClick={() => setDialog("columns")}
+            onClick={() => setDialog("menu")}
           >
             <Plus aria-hidden="true" size={22} />
           </button>
@@ -243,11 +273,18 @@ export function App() {
                       <Minus aria-hidden="true" size={20} />
                     </button>
                   </header>
-                  <TimelineColumn
-                    column={column}
-                    accountId={layout.activeAccountId}
-                    translation={translation}
-                  />
+                  {column.kind === "messages" ? (
+                    <DirectMessageColumn
+                      accountId={layout.activeAccountId}
+                      translation={translation}
+                    />
+                  ) : (
+                    <TimelineColumn
+                      column={column}
+                      accountId={layout.activeAccountId}
+                      translation={translation}
+                    />
+                  )}
                 </article>
               );
             })}
@@ -286,6 +323,14 @@ export function App() {
           translation={translation}
           activeAccountId={layout.activeAccountId}
           onSelect={setActiveAccount}
+          onLogin={() => setDialog("login")}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "login" && (
+        <LoginDialog
+          translation={translation}
+          onComplete={setActiveAccount}
           onClose={() => setDialog(null)}
         />
       )}
@@ -293,6 +338,14 @@ export function App() {
         <ComposerDialog
           translation={translation}
           accountId={layout.activeAccountId}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "menu" && (
+        <MenuEditorDialog
+          translation={translation}
+          selected={layout.navItems}
+          onChange={setNavigationItems}
           onClose={() => setDialog(null)}
         />
       )}

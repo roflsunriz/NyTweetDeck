@@ -1,5 +1,6 @@
 package dev.nytweetdeck.post;
 
+import dev.nytweetdeck.timeline.TimelineEventBus;
 import dev.nytweetdeck.xapi.graphql.AuthenticatedGraphQlClient;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -8,14 +9,18 @@ import org.springframework.stereotype.Service;
 public class PostActionService {
 
     private final AuthenticatedGraphQlClient graphQlClient;
+    private final TimelineEventBus eventBus;
 
-    public PostActionService(AuthenticatedGraphQlClient graphQlClient) {
+    public PostActionService(
+            AuthenticatedGraphQlClient graphQlClient, TimelineEventBus eventBus) {
         this.graphQlClient = graphQlClient;
+        this.eventBus = eventBus;
     }
 
     public ActionResult execute(String accountId, String postId, String action) {
         var request = createRequest(postId, action);
         graphQlClient.execute(accountId, request.purpose(), request.variables());
+        eventBus.publish(accountId, action, postId);
         return new ActionResult(postId, action);
     }
 

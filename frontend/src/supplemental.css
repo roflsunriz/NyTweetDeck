@@ -1,0 +1,276 @@
+.vault-unlocked-content {
+  margin-top: 13px;
+}
+
+.vault-unlocked-content h4 {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.vault-unlocked-content p {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.vault-unlocked-content ul {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.vault-unlocked-content li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  font-size: 0.76rem;
+}
+
+.secondary-button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.composer-message {
+  margin: 0;
+  padding: 20px;
+  color: var(--text-muted);
+}
+
+.composer-form {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px 22px;
+}
+
+.composer-form textarea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.composer-footer > span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.vault-unlocked-content li span {
+  color: var(--text-muted);
+}
+
+.post-detail-content {
+  min-height: 180px;
+}
+
+.post-detail-content > p {
+  padding: 18px 20px;
+  color: var(--text-muted);
+}
+
+.post-detail-content > h3 {
+  margin: 0;
+  padding: 15px 14px 9px;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+.detail-reply-button {
+  margin: 12px 14px;
+}
+
+@media (max-width: 620px) {
+  .app-shell {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .main-navigation {
+    padding-inline: 5px;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .nav-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .column-track {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .deck-column,
+  .inline-add-column {
+    flex-basis: calc(100vw - 62px);
+  }
+
+  .column-type-grid,
+  .device-profile-form,
+  .vault-form,
+  .menu-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-form label {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+}
+
+@media (max-height: 520px) {
+  .brand-mark {
+    display: none;
+  }
+
+  .nav-button {
+    width: 37px;
+    height: 37px;
+  }
+
+  .secondary-actions {
+    padding-top: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+  }
+}
+
+[dir="rtl"] .back-button svg,
+[dir="rtl"] .post-action svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .post-card,
+[dir="rtl"] .column-type-card {
+  text-align: right;
+}
+
+.post-header-action,
+.post-overflow summary {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.post-header-action:hover,
+.post-overflow summary:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.post-overflow {
+  position: relative;
+}
+
+.post-overflow summary {
+  list-style: none;
+}
+
+.post-overflow summary::-webkit-details-marker {
+  display: none;
+}
+
+.post-overflow > div {
+  position: absolute;
+  z-index: 5;
+  inset-block-start: 32px;
+  inset-inline-end: 0;
+  display: grid;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+}
+
+.post-overflow a,
+.post-overflow button {
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.post-overflow a:hover,
+.post-overflow button:hover {
+  background: var(--surface-hover);
+}
+
+.account-login-button {
+  margin: 0 18px 18px;
+}
+
+.login-flow {
+  padding: 20px;
+}
+
+.login-flow > p {
+  margin: 0;
+}
+
+.login-flow form {
+  display: grid;
+  gap: 13px;
+}
+
+.login-prompt {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.login-flow input,
+.login-flow select {
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--text);
+}

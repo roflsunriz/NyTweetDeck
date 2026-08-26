@@ -33,10 +33,32 @@ public class OcfFlowParser {
             for (JsonNode subtaskNode : subtasksNode) {
                 subtasks.add(parseSubtask(subtaskNode));
             }
-            return new OcfFlow(flowToken, subtasks);
+            return new OcfFlow(flowToken, subtasks, parseAccount(subtasksNode));
         } catch (JacksonException | IllegalArgumentException exception) {
             throw new XApiHttpException("OCF応答を解析できません。", exception);
         }
+    }
+
+    private static OcfFlow.OcfAccount parseAccount(JsonNode subtasksNode) {
+        for (var subtask : subtasksNode) {
+            var openAccount = subtask.get("open_account");
+            if (openAccount == null || !openAccount.isObject()) {
+                continue;
+            }
+            var user = openAccount.get("user");
+            var userId = firstNonNull(text(user, "id_str"), text(user, "id"));
+            var username = text(user, "screen_name");
+            var oauthToken = text(openAccount, "oauth_token");
+            var oauthTokenSecret = text(openAccount, "oauth_token_secret");
+            if (userId != null
+                    && username != null
+                    && oauthToken != null
+                    && oauthTokenSecret != null) {
+                return new OcfFlow.OcfAccount(
+                        userId, username, text(user, "name"), oauthToken, oauthTokenSecret);
+            }
+        }
+        return null;
     }
 
     private OcfSubtask parseSubtask(JsonNode subtaskNode) {
@@ -133,6 +155,10 @@ public class OcfFlowParser {
             current = current.get(field);
         }
         return current == null || current.isNull() ? null : current.asString(null);
+    }
+
+    private static String firstNonNull(String first, String second) {
+        return first == null ? second : first;
     }
 
     private static Map<String, OcfSubtaskType> createTypes() {

@@ -191,8 +191,7 @@ for (const viewport of viewports) {
 
   for (let index = 0; index < viewport.columns; index += 1) {
     const clicked = await client.evaluate<boolean>(`(() => {
-      const button = [...document.querySelectorAll("button")]
-        .find((candidate) => candidate.getAttribute("aria-label") === "カラムを追加");
+      const button = document.querySelector(".large-add-button, .inline-add-column");
       if (!(button instanceof HTMLButtonElement)) return false;
       button.click();
       return true;

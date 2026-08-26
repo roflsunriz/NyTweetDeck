@@ -1,5 +1,6 @@
 import type { Translation } from "../i18n/translations";
 import type { Locale, Theme } from "../model/layout";
+import { supportedLocales } from "../model/layout";
 import { Modal } from "./modal";
 import { AccountVaultSetup } from "./account-vault-setup";
 import { XApiSetup } from "./x-api-setup";
@@ -27,8 +28,11 @@ export function SettingsDialog({
         <label>
           <span>{translation.language}</span>
           <select value={locale} onChange={(event) => onLocaleChange(event.target.value as Locale)}>
-            <option value="ja">{translation.localeName.ja}</option>
-            <option value="en">{translation.localeName.en}</option>
+            {supportedLocales.map((supportedLocale) => (
+              <option key={supportedLocale} value={supportedLocale}>
+                {translation.localeName[supportedLocale]}
+              </option>
+            ))}
           </select>
         </label>
         <label>

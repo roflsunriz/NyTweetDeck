@@ -73,4 +73,15 @@ class OcfFlowParserTest {
                 .isInstanceOf(XApiHttpException.class)
                 .hasMessageContaining("解析");
     }
+
+    @Test
+    void extractsCompletedAccountWithoutExposingOauthSecrets() {
+        var flow = parser.parse("""
+                {"flow_token":"token","subtasks":[{"subtask_id":"OpenAccount","open_account":{"user":{"id_str":"42","screen_name":"alice","name":"Alice"},"oauth_token":"oauth-value","oauth_token_secret":"oauth-secret"}}]}
+                """);
+
+        assertThat(flow.account().userId()).isEqualTo("42");
+        assertThat(flow.account().username()).isEqualTo("alice");
+        assertThat(flow.toString()).doesNotContain("oauth-value", "oauth-secret");
+    }
 }

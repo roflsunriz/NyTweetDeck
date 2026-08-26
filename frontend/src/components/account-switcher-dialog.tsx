@@ -14,6 +14,7 @@ interface AccountSwitcherDialogProps {
   translation: Translation;
   activeAccountId: string | null;
   onSelect: (accountId: string) => void;
+  onLogin: () => void;
   onClose: () => void;
 }
 
@@ -21,6 +22,7 @@ export function AccountSwitcherDialog({
   translation,
   activeAccountId,
   onSelect,
+  onLogin,
   onClose,
 }: AccountSwitcherDialogProps) {
   const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
@@ -63,6 +65,9 @@ export function AccountSwitcherDialog({
           ))
         )}
       </div>
+      <button className="primary-button account-login-button" type="button" onClick={onLogin}>
+        {translation.loginAccount}
+      </button>
     </Modal>
   );
 }

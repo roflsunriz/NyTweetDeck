@@ -67,6 +67,20 @@ export function TimelineColumn({ column, accountId, translation }: TimelineColum
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (accountId === null || typeof EventSource === "undefined") {
+      return;
+    }
+    const params = new URLSearchParams({ accountId });
+    const source = new EventSource(`/api/v1/events/timeline?${params}`);
+    const reload = () => void load();
+    source.addEventListener("timeline-update", reload);
+    return () => {
+      source.removeEventListener("timeline-update", reload);
+      source.close();
+    };
+  }, [accountId, load]);
+
   if (accountId === null) {
     return (
       <ColumnMessage
@@ -137,6 +151,10 @@ function timelineKind(kind: ColumnConfig["kind"]): string {
       return "list";
     case "notifications":
       return "notifications";
+    case "trends":
+      return "trends";
+    case "messages":
+      throw new Error("メッセージは専用カラムで表示します。");
   }
 }
 

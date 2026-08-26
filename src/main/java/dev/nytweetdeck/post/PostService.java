@@ -1,6 +1,7 @@
 package dev.nytweetdeck.post;
 
 import dev.nytweetdeck.timeline.TimelinePage;
+import dev.nytweetdeck.timeline.TimelineEventBus;
 import dev.nytweetdeck.timeline.TimelineResponseParser;
 import dev.nytweetdeck.xapi.graphql.AuthenticatedGraphQlClient;
 import java.util.LinkedHashMap;
@@ -13,11 +14,15 @@ public class PostService {
 
     private final AuthenticatedGraphQlClient graphQlClient;
     private final TimelineResponseParser responseParser;
+    private final TimelineEventBus eventBus;
 
     public PostService(
-            AuthenticatedGraphQlClient graphQlClient, TimelineResponseParser responseParser) {
+            AuthenticatedGraphQlClient graphQlClient,
+            TimelineResponseParser responseParser,
+            TimelineEventBus eventBus) {
         this.graphQlClient = graphQlClient;
         this.responseParser = responseParser;
+        this.eventBus = eventBus;
     }
 
     public PostDetail detail(String accountId, String postId, String cursor) {
@@ -73,9 +78,11 @@ public class PostService {
                             "exclude_reply_user_ids", List.of()));
         }
         var result = graphQlClient.execute(accountId, "createPost", variables);
-        return responseParser.parse(result.rawJson()).posts().stream()
+        var post = responseParser.parse(result.rawJson()).posts().stream()
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("投稿応答に作成済みポストがありません。"));
+        eventBus.publish(accountId, inReplyToPostId == null ? "create" : "reply", post.id());
+        return post;
     }
 
     static void validatePostId(String postId) {
