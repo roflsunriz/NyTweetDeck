@@ -1,6 +1,8 @@
 package dev.nytweetdeck.web;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.Locale;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -25,6 +27,53 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
         response.setHeader("Referrer-Policy", "no-referrer");
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setHeader("X-Frame-Options", "DENY");
+        response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+        response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+        response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+        if (request.getRequestURI().startsWith("/api/") && !isTrustedLocalRequest(request)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
         filterChain.doFilter(request, response);
+    }
+
+    private static boolean isTrustedLocalRequest(HttpServletRequest request) {
+        if (!isLoopbackHost(request.getServerName())) {
+            return false;
+        }
+        var fetchSite = request.getHeader("Sec-Fetch-Site");
+        if (fetchSite != null
+                && !fetchSite.equalsIgnoreCase("same-origin")
+                && !fetchSite.equalsIgnoreCase("none")) {
+            return false;
+        }
+        var origin = request.getHeader("Origin");
+        if (origin == null || origin.equals("null")) {
+            return origin == null;
+        }
+        try {
+            var originUri = URI.create(origin);
+            var expectedPort = request.getServerPort();
+            var originPort = originUri.getPort();
+            if (originPort == -1) {
+                originPort = "https".equalsIgnoreCase(originUri.getScheme()) ? 443 : 80;
+            }
+            return "http".equalsIgnoreCase(originUri.getScheme())
+                    && isLoopbackHost(originUri.getHost())
+                    && originPort == expectedPort;
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private static boolean isLoopbackHost(String host) {
+        if (host == null) {
+            return false;
+        }
+        var normalized = host.toLowerCase(Locale.ROOT);
+        return normalized.equals("127.0.0.1")
+                || normalized.equals("localhost")
+                || normalized.equals("::1")
+                || normalized.equals("[::1]");
     }
 }
