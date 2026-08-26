@@ -17,6 +17,6 @@ class DirectMessageResponseParserTest {
         assertThat(page.nextCursor()).isEqualTo("99");
         assertThat(page.messages()).extracting(DirectMessagePage.DirectMessage::id)
                 .containsExactly("2", "1");
-        assertThat(page.messages().getFirst().senderUsername()).isEqualTo("alice");
+        assertThat(page.messages().get(0).senderUsername()).isEqualTo("alice");
     }
 }

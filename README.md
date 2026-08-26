@@ -10,7 +10,7 @@ X WebのGraphQL queryIdとFeature定義は、起動後および6時間ごとにX
 
 ## 必要な環境
 
-- JDK 21以上
+- JDK 17、21、25（正式対応するLTS。配布JARはJava 17 bytecode）
 - Maven 3.9以上
 - Bun 1.4以上
 - Google Chrome（X公式ログイン時）
@@ -62,6 +62,8 @@ mvn verify
 - ログイン用Chromeは専用の一時プロファイルとループバック限定のデバッグ接続で起動し、完了またはキャンセル時に終了します。
 
 詳しい構成は [docs/architecture.md](docs/architecture.md) を参照してください。
+
+JDKメーカー別のCI対象と固定方針は [docs/jdk-compatibility.md](docs/jdk-compatibility.md) を参照してください。
 
 ## リリース
 

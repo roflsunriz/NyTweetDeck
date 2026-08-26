@@ -9,7 +9,17 @@ if [ ! -f "$JAR_PATH" ]; then
   exit 1
 fi
 if ! command -v java >/dev/null 2>&1; then
-  echo "Java 21以上をインストールしてから再実行してください。" >&2
+  echo "Java 17、21、25のいずれかをインストールしてから再実行してください。" >&2
+  exit 1
+fi
+JAVA_VERSION_LINE=$(java -version 2>&1 | sed -n '1p')
+JAVA_MAJOR=$(printf '%s\n' "$JAVA_VERSION_LINE" | sed -nE 's/.*version "([0-9]+).*/\1/p')
+if [ -z "$JAVA_MAJOR" ]; then
+  echo "Javaのバージョンを確認できませんでした: $JAVA_VERSION_LINE" >&2
+  exit 1
+fi
+if [ "$JAVA_MAJOR" -lt 17 ]; then
+  echo "Java 17以上が必要です。現在のメジャーバージョン: $JAVA_MAJOR" >&2
   exit 1
 fi
 

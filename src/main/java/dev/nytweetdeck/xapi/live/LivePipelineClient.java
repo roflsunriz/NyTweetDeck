@@ -52,16 +52,17 @@ public class LivePipelineClient implements LivePipelineConnector {
         var firstRequest = createRequest(accountId, topics);
         var closed = new AtomicBoolean();
         var currentStream = new AtomicReference<InputStream>();
-        var thread = Thread.ofVirtual()
-                .name("nytweetdeck-live-pipeline-" + accountId)
-                .start(() -> run(
+        var thread = new Thread(() -> run(
                         accountId,
                         topics,
                         firstRequest,
                         eventConsumer,
                         errorConsumer,
                         closed,
-                        currentStream));
+                        currentStream),
+                "nytweetdeck-live-pipeline-" + accountId);
+        thread.setDaemon(true);
+        thread.start();
         return () -> {
             closed.set(true);
             close(currentStream.getAndSet(null));

@@ -55,3 +55,5 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 ## 環境
 - フロントエンドのバンドルには Bun bundler を使用する
+- Java LTS 17・21・25を正式対応とし、Java 17 bytecodeを生成する
+- CIではactions/setup-javaが公式対応する非推奨でない全JDKディストリビューションを17・21・25で固定検証する

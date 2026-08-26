@@ -22,7 +22,9 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "17"
+          java-package: jdk
+          check-latest: false
           cache: maven
 
       - name: Set up Bun
@@ -51,3 +53,67 @@ jobs:
       - name: Audit Maven dependencies
         shell: pwsh
         run: ./scripts/audit-maven.ps1
+
+  jdk-compatibility:
+    name: JDK ${{ matrix.distribution }} ${{ matrix.java-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        # setup-java v5が公式対応する非推奨でない全ディストリビューションを固定する。
+        distribution:
+          - temurin
+          - zulu
+          - liberica
+          - microsoft
+          - corretto
+          - semeru
+          - oracle
+          - dragonwell
+          - sapmachine
+          - graalvm
+          - graalvm-community
+          - jetbrains
+          - kona
+        java-version: ["17", "21", "25"]
+        exclude:
+          # Oracle/GraalVM 17はsetup-java公式README指定のGFTC/NFTC版へ固定する。
+          - distribution: oracle
+            java-version: "17"
+          - distribution: graalvm
+            java-version: "17"
+        include:
+          - distribution: oracle
+            java-version: "17.0.12"
+          - distribution: graalvm
+            java-version: "17.0.12"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ matrix.distribution }}
+          java-version: ${{ matrix.java-version }}
+          java-package: jdk
+          check-latest: false
+          cache: maven
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Prepare bundled frontend fixture
+        working-directory: frontend
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Verify Java runtime compatibility
+        run: >-
+          mvn --batch-mode --no-transfer-progress
+          -Dexec.skip=true test

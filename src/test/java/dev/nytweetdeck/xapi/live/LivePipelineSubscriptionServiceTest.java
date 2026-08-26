@@ -28,11 +28,11 @@ class LivePipelineSubscriptionServiceTest {
         service.update("account-1", "column-b", java.util.List.of("2"), false);
 
         assertThat(connector.opens).hasSize(2);
-        assertThat(connector.opens.getLast().topics())
+        assertThat(connector.opens.get(connector.opens.size() - 1).topics())
                 .containsExactlyInAnyOrder("/tweet_engagement/1", "/tweet_engagement/2");
-        assertThat(connector.opens.getFirst().closed()).isTrue();
+        assertThat(connector.opens.get(0).closed()).isTrue();
 
-        connector.opens.getLast().eventConsumer().accept("""
+        connector.opens.get(connector.opens.size() - 1).eventConsumer().accept("""
                 {"topic":"/tweet_engagement/2","payload":{"tweet_engagement":{"favorite_count":"9"}}}
                 """);
         assertThat(received).singleElement().satisfies(event -> {
@@ -41,8 +41,9 @@ class LivePipelineSubscriptionServiceTest {
         });
 
         service.remove("account-1", "column-a");
-        assertThat(connector.opens.getLast().topics()).containsExactly("/tweet_engagement/2");
-        var activeConnection = connector.opens.getLast();
+        assertThat(connector.opens.get(connector.opens.size() - 1).topics())
+                .containsExactly("/tweet_engagement/2");
+        var activeConnection = connector.opens.get(connector.opens.size() - 1);
         service.closeAll(new VaultLockedEvent());
         assertThat(activeConnection.closed()).isTrue();
         eventSubscription.close();

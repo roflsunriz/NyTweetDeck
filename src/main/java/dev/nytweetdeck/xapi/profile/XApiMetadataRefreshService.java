@@ -23,10 +23,11 @@ public class XApiMetadataRefreshService {
     private final XWebMetadataResolver resolver;
     private final boolean autoRefresh;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-            runnable -> Thread.ofPlatform()
-                    .daemon(true)
-                    .name("x-web-metadata-refresh")
-                    .unstarted(runnable));
+            runnable -> {
+                var thread = new Thread(runnable, "x-web-metadata-refresh");
+                thread.setDaemon(true);
+                return thread;
+            });
     private final AtomicReference<RefreshStatus> status = new AtomicReference<>(
             new RefreshStatus(false, false, null, null, null, 0, null));
 

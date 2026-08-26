@@ -33,7 +33,7 @@ class NotificationResponseParserTest {
                 "url":{"url":"https://x.com/alice/status/123"},
                 "template":{"target":{"__typename":"Tweet","rest_id":"123"},
                 "actor":{"profile_image_url_https":"https://pbs.twimg.com/alice.jpg"}}}}
-                """).getFirst();
+                """).get(0);
 
         assertThat(notification.kind()).isEqualTo("like");
         assertThat(notification.postId()).isEqualTo("123");

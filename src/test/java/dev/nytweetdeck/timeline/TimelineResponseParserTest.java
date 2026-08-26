@@ -43,7 +43,7 @@ class TimelineResponseParserTest {
         assertThat(detailed.media()).hasSize(2);
         assertThat(detailed.media().get(1).url()).isEqualTo("https://video.twimg.com/high.mp4");
         assertThat(page.posts()).extracting(TimelinePage.Post::id).doesNotContain("99");
-        assertThat(page.posts().getFirst().replyToPostId()).isEqualTo("100");
+        assertThat(page.posts().get(0).replyToPostId()).isEqualTo("100");
     }
 
     @Test
@@ -57,7 +57,7 @@ class TimelineResponseParserTest {
                 "verification":{"verified":true}}}}}}}}
                 """;
 
-        var post = parser.parse(body).posts().getFirst();
+        var post = parser.parse(body).posts().get(0);
 
         assertThat(post.author().id()).isEqualTo("42");
         assertThat(post.author().username()).isEqualTo("alice");
@@ -78,7 +78,7 @@ class TimelineResponseParserTest {
                 ]}}}}
                 """;
 
-        var post = parser.parse(body).posts().getFirst();
+        var post = parser.parse(body).posts().get(0);
 
         assertThat(post.author().id()).isEqualTo("43");
         assertThat(post.author().username()).isEqualTo("bob");
@@ -98,7 +98,7 @@ class TimelineResponseParserTest {
                 ]}]}}}}
                 """;
 
-        var post = parser.parse(body).posts().getFirst();
+        var post = parser.parse(body).posts().get(0);
 
         assertThat(post.author().id()).isEqualTo("44");
         assertThat(post.author().username()).isEqualTo("carol");
@@ -119,7 +119,7 @@ class TimelineResponseParserTest {
                 {"screen_name":"wrong","name":"Wrong"}}}}}}}}}}}
                 """;
 
-        var post = parser.parse(body).posts().getFirst();
+        var post = parser.parse(body).posts().get(0);
 
         assertThat(post.author().id()).isEqualTo("45");
         assertThat(post.author().username()).isEqualTo("dave");
@@ -143,7 +143,7 @@ class TimelineResponseParserTest {
                 "retweet_count":4}}}}}}}}
                 """;
 
-        var post = parser.parse(body).posts().getFirst();
+        var post = parser.parse(body).posts().get(0);
 
         assertThat(post.id()).isEqualTo("250");
         assertThat(post.text()).isEqualTo("source text");
@@ -171,7 +171,7 @@ class TimelineResponseParserTest {
                 "https://pbs.twimg.com/quote.jpg"}]}}}}}}}}
                 """;
 
-        var post = parser.parse(body).posts().getFirst();
+        var post = parser.parse(body).posts().get(0);
 
         assertThat(post.text()).isEqualTo("my comment");
         assertThat(post.quotedPostId()).isEqualTo("399");

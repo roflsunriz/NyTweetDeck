@@ -20,7 +20,9 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "17"
+          java-package: jdk
+          check-latest: false
           cache: maven
 
       - name: Set up Bun

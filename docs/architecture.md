@@ -4,6 +4,8 @@
 
 NyTweetDeckは、Spring Boot製Javaプロセスを製品のエントリーポイントにします。このプロセスはループバックアドレスだけでHTTPサーバーを公開し、Bun bundlerで生成したReact UIとローカルAPIを同一オリジンで配信します。
 
+Javaソースと配布JARは`--release 17`で生成し、LTSのJDK 17・21・25を正式な実行対象とします。バックグラウンド処理はJava 17のデーモンスレッドとExecutor APIだけを使い、上位JDK固有APIへ依存しません。
+
 ```text
 ブラウザ ── http://127.0.0.1:18080 ── Spring Boot
    │                                      ├─ 静的React UI

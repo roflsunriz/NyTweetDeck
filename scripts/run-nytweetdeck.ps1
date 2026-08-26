@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$NoBrowser,
     [switch]$ExitAfterReady
 )
@@ -11,8 +11,26 @@ $jarPath = Join-Path $scriptRoot 'NyTweetDeck.jar'
 if (-not (Test-Path -LiteralPath $jarPath)) {
     throw "NyTweetDeck.jarが見つかりません: $jarPath"
 }
-if ($null -eq (Get-Command java -ErrorAction SilentlyContinue)) {
-    throw 'Java 21以上をインストールしてから再実行してください。'
+$javaCommand = Get-Command java -ErrorAction SilentlyContinue
+if ($null -eq $javaCommand) {
+    throw 'Java 17、21、25のいずれかをインストールしてから再実行してください。'
+}
+$versionProbeInfo = [System.Diagnostics.ProcessStartInfo]::new()
+$versionProbeInfo.FileName = $javaCommand.Source
+$versionProbeInfo.Arguments = '-version'
+$versionProbeInfo.UseShellExecute = $false
+$versionProbeInfo.RedirectStandardError = $true
+$versionProbeInfo.RedirectStandardOutput = $true
+$versionProbe = [System.Diagnostics.Process]::Start($versionProbeInfo)
+$javaVersionOutput = $versionProbe.StandardError.ReadToEnd() + $versionProbe.StandardOutput.ReadToEnd()
+$versionProbe.WaitForExit()
+$javaVersionLine = ($javaVersionOutput -split "`r?`n")[0]
+if ($versionProbe.ExitCode -ne 0 -or $javaVersionLine -notmatch 'version "(?:1\.)?([0-9]+)') {
+    throw 'Javaのバージョンを確認できませんでした。'
+}
+$javaMajor = [int]$Matches[1]
+if ($javaMajor -lt 17) {
+    throw "Java 17以上が必要です。現在のメジャーバージョン: $javaMajor"
 }
 
 $process = Start-Process -FilePath 'java' -ArgumentList '-jar', $jarPath -PassThru -NoNewWindow

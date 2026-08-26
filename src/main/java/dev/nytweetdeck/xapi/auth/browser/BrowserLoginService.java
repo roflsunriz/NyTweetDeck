@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ public class BrowserLoginService {
     private static final Duration LOGIN_TIMEOUT = Duration.ofMinutes(10);
     private static final URI LOGIN_URI = URI.create("https://x.com/i/flow/login");
     private static final Pattern USERNAME_PATTERN = Pattern.compile("@([A-Za-z0-9_]{1,15})");
+    private static final AtomicLong WORKER_SEQUENCE = new AtomicLong();
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -45,7 +47,12 @@ public class BrowserLoginService {
     private final WebAccountVerifier accountVerifier;
     private final Path sessionRoot;
     private final String configuredChromePath;
-    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService executor = Executors.newCachedThreadPool(runnable -> {
+        var thread = new Thread(
+                runnable, "nytweetdeck-browser-login-" + WORKER_SEQUENCE.incrementAndGet());
+        thread.setDaemon(true);
+        return thread;
+    });
     private final ConcurrentHashMap<String, LoginState> sessions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> requestSessions = new ConcurrentHashMap<>();
 
@@ -349,7 +356,7 @@ public class BrowserLoginService {
     @PreDestroy
     void shutdown() {
         sessions.values().forEach(LoginState::cancel);
-        executor.close();
+        executor.shutdownNow();
     }
 
     public enum Phase {
