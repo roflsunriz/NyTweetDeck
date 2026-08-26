@@ -1,13 +1,9 @@
 package dev.nytweetdeck.xapi.live;
 
 import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
-import dev.nytweetdeck.xapi.credentials.AndroidClientCredentialsProvider;
-import dev.nytweetdeck.xapi.device.AndroidDeviceProfileStore;
-import dev.nytweetdeck.xapi.http.AndroidRequestHeaders;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer;
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer.Credentials;
-import dev.nytweetdeck.xapi.profile.AndroidApiProfileService;
+import dev.nytweetdeck.xapi.http.WebSessionRequestHeaders;
+import dev.nytweetdeck.xapi.profile.XApiProfileService;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,10 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,29 +28,16 @@ public class LivePipelineClient implements LivePipelineConnector {
     private static final int MAX_RECONNECTS = 10;
 
     private final HttpClient httpClient;
-    private final AndroidApiProfileService profileService;
-    private final AndroidClientCredentialsProvider clientCredentialsProvider;
-    private final AndroidDeviceProfileStore deviceProfileStore;
+    private final XApiProfileService profileService;
     private final AccountVaultSessionManager vaultSessionManager;
-    private final AndroidRequestHeaders androidRequestHeaders;
-    private final OAuth1Signer oauth1Signer;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     public LivePipelineClient(
             HttpClient httpClient,
-            AndroidApiProfileService profileService,
-            AndroidClientCredentialsProvider clientCredentialsProvider,
-            AndroidDeviceProfileStore deviceProfileStore,
-            AccountVaultSessionManager vaultSessionManager,
-            AndroidRequestHeaders androidRequestHeaders,
-            OAuth1Signer oauth1Signer) {
+            XApiProfileService profileService,
+            AccountVaultSessionManager vaultSessionManager) {
         this.httpClient = httpClient;
         this.profileService = profileService;
-        this.clientCredentialsProvider = clientCredentialsProvider;
-        this.deviceProfileStore = deviceProfileStore;
         this.vaultSessionManager = vaultSessionManager;
-        this.androidRequestHeaders = androidRequestHeaders;
-        this.oauth1Signer = oauth1Signer;
     }
 
     @Override
@@ -164,37 +144,16 @@ public class LivePipelineClient implements LivePipelineConnector {
             throw new IllegalStateException("livePipelineEventsエンドポイントが未定義です。");
         }
         var topicValue = String.join(",", topics.stream().sorted().toList());
-        var uri = URI.create(profile.restBaseUri().resolve(endpoint)
+        var uri = URI.create(URI.create("https://api.x.com").resolve(endpoint)
                 + "?topic="
                 + URLEncoder.encode(topicValue, StandardCharsets.UTF_8).replace("+", "%20"));
         var account = vaultSessionManager.requireAccount(accountId);
-        var clientCredentials = clientCredentialsProvider.require();
-        var oauthCredentials = new Credentials(
-                clientCredentials.consumerKey(),
-                clientCredentials.consumerSecret(),
-                account.oauthToken(),
-                account.oauthTokenSecret());
-        var authorization = oauth1Signer.authorizationHeader(
-                "GET",
-                uri,
-                java.util.List.of(),
-                oauthCredentials,
-                Long.toString(Instant.now().getEpochSecond()),
-                newNonce());
         var requestBuilder = HttpRequest.newBuilder(uri)
                 .timeout(CONNECT_TIMEOUT)
-                .header("Authorization", authorization)
-                .header("Accept", "text/event-stream")
                 .GET();
-        androidRequestHeaders.apply(
-                requestBuilder, profile, deviceProfileStore.require().toIdentity(profile));
+        WebSessionRequestHeaders.apply(requestBuilder, account, "ja");
+        requestBuilder.header("Accept", "text/event-stream");
         return requestBuilder.build();
-    }
-
-    private String newNonce() {
-        var bytes = new byte[18];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private static void close(InputStream input) {

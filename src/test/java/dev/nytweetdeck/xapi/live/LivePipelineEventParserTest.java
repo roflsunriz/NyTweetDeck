@@ -13,7 +13,7 @@ class LivePipelineEventParserTest {
             new LivePipelineEventParser(JsonMapper.builder().build());
 
     @Test
-    void parsesConfirmedAndroidTweetEngagementEnvelope() {
+    void parsesConfirmedWebTweetEngagementEnvelope() {
         var event = parser.parse("""
                 {"topic":"/tweet_engagement/123","payload":{"tweet_engagement":{"favorite_count":"8","retweet_count":"3"}}}
                 """);

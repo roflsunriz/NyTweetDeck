@@ -17,6 +17,13 @@ export interface Translation {
   userTargetHint: string;
   listTargetHint: string;
   searchTargetHint: string;
+  listSearch: string;
+  listSearchHint: string;
+  yourLists: string;
+  suggestedLists: string;
+  noLists: string;
+  userResolveError: string;
+  listLoadError: string;
   confirmAddColumn: string;
   back: string;
   editMenu: string;
@@ -36,6 +43,23 @@ export interface Translation {
   retry: string;
   loadMore: string;
   noPosts: string;
+  filterPosts: string;
+  filterAll: string;
+  filterText: string;
+  filterImages: string;
+  filterVideos: string;
+  noFilteredPosts: string;
+  userProfile: string;
+  profileLoadError: string;
+  profileAll: string;
+  profilePosts: string;
+  profileHighlights: string;
+  profileReplies: string;
+  profileMedia: string;
+  joinedAt: (date: string) => string;
+  followingCount: string;
+  followersCount: string;
+  mutualFollowers: string;
   timelineLoadError: string;
   liveUpdateUnavailable: string;
   messageLoadError: string;
@@ -58,7 +82,6 @@ export interface Translation {
   viewMedia: string;
   askGrok: string;
   postMenu: string;
-  userId: string;
   notInterested: string;
   followUser: string;
   manageLists: string;
@@ -91,27 +114,13 @@ export interface Translation {
   reduceMotion: string;
   mediaPreview: string;
   videoAutoplay: string;
-  xApiSetup: string;
-  xApiVersion: string;
-  ready: string;
-  notReady: string;
-  clientCredentials: string;
-  deviceProfile: string;
-  deviceModel: string;
-  androidVersion: string;
-  manufacturer: string;
-  brand: string;
-  product: string;
-  securityPatch: string;
-  saveDeviceProfile: string;
+  apiMetadata: string;
+  apiMetadataDescription: string;
+  apiMetadataUpdate: string;
+  apiMetadataCurrent: string;
+  apiMetadataFallback: string;
+  apiMetadataFailed: string;
   saving: string;
-  saved: string;
-  setupLoadError: string;
-  setupSaveError: string;
-  verifyXConnection: string;
-  verifyingXConnection: string;
-  xConnectionVerified: string;
-  xConnectionFailed: string;
   accountVault: string;
   vaultPassphrase: string;
   confirmPassphrase: string;
@@ -127,6 +136,10 @@ export interface Translation {
   noAccounts: string;
   loginAccount: string;
   continueLogin: string;
+  browserLoginInstructions: string;
+  browserLoginCapture: string;
+  browserLoginCapturing: string;
+  browserLoginBrowserClosed: string;
   selectLoginChoice: string;
   loginFailed: string;
   unsupportedLoginStep: string;
@@ -149,9 +162,16 @@ const translations: Partial<Record<Locale, Translation>> = {
     addColumn: "カラムを追加",
     addColumnDescription: "表示したい情報の種類を選択してください。",
     columnTarget: "対象",
-    userTargetHint: "ユーザーIDを入力",
-    listTargetHint: "リストIDを入力",
+    userTargetHint: "ユーザー名（@から始まる名前）を入力",
+    listTargetHint: "リストを検索",
     searchTargetHint: "検索語句を入力",
+    listSearch: "リストを検索",
+    listSearchHint: "リスト名やキーワードを入力",
+    yourLists: "自分のリスト",
+    suggestedLists: "おすすめ・検索結果",
+    noLists: "選択できるリストがありません。",
+    userResolveError: "そのXユーザーを確認できませんでした。",
+    listLoadError: "リスト一覧を読み込めませんでした。",
     confirmAddColumn: "このカラムを追加",
     back: "戻る",
     editMenu: "メインメニューを編集",
@@ -171,6 +191,23 @@ const translations: Partial<Record<Locale, Translation>> = {
     retry: "再試行",
     loadMore: "さらに読み込む",
     noPosts: "表示するポストがありません。",
+    filterPosts: "ポストを種類で絞り込む",
+    filterAll: "すべて",
+    filterText: "文字",
+    filterImages: "画像",
+    filterVideos: "動画",
+    noFilteredPosts: "この種類のポストはありません。",
+    userProfile: "ユーザープロフィール",
+    profileLoadError: "ユーザープロフィールを読み込めませんでした。",
+    profileAll: "すべて",
+    profilePosts: "ポスト",
+    profileHighlights: "ハイライト",
+    profileReplies: "返信",
+    profileMedia: "メディア",
+    joinedAt: (date) => `${date}から利用しています`,
+    followingCount: "フォロー中",
+    followersCount: "フォロワー",
+    mutualFollowers: "共通のフォロワー",
     timelineLoadError: "タイムラインを読み込めませんでした。",
     liveUpdateUnavailable: "リアルタイム更新へ接続できません。再接続を試行しています。",
     messageLoadError: "ダイレクトメッセージを読み込めませんでした。",
@@ -193,7 +230,6 @@ const translations: Partial<Record<Locale, Translation>> = {
     viewMedia: "メディアを表示",
     askGrok: "Grokに聞く",
     postMenu: "ポストメニュー",
-    userId: "ユーザーID",
     notInterested: "このポストに興味がない",
     followUser: "フォロー",
     manageLists: "リストから追加と削除",
@@ -226,27 +262,14 @@ const translations: Partial<Record<Locale, Translation>> = {
     reduceMotion: "動きを減らす",
     mediaPreview: "画像と動画のプレビューを表示",
     videoAutoplay: "動画を自動再生",
-    xApiSetup: "Android API設定",
-    xApiVersion: "解析済みAPI版",
-    ready: "準備済み",
-    notReady: "未設定",
-    clientCredentials: "Androidクライアント資格情報",
-    deviceProfile: "Android端末プロファイル",
-    deviceModel: "端末モデル",
-    androidVersion: "Androidバージョン",
-    manufacturer: "メーカー",
-    brand: "ブランド",
-    product: "製品コード",
-    securityPatch: "セキュリティパッチ日",
-    saveDeviceProfile: "端末プロファイルを保存",
+    apiMetadata: "X Web API定義",
+    apiMetadataDescription:
+      "queryIdとFeature定義はX公式Webから定期的に自動更新されます。失敗時は直前の検証済み定義を維持します。",
+    apiMetadataUpdate: "今すぐ定義を更新",
+    apiMetadataCurrent: "X公式Webの最新定義を使用中です。",
+    apiMetadataFallback: "同梱された検証済み定義を使用中です。",
+    apiMetadataFailed: "更新できませんでした。直前の検証済み定義を維持しています。",
     saving: "保存中…",
-    saved: "保存しました",
-    setupLoadError: "Android API設定を読み込めませんでした。",
-    setupSaveError: "Android端末プロファイルを保存できませんでした。",
-    verifyXConnection: "Android接続を検証",
-    verifyingXConnection: "接続を検証中…",
-    xConnectionVerified: "Bearer TokenとGuest Tokenの取得を確認しました。",
-    xConnectionFailed: "Android接続を検証できませんでした。設定を確認してください。",
     accountVault: "アカウントVault",
     vaultPassphrase: "Vaultパスフレーズ",
     confirmPassphrase: "パスフレーズを確認",
@@ -263,6 +286,11 @@ const translations: Partial<Record<Locale, Translation>> = {
     noAccounts: "保存済みアカウントはありません。",
     loginAccount: "Xアカウントにログイン",
     continueLogin: "続ける",
+    browserLoginInstructions:
+      "専用ChromeでXへのログインを完了し、Chromeを閉じずに下のボタンを押してください。",
+    browserLoginCapture: "Xへのログインが完了しました",
+    browserLoginCapturing: "Xのログインセッションを安全に保存しています。",
+    browserLoginBrowserClosed: "専用Chromeが閉じられました。もう一度ログインを開始してください。",
     selectLoginChoice: "選択してください",
     loginFailed: "Xアカウントへログインできませんでした。設定と入力を確認してください。",
     unsupportedLoginStep: "この認証手順には現在の端末では対応できません。",
@@ -327,9 +355,16 @@ const translations: Partial<Record<Locale, Translation>> = {
     addColumn: "Add column",
     addColumnDescription: "Choose the kind of information you want to display.",
     columnTarget: "Target",
-    userTargetHint: "Enter a user ID",
-    listTargetHint: "Enter a list ID",
+    userTargetHint: "Enter an X username (starting with @)",
+    listTargetHint: "Search lists",
     searchTargetHint: "Enter a search query",
+    listSearch: "Search lists",
+    listSearchHint: "Enter a list name or keyword",
+    yourLists: "Your lists",
+    suggestedLists: "Suggested and search results",
+    noLists: "No lists are available to select.",
+    userResolveError: "Could not find that X user.",
+    listLoadError: "Could not load lists.",
     confirmAddColumn: "Add this column",
     back: "Back",
     editMenu: "Edit main menu",
@@ -349,6 +384,23 @@ const translations: Partial<Record<Locale, Translation>> = {
     retry: "Retry",
     loadMore: "Load more",
     noPosts: "No posts to display.",
+    filterPosts: "Filter posts by type",
+    filterAll: "All",
+    filterText: "Text",
+    filterImages: "Images",
+    filterVideos: "Videos",
+    noFilteredPosts: "No posts match this filter.",
+    userProfile: "User profile",
+    profileLoadError: "Could not load the user profile.",
+    profileAll: "All",
+    profilePosts: "Posts",
+    profileHighlights: "Highlights",
+    profileReplies: "Replies",
+    profileMedia: "Media",
+    joinedAt: (date) => `Joined ${date}`,
+    followingCount: "Following",
+    followersCount: "Followers",
+    mutualFollowers: "Followed by people you follow",
     timelineLoadError: "Could not load the timeline.",
     liveUpdateUnavailable: "Real-time updates are unavailable. Reconnecting…",
     messageLoadError: "Could not load direct messages.",
@@ -371,7 +423,6 @@ const translations: Partial<Record<Locale, Translation>> = {
     viewMedia: "View media",
     askGrok: "Ask Grok",
     postMenu: "Post menu",
-    userId: "User ID",
     notInterested: "Not interested in this post",
     followUser: "Follow",
     manageLists: "Add or remove from Lists",
@@ -404,27 +455,14 @@ const translations: Partial<Record<Locale, Translation>> = {
     reduceMotion: "Reduce motion",
     mediaPreview: "Show image and video previews",
     videoAutoplay: "Autoplay videos",
-    xApiSetup: "Android API setup",
-    xApiVersion: "Analyzed API version",
-    ready: "Ready",
-    notReady: "Not configured",
-    clientCredentials: "Android client credentials",
-    deviceProfile: "Android device profile",
-    deviceModel: "Device model",
-    androidVersion: "Android version",
-    manufacturer: "Manufacturer",
-    brand: "Brand",
-    product: "Product code",
-    securityPatch: "Security patch date",
-    saveDeviceProfile: "Save device profile",
+    apiMetadata: "X Web API metadata",
+    apiMetadataDescription:
+      "Query IDs and feature definitions update periodically from X's official web assets. The last verified definitions remain active if an update fails.",
+    apiMetadataUpdate: "Update definitions now",
+    apiMetadataCurrent: "Using the latest definitions from X's official web assets.",
+    apiMetadataFallback: "Using the bundled verified definitions.",
+    apiMetadataFailed: "Update failed. The last verified definitions remain active.",
     saving: "Saving…",
-    saved: "Saved",
-    setupLoadError: "Could not load Android API setup.",
-    setupSaveError: "Could not save the Android device profile.",
-    verifyXConnection: "Verify Android connection",
-    verifyingXConnection: "Verifying connection…",
-    xConnectionVerified: "Bearer and Guest token retrieval succeeded.",
-    xConnectionFailed: "Could not verify the Android connection. Check setup.",
     accountVault: "Account vault",
     vaultPassphrase: "Vault passphrase",
     confirmPassphrase: "Confirm passphrase",
@@ -441,6 +479,11 @@ const translations: Partial<Record<Locale, Translation>> = {
     noAccounts: "No saved accounts yet.",
     loginAccount: "Sign in to X",
     continueLogin: "Continue",
+    browserLoginInstructions:
+      "Finish signing in to X in the dedicated Chrome window, keep it open, then use the button below.",
+    browserLoginCapture: "I finished signing in to X",
+    browserLoginCapturing: "Securely saving the X login session.",
+    browserLoginBrowserClosed: "The dedicated Chrome window was closed. Start sign-in again.",
     selectLoginChoice: "Select an option",
     loginFailed: "Could not sign in to X. Check setup and your input.",
     unsupportedLoginStep: "This authentication step is not supported on this device.",

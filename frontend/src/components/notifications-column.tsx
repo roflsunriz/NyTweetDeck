@@ -1,12 +1,17 @@
+import { Bell, Heart, MessageCircle, Repeat2, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { PostCard, type TimelinePost } from "./post-card";
+import { PostDetailDialog } from "./post-detail-dialog";
+import { filterPosts, type PostFilter, PostFilterBar } from "./post-filter";
+import { UserProfileDialog } from "./user-profile-dialog";
 
 interface NotificationItem {
   id: string;
+  kind: "like" | "repost" | "reply" | "follow" | "community_note" | "notification";
   text: string;
-  url: string;
+  postId: string | null;
   imageUrls: string[];
 }
 
@@ -30,6 +35,9 @@ export function NotificationsColumn({
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [postFilter, setPostFilter] = useState<PostFilter>("all");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const loadingRef = useRef(false);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
@@ -130,29 +138,25 @@ export function NotificationsColumn({
   }
   return (
     <div className="notification-list">
+      {posts.length > 0 && (
+        <PostFilterBar value={postFilter} translation={translation} onChange={setPostFilter} />
+      )}
       {notifications.map((notification) => (
-        <a
+        <NotificationEntry
           key={notification.id}
-          className="notification-item"
-          href={notification.url}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <div className="notification-avatars">
-            {notification.imageUrls.slice(0, 4).map((imageUrl) => (
-              <img key={imageUrl} src={imageUrl} alt="" loading="lazy" />
-            ))}
-          </div>
-          <strong>{notification.text || translation.notifications}</strong>
-        </a>
+          notification={notification}
+          fallbackText={translation.notifications}
+          onOpen={setSelectedPostId}
+        />
       ))}
-      {posts.map((post) => (
+      {filterPosts(posts, postFilter).map((post) => (
         <PostCard
           key={post.id}
           post={post}
           accountId={accountId}
           translation={translation}
           display={display}
+          onOpenUser={setSelectedUserId}
         />
       ))}
       {cursor !== null && (
@@ -167,6 +171,90 @@ export function NotificationsColumn({
         </button>
       )}
       {error && <p className="inline-error">{translation.notificationLoadError}</p>}
+      {selectedPostId !== null && accountId !== null && (
+        <PostDetailDialog
+          postId={selectedPostId}
+          accountId={accountId}
+          translation={translation}
+          display={display}
+          onClose={() => setSelectedPostId(null)}
+          onOpenUser={setSelectedUserId}
+        />
+      )}
+      {selectedUserId !== null && accountId !== null && (
+        <UserProfileDialog
+          userId={selectedUserId}
+          accountId={accountId}
+          translation={translation}
+          display={display}
+          onClose={() => setSelectedUserId(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function NotificationEntry({
+  notification,
+  fallbackText,
+  onOpen,
+}: {
+  notification: NotificationItem;
+  fallbackText: string;
+  onOpen: (postId: string) => void;
+}) {
+  const postId = notification.postId;
+  const content = (
+    <>
+      <span className="notification-icon-slot">
+        <NotificationIcon kind={notification.kind} />
+      </span>
+      <span className="notification-content">
+        {notification.imageUrls.length > 0 && (
+          <span className="notification-avatars" aria-hidden="true">
+            {notification.imageUrls.slice(0, 4).map((imageUrl) => (
+              <img key={imageUrl} src={imageUrl} alt="" loading="lazy" />
+            ))}
+          </span>
+        )}
+        <strong>{notification.text || fallbackText}</strong>
+      </span>
+    </>
+  );
+  if (postId === null) {
+    return (
+      <article
+        className="deck-feed-item notification-item notification-item-static"
+        data-notification-kind={notification.kind}
+      >
+        {content}
+      </article>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="deck-feed-item notification-item"
+      data-notification-kind={notification.kind}
+      onClick={() => onOpen(postId)}
+    >
+      {content}
+    </button>
+  );
+}
+
+function NotificationIcon({ kind }: { kind: NotificationItem["kind"] }) {
+  const Icon =
+    kind === "like"
+      ? Heart
+      : kind === "repost"
+        ? Repeat2
+        : kind === "reply"
+          ? MessageCircle
+          : kind === "follow"
+            ? UserPlus
+            : Bell;
+  return (
+    <Icon className={`notification-kind notification-kind-${kind}`} aria-hidden="true" size={20} />
   );
 }

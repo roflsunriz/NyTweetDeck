@@ -16,20 +16,25 @@ public class TimelineQueryFactory {
         return switch (kind) {
             case "homeForYou" -> {
                 variables.put("includePromotedContent", true);
-                variables.put("latestControlAvailable", true);
                 variables.put("requestContext", "launch");
+                variables.put("withCommunity", true);
                 yield new Query("homeForYou", variables);
             }
             case "homeFollowing" -> {
+                variables.put("enableRanking", false);
                 variables.put("includePromotedContent", true);
+                variables.put("requestContext", "launch");
                 yield new Query("homeFollowing", variables);
             }
             case "userPosts" -> {
-                variables.put("rest_id", requireTarget(target, kind));
+                variables.put("userId", requireTarget(target, kind));
+                variables.put("includePromotedContent", true);
+                variables.put("withQuickPromoteEligibilityTweetFields", false);
+                variables.put("withVoice", true);
                 yield new Query("userPosts", variables);
             }
             case "list" -> {
-                variables.put("rest_id", requireTarget(target, kind));
+                variables.put("listId", requireTarget(target, kind));
                 yield new Query("list", variables);
             }
             case "history" -> new Query("history", variables);
@@ -39,6 +44,8 @@ public class TimelineQueryFactory {
                 variables.put("rawQuery", requireTarget(target, kind));
                 variables.put("querySource", "typed_query");
                 variables.put("product", "Latest");
+                variables.put("withGrokTranslatedBio", false);
+                variables.put("withQuickPromoteEligibilityTweetFields", false);
                 yield new Query("search", variables);
             }
             default -> throw new IllegalArgumentException("未対応のタイムライン種別です: " + kind);

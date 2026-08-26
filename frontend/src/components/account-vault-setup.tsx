@@ -89,6 +89,7 @@ export function AccountVaultSetup({ translation }: AccountVaultSetupProps) {
         unlockedAt: new Date().toISOString(),
       };
       setVaultStatus(nextStatus);
+      window.dispatchEvent(new Event("nytweetdeck:vault-unlocked"));
       setPassphrase("");
       setConfirmation("");
       await loadAccounts();

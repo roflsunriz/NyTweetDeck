@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./app";
+import { createDefaultLayout, layoutStorageKey } from "./model/layout";
 
 const originalFetch = globalThis.fetch;
 const originalOpen = window.open;
@@ -11,13 +12,6 @@ describe("NyTweetDeck shell", () => {
     window.localStorage.clear();
     globalThis.fetch = (async (input) => {
       const url = String(input);
-      if (url.endsWith("/readiness")) {
-        return Response.json({
-          androidApiVersion: "12.19.1-release.0",
-          clientCredentialsAvailable: false,
-          deviceProfileAvailable: false,
-        });
-      }
       if (url.endsWith("/vault/status")) {
         return Response.json({ exists: false, unlocked: false, accountCount: 0, unlockedAt: null });
       }
@@ -83,7 +77,7 @@ describe("NyTweetDeck shell", () => {
       version: number;
       display: { accentColor: string; reduceMotion: boolean };
     };
-    expect(stored.version).toBe(3);
+    expect(stored.version).toBe(4);
     expect(stored.display.accentColor).toBe("purple");
     expect(stored.display.reduceMotion).toBe(true);
   });
@@ -108,6 +102,32 @@ describe("NyTweetDeck shell", () => {
     await user.click(screen.getByRole("button", { name: "このカラムを追加" }));
 
     expect(screen.getByRole("heading", { name: "検索: NyTweetDeck" })).toBeDefined();
+  });
+
+  test("detects a locked vault on startup before loading persisted account columns", async () => {
+    let timelineRequests = 0;
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/vault/status")) {
+        return Response.json({ exists: true, unlocked: false, accountCount: 0, unlockedAt: null });
+      }
+      if (url.includes("/api/v1/timelines/")) timelineRequests += 1;
+      return Response.json(null);
+    }) as typeof fetch;
+    window.localStorage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...createDefaultLayout(),
+        activeAccountId: "account-1",
+        columns: [{ id: "search", kind: "search", target: "NyTweetDeck", label: "NyTweetDeck" }],
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "設定" })).toBeDefined();
+    expect(screen.getByText("ログインが必要です")).toBeDefined();
+    expect(timelineRequests).toBe(0);
   });
 
   test("reorders navigation and columns through drag and drop and persists the order", async () => {

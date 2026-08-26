@@ -43,6 +43,7 @@ interface PostCardProps {
   accountId: string;
   translation: Translation;
   onOpen?: () => void;
+  onOpenUser?: (userId: string) => void;
   display?: DisplayPreferences;
 }
 
@@ -51,6 +52,7 @@ export function PostCard({
   accountId,
   translation,
   onOpen,
+  onOpenUser,
   display = defaultDisplayPreferences,
 }: PostCardProps) {
   const [liked, setLiked] = useState(post.liked);
@@ -126,18 +128,25 @@ export function PostCard({
         onKeyDown={openFromKeyboard}
       >
         <header>
-          {post.author.avatarUrl !== null ? (
-            <img src={post.author.avatarUrl} alt="" loading="lazy" />
-          ) : (
-            <span className="avatar-placeholder" aria-hidden="true" />
-          )}
-          <div>
-            <strong>{post.author.displayName}</strong>
-            <span>@{post.author.username}</span>
-            <small>
-              {translation.userId}: {post.author.id}
-            </small>
-          </div>
+          <button
+            className="post-author-button"
+            type="button"
+            disabled={onOpenUser === undefined || post.author.id.length === 0}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenUser?.(post.author.id);
+            }}
+          >
+            {post.author.avatarUrl !== null ? (
+              <img src={post.author.avatarUrl} alt="" loading="lazy" />
+            ) : (
+              <span className="avatar-placeholder" aria-hidden="true" />
+            )}
+            <span className="post-author-text">
+              <strong>{post.author.displayName}</strong>
+              <span>@{post.author.username}</span>
+            </span>
+          </button>
           {time !== null && <time dateTime={post.createdAt ?? undefined}>{time}</time>}
           <a
             className="post-header-action"

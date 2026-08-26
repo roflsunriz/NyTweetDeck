@@ -88,6 +88,7 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 
 export function App() {
   const [layout, setLayout] = useState<AppLayout>(() => loadLayout(window.localStorage));
+  const [vaultUnlocked, setVaultUnlocked] = useState<boolean | null>(null);
   const [dialog, setDialog] = useState<
     "accounts" | "columns" | "composer" | "login" | "menu" | "search" | "settings" | null
   >(null);
@@ -117,16 +118,40 @@ export function App() {
   }, [layout.theme]);
 
   useEffect(() => {
-    const clearActiveAccount = () =>
-      setLayout((current) => ({ ...current, activeAccountId: null }));
-    window.addEventListener("nytweetdeck:vault-locked", clearActiveAccount);
-    return () => window.removeEventListener("nytweetdeck:vault-locked", clearActiveAccount);
-  }, []);
+    const controller = new AbortController();
+    void fetch("/api/v1/accounts/vault/status", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return (await response.json()) as { unlocked: boolean };
+      })
+      .then((status) => {
+        setVaultUnlocked(status.unlocked);
+        if (!status.unlocked && layout.activeAccountId !== null) {
+          setDialog("settings");
+        }
+      })
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setVaultUnlocked(false);
+        }
+      });
+    const handleLocked = () => setVaultUnlocked(false);
+    const handleUnlocked = () => setVaultUnlocked(true);
+    window.addEventListener("nytweetdeck:vault-locked", handleLocked);
+    window.addEventListener("nytweetdeck:vault-unlocked", handleUnlocked);
+    return () => {
+      controller.abort();
+      window.removeEventListener("nytweetdeck:vault-locked", handleLocked);
+      window.removeEventListener("nytweetdeck:vault-unlocked", handleUnlocked);
+    };
+  }, [layout.activeAccountId]);
 
-  const addColumn = (kind: ColumnKind, target: string | null) => {
+  const activeAccountId = vaultUnlocked === true ? layout.activeAccountId : null;
+
+  const addColumn = (kind: ColumnKind, target: string | null, label: string | null = null) => {
     setLayout((current) => ({
       ...current,
-      columns: [...current.columns, { id: createColumnId(), kind, target }],
+      columns: [...current.columns, { id: createColumnId(), kind, target, label }],
     }));
     setDialog(null);
   };
@@ -187,10 +212,10 @@ export function App() {
     } else if (item === "following") {
       addColumn("following", null);
     } else if (item === "profile") {
-      if (layout.activeAccountId === null) {
+      if (activeAccountId === null) {
         setDialog("accounts");
       } else {
-        addColumn("user", layout.activeAccountId);
+        addColumn("user", activeAccountId);
       }
     } else {
       const url = externalNavigation[item];
@@ -305,7 +330,7 @@ export function App() {
                       <h2>
                         {column.target === null
                           ? columnText.title
-                          : `${columnText.title}: ${column.target}`}
+                          : `${columnText.title}: ${column.label ?? column.target}`}
                       </h2>
                     </div>
                     <button
@@ -320,22 +345,26 @@ export function App() {
                   </header>
                   {column.kind === "messages" ? (
                     <DirectMessageColumn
-                      accountId={layout.activeAccountId}
+                      accountId={activeAccountId}
                       translation={translation}
                       subscriptionId={column.id}
                     />
                   ) : column.kind === "notifications" ? (
                     <NotificationsColumn
-                      accountId={layout.activeAccountId}
+                      accountId={activeAccountId}
                       translation={translation}
                       display={layout.display}
                     />
                   ) : column.kind === "trends" ? (
-                    <TrendsColumn accountId={layout.activeAccountId} translation={translation} />
+                    <TrendsColumn
+                      accountId={activeAccountId}
+                      translation={translation}
+                      onSelect={(query) => addColumn("search", query)}
+                    />
                   ) : (
                     <TimelineColumn
                       column={column}
-                      accountId={layout.activeAccountId}
+                      accountId={activeAccountId}
                       translation={translation}
                       display={layout.display}
                     />
@@ -360,6 +389,7 @@ export function App() {
       {dialog === "columns" && (
         <AddColumnDialog
           translation={translation}
+          accountId={activeAccountId}
           onAdd={addColumn}
           onClose={() => setDialog(null)}
         />
@@ -367,6 +397,7 @@ export function App() {
       {dialog === "search" && (
         <AddColumnDialog
           translation={translation}
+          accountId={activeAccountId}
           initialKind="search"
           onAdd={addColumn}
           onClose={() => setDialog(null)}
@@ -404,7 +435,7 @@ export function App() {
       {dialog === "composer" && (
         <ComposerDialog
           translation={translation}
-          accountId={layout.activeAccountId}
+          accountId={activeAccountId}
           onClose={() => setDialog(null)}
         />
       )}

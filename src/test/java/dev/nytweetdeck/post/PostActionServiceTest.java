@@ -10,7 +10,7 @@ class PostActionServiceTest {
     private final PostActionService service = new PostActionService(null, null);
 
     @Test
-    void mapsAndroidMutationVariablesForEverySupportedAction() {
+    void mapsWebMutationVariablesForEverySupportedAction() {
         assertThat(service.createRequest("123", "like").variables())
                 .containsEntry("tweet_id", "123");
         assertThat(service.createRequest("123", "unlike").purpose()).isEqualTo("unlike");

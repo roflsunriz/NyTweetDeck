@@ -81,6 +81,6 @@ class EncryptedAccountVaultTest {
 
     private static AccountSecrets account(
             String id, String username, String token, String tokenSecret) {
-        return new AccountSecrets(id, id, username, username, token, tokenSecret);
+        return AccountSecrets.webSession(id, id, username, username, token, tokenSecret, "csrf-" + id);
     }
 }

@@ -28,17 +28,22 @@ public class PostService {
     public PostDetail detail(String accountId, String postId, String cursor) {
         validatePostId(postId);
         var detailVariables = new LinkedHashMap<String, Object>();
-        detailVariables.put("rest_id", postId);
-        detailVariables.put("includeCommunityTweetRelationship", true);
-        detailVariables.put("includeTweetVisibilityNudge", true);
+        detailVariables.put("tweetId", postId);
+        detailVariables.put("withCommunity", false);
+        detailVariables.put("includePromotedContent", false);
+        detailVariables.put("withVoice", false);
         var postResult = graphQlClient.execute(accountId, "postDetail", detailVariables);
         var postPage = responseParser.parse(postResult.rawJson());
 
         var conversationVariables = new LinkedHashMap<String, Object>();
-        conversationVariables.put("focalTweetId", Long.parseLong(postId));
+        conversationVariables.put("focalTweetId", postId);
         conversationVariables.put("isReaderMode", false);
-        conversationVariables.put("includeCommunityTweetRelationship", true);
-        conversationVariables.put("includeTweetVisibilityNudge", true);
+        conversationVariables.put("rankingMode", "Relevance");
+        conversationVariables.put("includePromotedContent", true);
+        conversationVariables.put("withCommunity", true);
+        conversationVariables.put("withQuickPromoteEligibilityTweetFields", false);
+        conversationVariables.put("withBirdwatchNotes", true);
+        conversationVariables.put("withVoice", true);
         if (cursor != null && !cursor.isBlank()) {
             conversationVariables.put("cursor", cursor);
         }

@@ -17,6 +17,7 @@ interface PostDetailDialogProps {
   translation: Translation;
   onClose: () => void;
   display?: DisplayPreferences;
+  onOpenUser?: (userId: string) => void;
 }
 
 export function PostDetailDialog({
@@ -25,6 +26,7 @@ export function PostDetailDialog({
   translation,
   onClose,
   display = defaultDisplayPreferences,
+  onOpenUser,
 }: PostDetailDialogProps) {
   const [detail, setDetail] = useState<PostDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export function PostDetailDialog({
                 accountId={accountId}
                 translation={translation}
                 display={display}
+                onOpenUser={onOpenUser}
               />
               <button
                 className="primary-button detail-reply-button"
@@ -84,6 +87,7 @@ export function PostDetailDialog({
                     accountId={accountId}
                     translation={translation}
                     display={display}
+                    onOpenUser={onOpenUser}
                   />
                 ))
               )}

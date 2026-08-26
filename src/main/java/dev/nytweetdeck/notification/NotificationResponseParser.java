@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -13,6 +14,9 @@ import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class NotificationResponseParser {
+
+    private static final Pattern POST_ID_PATTERN =
+            Pattern.compile("(?:status(?:es)?/|tweet(?:_id|id)[=:])([0-9]{1,24})");
 
     private final ObjectMapper objectMapper;
 
@@ -57,8 +61,11 @@ public class NotificationResponseParser {
 
     private static boolean isNotification(JsonNode node) {
         return text(node, "id") != null
-                && object(node, "url") != null
-                && firstObject(node, "socialContext", "social_context") != null;
+                && (firstObject(node, "socialContext", "social_context") != null
+                        || node.get("notification_icon") != null
+                        || object(node, "icon") != null
+                        || object(node, "message") != null
+                        || object(node, "rich_message") != null);
     }
 
     private static NotificationPage.Notification parseNotification(JsonNode node) {
@@ -66,6 +73,9 @@ public class NotificationResponseParser {
         var general = firstObject(socialContext, "generalContext", "general_context");
         var topic = firstObject(socialContext, "topicContext", "topic_context");
         var text = firstNonNull(text(general, "text"), text(topic, "text"));
+        text = firstNonNull(text, text(object(node, "message"), "text"));
+        text = firstNonNull(text, text(object(node, "rich_message"), "text"));
+        text = firstNonNull(text, text(node, "text"));
         if (text == null) {
             text = "";
         }
@@ -79,31 +89,99 @@ public class NotificationResponseParser {
                 }
             }
         }
+        collectImageUrls(node, images);
+        return new NotificationPage.Notification(
+                text(node, "id"), notificationKind(node), text, findPostId(node), images);
+    }
+
+    private static String notificationKind(JsonNode node) {
+        var icon = firstNonNull(text(node, "notification_icon"), text(object(node, "icon"), "id"));
+        var normalized = icon == null ? "" : icon.toLowerCase(Locale.ROOT);
+        if (normalized.contains("heart") || normalized.contains("favorite") || normalized.contains("like")) {
+            return "like";
+        }
+        if (normalized.contains("retweet") || normalized.contains("repost")) {
+            return "repost";
+        }
+        if (normalized.contains("reply") || normalized.contains("mention")) {
+            return "reply";
+        }
+        if (normalized.contains("follow") || normalized.contains("person")) {
+            return "follow";
+        }
+        if (normalized.contains("birdwatch") || normalized.contains("community")) {
+            return "community_note";
+        }
+        return "notification";
+    }
+
+    private static String findPostId(JsonNode node) {
         var urlNode = object(node, "url");
         var url = firstNonNull(text(urlNode, "expanded_url"), text(urlNode, "expandedUrl"));
         url = firstNonNull(url, text(urlNode, "url"));
-        return new NotificationPage.Notification(
-                text(node, "id"), text, safeXUrl(url), images);
-    }
-
-    private static String safeXUrl(String value) {
-        if (value != null) {
-            try {
-                var uri = URI.create(value);
-                var host = uri.getHost();
-                var normalizedHost = host == null ? "" : host.toLowerCase(Locale.ROOT);
-                if ("https".equalsIgnoreCase(uri.getScheme())
-                        && (normalizedHost.equals("x.com")
-                                || normalizedHost.endsWith(".x.com")
-                                || normalizedHost.equals("twitter.com")
-                                || normalizedHost.endsWith(".twitter.com"))) {
-                    return value;
-                }
-            } catch (IllegalArgumentException ignored) {
-                // Fall through to the notifications page.
+        if (url != null) {
+            var matcher = POST_ID_PATTERN.matcher(url);
+            if (matcher.find()) {
+                return matcher.group(1);
             }
         }
-        return "https://x.com/notifications";
+        return findTweetId(node);
+    }
+
+    private static String findTweetId(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isObject()) {
+            if ("Tweet".equals(text(node, "__typename")) && text(node, "rest_id") != null) {
+                return text(node, "rest_id");
+            }
+            for (Map.Entry<String, JsonNode> property : node.properties()) {
+                var found = findTweetId(property.getValue());
+                if (found != null) {
+                    return found;
+                }
+            }
+        } else if (node.isArray()) {
+            for (var child : node) {
+                var found = findTweetId(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void collectImageUrls(JsonNode node, java.util.List<String> images) {
+        if (node == null || images.size() >= 4) {
+            return;
+        }
+        if (node.isObject()) {
+            for (Map.Entry<String, JsonNode> property : node.properties()) {
+                var field = property.getKey().toLowerCase(Locale.ROOT);
+                var value = property.getValue();
+                if ((field.contains("profile_image") || field.contains("contextimage") || field.equals("image_url"))
+                        && value.isString()) {
+                    var imageUrl = value.asString(null);
+                    if (isSafeImageUrl(imageUrl) && !images.contains(imageUrl)) {
+                        images.add(imageUrl);
+                    }
+                } else {
+                    collectImageUrls(value, images);
+                }
+                if (images.size() >= 4) {
+                    return;
+                }
+            }
+        } else if (node.isArray()) {
+            for (var child : node) {
+                collectImageUrls(child, images);
+                if (images.size() >= 4) {
+                    return;
+                }
+            }
+        }
     }
 
     private static boolean isSafeImageUrl(String value) {

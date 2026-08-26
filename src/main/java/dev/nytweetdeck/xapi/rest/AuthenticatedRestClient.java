@@ -1,14 +1,9 @@
 package dev.nytweetdeck.xapi.rest;
 
 import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
-import dev.nytweetdeck.xapi.credentials.AndroidClientCredentialsProvider;
-import dev.nytweetdeck.xapi.device.AndroidDeviceProfileStore;
-import dev.nytweetdeck.xapi.http.AndroidRequestHeaders;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer;
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer.Credentials;
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer.Parameter;
-import dev.nytweetdeck.xapi.profile.AndroidApiProfileService;
+import dev.nytweetdeck.xapi.http.WebSessionRequestHeaders;
+import dev.nytweetdeck.xapi.profile.XApiProfileService;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -16,10 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -30,29 +22,16 @@ public class AuthenticatedRestClient {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
     private final HttpClient httpClient;
-    private final AndroidApiProfileService profileService;
-    private final AndroidClientCredentialsProvider clientCredentialsProvider;
-    private final AndroidDeviceProfileStore deviceProfileStore;
+    private final XApiProfileService profileService;
     private final AccountVaultSessionManager vaultSessionManager;
-    private final AndroidRequestHeaders androidRequestHeaders;
-    private final OAuth1Signer oauth1Signer;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthenticatedRestClient(
             HttpClient httpClient,
-            AndroidApiProfileService profileService,
-            AndroidClientCredentialsProvider clientCredentialsProvider,
-            AndroidDeviceProfileStore deviceProfileStore,
-            AccountVaultSessionManager vaultSessionManager,
-            AndroidRequestHeaders androidRequestHeaders,
-            OAuth1Signer oauth1Signer) {
+            XApiProfileService profileService,
+            AccountVaultSessionManager vaultSessionManager) {
         this.httpClient = httpClient;
         this.profileService = profileService;
-        this.clientCredentialsProvider = clientCredentialsProvider;
-        this.deviceProfileStore = deviceProfileStore;
         this.vaultSessionManager = vaultSessionManager;
-        this.androidRequestHeaders = androidRequestHeaders;
-        this.oauth1Signer = oauth1Signer;
     }
 
     public RestResult get(String accountId, String endpointName, Map<String, String> parameters) {
@@ -61,27 +40,11 @@ public class AuthenticatedRestClient {
         if (path == null) {
             throw new IllegalArgumentException("未定義のRESTエンドポイントです: " + endpointName);
         }
-        var requestUri = withQuery(profile.restBaseUri().resolve(path), parameters);
         var account = vaultSessionManager.requireAccount(accountId);
-        var clientCredentials = clientCredentialsProvider.require();
-        var oauthCredentials = new Credentials(
-                clientCredentials.consumerKey(),
-                clientCredentials.consumerSecret(),
-                account.oauthToken(),
-                account.oauthTokenSecret());
-        var authorization = oauth1Signer.authorizationHeader(
-                "GET",
-                requestUri,
-                java.util.List.of(),
-                oauthCredentials,
-                Long.toString(Instant.now().getEpochSecond()),
-                newNonce());
-        var requestBuilder = HttpRequest.newBuilder(requestUri)
-                .timeout(REQUEST_TIMEOUT)
-                .header("Authorization", authorization)
-                .GET();
-        androidRequestHeaders.apply(
-                requestBuilder, profile, deviceProfileStore.require().toIdentity(profile));
+        var baseUri = URI.create("https://api.x.com");
+        var requestUri = withQuery(baseUri.resolve(path), parameters);
+        var requestBuilder = HttpRequest.newBuilder(requestUri).timeout(REQUEST_TIMEOUT).GET();
+        applyAuthentication(requestBuilder, requestUri, "GET", List.of(), account);
         return send(requestBuilder.build(), endpointName);
     }
 
@@ -92,34 +55,29 @@ public class AuthenticatedRestClient {
         if (path == null) {
             throw new IllegalArgumentException("未定義のRESTエンドポイントです: " + endpointName);
         }
-        var requestUri = profile.restBaseUri().resolve(path);
+        var account = vaultSessionManager.requireAccount(accountId);
+        var baseUri = URI.create("https://api.x.com");
+        var requestUri = baseUri.resolve(path);
         var bodyParameters = parameters.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> new Parameter(entry.getKey(), entry.getValue()))
                 .toList();
         var body = formBody(bodyParameters);
-        var account = vaultSessionManager.requireAccount(accountId);
-        var clientCredentials = clientCredentialsProvider.require();
-        var oauthCredentials = new Credentials(
-                clientCredentials.consumerKey(),
-                clientCredentials.consumerSecret(),
-                account.oauthToken(),
-                account.oauthTokenSecret());
-        var authorization = oauth1Signer.authorizationHeader(
-                "POST",
-                requestUri,
-                bodyParameters,
-                oauthCredentials,
-                Long.toString(Instant.now().getEpochSecond()),
-                newNonce());
         var requestBuilder = HttpRequest.newBuilder(requestUri)
                 .timeout(REQUEST_TIMEOUT)
-                .header("Authorization", authorization)
                 .header("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
                 .POST(HttpRequest.BodyPublishers.ofString(body));
-        androidRequestHeaders.apply(
-                requestBuilder, profile, deviceProfileStore.require().toIdentity(profile));
+        applyAuthentication(requestBuilder, requestUri, "POST", bodyParameters, account);
         return send(requestBuilder.build(), endpointName);
+    }
+
+    private void applyAuthentication(
+            HttpRequest.Builder requestBuilder,
+            URI requestUri,
+            String method,
+            List<Parameter> bodyParameters,
+            dev.nytweetdeck.account.vault.AccountSecrets account) {
+        WebSessionRequestHeaders.apply(requestBuilder, account, "ja");
     }
 
     static String formBody(List<Parameter> parameters) {
@@ -145,12 +103,6 @@ public class AuthenticatedRestClient {
         }
     }
 
-    private String newNonce() {
-        var bytes = new byte[18];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
     private static URI withQuery(URI uri, Map<String, String> parameters) {
         if (parameters.isEmpty()) {
             return uri;
@@ -173,4 +125,6 @@ public class AuthenticatedRestClient {
             return "RestResult[endpointName=" + endpointName + ", rawJson=<redacted>]";
         }
     }
+
+    public record Parameter(String name, String value) {}
 }

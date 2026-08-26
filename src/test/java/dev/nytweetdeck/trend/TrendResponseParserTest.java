@@ -8,7 +8,7 @@ import tools.jackson.databind.json.JsonMapper;
 class TrendResponseParserTest {
 
     @Test
-    void parsesConfirmedAndroidUrtTrendFieldsAndCursor() {
+    void parsesConfirmedWebUrtTrendFieldsAndCursor() {
         var parser = new TrendResponseParser(JsonMapper.builder().build());
         var page = parser.parse("""
                 {"data":{"timeline":{"entries":[{"content":{"trend":{"name":"#NyTweetDeck","description":"1,234 posts","rank":"1","url":{"url":"twitter://search?query=NyTweetDeck","url_type":"DeepLink"},"trendMetadata":{"domain_context":"Technology","metaDescription":"Trending now"}}}},{"content":{"cursorType":"Bottom","value":"next"}}]}}}

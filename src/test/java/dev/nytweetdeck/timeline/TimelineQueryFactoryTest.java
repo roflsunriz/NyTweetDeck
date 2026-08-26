@@ -14,20 +14,26 @@ class TimelineQueryFactoryTest {
         assertThat(factory.create("homeForYou", null, "cursor").variables())
                 .containsEntry("cursor", "cursor")
                 .containsEntry("count", 20)
-                .containsEntry("includePromotedContent", true);
-        assertThat(factory.create("homeFollowing", null, null).purpose())
-                .isEqualTo("homeFollowing");
+                .containsEntry("includePromotedContent", true)
+                .containsEntry("withCommunity", true)
+                .doesNotContainKey("latestControlAvailable");
+        assertThat(factory.create("homeFollowing", null, null).variables())
+                .containsEntry("enableRanking", false)
+                .containsEntry("requestContext", "launch");
         assertThat(factory.create("userPosts", "42", null).variables())
-                .containsEntry("rest_id", "42");
+                .containsEntry("userId", "42")
+                .containsEntry("withQuickPromoteEligibilityTweetFields", false);
         assertThat(factory.create("list", "84", null).variables())
-                .containsEntry("rest_id", "84");
+                .containsEntry("listId", "84");
         assertThat(factory.create("history", null, null).purpose()).isEqualTo("history");
         assertThat(factory.create("trends", null, null).purpose()).isEqualTo("trends");
         assertThat(factory.create("notifications", null, null).purpose())
                 .isEqualTo("notifications");
         assertThat(factory.create("search", "NyTweetDeck", null).variables())
                 .containsEntry("rawQuery", "NyTweetDeck")
-                .containsEntry("product", "Latest");
+                .containsEntry("product", "Latest")
+                .containsEntry("withGrokTranslatedBio", false)
+                .containsEntry("withQuickPromoteEligibilityTweetFields", false);
     }
 
     @Test

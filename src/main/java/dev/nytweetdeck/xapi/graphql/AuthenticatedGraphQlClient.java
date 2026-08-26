@@ -1,16 +1,10 @@
 package dev.nytweetdeck.xapi.graphql;
 
 import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
-import dev.nytweetdeck.xapi.credentials.AndroidClientCredentialsProvider;
-import dev.nytweetdeck.xapi.device.AndroidDeviceProfileStore;
-import dev.nytweetdeck.xapi.http.AndroidRequestHeaders;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer;
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer.Credentials;
-import dev.nytweetdeck.xapi.profile.AndroidApiProfile;
-import dev.nytweetdeck.xapi.profile.AndroidApiProfile.OperationType;
-import dev.nytweetdeck.xapi.profile.AndroidApiProfileService;
-import dev.nytweetdeck.xapi.profile.AndroidFeatureDefaultsService;
+import dev.nytweetdeck.xapi.http.WebSessionRequestHeaders;
+import dev.nytweetdeck.xapi.profile.XApiProfile.OperationType;
+import dev.nytweetdeck.xapi.profile.XApiProfileService;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -18,14 +12,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -34,73 +23,38 @@ import tools.jackson.databind.ObjectMapper;
 public class AuthenticatedGraphQlClient {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final Map<String, Boolean> DEFAULT_FIELD_TOGGLES = Map.of(
+            "withPayments", false,
+            "withAuxiliaryUserLabels", false,
+            "withArticleRichContentState", false,
+            "withArticlePlainText", false,
+            "withArticleSummaryText", false,
+            "withArticleVoiceOver", false,
+            "withGrokAnalyze", false,
+            "withDisallowedReplyControls", false);
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-    private final AndroidApiProfileService profileService;
-    private final AndroidFeatureDefaultsService featureDefaultsService;
-    private final AndroidClientCredentialsProvider clientCredentialsProvider;
-    private final AndroidDeviceProfileStore deviceProfileStore;
+    private final XApiProfileService profileService;
     private final AccountVaultSessionManager vaultSessionManager;
-    private final AndroidRequestHeaders androidRequestHeaders;
-    private final OAuth1Signer oauth1Signer;
-    private final SecureRandom secureRandom;
 
-    @Autowired
     public AuthenticatedGraphQlClient(
             HttpClient httpClient,
             ObjectMapper objectMapper,
-            AndroidApiProfileService profileService,
-            AndroidFeatureDefaultsService featureDefaultsService,
-            AndroidClientCredentialsProvider clientCredentialsProvider,
-            AndroidDeviceProfileStore deviceProfileStore,
-            AccountVaultSessionManager vaultSessionManager,
-            AndroidRequestHeaders androidRequestHeaders,
-            OAuth1Signer oauth1Signer) {
-        this(
-                httpClient,
-                objectMapper,
-                profileService,
-                featureDefaultsService,
-                clientCredentialsProvider,
-                deviceProfileStore,
-                vaultSessionManager,
-                androidRequestHeaders,
-                oauth1Signer,
-                new SecureRandom());
-    }
-
-    AuthenticatedGraphQlClient(
-            HttpClient httpClient,
-            ObjectMapper objectMapper,
-            AndroidApiProfileService profileService,
-            AndroidFeatureDefaultsService featureDefaultsService,
-            AndroidClientCredentialsProvider clientCredentialsProvider,
-            AndroidDeviceProfileStore deviceProfileStore,
-            AccountVaultSessionManager vaultSessionManager,
-            AndroidRequestHeaders androidRequestHeaders,
-            OAuth1Signer oauth1Signer,
-            SecureRandom secureRandom) {
+            XApiProfileService profileService,
+            AccountVaultSessionManager vaultSessionManager) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.profileService = profileService;
-        this.featureDefaultsService = featureDefaultsService;
-        this.clientCredentialsProvider = clientCredentialsProvider;
-        this.deviceProfileStore = deviceProfileStore;
         this.vaultSessionManager = vaultSessionManager;
-        this.androidRequestHeaders = androidRequestHeaders;
-        this.oauth1Signer = oauth1Signer;
-        this.secureRandom = secureRandom;
     }
 
     public GraphQlResult execute(
             String accountId, String purpose, Map<String, Object> variables) {
         var profile = profileService.profile();
         var operation = profileService.requireOperation(purpose);
-        var features = featureDefaultsService.selectFor(profile);
+        var features = profileService.selectFeatures(operation);
         var account = vaultSessionManager.requireAccount(accountId);
-        var clientCredentials = clientCredentialsProvider.require();
-        var deviceIdentity = deviceProfileStore.require().toIdentity(profile);
         var operationUri = operation.resolveAgainst(profile.graphqlBaseUri());
 
         String body = null;
@@ -109,27 +63,21 @@ public class AuthenticatedGraphQlClient {
             body = writeJson(Map.of("variables", variables, "features", features));
             requestUri = operationUri;
         } else {
+            var fieldToggles = operation.fieldToggles().isEmpty()
+                    ? DEFAULT_FIELD_TOGGLES
+                    : operation.fieldToggles().stream()
+                            .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                                    key -> key, key -> false));
             requestUri = withQuery(
                     operationUri,
-                    Map.of("variables", writeJson(variables), "features", writeJson(features)));
+                    Map.of(
+                            "variables", writeJson(variables),
+                            "features", writeJson(features),
+                            "fieldToggles", writeJson(fieldToggles)));
         }
 
-        var oauthCredentials = new Credentials(
-                clientCredentials.consumerKey(),
-                clientCredentials.consumerSecret(),
-                account.oauthToken(),
-                account.oauthTokenSecret());
-        var authorization = oauth1Signer.authorizationHeader(
-                operation.type() == OperationType.MUTATION ? "POST" : "GET",
-                requestUri,
-                List.of(),
-                oauthCredentials,
-                Long.toString(Instant.now().getEpochSecond()),
-                newNonce());
-        var requestBuilder = HttpRequest.newBuilder(requestUri)
-                .timeout(REQUEST_TIMEOUT)
-                .header("Authorization", authorization);
-        androidRequestHeaders.apply(requestBuilder, profile, deviceIdentity);
+        var requestBuilder = HttpRequest.newBuilder(requestUri).timeout(REQUEST_TIMEOUT);
+        WebSessionRequestHeaders.apply(requestBuilder, account, "ja");
         if (body == null) {
             requestBuilder.GET();
         } else {
@@ -159,7 +107,11 @@ public class AuthenticatedGraphQlClient {
         try {
             var root = objectMapper.readTree(body);
             var errors = root.get("errors");
-            if (errors != null && errors.isArray() && !errors.isEmpty()) {
+            var data = root.get("data");
+            if (errors != null
+                    && errors.isArray()
+                    && !errors.isEmpty()
+                    && (data == null || data.isNull() || data.isEmpty())) {
                 throw new XApiHttpException(
                         "GraphQL " + purpose + "がエラーを返しました。", 502);
             }
@@ -174,12 +126,6 @@ public class AuthenticatedGraphQlClient {
         } catch (JacksonException exception) {
             throw new IllegalArgumentException("GraphQL入力をJSONへ変換できません。", exception);
         }
-    }
-
-    private String newNonce() {
-        var bytes = new byte[18];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private static URI withQuery(URI uri, Map<String, String> values) {

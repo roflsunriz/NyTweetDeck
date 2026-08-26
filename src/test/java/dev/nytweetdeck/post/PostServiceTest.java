@@ -26,7 +26,7 @@ class PostServiceTest {
     }
 
     @Test
-    void buildsVerifiedAndroidQuoteAttachmentUrl() {
+    void buildsVerifiedWebQuoteAttachmentUrl() {
         var variables = new PostService(null, null, null)
                 .createVariables(" quote ", null, "123456789");
 

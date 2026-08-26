@@ -10,7 +10,7 @@ class ListMembershipServiceTest {
     private final ListMembershipService service = new ListMembershipService(null);
 
     @Test
-    void mapsConfirmedAndroidListMembershipVariables() {
+    void mapsConfirmedWebListMembershipVariables() {
         var add = service.createRequest("42", "84", "add");
         var remove = service.createRequest("42", "84", "remove");
 

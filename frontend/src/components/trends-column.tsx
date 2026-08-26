@@ -18,9 +18,11 @@ interface TrendPage {
 export function TrendsColumn({
   accountId,
   translation,
+  onSelect,
 }: {
   accountId: string | null;
   translation: Translation;
+  onSelect?: (query: string) => void;
 }) {
   const [trends, setTrends] = useState<Trend[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -116,19 +118,20 @@ export function TrendsColumn({
   return (
     <div className="trend-list">
       {trends.map((trend, index) => (
-        <a
+        <button
+          type="button"
           key={trend.name}
-          className="trend-item"
-          href={trend.url}
-          target="_blank"
-          rel="noreferrer"
+          className="deck-feed-item trend-item"
+          data-trend-rank={trend.rank ?? index + 1}
+          onClick={() => onSelect?.(trend.name)}
         >
-          <small>{trend.domainContext ?? trend.metaDescription ?? translation.trends}</small>
-          <strong>
-            {trend.rank ?? index + 1}. {trend.name}
-          </strong>
+          <small>
+            {trend.rank ?? index + 1} ·{" "}
+            {trend.domainContext ?? trend.metaDescription ?? translation.trends}
+          </small>
+          <strong>{trend.name}</strong>
           {trend.description !== null && <span>{trend.description}</span>}
-        </a>
+        </button>
       ))}
       {cursor !== null && (
         <button

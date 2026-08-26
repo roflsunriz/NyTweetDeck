@@ -37,7 +37,7 @@ describe("layout storage", () => {
     const layout = {
       ...createDefaultLayout(),
       locale: "en" as const,
-      columns: [{ id: "home-1", kind: "home" as const, target: null }],
+      columns: [{ id: "home-1", kind: "home" as const, target: null, label: null }],
     };
 
     saveLayout(storage, layout);
@@ -68,11 +68,11 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
     expect(migrated.columns[0]?.target).toBeNull();
     expect(migrated.activeAccountId).toBeNull();
     expect(migrated.display.mediaPreview).toBe(true);
-    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(3);
+    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(4);
   });
 
   test("migrates version 2 layout while preserving columns and account", () => {
@@ -91,10 +91,27 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
     expect(migrated.columns).toHaveLength(1);
     expect(migrated.activeAccountId).toBe("account-1");
     expect(migrated.display.accentColor).toBe("blue");
+  });
+
+  test("migrates version 3 columns with an empty display label", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...createDefaultLayout(),
+        version: 3,
+        columns: [{ id: "list", kind: "list", target: "42" }],
+      }),
+    );
+
+    const migrated = loadLayout(storage);
+
+    expect(migrated.version).toBe(4);
+    expect(migrated.columns[0]?.label).toBeNull();
   });
 
   test("moves an item without mutating the source", () => {

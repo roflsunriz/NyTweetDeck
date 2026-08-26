@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe("post actions", () => {
-  test("updates like count only after successful Android mutation", async () => {
+  test("updates like count only after successful web mutation", async () => {
     const urls: string[] = [];
     globalThis.fetch = (async (input) => {
       urls.push(String(input));
@@ -58,12 +58,13 @@ describe("post actions", () => {
     expect(screen.getByRole("link", { name: "コミュニティノートリクエスト" })).toBeDefined();
   });
 
-  test("shows user id and hashtags and offers repost and quote choices", async () => {
+  test("shows the at-username and hashtags and offers repost and quote choices", async () => {
     const user = userEvent.setup();
     const taggedPost = { ...post(), text: "hello #NyTweetDeck" };
     render(<PostCard post={taggedPost} accountId="account-1" translation={translate("ja")} />);
 
-    expect(screen.getByText("ユーザーID: 42")).toBeDefined();
+    expect(screen.getByText("@alice")).toBeDefined();
+    expect(screen.queryByText("42")).toBeNull();
     expect(screen.getByText("#NyTweetDeck").classList.contains("hashtag")).toBe(true);
     await user.click(screen.getByLabelText("リポスト"));
     expect(screen.getByRole("button", { name: "リポスト" })).toBeDefined();
@@ -123,7 +124,7 @@ describe("post actions", () => {
     expect(requestedUrl).toContain("/api/v1/users/42/actions/follow?accountId=account-1");
   });
 
-  test("adds the post author to a selected list through the Android mutation", async () => {
+  test("adds the post author to a selected list through the web mutation", async () => {
     let requestedUrl = "";
     globalThis.fetch = (async (input) => {
       requestedUrl = String(input);
@@ -159,6 +160,23 @@ describe("post actions", () => {
     await user.keyboard("{Enter}");
 
     expect(onOpen).toHaveBeenCalledTimes(2);
+  });
+
+  test("opens the internal user profile from the author identity", async () => {
+    const openUser = mock(() => undefined);
+    const user = userEvent.setup();
+    render(
+      <PostCard
+        post={post()}
+        accountId="account-1"
+        translation={translate("ja")}
+        onOpenUser={openUser}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Alice/ }));
+
+    expect(openUser).toHaveBeenCalledWith("42");
   });
 });
 

@@ -31,7 +31,7 @@ describe("timeline column", () => {
       return Response.json({ posts: [post("1", "first")], nextCursor: "next" });
     }) as typeof fetch;
     const user = userEvent.setup();
-    const column: ColumnConfig = { id: "home", kind: "home", target: null };
+    const column: ColumnConfig = { id: "home", kind: "home", target: null, label: null };
     render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
 
     await screen.findByText("first");
@@ -46,7 +46,7 @@ describe("timeline column", () => {
   });
 
   test("requires an active account and preserves user target", async () => {
-    const column: ColumnConfig = { id: "user", kind: "user", target: "42" };
+    const column: ColumnConfig = { id: "user", kind: "user", target: "42", label: "@alice" };
     const first = render(
       <TimelineColumn column={column} accountId={null} translation={translate("ja")} />,
     );
@@ -62,6 +62,51 @@ describe("timeline column", () => {
     await waitFor(() => expect(screen.getByText("表示するポストがありません。")).toBeDefined());
     expect(requestedUrl).toContain("/api/v1/timelines/userPosts?");
     expect(requestedUrl).toContain("target=42");
+  });
+
+  test("reports a locked vault instead of a generic timeline failure", async () => {
+    let lockedEvents = 0;
+    const handleLocked = () => {
+      lockedEvents += 1;
+    };
+    window.addEventListener("nytweetdeck:vault-locked", handleLocked);
+    globalThis.fetch = (async () =>
+      Response.json(
+        { detail: "アカウントVaultはロックされています。" },
+        { status: 423 },
+      )) as unknown as typeof fetch;
+    const column: ColumnConfig = {
+      id: "search",
+      kind: "search",
+      target: "NyTweetDeck",
+      label: "NyTweetDeck",
+    };
+
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+
+    expect(await screen.findByText("ログインが必要です")).toBeDefined();
+    expect(screen.getByText(/Vaultを解除/)).toBeDefined();
+    expect(screen.queryByText("タイムラインを読み込めませんでした。")).toBeNull();
+    expect(lockedEvents).toBe(1);
+    window.removeEventListener("nytweetdeck:vault-locked", handleLocked);
+  });
+
+  test("shows the redacted backend reason for a real timeline API failure", async () => {
+    globalThis.fetch = (async () =>
+      Response.json(
+        { detail: "GraphQL searchに失敗しました。HTTP 400" },
+        { status: 502 },
+      )) as unknown as typeof fetch;
+    const column: ColumnConfig = {
+      id: "search",
+      kind: "search",
+      target: "NyTweetDeck",
+      label: "NyTweetDeck",
+    };
+
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+
+    expect(await screen.findByText(/GraphQL searchに失敗しました。HTTP 400/)).toBeDefined();
   });
 
   test("loads the next page automatically when the end sentinel becomes visible", async () => {
@@ -88,7 +133,7 @@ describe("timeline column", () => {
         ? Response.json({ posts: [post("2", "automatic")], nextCursor: null })
         : Response.json({ posts: [post("1", "first")], nextCursor: "next" });
     }) as typeof fetch;
-    const column: ColumnConfig = { id: "home", kind: "home", target: null };
+    const column: ColumnConfig = { id: "home", kind: "home", target: null, label: null };
 
     render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
     await screen.findByText("first");
@@ -114,7 +159,7 @@ describe("timeline column", () => {
       }
       return Response.json({ connected: true, topicCount: 1 });
     }) as typeof fetch;
-    const column: ColumnConfig = { id: "home", kind: "home", target: null };
+    const column: ColumnConfig = { id: "home", kind: "home", target: null, label: null };
     render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
     await screen.findByText("live post");
 
@@ -125,7 +170,41 @@ describe("timeline column", () => {
     await waitFor(() => expect(timelineLoads).toBe(2));
     await waitFor(() => expect(screen.queryByText(/リアルタイム更新へ接続できません/)).toBeNull());
   });
+
+  test("filters loaded posts by text, image, and video without another request", async () => {
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (String(input).includes("/api/v1/timelines/")) {
+        timelineLoads += 1;
+        return Response.json({
+          posts: [
+            post("1", "text only"),
+            { ...post("2", "image post"), media: [media("photo")] },
+            { ...post("3", "video post"), media: [media("video")] },
+          ],
+          nextCursor: null,
+        });
+      }
+      return Response.json({ connected: true });
+    }) as typeof fetch;
+    const user = userEvent.setup();
+    const column: ColumnConfig = { id: "home", kind: "home", target: null, label: null };
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+
+    await screen.findByText("text only");
+    await user.click(screen.getByRole("button", { name: "画像" }));
+    expect(screen.getByText("image post")).toBeDefined();
+    expect(screen.queryByText("text only")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "動画" }));
+    expect(screen.getByText("video post")).toBeDefined();
+    expect(screen.queryByText("image post")).toBeNull();
+    expect(timelineLoads).toBe(1);
+  });
 });
+
+function media(type: "photo" | "video") {
+  return { id: type, type, url: `https://pbs.twimg.com/${type}`, previewUrl: "" };
+}
 
 function post(id: string, text: string) {
   return {

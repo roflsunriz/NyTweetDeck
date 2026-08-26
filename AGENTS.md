@@ -14,9 +14,9 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
    このファイルでは `NyTweetDeck` 固有の補足だけを記載する。
 
 ## 目的
-- Xアプリ(アンドロイド用Twitterアプリ)の API を解析し、最終的には https://github.com/dimdenGD/OldTweetDeck のようなデザインの TweetDeck クローンを作り上げる
+- XのWeb APIを利用し、最終的には https://github.com/dimdenGD/OldTweetDeck のようなデザインの TweetDeck クローンを作り上げる
 - Javaアプリで、専用ローカルアドレスにブラウザでアクセスすると専用フロントエンドが表示されるイメージを私は持っている
-- 通信 API は アンドロイド版Xに可能な限り偽装する
+- 通信はX公式WebログインとWeb APIへ統一し、Android互換経路は保持しない
 
 ## 機能
 - X (旧 Twitter) にログインする
@@ -51,5 +51,4 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - 自動化検証する
 
 ## 環境
-- `x-apks`フォルダに.apkmという解析用の X アプリがある
 - フロントエンドのバンドルには Bun bundler を使用する

@@ -6,9 +6,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.io.ClassPathResource;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class NyTweetDeckApplicationTest {
@@ -40,13 +42,18 @@ class NyTweetDeckApplicationTest {
                 .build();
 
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        var bundledFrontend = new ClassPathResource("static/index.html")
+                .getContentAsString(StandardCharsets.UTF_8);
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains("NyTweetDeck").contains("id=\"root\"");
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(value -> assertThat(value).startsWith("text/html"));
+        assertThat(response.body()).startsWith("<!doctype html>");
+        assertThat(bundledFrontend).contains("NyTweetDeck").contains("id=\"root\"");
     }
 
     @Test
-    void servesPublicAndroidApiProfileWithoutCredentials() throws Exception {
+    void servesPublicWebApiProfileWithoutCredentials() throws Exception {
         var request = HttpRequest.newBuilder(
                         URI.create("http://127.0.0.1:" + port + "/api/v1/x-api/profile"))
                 .GET()
@@ -56,7 +63,7 @@ class NyTweetDeckApplicationTest {
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body())
-                .contains("\"packageName\":\"com.twitter.android\"")
+                .contains("\"packageName\":\"x-web\"")
                 .contains("\"homeForYou\"")
                 .doesNotContainIgnoringCase("consumerSecret")
                 .doesNotContainIgnoringCase("Authorization");

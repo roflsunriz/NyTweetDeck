@@ -1,21 +1,12 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { Modal } from "./modal";
 
-interface LoginSubtask {
-  id: string;
-  type: string;
-  prompt: string | null;
-  hint: string | null;
-  nextLink: string;
-  choices: Array<{ id: string; label: string }>;
-}
-
-interface LoginProgress {
-  sessionId: string | null;
-  complete: boolean;
-  subtasks: LoginSubtask[];
+interface BrowserLoginStatus {
+  sessionId: string;
+  phase: "STARTING" | "WAITING_USER" | "CAPTURING" | "COMPLETE" | "FAILED" | "CANCELLED";
   account: { accountId: string } | null;
+  errorCode: string | null;
 }
 
 interface LoginDialogProps {
@@ -25,142 +16,145 @@ interface LoginDialogProps {
 }
 
 export function LoginDialog({ translation, onComplete, onClose }: LoginDialogProps) {
-  const [progress, setProgress] = useState<LoginProgress | null>(null);
-  const [value, setValue] = useState("");
-  const [choiceId, setChoiceId] = useState("");
-  const [busy, setBusy] = useState(true);
+  const [status, setStatus] = useState<BrowserLoginStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const subtask = progress?.subtasks[0] ?? null;
+  const [retryKey, setRetryKey] = useState(0);
+  const requestId = useRef(crypto.randomUUID());
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/v1/login/start", { method: "POST", signal: controller.signal })
-      .then(readProgress)
-      .then(setProgress)
-      .catch((loadError) => {
-        if (!(loadError instanceof DOMException && loadError.name === "AbortError")) {
-          setError(
-            loadError instanceof LoginHttpError && loadError.status === 423
-              ? translation.unlockVaultBeforeLogin
-              : translation.loginFailed,
-          );
-        }
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const handleError = (loadError: unknown) => {
+      if (!(loadError instanceof DOMException && loadError.name === "AbortError")) {
+        setError(
+          loadError instanceof LoginHttpError && loadError.status === 423
+            ? translation.unlockVaultBeforeLogin
+            : translation.loginFailed,
+        );
+      }
+    };
+
+    const poll = async (sessionId: string): Promise<void> => {
+      const response = await fetch(`/api/v1/login/browser/${encodeURIComponent(sessionId)}`, {
+        signal: controller.signal,
+      });
+      const next = await readStatus(response);
+      setStatus(next);
+      if (["STARTING", "WAITING_USER", "CAPTURING"].includes(next.phase)) {
+        timeout = setTimeout(() => void poll(sessionId).catch(handleError), 750);
+      }
+    };
+
+    void fetch(
+      `/api/v1/login/browser/start?requestId=${encodeURIComponent(requestId.current)}&attempt=${retryKey}`,
+      {
+        method: "POST",
+        signal: controller.signal,
+      },
+    )
+      .then(readStatus)
+      .then((initial) => {
+        setStatus(initial);
+        return poll(initial.sessionId);
       })
-      .finally(() => setBusy(false));
-    return () => controller.abort();
-  }, [translation.loginFailed, translation.unlockVaultBeforeLogin]);
+      .catch(handleError);
+
+    return () => {
+      controller.abort();
+      if (timeout !== undefined) clearTimeout(timeout);
+    };
+  }, [retryKey, translation.loginFailed, translation.unlockVaultBeforeLogin]);
 
   useEffect(() => {
-    if (progress?.complete && progress.account !== null) {
-      onComplete(progress.account.accountId);
+    if (status?.phase === "COMPLETE" && status.account !== null) {
+      onComplete(status.account.accountId);
+    } else if (status?.phase === "FAILED") {
+      setError(
+        status.errorCode === "BROWSER_CLOSED"
+          ? translation.browserLoginBrowserClosed
+          : translation.loginFailed,
+      );
     }
-  }, [onComplete, progress]);
+  }, [onComplete, status, translation.browserLoginBrowserClosed, translation.loginFailed]);
 
   const close = () => {
-    if (progress?.sessionId !== null && progress?.sessionId !== undefined) {
-      void fetch(`/api/v1/login/${encodeURIComponent(progress.sessionId)}`, { method: "DELETE" });
+    if (status !== null && ["STARTING", "WAITING_USER", "CAPTURING"].includes(status.phase)) {
+      void fetch(`/api/v1/login/browser/${encodeURIComponent(status.sessionId)}`, {
+        method: "DELETE",
+      });
     }
     onClose();
   };
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (progress?.sessionId === null || progress?.sessionId === undefined || subtask === null) {
-      return;
+  const retry = () => {
+    if (status !== null) {
+      void fetch(`/api/v1/login/browser/${encodeURIComponent(status.sessionId)}`, {
+        method: "DELETE",
+      });
     }
-    setBusy(true);
+    setStatus(null);
+    setError(null);
+    setRetryKey((current) => current + 1);
+  };
+
+  const capture = async () => {
+    if (status?.phase !== "WAITING_USER" && status?.phase !== "FAILED") return;
     setError(null);
     try {
       const response = await fetch(
-        `/api/v1/login/${encodeURIComponent(progress.sessionId)}/submit`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            subtaskId: subtask.id,
-            value: value.length === 0 ? null : value,
-            choiceIds: choiceId.length === 0 ? [] : [choiceId],
-            link: subtask.nextLink,
-          }),
-        },
+        `/api/v1/login/browser/${encodeURIComponent(status.sessionId)}/capture`,
+        { method: "POST" },
       );
-      const next = await readProgress(response);
-      setProgress(next);
-      setValue("");
-      setChoiceId("");
+      setStatus(await readStatus(response));
     } catch {
       setError(translation.loginFailed);
-    } finally {
-      setBusy(false);
     }
   };
 
-  const unsupported = subtask !== null && !isSupportedType(subtask.type);
   return (
     <Modal title={translation.loginAccount} closeLabel={translation.close} onClose={close}>
-      <div className="login-flow">
-        {busy && subtask === null ? (
-          <p>{translation.loading}</p>
-        ) : subtask === null ? (
-          <p className="setup-error">{error ?? translation.loginFailed}</p>
-        ) : (
-          <form onSubmit={submit}>
-            <p className="login-prompt">{subtask.prompt ?? translation.loginAccount}</p>
-            {subtask.hint !== null && <p className="modal-description">{subtask.hint}</p>}
-            {subtask.type === "CHOICE" ? (
-              <select
-                required
-                aria-label={subtask.prompt ?? translation.loginAccount}
-                value={choiceId}
-                onChange={(event) => setChoiceId(event.target.value)}
-              >
-                <option value="">{translation.selectLoginChoice}</option>
-                {subtask.choices.map((choice) => (
-                  <option key={choice.id} value={choice.id}>
-                    {choice.label}
-                  </option>
-                ))}
-              </select>
-            ) : needsValue(subtask.type) ? (
-              <input
-                required
-                maxLength={320}
-                type={subtask.type === "PASSWORD" ? "password" : "text"}
-                autoComplete={subtask.type === "PASSWORD" ? "current-password" : "username"}
-                aria-label={subtask.prompt ?? translation.loginAccount}
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-              />
-            ) : null}
-            {unsupported && <p className="setup-error">{translation.unsupportedLoginStep}</p>}
-            {error !== null && <p className="setup-error">{error}</p>}
-            <button className="primary-button" type="submit" disabled={busy || unsupported}>
-              {busy ? translation.loading : translation.continueLogin}
+      <div className="login-flow" data-testid="browser-login-flow">
+        {error === null && status?.phase === "WAITING_USER" ? (
+          <>
+            <p className="login-prompt">{translation.browserLoginInstructions}</p>
+            <button className="primary-button" type="button" onClick={capture}>
+              {translation.browserLoginCapture}
             </button>
-          </form>
+          </>
+        ) : error === null ? (
+          <>
+            <p className="login-prompt">{translation.browserLoginCapturing}</p>
+            <p className="modal-description">{translation.loading}</p>
+          </>
+        ) : (
+          <>
+            <p className="setup-error">{error}</p>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={
+                status?.phase === "FAILED" && status.errorCode !== "BROWSER_CLOSED"
+                  ? capture
+                  : retry
+              }
+            >
+              {translation.continueLogin}
+            </button>
+          </>
         )}
       </div>
     </Modal>
   );
 }
 
-async function readProgress(response: Response): Promise<LoginProgress> {
-  if (!response.ok) {
-    throw new LoginHttpError(response.status);
-  }
-  return (await response.json()) as LoginProgress;
+async function readStatus(response: Response): Promise<BrowserLoginStatus> {
+  if (!response.ok) throw new LoginHttpError(response.status);
+  return (await response.json()) as BrowserLoginStatus;
 }
 
 class LoginHttpError extends Error {
   constructor(readonly status: number) {
     super(`HTTP ${status}`);
   }
-}
-
-function needsValue(type: string): boolean {
-  return ["TEXT", "USERNAME", "PASSWORD", "EMAIL_CODE", "PHONE_CODE"].includes(type);
-}
-
-function isSupportedType(type: string): boolean {
-  return needsValue(type) || ["CHOICE", "CONFIRM", "COMPLETE"].includes(type);
 }

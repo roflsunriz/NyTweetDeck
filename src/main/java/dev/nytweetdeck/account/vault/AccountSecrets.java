@@ -5,15 +5,40 @@ public record AccountSecrets(
         String userId,
         String username,
         String displayName,
-        String oauthToken,
-        String oauthTokenSecret) {
+        String webBearerToken,
+        String authToken,
+        String csrfToken) {
 
     public AccountSecrets {
         requireValue(accountId, "accountId");
         requireValue(userId, "userId");
         requireValue(username, "username");
-        requireValue(oauthToken, "oauthToken");
-        requireValue(oauthTokenSecret, "oauthTokenSecret");
+        var webReady = hasValue(webBearerToken) && hasValue(authToken) && hasValue(csrfToken);
+        if (!webReady) {
+            throw new IllegalArgumentException("Webセッション資格情報が必要です。");
+        }
+    }
+
+    public static AccountSecrets webSession(
+            String accountId,
+            String userId,
+            String username,
+            String displayName,
+            String webBearerToken,
+            String authToken,
+            String csrfToken) {
+        return new AccountSecrets(
+                accountId,
+                userId,
+                username,
+                displayName,
+                webBearerToken,
+                authToken,
+                csrfToken);
+    }
+
+    public boolean hasWebSession() {
+        return hasValue(webBearerToken) && hasValue(authToken) && hasValue(csrfToken);
     }
 
     @Override
@@ -26,12 +51,16 @@ public record AccountSecrets(
                 + username
                 + ", displayName="
                 + displayName
-                + ", oauthToken=<redacted>, oauthTokenSecret=<redacted>]";
+                + ", webBearerToken=<redacted>, authToken=<redacted>, csrfToken=<redacted>]";
     }
 
     private static void requireValue(String value, String name) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(name + "が空です。");
         }
+    }
+
+    private static boolean hasValue(String value) {
+        return value != null && !value.isBlank();
     }
 }

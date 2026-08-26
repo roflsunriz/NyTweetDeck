@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 describe("direct message column", () => {
-  test("loads the authenticated Android inbox", async () => {
+  test("loads the authenticated web inbox", async () => {
     const requestedUrls: string[] = [];
     globalThis.fetch = (async (input) => {
       requestedUrls.push(String(input));

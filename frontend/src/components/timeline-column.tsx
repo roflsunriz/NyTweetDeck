@@ -4,6 +4,8 @@ import type { ColumnConfig } from "../model/layout";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
+import { filterPosts, type PostFilter, PostFilterBar } from "./post-filter";
+import { UserProfileDialog } from "./user-profile-dialog";
 
 interface TimelinePage {
   posts: TimelinePost[];
@@ -29,6 +31,9 @@ export function TimelineColumn({
   const [error, setError] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [liveError, setLiveError] = useState(false);
+  const [postFilter, setPostFilter] = useState<PostFilter>("all");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [vaultLocked, setVaultLocked] = useState(false);
   const loadingRef = useRef(false);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
@@ -54,7 +59,7 @@ export function TimelineColumn({
         const kind = timelineKind(column.kind);
         const response = await fetch(`/api/v1/timelines/${kind}?${params}`);
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new TimelineHttpError(response.status, await readProblemDetail(response));
         }
         const page = (await response.json()) as TimelinePage;
         setPosts((current) =>
@@ -66,8 +71,19 @@ export function TimelineColumn({
               ],
         );
         setCursor(page.nextCursor);
-      } catch {
-        setError(translation.timelineLoadError);
+        setVaultLocked(false);
+      } catch (loadError) {
+        if (loadError instanceof TimelineHttpError && loadError.status === 423) {
+          setVaultLocked(true);
+          window.dispatchEvent(new Event("nytweetdeck:vault-locked"));
+        } else {
+          const detail = loadError instanceof TimelineHttpError ? loadError.detail : null;
+          setError(
+            detail === null
+              ? translation.timelineLoadError
+              : `${translation.timelineLoadError} ${detail}`,
+          );
+        }
       } finally {
         loadingRef.current = false;
         setLoading(false);
@@ -169,6 +185,14 @@ export function TimelineColumn({
       />
     );
   }
+  if (vaultLocked) {
+    return (
+      <ColumnMessage
+        title={translation.loginRequired}
+        body={translation.loginRequiredDescription}
+      />
+    );
+  }
   if (error !== null && posts.length === 0) {
     return (
       <div className="column-message">
@@ -185,9 +209,12 @@ export function TimelineColumn({
   if (posts.length === 0) {
     return <ColumnMessage title={translation.noPosts} />;
   }
+  const visiblePosts = filterPosts(posts, postFilter);
   return (
     <div className="timeline-content">
-      {posts.map((post) => (
+      <PostFilterBar value={postFilter} translation={translation} onChange={setPostFilter} />
+      {visiblePosts.length === 0 && <ColumnMessage title={translation.noFilteredPosts} />}
+      {visiblePosts.map((post) => (
         <PostCard
           key={post.id}
           post={post}
@@ -195,6 +222,7 @@ export function TimelineColumn({
           translation={translation}
           display={display}
           onOpen={() => setSelectedPostId(post.id)}
+          onOpenUser={setSelectedUserId}
         />
       ))}
       {cursor !== null && (
@@ -217,10 +245,38 @@ export function TimelineColumn({
           translation={translation}
           display={display}
           onClose={() => setSelectedPostId(null)}
+          onOpenUser={setSelectedUserId}
+        />
+      )}
+      {selectedUserId !== null && (
+        <UserProfileDialog
+          userId={selectedUserId}
+          accountId={accountId}
+          translation={translation}
+          display={display}
+          onClose={() => setSelectedUserId(null)}
         />
       )}
     </div>
   );
+}
+
+class TimelineHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: string | null,
+  ) {
+    super(`HTTP ${status}`);
+  }
+}
+
+async function readProblemDetail(response: Response): Promise<string | null> {
+  try {
+    const problem = (await response.json()) as { detail?: unknown };
+    return typeof problem.detail === "string" && problem.detail.length > 0 ? problem.detail : null;
+  } catch {
+    return null;
+  }
 }
 
 function timelineKind(kind: ColumnConfig["kind"]): string {

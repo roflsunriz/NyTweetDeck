@@ -11,14 +11,15 @@ afterEach(() => {
 });
 
 describe("notifications column", () => {
-  test("renders non-post follow events from the Android notification response", async () => {
+  test("renders non-post follow events from the web notification response", async () => {
     globalThis.fetch = (async () =>
       Response.json({
         notifications: [
           {
             id: "follow-1",
+            kind: "follow",
             text: "Alice followed you",
-            url: "https://x.com/notifications",
+            postId: null,
             imageUrls: ["https://pbs.twimg.com/alice.jpg"],
           },
         ],
@@ -28,6 +29,9 @@ describe("notifications column", () => {
 
     render(<NotificationsColumn accountId="account-1" translation={translate("ja")} />);
 
-    expect(await screen.findByRole("link", { name: /Alice followed you/ })).toBeDefined();
+    const notification = await screen.findByRole("article");
+    expect(notification.textContent).toContain("Alice followed you");
+    expect(notification.classList.contains("deck-feed-item")).toBe(true);
+    expect(notification.getAttribute("data-notification-kind")).toBe("follow");
   });
 });

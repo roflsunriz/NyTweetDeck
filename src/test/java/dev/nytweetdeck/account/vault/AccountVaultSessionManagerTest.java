@@ -20,15 +20,15 @@ class AccountVaultSessionManagerTest {
         var manager = createManager();
         var passphrase = "correct horse battery staple".toCharArray();
         manager.create(passphrase);
-        manager.addOrReplace(new AccountSecrets(
-                "account-1", "42", "alice", "Alice", "oauth-token", "oauth-secret"));
+        manager.addOrReplace(AccountSecrets.webSession(
+                "account-1", "42", "alice", "Alice", "web-bearer", "web-auth", "web-csrf"));
 
         var summaries = manager.accountSummaries();
         manager.lock();
 
         assertThat(summaries).containsExactly(
                 new AccountVaultSessionManager.AccountSummary("account-1", "42", "alice", "Alice"));
-        assertThat(summaries.toString()).doesNotContain("oauth-token", "oauth-secret");
+        assertThat(summaries.toString()).doesNotContain("web-bearer", "web-auth", "web-csrf");
         assertThat(manager.status().unlocked()).isFalse();
         assertThatThrownBy(manager::accountSummaries)
                 .isInstanceOf(VaultException.class)

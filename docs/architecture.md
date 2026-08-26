@@ -8,7 +8,7 @@ NyTweetDeckは、Spring Boot製Javaプロセスを製品のエントリーポイ
 ブラウザ ── http://127.0.0.1:18080 ── Spring Boot
    │                                      ├─ 静的React UI
    │                                      ├─ /api/v1/*
-   │                                      └─ Android互換X通信アダプター
+   │                                      └─ X Web API通信アダプター
    └─ 非機密の表示設定だけをlocalStorageへ保存
 ```
 
@@ -16,7 +16,7 @@ NyTweetDeckは、Spring Boot製Javaプロセスを製品のエントリーポイ
 
 - `frontend/`: 表示、ユーザー操作、非機密なレイアウト設定を担当します。
 - `src/main/java/dev/nytweetdeck/system/`: アプリケーション状態など、X通信に依存しないAPIを担当します。
-- `src/main/java/dev/nytweetdeck/xapi/`: Android版Xのバージョン付きAPIプロファイル、OAuth署名、認証、通信を担当します。解析で確認できた仕様だけを実装し、推測のエンドポイントや固定トークンを置きません。
+- `src/main/java/dev/nytweetdeck/xapi/`: X公式Webログイン、Web Cookie認証、GraphQL/REST通信を担当します。公開BearerはX公式Web資産から動的に解決します。
 - `src/main/java/dev/nytweetdeck/account/vault/`: PBKDF2-HMAC-SHA256 600,000回とAES-256-GCMを使い、複数アカウント資格情報の暗号化、ロック、バックアップ復旧を担当します。
 - Vault鍵は専用パスフレーズから導出し、パスフレーズはJavaプロセスの解除中メモリにだけ保持します。ロック時に配列を消去し、ブラウザや設定ファイルへ保存しません。
 
@@ -32,16 +32,18 @@ BunのHTMLエントリーポイントをBun bundlerへ渡し、`target/classes/s
 4. カラムを削除する。
 5. 表示言語とテーマを変更する。
 6. 再読み込み後もカラムと表示設定が復元される。
-7. 設定画面からAndroid端末プロファイルを保存する。
-8. 暗号化アカウントVaultを作成、解除、ロックする。
+7. 暗号化アカウントVaultを作成、解除、ロックする。
 9. 選択アカウントでホーム、通知、ユーザー、リスト、履歴、検索、トレンド、DM受信箱カラムを取得する。
 10. cursorで過去ページを追加し、いいね、リポスト、履歴保存を実行する。
 11. 投稿・返信・ポスト操作が成功すると、アカウント別SSEで表示中カラムを再取得する。
-12. アカウント切替画面からAndroid OCFログインを開始し、動的subtaskを完了後、OAuth token/secretをブラウザへ返さずVaultへ暗号化保存する。
+12. アカウント切替画面からX公式ログイン専用Chromeを開き、完了後のWebセッションをブラウザへ返さずVaultへ暗号化保存する。
 13. 主要10言語と日本語、RTL、文字サイズ、色、密度、動き、メディア表示を変更し、レイアウトv3として自動保存・復元する。
-14. 表示中ポストの数字とDMをAndroid Live Pipelineで購読し、切断時だけ指数バックオフで再接続してローカルSSEへ転送する。
+14. 表示中ポストの数字とDMをWeb認証済みLive Pipelineで購読し、切断時だけ指数バックオフで再接続してローカルSSEへ転送する。
 15. CIとReleaseでパッケージ済みJARを起動し、Chromeで複数画面幅、永続化、設定、RTLを自動操作する。
+16. X Web API metadataは公式Web資産から非同期取得し、全必須operationのqueryId・Feature・field toggleを検証後、単一スナップショットとして原子的に差し替える。失敗時は直前のスナップショットを維持する。
+17. 投稿形式フィルターは取得済みの正規化投稿に対してクライアント側で適用し、切替による追加API消費を発生させない。
+18. 作者選択は内部ユーザー参照を境界としてアプリ内プロフィールへ遷移し、画面には@ユーザー名だけを表示する。プロフィール情報・共通フォロワー・タブ別タイムラインはそれぞれ現行Web operationから取得する。
 
 ## 次の接続点
 
-解析対象のAPKMからAPIホスト、GraphQL操作ID、RESTパス、標準ヘッダー、OCFログインと`open_account`、OAuth 1.0a署名方式、DM受信箱、Explore、Live Pipelineの接続仕様まで確認済みです。Guest認証、OCF状態機械とブラウザUI、端末プロファイル、暗号化Vault、GraphQL Feature Switch、タイムライン正規化、主要Mutation、Android Live PipelineとローカルSSE更新も実装済みです。通常タイムラインの新規ポスト用event typeは解析版に存在しないため、推測topicや定期ポーリングは使用しません。実ログインと確認済みLive Pipeline payloadの実地確認は、Androidクライアント資格情報の抽出・利用に対する明示承認後に行います。
+公式ログインで得た実セッションを使い、ホーム、通知、DM、トレンド、Mutation、Live Pipelineを順に実地確認します。失敗した操作はWeb版Xの現行操作IDと入力へ更新し、実通信成功まで完了扱いにしません。

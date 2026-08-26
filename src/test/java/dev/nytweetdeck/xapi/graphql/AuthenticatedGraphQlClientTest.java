@@ -8,25 +8,17 @@ import com.sun.net.httpserver.HttpServer;
 import dev.nytweetdeck.account.vault.AccountSecrets;
 import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
 import dev.nytweetdeck.account.vault.EncryptedAccountVault;
-import dev.nytweetdeck.xapi.credentials.AndroidClientCredentialsProvider;
-import dev.nytweetdeck.xapi.device.AndroidDeviceProfile;
-import dev.nytweetdeck.xapi.device.AndroidDeviceProfileStore;
-import dev.nytweetdeck.xapi.http.AndroidRequestHeaders;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer;
-import dev.nytweetdeck.xapi.profile.AndroidApiProfile;
-import dev.nytweetdeck.xapi.profile.AndroidApiProfile.OperationType;
-import dev.nytweetdeck.xapi.profile.AndroidApiProfileService;
-import dev.nytweetdeck.xapi.profile.AndroidFeatureDefaultsService;
+import dev.nytweetdeck.xapi.profile.XApiProfile;
+import dev.nytweetdeck.xapi.profile.XApiProfile.OperationType;
+import dev.nytweetdeck.xapi.profile.XApiProfileService;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -57,12 +49,16 @@ class AuthenticatedGraphQlClientTest {
     }
 
     @Test
-    void sendsVersionedQueryWithSelectedFeaturesAndOAuth() throws Exception {
+    void sendsVersionedQueryWithSelectedFeaturesAndWebSession() throws Exception {
         var rawQuery = new AtomicReference<String>();
         var authorization = new AtomicReference<String>();
+        var cookie = new AtomicReference<String>();
+        var csrfToken = new AtomicReference<String>();
         server.createContext("/graphql/op-id/HomeTimeline", exchange -> {
             rawQuery.set(exchange.getRequestURI().getRawQuery());
             authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            cookie.set(exchange.getRequestHeaders().getFirst("Cookie"));
+            csrfToken.set(exchange.getRequestHeaders().getFirst("X-CSRF-Token"));
             respond(exchange, 200, "{\"data\":{\"timeline\":{}}}");
         });
         var client = createClient();
@@ -72,11 +68,11 @@ class AuthenticatedGraphQlClientTest {
         var query = parseQuery(rawQuery.get());
         assertThat(query.get("variables")).contains("\"count\":20");
         assertThat(query.get("features")).isEqualTo("{\"feature_enabled\":true}");
-        assertThat(authorization.get())
-                .contains("oauth_consumer_key=\"client-key\"")
-                .contains("oauth_token=\"oauth-token\"")
-                .contains("oauth_signature=")
-                .doesNotContain("client-secret", "oauth-secret");
+        assertThat(query.get("fieldToggles"))
+                .contains("\"withArticlePlainText\":false", "\"withPayments\":false");
+        assertThat(authorization.get()).isEqualTo("Bearer web-bearer");
+        assertThat(cookie.get()).contains("auth_token=web-auth", "ct0=web-csrf");
+        assertThat(csrfToken.get()).isEqualTo("web-csrf");
         assertThat(result.rawJson()).contains("timeline");
         assertThat(result.toString()).doesNotContain("timeline");
     }
@@ -93,65 +89,63 @@ class AuthenticatedGraphQlClientTest {
                 .hasMessageNotContaining("private detail");
     }
 
+    @Test
+    void acceptsPartialGraphQlDataWhenNonFatalErrorsAreAlsoPresent() throws Exception {
+        server.createContext("/graphql/op-id/HomeTimeline", exchange -> respond(
+                exchange,
+                200,
+                "{\"data\":{\"timeline\":{}},\"errors\":[{\"message\":\"one item unavailable\"}]}"));
+        var client = createClient();
+
+        var result = client.execute("account-1", "homeForYou", Map.of());
+
+        assertThat(result.rawJson()).contains("timeline");
+    }
+
     private AuthenticatedGraphQlClient createClient() throws Exception {
         var jsonMapper = JsonMapper.builder().build();
-        var operation = new AndroidApiProfile.GraphQlOperation(
+        var operation = new XApiProfile.GraphQlOperation(
                 "home_timeline", "op-id", "HomeTimeline", OperationType.QUERY);
-        var profile = new AndroidApiProfile(
-                "com.twitter.android",
-                "12.19.1-release.0",
-                312191000,
+        var profile = new XApiProfile(
+                "x-web",
+                "current",
+                0,
                 baseUri,
                 baseUri.resolve("/graphql"),
-                Map.of("X-Twitter-Client", "TwitterAndroid"),
+                Map.of("X-Twitter-Client", "TwitterWebClient"),
                 Map.of(),
                 java.util.List.of("feature_enabled"),
                 Map.of("homeForYou", operation));
-        var profileService = new AndroidApiProfileService(jsonMapper) {
+        var profileService = new XApiProfileService(jsonMapper) {
             @Override
-            public AndroidApiProfile profile() {
+            public XApiProfile profile() {
                 return profile;
             }
 
             @Override
-            public AndroidApiProfile.GraphQlOperation requireOperation(String purpose) {
+            public XApiProfile.GraphQlOperation requireOperation(String purpose) {
                 return profile.graphqlOperations().get(purpose);
             }
-        };
-        var featureService = new AndroidFeatureDefaultsService(jsonMapper) {
+
             @Override
-            public Map<String, Boolean> selectFor(AndroidApiProfile ignored) {
+            public Map<String, Boolean> selectFeatures(XApiProfile.GraphQlOperation ignored) {
                 return Map.of("feature_enabled", true);
             }
         };
-        var credentialPath = temporaryDirectory.resolve("client.properties");
-        Files.writeString(
-                credentialPath, "consumerKey=client-key\nconsumerSecret=client-secret\n");
-        var credentialsProvider = new AndroidClientCredentialsProvider(credentialPath.toString());
-        var deviceStore = new AndroidDeviceProfileStore(
-                jsonMapper, temporaryDirectory.resolve("device.json").toString());
-        deviceStore.save(AndroidDeviceProfile.create(
-                "Pixel Test", "16", "Google", "google", "product", "2026-08-05", "ja"));
         var passphrase = "correct horse battery staple".toCharArray();
         var vault = new EncryptedAccountVault(
                 jsonMapper,
                 temporaryDirectory.resolve("accounts.vault").toString());
         var vaultSession = new AccountVaultSessionManager(vault);
         vaultSession.create(passphrase);
-        vaultSession.addOrReplace(new AccountSecrets(
-                "account-1", "42", "alice", "Alice", "oauth-token", "oauth-secret"));
+        vaultSession.addOrReplace(AccountSecrets.webSession(
+                "account-1", "42", "alice", "Alice", "web-bearer", "web-auth", "web-csrf"));
         Arrays.fill(passphrase, '\0');
         return new AuthenticatedGraphQlClient(
                 HttpClient.newHttpClient(),
                 jsonMapper,
                 profileService,
-                featureService,
-                credentialsProvider,
-                deviceStore,
-                vaultSession,
-                new AndroidRequestHeaders(),
-                new OAuth1Signer(),
-                new SecureRandom(new byte[] {9, 10, 11, 12}));
+                vaultSession);
     }
 
     private static Map<String, String> parseQuery(String rawQuery) {

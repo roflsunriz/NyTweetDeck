@@ -14,7 +14,11 @@ public record NotificationPage(
     }
 
     public record Notification(
-            String id, String text, String url, List<String> imageUrls) {
+            String id,
+            String kind,
+            String text,
+            String postId,
+            List<String> imageUrls) {
         public Notification {
             imageUrls = List.copyOf(imageUrls);
         }

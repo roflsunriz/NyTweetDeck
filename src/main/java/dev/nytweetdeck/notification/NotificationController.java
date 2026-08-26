@@ -1,7 +1,7 @@
 package dev.nytweetdeck.notification;
 
 import dev.nytweetdeck.timeline.TimelineResponseParser;
-import dev.nytweetdeck.xapi.rest.AuthenticatedRestClient;
+import dev.nytweetdeck.xapi.graphql.AuthenticatedGraphQlClient;
 import java.util.LinkedHashMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,15 +12,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
 
-    private final AuthenticatedRestClient restClient;
+    private final AuthenticatedGraphQlClient graphQlClient;
     private final NotificationResponseParser notificationParser;
     private final TimelineResponseParser timelineParser;
 
     public NotificationController(
-            AuthenticatedRestClient restClient,
+            AuthenticatedGraphQlClient graphQlClient,
             NotificationResponseParser notificationParser,
             TimelineResponseParser timelineParser) {
-        this.restClient = restClient;
+        this.graphQlClient = graphQlClient;
         this.notificationParser = notificationParser;
         this.timelineParser = timelineParser;
     }
@@ -29,12 +29,13 @@ public class NotificationController {
     public NotificationPage notifications(
             @RequestParam String accountId,
             @RequestParam(required = false) String cursor) {
-        var parameters = new LinkedHashMap<String, String>();
-        parameters.put("count", "20");
+        var variables = new LinkedHashMap<String, Object>();
+        variables.put("timeline_type", "All");
+        variables.put("count", 20);
         if (cursor != null && !cursor.isBlank()) {
-            parameters.put("cursor", cursor);
+            variables.put("cursor", cursor);
         }
-        var result = restClient.get(accountId, "notificationsAll", parameters);
+        var result = graphQlClient.execute(accountId, "notifications", variables);
         var timeline = timelineParser.parse(result.rawJson());
         return new NotificationPage(
                 notificationParser.parse(result.rawJson()),

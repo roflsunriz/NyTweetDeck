@@ -2,7 +2,7 @@ package dev.nytweetdeck.xapi.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.nytweetdeck.xapi.oauth.OAuth1Signer.Parameter;
+import dev.nytweetdeck.xapi.rest.AuthenticatedRestClient.Parameter;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

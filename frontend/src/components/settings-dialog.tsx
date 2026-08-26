@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import type {
   AccentColor,
@@ -10,7 +11,6 @@ import type {
 import { supportedLocales } from "../model/layout";
 import { Modal } from "./modal";
 import { AccountVaultSetup } from "./account-vault-setup";
-import { XApiSetup } from "./x-api-setup";
 
 interface SettingsDialogProps {
   translation: Translation;
@@ -130,10 +130,78 @@ export function SettingsDialog({
           onChange={(checked) => onDisplayChange({ ...display, videoAutoplay: checked })}
         />
       </div>
-      <XApiSetup translation={translation} />
+      <ApiMetadataSettings translation={translation} />
       <AccountVaultSetup translation={translation} />
     </Modal>
   );
+}
+
+interface MetadataStatus {
+  refreshing: boolean;
+  successful: boolean;
+  lastSuccessfulAt: string | null;
+  sourceVersion: string | null;
+  updatedOperations: number;
+  errorCode: string | null;
+}
+
+function ApiMetadataSettings({ translation }: { translation: Translation }) {
+  const [status, setStatus] = useState<MetadataStatus | null>(null);
+  const [requestFailed, setRequestFailed] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/v1/x-api/refresh/status", { signal: controller.signal })
+      .then(readMetadataStatus)
+      .then(setStatus)
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setRequestFailed(true);
+        }
+      });
+    return () => controller.abort();
+  }, []);
+
+  const refresh = async () => {
+    setRequestFailed(false);
+    try {
+      const response = await fetch("/api/v1/x-api/refresh", { method: "POST" });
+      setStatus(await readMetadataStatus(response));
+    } catch {
+      setRequestFailed(true);
+    }
+  };
+
+  return (
+    <section className="metadata-settings">
+      <h3>{translation.apiMetadata}</h3>
+      <p>{translation.apiMetadataDescription}</p>
+      <p className={status?.successful ? "setup-success" : "inline-warning"}>
+        {requestFailed || (status !== null && status.errorCode !== null)
+          ? translation.apiMetadataFailed
+          : status?.successful
+            ? translation.apiMetadataCurrent
+            : translation.apiMetadataFallback}
+      </p>
+      {status?.sourceVersion !== null && status?.sourceVersion !== undefined && (
+        <small>{status.sourceVersion}</small>
+      )}
+      <button
+        className="secondary-button"
+        data-testid="refresh-api-metadata"
+        type="button"
+        disabled={status?.refreshing === true}
+        onClick={refresh}
+      >
+        {status?.refreshing === true ? translation.loading : translation.apiMetadataUpdate}
+      </button>
+    </section>
+  );
+}
+
+async function readMetadataStatus(response: Response): Promise<MetadataStatus> {
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return (await response.json()) as MetadataStatus;
 }
 
 function ToggleSetting({

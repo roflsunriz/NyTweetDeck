@@ -8,7 +8,7 @@ import tools.jackson.databind.json.JsonMapper;
 class DirectMessageResponseParserTest {
 
     @Test
-    void parsesAndroidInboxEntriesAndUsersNewestFirst() {
+    void parsesWebInboxEntriesAndUsersNewestFirst() {
         var parser = new DirectMessageResponseParser(JsonMapper.builder().build());
         var page = parser.parse("""
                 {"inbox_initial_state":{"cursor":"99","users":{"42":{"name":"Alice","screen_name":"alice","profile_image_url_https":"https://img.example/a.jpg"}},"entries":[{"message":{"id":"1","time":"100","conversation_id":"42-7","message_data":{"sender_id":"42","text":"hello"}}},{"message":{"id":"2","time":"200","conversation_id":"42-7","message_data":{"sender_id":"42","text":"newest"}}}]}}

@@ -1,5 +1,5 @@
 export const layoutStorageKey = "nytweetdeck.layout";
-export const layoutVersion = 3 as const;
+export const layoutVersion = 4 as const;
 
 export const columnKinds = [
   "home",
@@ -78,6 +78,7 @@ export interface ColumnConfig {
   id: string;
   kind: ColumnKind;
   target: string | null;
+  label: string | null;
 }
 
 export interface AppLayout {
@@ -122,7 +123,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
     if (isLegacyLayoutV1(candidate)) {
       const migrated: AppLayout = {
         version: layoutVersion,
-        columns: candidate.columns.map((column) => ({ ...column, target: null })),
+        columns: candidate.columns.map((column) => ({ ...column, target: null, label: null })),
         navItems: candidate.navItems,
         locale: candidate.locale,
         theme: candidate.theme,
@@ -136,7 +137,17 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
+        columns: candidate.columns.map((column) => ({ ...column, label: null })),
         display: { ...defaultDisplayPreferences },
+      };
+      saveLayout(storage, migrated);
+      return migrated;
+    }
+    if (isLegacyLayoutV3(candidate)) {
+      const migrated: AppLayout = {
+        ...candidate,
+        version: layoutVersion,
+        columns: candidate.columns.map((column) => ({ ...column, label: null })),
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -193,6 +204,27 @@ function isAppLayout(value: unknown): value is AppLayout {
   return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
 }
 
+function isLegacyLayoutV3(value: unknown): value is Omit<AppLayout, "version" | "columns"> & {
+  version: 3;
+  columns: Array<Omit<ColumnConfig, "label">>;
+} {
+  if (!isRecord(value) || value.version !== 3) {
+    return false;
+  }
+  if (
+    !isLocale(value.locale) ||
+    !isTheme(value.theme) ||
+    !isNullableString(value.activeAccountId) ||
+    !isDisplayPreferences(value.display)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) {
+    return false;
+  }
+  return Array.isArray(value.columns) && value.columns.every(isLegacyTargetedColumn);
+}
+
 function isLegacyLayoutV2(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
   version: 2;
 } {
@@ -209,10 +241,21 @@ function isLegacyLayoutV2(value: unknown): value is Omit<AppLayout, "version" | 
   if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) {
     return false;
   }
-  return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
+  return Array.isArray(value.columns) && value.columns.every(isLegacyTargetedColumn);
 }
 
 function isColumnConfig(value: unknown): value is ColumnConfig {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    value.id.length > 0 &&
+    isColumnKind(value.kind) &&
+    isNullableString(value.target) &&
+    isNullableString(value.label)
+  );
+}
+
+function isLegacyTargetedColumn(value: unknown): value is Omit<ColumnConfig, "label"> {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
@@ -227,7 +270,7 @@ function isLegacyLayoutV1(value: unknown): value is Omit<
   "version" | "activeAccountId" | "display"
 > & {
   version: 1;
-  columns: Array<Omit<ColumnConfig, "target">>;
+  columns: Array<Omit<ColumnConfig, "target" | "label">>;
 } {
   if (!isRecord(value) || value.version !== 1) {
     return false;

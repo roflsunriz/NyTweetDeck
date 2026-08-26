@@ -10,7 +10,7 @@ class UserActionServiceTest {
     private final UserActionService service = new UserActionService(null);
 
     @Test
-    void mapsConfirmedAndroidUserActionEndpoints() {
+    void mapsConfirmedWebUserActionEndpoints() {
         assertThat(service.createRequest("42", "follow").endpoint()).isEqualTo("followUser");
         assertThat(service.createRequest("42", "mute").endpoint()).isEqualTo("muteUser");
         assertThat(service.createRequest("42", "block").endpoint()).isEqualTo("blockUser");
