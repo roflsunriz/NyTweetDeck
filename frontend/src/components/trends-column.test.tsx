@@ -48,4 +48,50 @@ describe("trends column", () => {
     expect(trend.classList.contains("deck-feed-item")).toBe(true);
     expect(trend.getAttribute("data-trend-rank")).toBe("1");
   });
+
+  test("leaves loading state after a stalled request times out and can retry", async () => {
+    let calls = 0;
+    globalThis.fetch = (async (
+      _input: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1],
+    ) => {
+      calls += 1;
+      if (calls === 1) {
+        return await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+            { once: true },
+          );
+        });
+      }
+      return Response.json({
+        trends: [
+          {
+            name: "#Recovered",
+            description: null,
+            rank: null,
+            url: "https://x.com/search?q=Recovered",
+            domainContext: null,
+            metaDescription: null,
+          },
+        ],
+        nextCursor: null,
+      });
+    }) as unknown as typeof fetch;
+    const user = userEvent.setup();
+    render(
+      <TrendsColumn
+        accountId="account-1"
+        translation={translate("ja")}
+        requestTimeoutMilliseconds={5}
+      />,
+    );
+
+    expect(await screen.findByText("トレンドを読み込めませんでした。")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+
+    expect(await screen.findByRole("button", { name: /#Recovered/ })).toBeDefined();
+    expect(calls).toBe(2);
+  });
 });

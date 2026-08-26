@@ -19,10 +19,12 @@ export function TrendsColumn({
   accountId,
   translation,
   onSelect,
+  requestTimeoutMilliseconds = 15_000,
 }: {
   accountId: string | null;
   translation: Translation;
   onSelect?: (query: string) => void;
+  requestTimeoutMilliseconds?: number;
 }) {
   const [trends, setTrends] = useState<Trend[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -39,12 +41,19 @@ export function TrendsColumn({
       loadingRef.current = true;
       setLoading(true);
       setError(false);
+      const controller = new AbortController();
+      const timeout = window.setTimeout(
+        () => controller.abort(new DOMException("Trend request timed out", "TimeoutError")),
+        Math.max(1, requestTimeoutMilliseconds),
+      );
       try {
         const params = new URLSearchParams({ accountId });
         if (nextCursor !== undefined) {
           params.set("cursor", nextCursor);
         }
-        const response = await fetch(`/api/v1/trends?${params}`);
+        const response = await fetch(`/api/v1/trends?${params}`, {
+          signal: controller.signal,
+        });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -61,11 +70,12 @@ export function TrendsColumn({
       } catch {
         setError(true);
       } finally {
+        window.clearTimeout(timeout);
         loadingRef.current = false;
         setLoading(false);
       }
     },
-    [accountId],
+    [accountId, requestTimeoutMilliseconds],
   );
 
   useEffect(() => {
