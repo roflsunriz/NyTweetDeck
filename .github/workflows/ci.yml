@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Verify frontend
+        working-directory: frontend
+        run: |
+          bun run lint
+          bun run format:check
+          bun run type-check
+          bun run test
+
+      - name: Verify application
+        run: mvn --batch-mode --no-transfer-progress verify
+
+      - name: Audit Maven dependencies
+        shell: pwsh
+        run: ./scripts/audit-maven.ps1

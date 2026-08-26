@@ -1,2 +1,10 @@
 COMMON-AGENTS.md
 x-apks/
+target/
+frontend/node_modules/
+frontend/coverage/
+frontend/.npm-cache/
+.tmp/
+.idea/
+.vscode/
+*.log
