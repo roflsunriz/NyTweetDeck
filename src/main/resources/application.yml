@@ -1,6 +1,6 @@
 server:
   address: 127.0.0.1
-  port: 8080
+  port: 18080
   error:
     include-message: never
     include-stacktrace: never

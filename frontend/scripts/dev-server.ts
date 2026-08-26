@@ -1,6 +1,6 @@
 import index from "../index.html";
 
-const backendOrigin = "http://127.0.0.1:8080";
+const backendOrigin = "http://127.0.0.1:18080";
 
 const server = Bun.serve({
   hostname: "127.0.0.1",
