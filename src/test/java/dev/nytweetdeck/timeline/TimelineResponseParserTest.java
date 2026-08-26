@@ -42,4 +42,85 @@ class TimelineResponseParserTest {
         assertThat(page.posts()).extracting(TimelinePage.Post::id).doesNotContain("99");
         assertThat(page.posts().getFirst().replyToPostId()).isEqualTo("100");
     }
+
+    @Test
+    void readsIdentityFromCurrentWebUserSchema() {
+        var body = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"200",
+                "legacy":{"full_text":"web schema","created_at":"2018-10-10T20:19:24Z"},
+                "core":{"user_results":{"result":{"__typename":"User","rest_id":"42",
+                "core":{"screen_name":"alice","name":"Alice"},
+                "avatar":{"image_url":"https://pbs.twimg.com/profile_images/alice.jpg"},
+                "verification":{"verified":true}}}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().getFirst();
+
+        assertThat(post.author().id()).isEqualTo("42");
+        assertThat(post.author().username()).isEqualTo("alice");
+        assertThat(post.author().displayName()).isEqualTo("Alice");
+        assertThat(post.author().avatarUrl()).endsWith("alice.jpg");
+        assertThat(post.author().verified()).isTrue();
+    }
+
+    @Test
+    void readsIdentityFromBookmarksUserWrapper() {
+        var body = """
+                {"data":{"bookmark_timeline_v2":{"timeline":{"instructions":[{"entries":[{
+                "content":{"itemContent":{"tweet_results":{"result":{"__typename":"Tweet",
+                "rest_id":"201","legacy":{"full_text":"saved post",
+                "created_at":"2018-10-10T20:19:24Z"},"core":{"user_results":{"result":
+                {"result":{"__typename":"User","rest_id":"43","core":{"screen_name":"bob",
+                "name":"Bob"},"avatar":{"image_url":"https://pbs.twimg.com/bob.jpg"}}}}}}}}}}]}
+                ]}}}}
+                """;
+
+        var post = parser.parse(body).posts().getFirst();
+
+        assertThat(post.author().id()).isEqualTo("43");
+        assertThat(post.author().username()).isEqualTo("bob");
+        assertThat(post.author().displayName()).isEqualTo("Bob");
+        assertThat(post.author().avatarUrl()).isEqualTo("https://pbs.twimg.com/bob.jpg");
+    }
+
+    @Test
+    void readsIdentityFromBookmarksSingularUserResult() {
+        var body = """
+                {"data":{"bookmark_timeline_v2":{"timeline":{"instructions":[{"entries":[{
+                "content":{"itemContent":{"tweet_results":{"result":{"__typename":"Tweet",
+                "rest_id":"202","legacy":{"full_text":"another saved post",
+                "created_at":"2018-10-10T20:19:24Z"},"core":{"user_result":{"result":
+                {"__typename":"User","rest_id":"44","legacy":{"screen_name":"carol",
+                "name":"Carol","profile_image_url_https":"https://pbs.twimg.com/carol.jpg"}}}}}}}}}
+                ]}]}}}}
+                """;
+
+        var post = parser.parse(body).posts().getFirst();
+
+        assertThat(post.author().id()).isEqualTo("44");
+        assertThat(post.author().username()).isEqualTo("carol");
+        assertThat(post.author().displayName()).isEqualTo("Carol");
+        assertThat(post.author().avatarUrl()).isEqualTo("https://pbs.twimg.com/carol.jpg");
+    }
+
+    @Test
+    void limitsBookmarksFallbackToTheTweetCoreAuthorArea() {
+        var body = """
+                {"data":{"bookmark_timeline_v2":{"tweet_results":{"result":{"__typename":"Tweet",
+                "rest_id":"203","legacy":{"full_text":"saved schema variant",
+                "created_at":"2018-10-10T20:19:24Z"},"core":{"account_reference":{"value":
+                {"__typename":"User","rest_id":"45","core":{"screen_name":"dave","name":"Dave"},
+                "avatar":{"image_url":"https://pbs.twimg.com/dave.jpg"}}}},"quoted_status_result":
+                {"result":{"__typename":"Tweet","rest_id":"999","legacy":{"full_text":"quoted"},
+                "core":{"user_results":{"result":{"__typename":"User","rest_id":"99","core":
+                {"screen_name":"wrong","name":"Wrong"}}}}}}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().getFirst();
+
+        assertThat(post.author().id()).isEqualTo("45");
+        assertThat(post.author().username()).isEqualTo("dave");
+        assertThat(post.author().displayName()).isEqualTo("Dave");
+        assertThat(post.author().avatarUrl()).isEqualTo("https://pbs.twimg.com/dave.jpg");
+    }
 }

@@ -99,7 +99,7 @@ public class TimelineResponseParser {
     private static Post parsePost(JsonNode node) {
         var legacy = node.get("legacy");
         var id = firstNonNull(text(node, "rest_id"), text(legacy, "id_str"));
-        var author = parseAuthor(node.get("core"));
+        var author = parseAuthor(node);
         return new Post(
                 id,
                 text(legacy, "full_text"),
@@ -119,30 +119,113 @@ public class TimelineResponseParser {
                 parseMedia(legacy.get("extended_entities")));
     }
 
-    private static Author parseAuthor(JsonNode core) {
-        var user = core == null ? null : core.get("user_results");
-        user = user == null ? null : unwrapResult(user.get("result"));
+    private static Author parseAuthor(JsonNode tweet) {
+        var user = findAuthorUser(tweet);
         var legacy = user == null ? null : user.get("legacy");
-        if (user == null || legacy == null) {
+        var userCore = user == null ? null : user.get("core");
+        var avatar = user == null ? null : user.get("avatar");
+        var verification = user == null ? null : user.get("verification");
+        if (user == null) {
             return new Author("", "", "", null, false);
         }
         return new Author(
                 firstNonNull(text(user, "rest_id"), text(legacy, "id_str")),
-                text(legacy, "screen_name"),
-                text(legacy, "name"),
-                text(legacy, "profile_image_url_https"),
-                bool(legacy, "verified") || bool(user, "is_blue_verified"));
+                firstNonNull(text(userCore, "screen_name"), text(legacy, "screen_name")),
+                firstNonNull(text(userCore, "name"), text(legacy, "name")),
+                firstNonNull(
+                        text(avatar, "image_url"), text(legacy, "profile_image_url_https")),
+                bool(verification, "verified")
+                        || bool(legacy, "verified")
+                        || bool(user, "is_blue_verified"));
     }
 
-    private static JsonNode unwrapResult(JsonNode node) {
-        if (node == null) {
+    private static JsonNode findAuthorUser(JsonNode tweet) {
+        if (tweet == null) {
             return null;
         }
-        if ("UserUnavailable".equals(text(node, "__typename"))) {
+        var core = tweet.get("core");
+        var user = unwrapUser(core == null ? null : core.get("user_results"));
+        if (user == null) {
+            user = unwrapUser(core == null ? null : core.get("user_result"));
+        }
+        if (user == null) {
+            user = findFirstUser(core, 0);
+        }
+        if (user == null) {
+            user = unwrapUser(tweet.get("author_results"));
+        }
+        if (user == null) {
+            user = unwrapUser(tweet.get("user_results"));
+        }
+        if (user == null) {
+            user = unwrapUser(tweet.get("author"));
+        }
+        if (user == null) {
+            var legacy = tweet.get("legacy");
+            user = unwrapUser(legacy == null ? null : legacy.get("user"));
+        }
+        return user;
+    }
+
+    private static JsonNode findFirstUser(JsonNode node, int depth) {
+        if (node == null || node.isNull() || depth >= 8) {
             return null;
         }
-        var result = node.get("result");
-        return result != null && result.isObject() ? result : node;
+        if (node.isObject()) {
+            if (isUser(node)) {
+                return node;
+            }
+            for (Map.Entry<String, JsonNode> property : node.properties()) {
+                var user = findFirstUser(property.getValue(), depth + 1);
+                if (user != null) {
+                    return user;
+                }
+            }
+        } else if (node.isArray()) {
+            for (var child : node) {
+                var user = findFirstUser(child, depth + 1);
+                if (user != null) {
+                    return user;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static JsonNode unwrapUser(JsonNode node) {
+        var current = node;
+        for (var depth = 0; current != null && current.isObject() && depth < 8; depth++) {
+            if ("UserUnavailable".equals(text(current, "__typename"))) {
+                return null;
+            }
+            if (isUser(current)) {
+                return current;
+            }
+            var next = firstObject(current, "result", "user", "author");
+            if (next == null || next == current) {
+                return null;
+            }
+            current = next;
+        }
+        return null;
+    }
+
+    private static boolean isUser(JsonNode node) {
+        return "User".equals(text(node, "__typename"))
+                || (text(node, "rest_id") != null
+                        && (node.get("core") != null
+                                || node.get("legacy") != null
+                                || node.get("avatar") != null));
+    }
+
+    private static JsonNode firstObject(JsonNode node, String... fields) {
+        for (var field : fields) {
+            var value = node.get(field);
+            if (value != null && value.isObject()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private static List<Media> parseMedia(JsonNode extendedEntities) {
