@@ -39,8 +39,6 @@ public class XWebMetadataResolver {
                     + "\\s*featureSwitches:\\s*\\[([^]]*)]\\s*,\\s*fieldToggles:\\s*\\[([^]]*)]\\s*}");
     private static final Pattern QUOTED_VALUE = Pattern.compile("\\\"([^\\\"]+)\\\"");
     private static final Pattern SAFE_OPERATION_ID = Pattern.compile("[A-Za-z0-9_-]{8,100}");
-    private static final Set<String> GLOBAL_FEATURE_KEYS =
-            Set.of("responsive_web_x_translation_enabled");
     private static final List<String> RELEVANT_CHUNK_MARKERS = List.of(
             "loggedinmain",
             "hometimeline",
@@ -105,9 +103,6 @@ public class XWebMetadataResolver {
         }
         var defaults = new LinkedHashMap<String, Boolean>();
         for (var key : allFeatureKeys) {
-            defaults.put(key, defaultsFromPage.getOrDefault(key, false));
-        }
-        for (var key : GLOBAL_FEATURE_KEYS) {
             defaults.put(key, defaultsFromPage.getOrDefault(key, false));
         }
         return new ResolvedMetadata(

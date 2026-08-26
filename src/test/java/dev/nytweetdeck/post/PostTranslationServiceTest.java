@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.nytweetdeck.xapi.rest.AuthenticatedRestClient;
-import dev.nytweetdeck.xapi.profile.XApiProfileService;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -13,7 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 class PostTranslationServiceTest {
 
     @Test
-    void translatesThroughTheCurrentXWebStratoEndpointAndCachesTheResult() {
+    void translatesOnlyThroughTheNativeXWebStratoSourceAndCachesTheResult() {
         var requestedPostId = new AtomicReference<String>();
         var requestedLanguage = new AtomicReference<String>();
         var calls = new int[1];
@@ -28,7 +27,7 @@ class PostTranslationServiceTest {
                 calls[0]++;
                 assertThat(endpointName).isEqualTo("translatePost");
                 requestedPostId.set(pathVariables.get("postId"));
-                assertThat(pathVariables).containsEntry("translationSource", "Google");
+                assertThat(pathVariables).containsEntry("translationSource", "X");
                 requestedLanguage.set(language);
                 return new RestResult(
                         endpointName,
@@ -36,19 +35,13 @@ class PostTranslationServiceTest {
             }
         };
         var mapper = JsonMapper.builder().build();
-        var profileService = new XApiProfileService(mapper) {
-            @Override
-            public boolean featureEnabled(String key) {
-                return false;
-            }
-        };
-        var service = new PostTranslationService(restClient, mapper, profileService);
+        var service = new PostTranslationService(restClient, mapper);
 
         var first = service.translate("account-1", "123", "en", "ja");
         var second = service.translate("account-1", "123", "en", "ja");
 
         assertThat(first.text()).isEqualTo("こんにちは世界");
-        assertThat(first.provider()).isEqualTo("Google");
+        assertThat(first.provider()).isEqualTo("X");
         assertThat(second).isSameAs(first);
         assertThat(calls[0]).isEqualTo(1);
         assertThat(requestedPostId.get()).isEqualTo("123");
@@ -58,7 +51,7 @@ class PostTranslationServiceTest {
     @Test
     void rejectsEqualOrInvalidLanguagesBeforeCommunication() {
         var service = new PostTranslationService(
-                null, JsonMapper.builder().build(), null);
+                null, JsonMapper.builder().build());
 
         assertThatThrownBy(() -> service.translate("account-1", "123", "ja-JP", "ja"))
                 .isInstanceOf(IllegalArgumentException.class)

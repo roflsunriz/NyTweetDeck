@@ -257,7 +257,7 @@ describe("post actions", () => {
           sourceLanguage: "en",
           targetLanguage: "ja",
           text: "自動翻訳された本文",
-          provider: "Google",
+          provider: "X",
         });
       }
       return Response.json({ completed: true });
@@ -282,7 +282,7 @@ describe("post actions", () => {
     render(<Harness />);
 
     expect(await screen.findByText("自動翻訳された本文")).toBeDefined();
-    expect(screen.getByText("Googleによる自動翻訳")).toBeDefined();
+    expect(screen.getByText("Xによる自動翻訳")).toBeDefined();
     await user.click(screen.getByRole("button", { name: "原文を表示" }));
     expect(screen.getByText("Original post")).toBeDefined();
     await user.click(screen.getByRole("button", { name: "翻訳を表示" }));
@@ -307,7 +307,7 @@ describe("post actions", () => {
         sourceLanguage: "en",
         targetLanguage: "ja",
         text: `翻訳 ${postId}`,
-        provider: "Google",
+        provider: "X",
       });
     }) as typeof fetch;
     const user = userEvent.setup();

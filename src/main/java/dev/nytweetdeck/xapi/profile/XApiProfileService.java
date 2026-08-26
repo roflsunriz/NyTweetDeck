@@ -58,10 +58,6 @@ public class XApiProfileService {
         return Map.copyOf(selected);
     }
 
-    public boolean featureEnabled(String key) {
-        return state.get().featureDefaults().getOrDefault(key, false);
-    }
-
     public synchronized int applyResolved(XWebMetadataResolver.ResolvedMetadata metadata) {
         var current = state.get();
         var operations = new LinkedHashMap<String, XApiProfile.GraphQlOperation>();

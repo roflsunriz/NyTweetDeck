@@ -5,7 +5,7 @@ export interface PostTranslationResult {
   sourceLanguage: string;
   targetLanguage: string;
   text: string;
-  provider: string;
+  provider: "X";
 }
 
 const unavailableLanguages = new Set(["und", "zxx", "qme", "qam", "art"]);
@@ -44,7 +44,11 @@ export function loadPostTranslation({
     fetch(`/api/v1/posts/${encodeURIComponent(postId)}/translation?${params}`).then(
       async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return (await response.json()) as PostTranslationResult;
+        const result: unknown = await response.json();
+        if (!isPostTranslationResult(result)) {
+          throw new Error("Invalid X translation response");
+        }
+        return result;
       },
     ),
   ).catch((error: unknown) => {
@@ -57,6 +61,18 @@ export function loadPostTranslation({
     if (oldest !== undefined && oldest !== key) requests.delete(oldest);
   }
   return request;
+}
+
+function isPostTranslationResult(value: unknown): value is PostTranslationResult {
+  if (typeof value !== "object" || value === null) return false;
+  const result = value as Record<string, unknown>;
+  return (
+    typeof result.postId === "string" &&
+    typeof result.sourceLanguage === "string" &&
+    typeof result.targetLanguage === "string" &&
+    typeof result.text === "string" &&
+    result.provider === "X"
+  );
 }
 
 function schedule<T>(operation: () => Promise<T>): Promise<T> {

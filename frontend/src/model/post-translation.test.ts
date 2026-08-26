@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { shouldTranslatePost } from "./post-translation";
+import { loadPostTranslation, shouldTranslatePost } from "./post-translation";
+
+const originalFetch = globalThis.fetch;
 
 afterEach(() => {
-  // Translation requests are exercised by the PostCard interaction tests.
+  globalThis.fetch = originalFetch;
 });
 
 describe("post translation language matching", () => {
@@ -13,5 +15,25 @@ describe("post translation language matching", () => {
     expect(shouldTranslatePost("zh-CN", "zh")).toBe(false);
     expect(shouldTranslatePost("und", "ja")).toBe(false);
     expect(shouldTranslatePost(null, "ja")).toBe(false);
+  });
+
+  test("rejects a translation response that is not provided by X", async () => {
+    globalThis.fetch = (async () =>
+      Response.json({
+        postId: "123",
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+        text: "翻訳",
+        provider: "Google",
+      })) as unknown as typeof fetch;
+
+    await expect(
+      loadPostTranslation({
+        accountId: "account-provider-check",
+        postId: "123",
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+      }),
+    ).rejects.toThrow("Invalid X translation response");
   });
 });

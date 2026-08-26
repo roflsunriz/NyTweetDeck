@@ -2,7 +2,6 @@ package dev.nytweetdeck.post;
 
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.rest.AuthenticatedRestClient;
-import dev.nytweetdeck.xapi.profile.XApiProfileService;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -15,10 +14,10 @@ public class PostTranslationService {
 
     private static final int MAX_CACHE_ENTRIES = 1_000;
     private static final String LANGUAGE_PATTERN = "[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*";
+    private static final String TRANSLATION_SOURCE = "X";
 
     private final AuthenticatedRestClient restClient;
     private final ObjectMapper objectMapper;
-    private final XApiProfileService profileService;
     private final Map<CacheKey, TranslationResult> cache = Collections.synchronizedMap(
             new LinkedHashMap<>(128, 0.75f, true) {
                 @Override
@@ -29,11 +28,9 @@ public class PostTranslationService {
 
     public PostTranslationService(
             AuthenticatedRestClient restClient,
-            ObjectMapper objectMapper,
-            XApiProfileService profileService) {
+            ObjectMapper objectMapper) {
         this.restClient = restClient;
         this.objectMapper = objectMapper;
-        this.profileService = profileService;
     }
 
     public TranslationResult translate(
@@ -44,10 +41,7 @@ public class PostTranslationService {
         if (baseLanguage(source).equals(baseLanguage(target))) {
             throw new IllegalArgumentException("元言語と翻訳先言語が同じです。");
         }
-        var provider = profileService.featureEnabled("responsive_web_x_translation_enabled")
-                ? "X"
-                : "Google";
-        var key = new CacheKey(accountId, postId, source, target, provider);
+        var key = new CacheKey(accountId, postId, source, target);
         var cached = cache.get(key);
         if (cached != null) {
             return cached;
@@ -55,10 +49,10 @@ public class PostTranslationService {
         var response = restClient.get(
                 accountId,
                 "translatePost",
-                Map.of("postId", postId, "translationSource", provider),
+                Map.of("postId", postId, "translationSource", TRANSLATION_SOURCE),
                 Map.of(),
                 target);
-        var translated = parse(response.rawJson(), postId, source, target, provider);
+        var translated = parse(response.rawJson(), postId, source, target);
         cache.put(key, translated);
         return translated;
     }
@@ -67,8 +61,7 @@ public class PostTranslationService {
             String body,
             String postId,
             String sourceLanguage,
-            String targetLanguage,
-            String provider) {
+            String targetLanguage) {
         try {
             var root = objectMapper.readTree(body);
             var responsePostId = text(root, "id_str");
@@ -80,7 +73,7 @@ public class PostTranslationService {
                 throw new XApiHttpException("X翻訳応答に翻訳文がありません。", 502);
             }
             return new TranslationResult(
-                    postId, sourceLanguage, targetLanguage, translation, provider);
+                    postId, sourceLanguage, targetLanguage, translation, TRANSLATION_SOURCE);
         } catch (JacksonException exception) {
             throw new XApiHttpException("X翻訳応答を解析できません。", exception);
         }
@@ -108,8 +101,7 @@ public class PostTranslationService {
             String accountId,
             String postId,
             String sourceLanguage,
-            String targetLanguage,
-            String provider) {}
+            String targetLanguage) {}
 
     public record TranslationResult(
             String postId,

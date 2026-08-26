@@ -24,8 +24,6 @@ class XApiProfileServiceTest {
                 .containsEntry("X-Twitter-API-Version", "5");
         assertThat(profile.standardHeaders().keySet())
                 .noneMatch(name -> name.equalsIgnoreCase("Authorization"));
-        assertThat(service.featureEnabled("responsive_web_x_translation_enabled"))
-                .isFalse();
     }
 
     @Test
