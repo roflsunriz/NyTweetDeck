@@ -38,6 +38,9 @@ export function XApiSetup({ translation }: XApiSetupProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved" | "error">(
     "loading",
   );
+  const [connectivity, setConnectivity] = useState<"idle" | "checking" | "verified" | "error">(
+    "idle",
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -100,6 +103,26 @@ export function XApiSetup({ translation }: XApiSetupProps) {
     setProfile((current) => ({ ...current, [field]: value }));
     if (status === "saved") {
       setStatus("idle");
+    }
+  };
+
+  const verifyConnection = async () => {
+    setConnectivity("checking");
+    try {
+      const response = await fetch("/api/v1/x-api/connectivity/guest", { method: "POST" });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const result = (await response.json()) as {
+        bearerTokenReceived: boolean;
+        guestTokenReceived: boolean;
+      };
+      if (!result.bearerTokenReceived || !result.guestTokenReceived) {
+        throw new Error("token missing");
+      }
+      setConnectivity("verified");
+    } catch {
+      setConnectivity("error");
     }
   };
 
@@ -172,6 +195,22 @@ export function XApiSetup({ translation }: XApiSetupProps) {
             {status === "saved" && <span className="save-success">{translation.saved}</span>}
             {errorMessage !== null && <p className="setup-error">{errorMessage}</p>}
           </form>
+          <button
+            className="secondary-button connectivity-button"
+            type="button"
+            disabled={connectivity === "checking"}
+            onClick={verifyConnection}
+          >
+            {connectivity === "checking"
+              ? translation.verifyingXConnection
+              : translation.verifyXConnection}
+          </button>
+          {connectivity === "verified" && (
+            <p className="setup-success">{translation.xConnectionVerified}</p>
+          )}
+          {connectivity === "error" && (
+            <p className="setup-error connectivity-error">{translation.xConnectionFailed}</p>
+          )}
         </>
       )}
     </section>

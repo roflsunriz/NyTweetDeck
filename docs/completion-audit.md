@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | Javaアプリを専用ローカルアドレスで開く | 検証済み | パッケージ済みJARを`127.0.0.1:18080`で起動しChrome検証 |
 | Bun bundlerを使用する | 検証済み | Maven `generate-resources`と`frontend/scripts/build.ts` |
-| Android版Xとして通信する | 実装済み・実地未検証 | バージョン付きAPIプロファイル、Androidヘッダー、端末プロファイル、OAuth 1.0a。実通信は資格情報の明示承認待ち |
+| Android版Xとして通信する | Guest実通信検証済み | 非公開抽出した資格情報、Androidヘッダー、Pixel系端末プロファイルでBearer/Guest Token取得成功。アカウント認証後経路は未検証 |
 
 ## アカウント
 
@@ -70,7 +70,6 @@
 
 ## 完了を阻む外部確認
 
-1. APKM内Androidクライアント資格情報を、値を表示・コミットせず`.local`へ抽出してよいという明示許可。
-2. 利用者自身によるローカルOCF画面へのX認証情報入力。
-3. 実ログイン後のホーム、通知、DM、トレンド、Mutation、Live Pipeline payload確認。
-4. 検証済みコミットのmain push、リリースタグ作成、GitHub Actions成功、GitHub Release公開確認。
+1. 利用者自身によるローカルOCF画面へのX認証情報入力。
+2. 実ログイン後のホーム、通知、DM、トレンド、Mutation、Live Pipeline payload確認。
+3. 検証済みコミットのmain push、リリースタグ作成、GitHub Actions成功、GitHub Release公開確認。

@@ -517,3 +517,17 @@
   border-radius: 50%;
   object-fit: cover;
 }
+
+.connectivity-button {
+  margin: 0 20px 12px;
+}
+
+.setup-success {
+  margin: 0 20px 14px;
+  color: #40c98b;
+  font-size: 0.72rem;
+}
+
+.connectivity-error {
+  margin-inline: 20px;
+}

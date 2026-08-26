@@ -108,6 +108,10 @@ export interface Translation {
   saved: string;
   setupLoadError: string;
   setupSaveError: string;
+  verifyXConnection: string;
+  verifyingXConnection: string;
+  xConnectionVerified: string;
+  xConnectionFailed: string;
   accountVault: string;
   vaultPassphrase: string;
   confirmPassphrase: string;
@@ -237,6 +241,10 @@ const translations: Partial<Record<Locale, Translation>> = {
     saved: "保存しました",
     setupLoadError: "Android API設定を読み込めませんでした。",
     setupSaveError: "Android端末プロファイルを保存できませんでした。",
+    verifyXConnection: "Android接続を検証",
+    verifyingXConnection: "接続を検証中…",
+    xConnectionVerified: "Bearer TokenとGuest Tokenの取得を確認しました。",
+    xConnectionFailed: "Android接続を検証できませんでした。設定を確認してください。",
     accountVault: "アカウントVault",
     vaultPassphrase: "Vaultパスフレーズ",
     confirmPassphrase: "パスフレーズを確認",
@@ -409,6 +417,10 @@ const translations: Partial<Record<Locale, Translation>> = {
     saved: "Saved",
     setupLoadError: "Could not load Android API setup.",
     setupSaveError: "Could not save the Android device profile.",
+    verifyXConnection: "Verify Android connection",
+    verifyingXConnection: "Verifying connection…",
+    xConnectionVerified: "Bearer and Guest token retrieval succeeded.",
+    xConnectionFailed: "Could not verify the Android connection. Check setup.",
     accountVault: "Account vault",
     vaultPassphrase: "Vault passphrase",
     confirmPassphrase: "Confirm passphrase",

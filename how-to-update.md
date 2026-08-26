@@ -29,6 +29,12 @@ Android版XのAPKMを更新した場合は、JADXでBase APKを再解析した�
 
 生成されたAPKハッシュ、GraphQL件数、REST件数を旧版と比較し、製品で利用する操作IDとヘッダーを実コードの呼び出し元まで確認します。consumer key、secret、Bearer Token、Cookieなどの値は生成物や変更履歴へ含めません。
 
+Androidクライアント資格情報の利用について利用者から明示承認を得た場合だけ、次を実行します。このスクリプトは値を表示せず、Git管理外の`.local/android-client.properties`へ利用者限定権限で保存します。
+
+```powershell
+.\scripts\prepare-android-client.ps1 -JadxRoot x-apks\jadx-<version>
+```
+
 ## 検証
 
 ```powershell
