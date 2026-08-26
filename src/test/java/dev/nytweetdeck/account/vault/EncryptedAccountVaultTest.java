@@ -23,8 +23,16 @@ class EncryptedAccountVaultTest {
         var path = temporaryDirectory.resolve("accounts.vault");
         var vault = createVault(path);
         var accounts = List.of(
-                account("1", "alice", "token-alice", "secret-alice"),
-                account("2", "bob", "token-bob", "secret-bob"));
+                account(
+                        "1",
+                        "plaintext-alice-account-marker",
+                        "plaintext-alice-token-marker",
+                        "plaintext-alice-secret-marker"),
+                account(
+                        "2",
+                        "plaintext-bob-account-marker",
+                        "plaintext-bob-token-marker",
+                        "plaintext-bob-secret-marker"));
 
         vault.save(accounts, passphrase);
         var loaded = vault.load(passphrase);
@@ -32,9 +40,15 @@ class EncryptedAccountVaultTest {
         assertThat(loaded).isEqualTo(accounts);
         var stored = Files.readString(path);
         assertThat(stored)
-                .doesNotContain("alice", "bob", "token-alice", "secret-bob")
+                .doesNotContain(
+                        "plaintext-alice-account-marker",
+                        "plaintext-bob-account-marker",
+                        "plaintext-alice-token-marker",
+                        "plaintext-bob-secret-marker")
                 .contains("PBKDF2WithHmacSHA256", "AES/GCM/NoPadding", "600000");
-        assertThat(accounts.get(0).toString()).doesNotContain("token-alice", "secret-alice");
+        assertThat(accounts.get(0).toString())
+                .doesNotContain(
+                        "plaintext-alice-token-marker", "plaintext-alice-secret-marker");
     }
 
     @Test

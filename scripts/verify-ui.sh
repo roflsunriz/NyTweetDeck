@@ -61,21 +61,26 @@ fi
   --disable-dev-shm-usage \
   --no-first-run \
   --remote-debugging-address=127.0.0.1 \
-  --remote-debugging-port=9222 \
+  --remote-debugging-port=0 \
   "--user-data-dir=$profile_directory" \
   about:blank > target/ui-chrome.log 2>&1 &
 chrome_pid=$!
 
 cdp_ready=false
+cdp_port=""
 for _ in {1..40}; do
   if ! kill -0 "$chrome_pid" 2>/dev/null; then
     echo "Chromeがデバッグ接続の準備前に終了しました。" >&2
     cat target/ui-chrome.log >&2 || true
     exit 1
   fi
-  if curl --fail --silent http://127.0.0.1:9222/json/version >/dev/null 2>&1; then
-    cdp_ready=true
-    break
+  if [[ -s "$profile_directory/DevToolsActivePort" ]]; then
+    cdp_port="$(sed -n '1p' "$profile_directory/DevToolsActivePort")"
+    if [[ "$cdp_port" =~ ^[0-9]+$ ]] \
+      && curl --fail --silent "http://127.0.0.1:$cdp_port/json/version" >/dev/null 2>&1; then
+      cdp_ready=true
+      break
+    fi
   fi
   sleep 0.25
 done
@@ -85,4 +90,4 @@ if [[ "$cdp_ready" != true ]]; then
   exit 1
 fi
 
-(cd frontend && bun run verify:ui)
+(cd frontend && CHROME_CDP_PORT="$cdp_port" bun run verify:ui)
