@@ -58,4 +58,17 @@ describe("Android OCF login", () => {
     expect(JSON.parse(submittedBody).value).toBe("alice");
     expect(selected).toBe("42");
   });
+
+  test("explains that the vault must be unlocked when login start returns 423", async () => {
+    globalThis.fetch = (async () => new Response(null, { status: 423 })) as unknown as typeof fetch;
+    render(
+      <LoginDialog
+        translation={translate("ja")}
+        onComplete={() => undefined}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText(/先に設定でアカウントVault/)).toBeDefined();
+  });
 });

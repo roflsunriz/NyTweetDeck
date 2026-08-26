@@ -15,6 +15,7 @@ interface AccountSwitcherDialogProps {
   activeAccountId: string | null;
   onSelect: (accountId: string) => void;
   onLogin: () => void;
+  onSetup: () => void;
   onClose: () => void;
 }
 
@@ -23,17 +24,33 @@ export function AccountSwitcherDialog({
   activeAccountId,
   onSelect,
   onLogin,
+  onSetup,
   onClose,
 }: AccountSwitcherDialogProps) {
   const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
+  const [vaultUnlocked, setVaultUnlocked] = useState<boolean | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/v1/accounts/vault/accounts", { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : []))
+    void fetch("/api/v1/accounts/vault/status", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const status = (await response.json()) as { unlocked: boolean };
+        setVaultUnlocked(status.unlocked);
+        if (!status.unlocked) {
+          return [];
+        }
+        const accountsResponse = await fetch("/api/v1/accounts/vault/accounts", {
+          signal: controller.signal,
+        });
+        return accountsResponse.ok ? accountsResponse.json() : [];
+      })
       .then((value) => setAccounts(value as AccountSummary[]))
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setVaultUnlocked(false);
           setAccounts([]);
         }
       });
@@ -65,9 +82,15 @@ export function AccountSwitcherDialog({
           ))
         )}
       </div>
-      <button className="primary-button account-login-button" type="button" onClick={onLogin}>
-        {translation.loginAccount}
-      </button>
+      {vaultUnlocked !== null && (
+        <button
+          className="primary-button account-login-button"
+          type="button"
+          onClick={vaultUnlocked ? onLogin : onSetup}
+        >
+          {vaultUnlocked ? translation.loginAccount : translation.openVaultSettings}
+        </button>
+      )}
     </Modal>
   );
 }

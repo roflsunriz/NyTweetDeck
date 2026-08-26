@@ -390,6 +390,7 @@ export function App() {
           activeAccountId={layout.activeAccountId}
           onSelect={setActiveAccount}
           onLogin={() => setDialog("login")}
+          onSetup={() => setDialog("settings")}
           onClose={() => setDialog(null)}
         />
       )}

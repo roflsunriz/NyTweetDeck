@@ -130,6 +130,8 @@ export interface Translation {
   selectLoginChoice: string;
   loginFailed: string;
   unsupportedLoginStep: string;
+  unlockVaultBeforeLogin: string;
+  openVaultSettings: string;
   localeName: Record<Locale, string>;
   themeName: Record<Theme, string>;
   fontSizeName: Record<FontSize, string>;
@@ -264,6 +266,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     selectLoginChoice: "選択してください",
     loginFailed: "Xアカウントへログインできませんでした。設定と入力を確認してください。",
     unsupportedLoginStep: "この認証手順には現在の端末では対応できません。",
+    unlockVaultBeforeLogin: "先に設定でアカウントVaultを作成または解除してください。",
+    openVaultSettings: "Vault設定を開く",
     localeName: {
       ja: "日本語",
       en: "English",
@@ -440,6 +444,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     selectLoginChoice: "Select an option",
     loginFailed: "Could not sign in to X. Check setup and your input.",
     unsupportedLoginStep: "This authentication step is not supported on this device.",
+    unlockVaultBeforeLogin: "Create or unlock the account vault in Settings first.",
+    openVaultSettings: "Open vault settings",
     localeName: {
       ja: "日本語",
       en: "English",

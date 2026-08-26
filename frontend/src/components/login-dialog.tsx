@@ -39,12 +39,16 @@ export function LoginDialog({ translation, onComplete, onClose }: LoginDialogPro
       .then(setProgress)
       .catch((loadError) => {
         if (!(loadError instanceof DOMException && loadError.name === "AbortError")) {
-          setError(translation.loginFailed);
+          setError(
+            loadError instanceof LoginHttpError && loadError.status === 423
+              ? translation.unlockVaultBeforeLogin
+              : translation.loginFailed,
+          );
         }
       })
       .finally(() => setBusy(false));
     return () => controller.abort();
-  }, [translation.loginFailed]);
+  }, [translation.loginFailed, translation.unlockVaultBeforeLogin]);
 
   useEffect(() => {
     if (progress?.complete && progress.account !== null) {
@@ -142,9 +146,15 @@ export function LoginDialog({ translation, onComplete, onClose }: LoginDialogPro
 
 async function readProgress(response: Response): Promise<LoginProgress> {
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new LoginHttpError(response.status);
   }
   return (await response.json()) as LoginProgress;
+}
+
+class LoginHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+  }
 }
 
 function needsValue(type: string): boolean {
