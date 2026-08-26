@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 
 interface DirectMessage {
@@ -27,12 +27,18 @@ export function DirectMessageColumn({ accountId, translation }: DirectMessageCol
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadingRef = useRef(false);
+  const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
   const load = useCallback(
     async (nextCursor?: string) => {
       if (accountId === null) {
         return;
       }
+      if (loadingRef.current) {
+        return;
+      }
+      loadingRef.current = true;
       setLoading(true);
       setError(null);
       try {
@@ -59,6 +65,7 @@ export function DirectMessageColumn({ accountId, translation }: DirectMessageCol
       } catch {
         setError(translation.messageLoadError);
       } finally {
+        loadingRef.current = false;
         setLoading(false);
       }
     },
@@ -70,6 +77,23 @@ export function DirectMessageColumn({ accountId, translation }: DirectMessageCol
     setCursor(null);
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (target === null || cursor === null || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void load(cursor);
+        }
+      },
+      { rootMargin: "240px 0px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [cursor, load]);
 
   if (accountId === null) {
     return (
@@ -115,6 +139,7 @@ export function DirectMessageColumn({ accountId, translation }: DirectMessageCol
       ))}
       {cursor !== null && (
         <button
+          ref={loadMoreRef}
           className="load-more-button"
           type="button"
           disabled={loading}

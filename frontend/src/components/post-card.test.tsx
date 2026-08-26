@@ -56,6 +56,19 @@ describe("post actions", () => {
     expect(screen.getByRole("button", { name: "このポストに興味がない" })).toBeDefined();
     expect(screen.getByRole("link", { name: "コミュニティノートリクエスト" })).toBeDefined();
   });
+
+  test("shows user id and hashtags and offers repost and quote choices", async () => {
+    const user = userEvent.setup();
+    const taggedPost = { ...post(), text: "hello #NyTweetDeck" };
+    render(<PostCard post={taggedPost} accountId="account-1" translation={translate("ja")} />);
+
+    expect(screen.getByText("ユーザーID: 42")).toBeDefined();
+    expect(screen.getByText("#NyTweetDeck").classList.contains("hashtag")).toBe(true);
+    await user.click(screen.getByLabelText("リポスト"));
+    expect(screen.getByRole("button", { name: "リポスト" })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "引用" }));
+    expect(screen.getByRole("heading", { name: "引用" })).toBeDefined();
+  });
 });
 
 function post(): TimelinePost {

@@ -6,6 +6,8 @@ interface ComposerDialogProps {
   translation: Translation;
   accountId: string | null;
   inReplyToPostId?: string;
+  quotePostId?: string;
+  quotePostUrl?: string;
   onClose: () => void;
   onPublished?: () => void;
 }
@@ -14,6 +16,8 @@ export function ComposerDialog({
   translation,
   accountId,
   inReplyToPostId,
+  quotePostId,
+  quotePostUrl,
   onClose,
   onPublished,
 }: ComposerDialogProps) {
@@ -32,7 +36,7 @@ export function ComposerDialog({
       const response = await fetch("/api/v1/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId, text: text.trim(), inReplyToPostId }),
+        body: JSON.stringify({ accountId, text: text.trim(), inReplyToPostId, quotePostId }),
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -49,7 +53,13 @@ export function ComposerDialog({
 
   return (
     <Modal
-      title={inReplyToPostId === undefined ? translation.composeTitle : translation.reply}
+      title={
+        inReplyToPostId !== undefined
+          ? translation.reply
+          : quotePostId !== undefined
+            ? translation.quote
+            : translation.composeTitle
+      }
       closeLabel={translation.close}
       onClose={onClose}
     >
@@ -57,6 +67,11 @@ export function ComposerDialog({
         <p className="composer-message">{translation.noUnlockedAccounts}</p>
       ) : (
         <form className="composer-form" onSubmit={submit}>
+          {quotePostUrl !== undefined && (
+            <a className="quote-preview-link" href={quotePostUrl} target="_blank" rel="noreferrer">
+              {translation.quotingPost}
+            </a>
+          )}
           <textarea
             required
             maxLength={4000}

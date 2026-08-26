@@ -59,7 +59,20 @@ public class PostService {
     }
 
     public TimelinePage.Post create(
-            String accountId, String text, String inReplyToPostId) {
+            String accountId, String text, String inReplyToPostId, String quotePostId) {
+        var variables = createVariables(text, inReplyToPostId, quotePostId);
+        var result = graphQlClient.execute(accountId, "createPost", variables);
+        var post = responseParser.parse(result.rawJson()).posts().stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("投稿応答に作成済みポストがありません。"));
+        var reason = inReplyToPostId != null
+                ? "reply"
+                : quotePostId != null ? "quote" : "create";
+        eventBus.publish(accountId, reason, post.id());
+        return post;
+    }
+
+    Map<String, Object> createVariables(String text, String inReplyToPostId, String quotePostId) {
         var normalizedText = text == null ? "" : text.trim();
         if (normalizedText.isEmpty() || normalizedText.length() > 4000) {
             throw new IllegalArgumentException("ポスト本文は1〜4000文字で指定してください。");
@@ -77,12 +90,11 @@ public class PostService {
                             "in_reply_to_tweet_id", inReplyToPostId,
                             "exclude_reply_user_ids", List.of()));
         }
-        var result = graphQlClient.execute(accountId, "createPost", variables);
-        var post = responseParser.parse(result.rawJson()).posts().stream()
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("投稿応答に作成済みポストがありません。"));
-        eventBus.publish(accountId, inReplyToPostId == null ? "create" : "reply", post.id());
-        return post;
+        if (quotePostId != null && !quotePostId.isBlank()) {
+            validatePostId(quotePostId);
+            variables.put("attachment_url", "https://twitter.com/i/status/" + quotePostId);
+        }
+        return Map.copyOf(variables);
     }
 
     static void validatePostId(String postId) {

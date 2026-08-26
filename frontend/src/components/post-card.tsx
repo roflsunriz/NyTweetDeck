@@ -9,7 +9,7 @@ import {
   Repeat2,
   Share2,
 } from "lucide-react";
-import { useState } from "react";
+import { type MouseEvent, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { ComposerDialog } from "./composer-dialog";
 
@@ -53,6 +53,7 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
+  const [quoting, setQuoting] = useState(false);
   const [hidden, setHidden] = useState(false);
   const time = relativeTime(post.createdAt);
   const postUrl = `https://x.com/${post.author.username}/status/${post.id}`;
@@ -99,6 +100,9 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
           <div>
             <strong>{post.author.displayName}</strong>
             <span>@{post.author.username}</span>
+            <small>
+              {translation.userId}: {post.author.id}
+            </small>
           </div>
           {time !== null && <time dateTime={post.createdAt ?? undefined}>{time}</time>}
           <a
@@ -118,10 +122,10 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
           />
         </header>
         {onOpen === undefined ? (
-          <p className="post-text">{post.text}</p>
+          <p className="post-text">{renderPostText(post.text)}</p>
         ) : (
           <button className="post-open-button post-text" type="button" onClick={onOpen}>
-            {post.text}
+            {renderPostText(post.text)}
           </button>
         )}
         {post.media.length > 0 && (
@@ -149,18 +153,19 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
             count={post.replyCount}
             onClick={() => setReplying(true)}
           />
-          <Action
-            icon={Repeat2}
+          <RepostMenu
             label={translation.repost}
+            quoteLabel={translation.quote}
             count={repostCount}
             active={reposted}
             disabled={busyAction !== null}
-            onClick={() =>
+            onRepost={() =>
               mutate(reposted ? "undoRepost" : "repost", () => {
                 setReposted((current) => !current);
                 setRepostCount((current) => Math.max(0, current + (reposted ? -1 : 1)));
               })
             }
+            onQuote={() => setQuoting(true)}
           />
           <Action
             icon={Heart}
@@ -218,8 +223,77 @@ export function PostCard({ post, accountId, translation, onOpen }: PostCardProps
           onClose={() => setReplying(false)}
         />
       )}
+      {quoting && (
+        <ComposerDialog
+          translation={translation}
+          accountId={accountId}
+          quotePostId={post.id}
+          quotePostUrl={postUrl}
+          onClose={() => setQuoting(false)}
+        />
+      )}
     </>
   );
+}
+
+function RepostMenu({
+  label,
+  quoteLabel,
+  count,
+  active,
+  disabled,
+  onRepost,
+  onQuote,
+}: {
+  label: string;
+  quoteLabel: string;
+  count: number;
+  active: boolean;
+  disabled: boolean;
+  onRepost: () => void;
+  onQuote: () => void;
+}) {
+  const closeAndRun = (event: MouseEvent<HTMLButtonElement>, action: () => void) => {
+    event.currentTarget.closest("details")?.removeAttribute("open");
+    action();
+  };
+  return (
+    <details className="repost-menu">
+      <summary
+        className={`post-action${active ? " active" : ""}${disabled ? " disabled" : ""}`}
+        aria-label={label}
+        aria-disabled={disabled}
+      >
+        <Repeat2 aria-hidden="true" size={16} />
+        <span>{compactNumber(count)}</span>
+      </summary>
+      <div>
+        <button type="button" disabled={disabled} onClick={(event) => closeAndRun(event, onRepost)}>
+          <Repeat2 aria-hidden="true" size={16} />
+          {label}
+        </button>
+        <button type="button" disabled={disabled} onClick={(event) => closeAndRun(event, onQuote)}>
+          <MessageCircle aria-hidden="true" size={16} />
+          {quoteLabel}
+        </button>
+      </div>
+    </details>
+  );
+}
+
+function renderPostText(text: string) {
+  let offset = 0;
+  return text.split(/(#[\p{L}\p{N}_]+)/gu).map((segment) => {
+    const start = offset;
+    offset += segment.length;
+    return segment.startsWith("#") ? (
+      <span className="hashtag" key={`${start}-${segment}`}>
+        {segment}
+      </span>
+    ) : (
+      segment
+    );
+  });
 }
 
 function PostMenu({

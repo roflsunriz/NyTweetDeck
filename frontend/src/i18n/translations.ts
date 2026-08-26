@@ -31,6 +31,8 @@ export interface Translation {
   noMessages: string;
   reply: string;
   repost: string;
+  quote: string;
+  quotingPost: string;
   like: string;
   views: string;
   bookmark: string;
@@ -38,6 +40,7 @@ export interface Translation {
   downloadMedia: string;
   askGrok: string;
   postMenu: string;
+  userId: string;
   notInterested: string;
   followUser: string;
   manageLists: string;
@@ -130,6 +133,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     noMessages: "表示するダイレクトメッセージがありません。",
     reply: "返信",
     repost: "リポスト",
+    quote: "引用",
+    quotingPost: "引用するポストを表示",
     like: "いいね",
     views: "表示",
     bookmark: "履歴に保存",
@@ -137,6 +142,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     downloadMedia: "メディアをダウンロード",
     askGrok: "Grokに聞く",
     postMenu: "ポストメニュー",
+    userId: "ユーザーID",
     notInterested: "このポストに興味がない",
     followUser: "フォロー",
     manageLists: "リストから追加と削除",
@@ -265,6 +271,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     noMessages: "No direct messages to display.",
     reply: "Reply",
     repost: "Repost",
+    quote: "Quote",
+    quotingPost: "View the post being quoted",
     like: "Like",
     views: "Views",
     bookmark: "Save to history",
@@ -272,6 +280,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     downloadMedia: "Download media",
     askGrok: "Ask Grok",
     postMenu: "Post menu",
+    userId: "User ID",
     notInterested: "Not interested in this post",
     followUser: "Follow",
     manageLists: "Add or remove from Lists",

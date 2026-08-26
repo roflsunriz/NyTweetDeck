@@ -6,10 +6,12 @@ import type { ColumnConfig } from "../model/layout";
 import { TimelineColumn } from "./timeline-column";
 
 const originalFetch = globalThis.fetch;
+const originalIntersectionObserver = globalThis.IntersectionObserver;
 
 afterEach(() => {
   cleanup();
   globalThis.fetch = originalFetch;
+  globalThis.IntersectionObserver = originalIntersectionObserver;
 });
 
 describe("timeline column", () => {
@@ -56,6 +58,40 @@ describe("timeline column", () => {
     await waitFor(() => expect(screen.getByText("表示するポストがありません。")).toBeDefined());
     expect(requestedUrl).toContain("/api/v1/timelines/userPosts?");
     expect(requestedUrl).toContain("target=42");
+  });
+
+  test("loads the next page automatically when the end sentinel becomes visible", async () => {
+    let triggerIntersection: (() => void) | undefined;
+    globalThis.IntersectionObserver = class {
+      constructor(callback: IntersectionObserverCallback) {
+        triggerIntersection = () =>
+          callback(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver,
+          );
+      }
+
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
+    } as unknown as typeof IntersectionObserver;
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      return url.includes("cursor=next")
+        ? Response.json({ posts: [post("2", "automatic")], nextCursor: null })
+        : Response.json({ posts: [post("1", "first")], nextCursor: "next" });
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "home", kind: "home", target: null };
+
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+    await screen.findByText("first");
+    await waitFor(() => expect(triggerIntersection).toBeDefined());
+    triggerIntersection?.();
+
+    await screen.findByText("automatic");
   });
 });
 

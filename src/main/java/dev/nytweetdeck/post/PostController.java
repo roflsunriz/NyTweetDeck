@@ -32,11 +32,13 @@ public class PostController {
 
     @PostMapping
     public TimelinePage.Post create(@Valid @RequestBody CreatePostRequest request) {
-        return postService.create(request.accountId(), request.text(), request.inReplyToPostId());
+        return postService.create(
+                request.accountId(), request.text(), request.inReplyToPostId(), request.quotePostId());
     }
 
     public record CreatePostRequest(
             @NotBlank String accountId,
             @NotBlank @Size(max = 4000) String text,
-            String inReplyToPostId) {}
+            String inReplyToPostId,
+            String quotePostId) {}
 }

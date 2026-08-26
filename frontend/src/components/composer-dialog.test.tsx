@@ -49,4 +49,30 @@ describe("composer", () => {
     expect(screen.getByText("Vaultを解除し、アカウントへログインしてください。")).toBeDefined();
     expect(screen.queryByPlaceholderText("いまどうしてる？")).toBeNull();
   });
+
+  test("publishes a quote using a post id instead of accepting an arbitrary attachment URL", async () => {
+    let requestBody = "";
+    globalThis.fetch = (async (_input, init) => {
+      requestBody = String(init?.body);
+      return Response.json({ id: "quote-post" });
+    }) as typeof fetch;
+    const user = userEvent.setup();
+    render(
+      <ComposerDialog
+        translation={translate("ja")}
+        accountId="account-1"
+        quotePostId="100"
+        quotePostUrl="https://x.com/alice/status/100"
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "引用" })).toBeDefined();
+    await user.type(screen.getByPlaceholderText("いまどうしてる？"), "引用本文");
+    await user.click(screen.getByRole("button", { name: "ポストする" }));
+
+    const payload = JSON.parse(requestBody) as Record<string, unknown>;
+    expect(payload.quotePostId).toBe("100");
+    expect(payload).not.toHaveProperty("attachmentUrl");
+  });
 });
