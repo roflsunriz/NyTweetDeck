@@ -22,6 +22,8 @@ mvn spring-boot:run
 
 起動後、ブラウザで `http://127.0.0.1:18080` を開きます。MavenはBun bundlerでフロントエンドを生成してからSpring Bootを起動します。
 
+配布ZIPでは、Windowsは`run-nytweetdeck.cmd`、macOS/Linuxは`run-nytweetdeck.sh`を実行します。ランチャーはサーバーの準備完了を待ってからブラウザを開きます。
+
 フロントエンドをホットリロードしながら開発する場合は、別々のターミナルで次を実行します。
 
 ```powershell
@@ -65,3 +67,7 @@ mvn verify
 - 解析用APKMと解析生成物はGit管理外です。
 
 詳しい構成は [docs/architecture.md](docs/architecture.md) を参照してください。
+
+## リリース
+
+`v`で始まるタグをmainへプッシュすると、全検証と脆弱性監査後にJAR・ランチャー・ドキュメントをまとめたZIPとSHA-256ファイルをGitHub Releaseへ公開します。タグはリリース対象コミットを指していることを確認してから作成します。

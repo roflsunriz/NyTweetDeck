@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import type { ColumnConfig } from "../model/layout";
 import { PostCard, type TimelinePost } from "./post-card";
+import { PostDetailDialog } from "./post-detail-dialog";
 
 interface TimelinePage {
   posts: TimelinePost[];
@@ -19,10 +20,11 @@ export function TimelineColumn({ column, accountId, translation }: TimelineColum
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const load = useCallback(
     async (nextCursor?: string) => {
-      if (accountId === null || column.kind === "notifications") {
+      if (accountId === null) {
         return;
       }
       setLoading(true);
@@ -73,9 +75,6 @@ export function TimelineColumn({ column, accountId, translation }: TimelineColum
       />
     );
   }
-  if (column.kind === "notifications") {
-    return <ColumnMessage title={translation.notificationsPending} />;
-  }
   if (error !== null && posts.length === 0) {
     return (
       <div className="column-message">
@@ -95,7 +94,13 @@ export function TimelineColumn({ column, accountId, translation }: TimelineColum
   return (
     <div className="timeline-content">
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} accountId={accountId} translation={translation} />
+        <PostCard
+          key={post.id}
+          post={post}
+          accountId={accountId}
+          translation={translation}
+          onOpen={() => setSelectedPostId(post.id)}
+        />
       ))}
       {cursor !== null && (
         <button
@@ -108,6 +113,14 @@ export function TimelineColumn({ column, accountId, translation }: TimelineColum
         </button>
       )}
       {error !== null && <p className="inline-error">{error}</p>}
+      {selectedPostId !== null && (
+        <PostDetailDialog
+          postId={selectedPostId}
+          accountId={accountId}
+          translation={translation}
+          onClose={() => setSelectedPostId(null)}
+        />
+      )}
     </div>
   );
 }

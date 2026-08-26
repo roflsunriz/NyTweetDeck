@@ -3,6 +3,7 @@ import {
   createDefaultLayout,
   layoutStorageKey,
   loadLayout,
+  moveItem,
   saveLayout,
   type StorageLike,
 } from "./layout";
@@ -71,5 +72,13 @@ describe("layout storage", () => {
     expect(migrated.columns[0]?.target).toBeNull();
     expect(migrated.activeAccountId).toBeNull();
     expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(2);
+  });
+
+  test("moves an item without mutating the source", () => {
+    const source = ["a", "b", "c"];
+
+    expect(moveItem(source, 0, 2)).toEqual(["b", "c", "a"]);
+    expect(source).toEqual(["a", "b", "c"]);
+    expect(moveItem(source, -1, 2)).toEqual(source);
   });
 });

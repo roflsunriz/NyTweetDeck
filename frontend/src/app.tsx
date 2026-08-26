@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { AddColumnDialog } from "./components/add-column-dialog";
 import { AccountSwitcherDialog } from "./components/account-switcher-dialog";
+import { ComposerDialog } from "./components/composer-dialog";
 import { SettingsDialog } from "./components/settings-dialog";
 import { TimelineColumn } from "./components/timeline-column";
 import { translate } from "./i18n/translations";
@@ -22,6 +23,7 @@ import {
   type ColumnKind,
   type Locale,
   loadLayout,
+  moveItem,
   type NavItemId,
   saveLayout,
   type Theme,
@@ -49,7 +51,9 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 
 export function App() {
   const [layout, setLayout] = useState<AppLayout>(() => loadLayout(window.localStorage));
-  const [dialog, setDialog] = useState<"accounts" | "columns" | "settings" | null>(null);
+  const [dialog, setDialog] = useState<"accounts" | "columns" | "composer" | "settings" | null>(
+    null,
+  );
   const translation = useMemo(() => translate(layout.locale), [layout.locale]);
 
   useEffect(() => {
@@ -92,6 +96,40 @@ export function App() {
     setDialog(null);
   };
 
+  const moveNavigation = (source: NavItemId, target: NavItemId) => {
+    setLayout((current) => ({
+      ...current,
+      navItems: moveItem(
+        current.navItems,
+        current.navItems.indexOf(source),
+        current.navItems.indexOf(target),
+      ),
+    }));
+  };
+
+  const moveColumn = (sourceId: string, targetId: string) => {
+    setLayout((current) => ({
+      ...current,
+      columns: moveItem(
+        current.columns,
+        current.columns.findIndex((column) => column.id === sourceId),
+        current.columns.findIndex((column) => column.id === targetId),
+      ),
+    }));
+  };
+
+  const activateNavigation = (item: NavItemId) => {
+    if (item === "compose") {
+      setDialog("composer");
+    } else if (item === "home") {
+      addColumn("home", null);
+    } else if (item === "notifications") {
+      addColumn("notifications", null);
+    } else if (item === "search") {
+      setDialog("columns");
+    }
+  };
+
   return (
     <div className="app-shell">
       <aside className="main-navigation" aria-label={translation.appName}>
@@ -106,7 +144,18 @@ export function App() {
                 className="nav-button"
                 type="button"
                 key={item}
+                draggable
                 aria-label={translation.nav[item]}
+                onClick={() => activateNavigation(item)}
+                disabled={item === "messages" || item === "trends"}
+                onDragStart={(event) => event.dataTransfer.setData("text/plain", `nav:${item}`)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  const source = event.dataTransfer.getData("text/plain");
+                  if (source.startsWith("nav:")) {
+                    moveNavigation(source.slice(4) as NavItemId, item);
+                  }
+                }}
               >
                 <Icon aria-hidden="true" size={21} strokeWidth={1.9} />
               </button>
@@ -160,7 +209,22 @@ export function App() {
             {layout.columns.map((column) => {
               const columnText = translation.column[column.kind];
               return (
-                <article className="deck-column" key={column.id} data-column-kind={column.kind}>
+                <article
+                  className="deck-column"
+                  key={column.id}
+                  data-column-kind={column.kind}
+                  draggable
+                  onDragStart={(event) =>
+                    event.dataTransfer.setData("text/plain", `column:${column.id}`)
+                  }
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    const source = event.dataTransfer.getData("text/plain");
+                    if (source.startsWith("column:")) {
+                      moveColumn(source.slice(7), column.id);
+                    }
+                  }}
+                >
                   <header className="column-header">
                     <div>
                       <span className="column-kicker">NyTweetDeck</span>
@@ -222,6 +286,13 @@ export function App() {
           translation={translation}
           activeAccountId={layout.activeAccountId}
           onSelect={setActiveAccount}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "composer" && (
+        <ComposerDialog
+          translation={translation}
+          accountId={layout.activeAccountId}
           onClose={() => setDialog(null)}
         />
       )}

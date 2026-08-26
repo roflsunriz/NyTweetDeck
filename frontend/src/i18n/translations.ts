@@ -33,6 +33,14 @@ export interface Translation {
   bookmark: string;
   share: string;
   downloadMedia: string;
+  composeTitle: string;
+  postPlaceholder: string;
+  publishPost: string;
+  publishing: string;
+  postFailed: string;
+  postDetail: string;
+  replies: string;
+  closeDetail: string;
   language: string;
   theme: string;
   xApiSetup: string;
@@ -105,6 +113,14 @@ const translations: Record<Locale, Translation> = {
     bookmark: "履歴に保存",
     share: "共有",
     downloadMedia: "メディアをダウンロード",
+    composeTitle: "ポストを作成",
+    postPlaceholder: "いまどうしてる？",
+    publishPost: "ポストする",
+    publishing: "送信中…",
+    postFailed: "ポストを送信できませんでした。",
+    postDetail: "ポストの詳細",
+    replies: "返信",
+    closeDetail: "詳細を閉じる",
     language: "表示言語",
     theme: "テーマ",
     xApiSetup: "Android API設定",
@@ -189,6 +205,14 @@ const translations: Record<Locale, Translation> = {
     bookmark: "Save to history",
     share: "Share",
     downloadMedia: "Download media",
+    composeTitle: "Compose post",
+    postPlaceholder: "What is happening?",
+    publishPost: "Post",
+    publishing: "Posting…",
+    postFailed: "Could not publish the post.",
+    postDetail: "Post details",
+    replies: "Replies",
+    closeDetail: "Close details",
     language: "Language",
     theme: "Theme",
     xApiSetup: "Android API setup",

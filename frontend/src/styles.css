@@ -149,6 +149,7 @@ select:focus-visible {
 .nav-button {
   width: 42px;
   height: 42px;
+  cursor: grab;
 }
 
 .nav-button:hover,
@@ -247,6 +248,12 @@ select:focus-visible {
   background: var(--surface);
   box-shadow: 0 7px 20px rgb(0 0 0 / 8%);
   scroll-snap-align: start;
+  cursor: grab;
+}
+
+.deck-column:active,
+.nav-button:active {
+  cursor: grabbing;
 }
 
 .column-header {
@@ -599,6 +606,20 @@ select:focus-visible {
   white-space: pre-wrap;
 }
 
+.post-open-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.post-open-button:hover {
+  color: color-mix(in srgb, var(--text) 85%, var(--accent));
+}
+
 .post-media {
   display: grid;
   gap: 4px;
@@ -946,6 +967,62 @@ select:focus-visible {
 
 .secondary-button:hover:not(:disabled) {
   background: var(--surface-hover);
+}
+
+.composer-message {
+  margin: 0;
+  padding: 20px;
+  color: var(--text-muted);
+}
+
+.composer-form {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px 22px;
+}
+
+.composer-form textarea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.composer-footer > span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.post-detail-content {
+  min-height: 180px;
+}
+
+.post-detail-content > p {
+  padding: 18px 20px;
+  color: var(--text-muted);
+}
+
+.post-detail-content > h3 {
+  margin: 0;
+  padding: 15px 14px 9px;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+.detail-reply-button {
+  margin: 12px 14px;
 }
 
 @media (max-width: 620px) {

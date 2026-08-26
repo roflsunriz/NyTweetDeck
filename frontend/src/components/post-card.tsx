@@ -29,9 +29,10 @@ interface PostCardProps {
   post: TimelinePost;
   accountId: string;
   translation: Translation;
+  onOpen?: () => void;
 }
 
-export function PostCard({ post, accountId, translation }: PostCardProps) {
+export function PostCard({ post, accountId, translation, onOpen }: PostCardProps) {
   const [liked, setLiked] = useState(post.liked);
   const [reposted, setReposted] = useState(post.reposted);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
@@ -83,7 +84,13 @@ export function PostCard({ post, accountId, translation }: PostCardProps) {
         </div>
         {time !== null && <time dateTime={post.createdAt ?? undefined}>{time}</time>}
       </header>
-      <p className="post-text">{post.text}</p>
+      {onOpen === undefined ? (
+        <p className="post-text">{post.text}</p>
+      ) : (
+        <button className="post-open-button post-text" type="button" onClick={onOpen}>
+          {post.text}
+        </button>
+      )}
       {post.media.length > 0 && (
         <div className="post-media">
           {post.media.map((media) =>

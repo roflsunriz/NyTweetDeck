@@ -33,6 +33,7 @@ public class TimelineQueryFactory {
                 yield new Query("list", variables);
             }
             case "history" -> new Query("history", variables);
+            case "notifications" -> new Query("notifications", variables);
             case "search" -> {
                 variables.put("rawQuery", requireTarget(target, kind));
                 variables.put("querySource", "typed_query");

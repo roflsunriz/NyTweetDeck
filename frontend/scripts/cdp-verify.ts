@@ -244,6 +244,46 @@ for (const viewport of viewports) {
   results.push({ ...metrics, persistedColumns, screenshotPath });
 }
 
+await client.call("Emulation.setDeviceMetricsOverride", {
+  width: 768,
+  height: 1024,
+  deviceScaleFactor: 1,
+  mobile: false,
+});
+await reload();
+const settingsClicked = await client.evaluate<boolean>(`(() => {
+  const button = [...document.querySelectorAll("button")]
+    .find((candidate) => candidate.getAttribute("aria-label") === "設定");
+  if (!(button instanceof HTMLButtonElement)) return false;
+  button.click();
+  return true;
+})()`);
+if (!settingsClicked) {
+  throw new Error("設定ダイアログを開けませんでした。");
+}
+await waitForCondition("document.querySelector('[role=\"dialog\"]') !== null");
+await waitForCondition('document.querySelector(".device-profile-form") !== null');
+await waitForCondition('document.querySelector(".account-vault-setup") !== null');
+const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
+  const panel = document.querySelector(".modal-panel");
+  if (!(panel instanceof HTMLElement)) return { found: false };
+  return {
+    found: true,
+    viewport: { width: innerWidth, height: innerHeight },
+    clientHeight: panel.clientHeight,
+    scrollHeight: panel.scrollHeight,
+    canScroll: panel.scrollHeight >= panel.clientHeight,
+    documentOverflow: document.documentElement.scrollWidth > innerWidth
+  };
+})()`);
+const settingsScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const settingsScreenshotPath = resolve(import.meta.dir, "../../target/ui-settings-768x1024.png");
+await Bun.write(settingsScreenshotPath, Buffer.from(settingsScreenshot.data, "base64"));
+results.push({ view: "settings", ...settingsMetrics, screenshotPath: settingsScreenshotPath });
+
 console.info(JSON.stringify(results, null, 2));
 if (browserErrors.length > 0) {
   throw new Error(`ブラウザエラーを検出しました:\n${browserErrors.join("\n")}`);

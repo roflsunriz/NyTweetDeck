@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Verify frontend
+        working-directory: frontend
+        run: |
+          bun install --frozen-lockfile
+          bun run lint
+          bun run format:check
+          bun run type-check
+          bun run test
+          bun audit
+
+      - name: Build application
+        run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Audit Maven dependencies
+        shell: pwsh
+        run: ./scripts/audit-maven.ps1
+
+      - name: Package release
+        shell: bash
+        run: |
+          APP_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          mkdir -p dist/NyTweetDeck
+          cp "target/nytweetdeck-${APP_VERSION}.jar" dist/NyTweetDeck/NyTweetDeck.jar
+          cp scripts/run-nytweetdeck.ps1 scripts/run-nytweetdeck.cmd scripts/run-nytweetdeck.sh dist/NyTweetDeck/
+          cp README.md CHANGELOG.md dist/NyTweetDeck/
+          chmod +x dist/NyTweetDeck/run-nytweetdeck.sh
+          cd dist
+          zip -r "NyTweetDeck-${GITHUB_REF_NAME}.zip" NyTweetDeck
+          sha256sum "NyTweetDeck-${GITHUB_REF_NAME}.zip" > "NyTweetDeck-${GITHUB_REF_NAME}.zip.sha256"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          "dist/NyTweetDeck-${GITHUB_REF_NAME}.zip"
+          "dist/NyTweetDeck-${GITHUB_REF_NAME}.zip.sha256"
+          --verify-tag
+          --generate-notes
