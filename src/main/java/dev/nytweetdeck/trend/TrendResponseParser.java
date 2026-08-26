@@ -61,27 +61,21 @@ public class TrendResponseParser {
 
     private static boolean isTrend(JsonNode node) {
         return text(node, "name") != null
-                && object(node, "url") != null
-                && (node.get("trendMetadata") != null
-                        || node.get("trend_metadata") != null
-                        || node.get("rank") != null
-                        || node.get("groupedTrends") != null
-                        || node.get("grouped_trends") != null);
+                && object(node, "trend_url") != null
+                && object(node, "trend_metadata") != null;
     }
 
     private static TrendPage.Trend parseTrend(JsonNode node) {
         var name = text(node, "name");
-        var metadata = firstObject(node, "trendMetadata", "trend_metadata");
-        var urlNode = object(node, "url");
-        var url = firstNonNull(text(urlNode, "expanded_url"), text(urlNode, "expandedUrl"));
-        url = firstNonNull(url, text(urlNode, "url"));
+        var metadata = object(node, "trend_metadata");
+        var url = text(object(node, "trend_url"), "url");
         return new TrendPage.Trend(
                 name,
                 text(node, "description"),
                 text(node, "rank"),
                 safeUrl(url, name),
-                firstNonNull(text(metadata, "domain_context"), text(metadata, "domainContext")),
-                firstNonNull(text(metadata, "metaDescription"), text(metadata, "meta_description")));
+                text(metadata, "domain_context"),
+                null);
     }
 
     private static String safeUrl(String value, String name) {
@@ -106,15 +100,10 @@ public class TrendResponseParser {
     }
 
     private static void findCursor(JsonNode node, String[] cursor) {
-        var cursorType = firstNonNull(text(node, "cursorType"), text(node, "cursor_type"));
+        var cursorType = text(node, "cursorType");
         if ("Bottom".equalsIgnoreCase(cursorType)) {
             cursor[0] = text(node, "value");
         }
-    }
-
-    private static JsonNode firstObject(JsonNode node, String first, String second) {
-        var value = object(node, first);
-        return value == null ? object(node, second) : value;
     }
 
     private static JsonNode object(JsonNode node, String field) {
@@ -125,9 +114,5 @@ public class TrendResponseParser {
     private static String text(JsonNode node, String field) {
         var value = node == null ? null : node.get(field);
         return value == null || value.isNull() ? null : value.asString(null);
-    }
-
-    private static String firstNonNull(String first, String second) {
-        return first == null ? second : first;
     }
 }

@@ -8,18 +8,59 @@ import tools.jackson.databind.json.JsonMapper;
 class TrendResponseParserTest {
 
     @Test
-    void parsesConfirmedWebUrtTrendFieldsAndCursor() {
+    void parsesCurrentExploreTimelineTrendAndCursor() {
         var parser = new TrendResponseParser(JsonMapper.builder().build());
         var page = parser.parse("""
-                {"data":{"timeline":{"entries":[{"content":{"trend":{"name":"#NyTweetDeck","description":"1,234 posts","rank":"1","url":{"url":"twitter://search?query=NyTweetDeck","url_type":"DeepLink"},"trendMetadata":{"domain_context":"Technology","metaDescription":"Trending now"}}}},{"content":{"cursorType":"Bottom","value":"next"}}]}}}
+                {
+                  "data": {
+                    "explore_page": {
+                      "body": {
+                        "initialTimeline": {
+                          "timeline": {
+                            "timeline": {
+                              "instructions": [{
+                                "entries": [
+                                  {
+                                    "content": {
+                                      "entryType": "TimelineTimelineItem",
+                                      "itemContent": {
+                                        "__typename": "TimelineTrend",
+                                        "itemType": "TimelineTrend",
+                                        "name": "#NyTweetDeck",
+                                        "trend_metadata": {
+                                          "domain_context": "Technology",
+                                          "url": ""
+                                        },
+                                        "trend_url": {
+                                          "url": "twitter://search?query=NyTweetDeck",
+                                          "urlType": "DeepLink"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "content": {
+                                      "entryType": "TimelineTimelineCursor",
+                                      "cursorType": "Bottom",
+                                      "value": "next-current"
+                                    }
+                                  }
+                                ]
+                              }]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
                 """);
 
-        assertThat(page.nextCursor()).isEqualTo("next");
+        assertThat(page.nextCursor()).isEqualTo("next-current");
         assertThat(page.trends()).singleElement().satisfies(trend -> {
             assertThat(trend.name()).isEqualTo("#NyTweetDeck");
-            assertThat(trend.description()).isEqualTo("1,234 posts");
             assertThat(trend.domainContext()).isEqualTo("Technology");
-            assertThat(trend.url()).startsWith("https://x.com/search?q=");
+            assertThat(trend.url()).isEqualTo("https://x.com/search?q=%23NyTweetDeck");
         });
     }
 }
