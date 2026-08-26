@@ -13,7 +13,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AddColumnDialog } from "./components/add-column-dialog";
+import { AccountSwitcherDialog } from "./components/account-switcher-dialog";
 import { SettingsDialog } from "./components/settings-dialog";
+import { TimelineColumn } from "./components/timeline-column";
 import { translate } from "./i18n/translations";
 import {
   type AppLayout,
@@ -47,7 +49,7 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 
 export function App() {
   const [layout, setLayout] = useState<AppLayout>(() => loadLayout(window.localStorage));
-  const [dialog, setDialog] = useState<"columns" | "settings" | null>(null);
+  const [dialog, setDialog] = useState<"accounts" | "columns" | "settings" | null>(null);
   const translation = useMemo(() => translate(layout.locale), [layout.locale]);
 
   useEffect(() => {
@@ -68,10 +70,10 @@ export function App() {
     return () => mediaQuery.removeEventListener("change", updateTheme);
   }, [layout.theme]);
 
-  const addColumn = (kind: ColumnKind) => {
+  const addColumn = (kind: ColumnKind, target: string | null) => {
     setLayout((current) => ({
       ...current,
-      columns: [...current.columns, { id: createColumnId(), kind }],
+      columns: [...current.columns, { id: createColumnId(), kind, target }],
     }));
     setDialog(null);
   };
@@ -85,6 +87,10 @@ export function App() {
 
   const setLocale = (locale: Locale) => setLayout((current) => ({ ...current, locale }));
   const setTheme = (theme: Theme) => setLayout((current) => ({ ...current, theme }));
+  const setActiveAccount = (activeAccountId: string) => {
+    setLayout((current) => ({ ...current, activeAccountId }));
+    setDialog(null);
+  };
 
   return (
     <div className="app-shell">
@@ -116,7 +122,12 @@ export function App() {
           </button>
         </nav>
         <div className="secondary-actions">
-          <button className="nav-button" type="button" aria-label={translation.accountSwitcher}>
+          <button
+            className="nav-button"
+            type="button"
+            aria-label={translation.accountSwitcher}
+            onClick={() => setDialog("accounts")}
+          >
             <CircleUserRound aria-hidden="true" size={22} />
           </button>
           <button
@@ -153,7 +164,11 @@ export function App() {
                   <header className="column-header">
                     <div>
                       <span className="column-kicker">NyTweetDeck</span>
-                      <h2>{columnText.title}</h2>
+                      <h2>
+                        {column.target === null
+                          ? columnText.title
+                          : `${columnText.title}: ${column.target}`}
+                      </h2>
                     </div>
                     <button
                       className="icon-button"
@@ -164,11 +179,11 @@ export function App() {
                       <Minus aria-hidden="true" size={20} />
                     </button>
                   </header>
-                  <div className="column-empty-content">
-                    <CircleUserRound aria-hidden="true" size={31} strokeWidth={1.4} />
-                    <strong>{translation.loginRequired}</strong>
-                    <p>{translation.loginRequiredDescription}</p>
-                  </div>
+                  <TimelineColumn
+                    column={column}
+                    accountId={layout.activeAccountId}
+                    translation={translation}
+                  />
                 </article>
               );
             })}
@@ -199,6 +214,14 @@ export function App() {
           theme={layout.theme}
           onLocaleChange={setLocale}
           onThemeChange={setTheme}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "accounts" && (
+        <AccountSwitcherDialog
+          translation={translation}
+          activeAccountId={layout.activeAccountId}
+          onSelect={setActiveAccount}
           onClose={() => setDialog(null)}
         />
       )}

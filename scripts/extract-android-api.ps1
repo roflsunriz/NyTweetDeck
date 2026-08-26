@@ -114,5 +114,34 @@ $metadata = [ordered]@{
 $metadataPath = Join-Path $generatedRoot 'android-apk-metadata.json'
 $metadata | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $metadataPath -Encoding utf8
 
-Write-Host "Android API抽出完了: GraphQL $($operations.Count)件 / REST $($endpoints.Count)件"
+$featureManifestPath = Join-Path $resolvedJadxRoot 'resources\res\raw\feature_switch_manifest'
+if (-not (Test-Path -LiteralPath $featureManifestPath)) {
+    throw "Feature Switch manifestが見つかりません: $featureManifestPath"
+}
+$featureManifest = Get-Content -Raw -LiteralPath $featureManifestPath | ConvertFrom-Json -AsHashtable
+$booleanDefaults = [ordered]@{}
+foreach ($featureName in @($featureManifest.default.config.Keys | Sort-Object)) {
+    $value = $featureManifest.default.config[$featureName].value
+    if ($value -is [bool]) {
+        $booleanDefaults[$featureName] = $value
+    }
+}
+$featureDocument = [ordered]@{
+    source = [ordered]@{
+        packageName = 'com.twitter.android'
+        versionName = '12.19.1-release.0'
+        versionCode = 312191000
+        featureSetToken = $featureManifest.default.feature_set_token
+    }
+    count = $booleanDefaults.Count
+    defaults = $booleanDefaults
+}
+$featureJson = $featureDocument | ConvertTo-Json -Depth 6 -Compress
+$featurePath = Join-Path $generatedRoot 'android-boolean-feature-defaults.json'
+$featureJson | Set-Content -LiteralPath $featurePath -Encoding utf8
+$resourceRoot = Join-Path $repositoryRoot 'src\main\resources\x-api'
+New-Item -ItemType Directory -Path $resourceRoot -Force | Out-Null
+$featureJson | Set-Content -LiteralPath (Join-Path $resourceRoot 'android-boolean-feature-defaults.json') -Encoding utf8
+
+Write-Host "Android API抽出完了: GraphQL $($operations.Count)件 / REST $($endpoints.Count)件 / Boolean Feature $($booleanDefaults.Count)件"
 Write-Host "生成先: $generatedRoot"

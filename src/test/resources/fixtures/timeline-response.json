@@ -1,0 +1,125 @@
+{
+  "data": {
+    "user_result": {
+      "result": {
+        "timeline_response": {
+          "timeline": {
+            "instructions": [
+              {
+                "type": "TimelineAddEntries",
+                "entries": [
+                  {
+                    "entryId": "tweet-100",
+                    "content": {
+                      "itemContent": {
+                        "tweet_results": {
+                          "result": {
+                            "__typename": "Tweet",
+                            "rest_id": "100",
+                            "core": {
+                              "user_results": {
+                                "result": {
+                                  "__typename": "User",
+                                  "rest_id": "42",
+                                  "is_blue_verified": true,
+                                  "legacy": {
+                                    "id_str": "42",
+                                    "screen_name": "alice",
+                                    "name": "Alice",
+                                    "profile_image_url_https": "https://pbs.twimg.com/alice.jpg",
+                                    "verified": false
+                                  }
+                                }
+                              }
+                            },
+                            "views": {"count": "1234"},
+                            "legacy": {
+                              "id_str": "100",
+                              "full_text": "最初のポスト #NyTweetDeck",
+                              "created_at": "Wed Oct 10 20:19:24 +0000 2018",
+                              "reply_count": 2,
+                              "retweet_count": 3,
+                              "quote_count": 4,
+                              "favorite_count": 5,
+                              "bookmark_count": 6,
+                              "favorited": true,
+                              "retweeted": false,
+                              "bookmarked": true,
+                              "quoted_status_id_str": "99",
+                              "extended_entities": {
+                                "media": [
+                                  {
+                                    "id_str": "media-1",
+                                    "type": "photo",
+                                    "media_url_https": "https://pbs.twimg.com/photo.jpg"
+                                  },
+                                  {
+                                    "id_str": "media-2",
+                                    "type": "video",
+                                    "media_url_https": "https://pbs.twimg.com/video-preview.jpg",
+                                    "video_info": {
+                                      "variants": [
+                                        {"content_type": "video/mp4", "bitrate": 256000, "url": "https://video.twimg.com/low.mp4"},
+                                        {"content_type": "video/mp4", "bitrate": 832000, "url": "https://video.twimg.com/high.mp4"},
+                                        {"content_type": "application/x-mpegURL", "url": "https://video.twimg.com/playlist.m3u8"}
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "quoted_status_result": {
+                              "result": {
+                                "__typename": "Tweet",
+                                "rest_id": "99",
+                                "legacy": {"id_str": "99", "full_text": "引用元"}
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "entryId": "tweet-101",
+                    "content": {
+                      "itemContent": {
+                        "tweet_results": {
+                          "result": {
+                            "__typename": "TweetWithVisibilityResults",
+                            "tweet": {
+                              "__typename": "Tweet",
+                              "rest_id": "101",
+                              "core": {
+                                "user_results": {
+                                  "result": {
+                                    "rest_id": "43",
+                                    "legacy": {"screen_name": "bob", "name": "Bob"}
+                                  }
+                                }
+                              },
+                              "legacy": {
+                                "id_str": "101",
+                                "full_text": "2番目のポスト",
+                                "created_at": "2019-01-01T00:00:00Z",
+                                "in_reply_to_status_id_str": "100"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "entryId": "cursor-bottom-0",
+                    "content": {"cursorType": "Bottom", "value": "next-cursor"}
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

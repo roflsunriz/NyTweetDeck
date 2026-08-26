@@ -4,6 +4,11 @@ export interface Translation {
   appName: string;
   addColumn: string;
   addColumnDescription: string;
+  columnTarget: string;
+  userTargetHint: string;
+  listTargetHint: string;
+  confirmAddColumn: string;
+  back: string;
   noColumns: string;
   noColumnsDescription: string;
   close: string;
@@ -12,6 +17,22 @@ export interface Translation {
   loginRequiredDescription: string;
   settings: string;
   accountSwitcher: string;
+  selectAccount: string;
+  activeAccount: string;
+  noUnlockedAccounts: string;
+  loading: string;
+  retry: string;
+  loadMore: string;
+  noPosts: string;
+  timelineLoadError: string;
+  notificationsPending: string;
+  reply: string;
+  repost: string;
+  like: string;
+  views: string;
+  bookmark: string;
+  share: string;
+  downloadMedia: string;
   language: string;
   theme: string;
   xApiSetup: string;
@@ -55,6 +76,11 @@ const translations: Record<Locale, Translation> = {
     appName: "NyTweetDeck",
     addColumn: "カラムを追加",
     addColumnDescription: "表示したい情報の種類を選択してください。",
+    columnTarget: "対象",
+    userTargetHint: "ユーザーIDを入力",
+    listTargetHint: "リストIDを入力",
+    confirmAddColumn: "このカラムを追加",
+    back: "戻る",
     noColumns: "カラムがありません",
     noColumnsDescription: "追加ボタンから最初のカラムを作成できます。",
     close: "閉じる",
@@ -63,6 +89,22 @@ const translations: Record<Locale, Translation> = {
     loginRequiredDescription: "Xアカウント接続機能は、Android版APIの解析後にここへ接続されます。",
     settings: "設定",
     accountSwitcher: "アカウント切り替え",
+    selectAccount: "アカウントを選択",
+    activeAccount: "使用中",
+    noUnlockedAccounts: "Vaultを解除し、アカウントへログインしてください。",
+    loading: "読み込み中…",
+    retry: "再試行",
+    loadMore: "さらに読み込む",
+    noPosts: "表示するポストがありません。",
+    timelineLoadError: "タイムラインを読み込めませんでした。",
+    notificationsPending: "通知REST APIは接続準備中です。",
+    reply: "返信",
+    repost: "リポスト",
+    like: "いいね",
+    views: "表示",
+    bookmark: "履歴に保存",
+    share: "共有",
+    downloadMedia: "メディアをダウンロード",
     language: "表示言語",
     theme: "テーマ",
     xApiSetup: "Android API設定",
@@ -118,6 +160,11 @@ const translations: Record<Locale, Translation> = {
     appName: "NyTweetDeck",
     addColumn: "Add column",
     addColumnDescription: "Choose the kind of information you want to display.",
+    columnTarget: "Target",
+    userTargetHint: "Enter a user ID",
+    listTargetHint: "Enter a list ID",
+    confirmAddColumn: "Add this column",
+    back: "Back",
     noColumns: "No columns yet",
     noColumnsDescription: "Use the add button to create your first column.",
     close: "Close",
@@ -126,6 +173,22 @@ const translations: Record<Locale, Translation> = {
     loginRequiredDescription: "X account connectivity will appear here after Android API analysis.",
     settings: "Settings",
     accountSwitcher: "Switch account",
+    selectAccount: "Select account",
+    activeAccount: "Active",
+    noUnlockedAccounts: "Unlock the vault and sign in to an account.",
+    loading: "Loading…",
+    retry: "Retry",
+    loadMore: "Load more",
+    noPosts: "No posts to display.",
+    timelineLoadError: "Could not load the timeline.",
+    notificationsPending: "The notifications REST API is being connected.",
+    reply: "Reply",
+    repost: "Repost",
+    like: "Like",
+    views: "Views",
+    bookmark: "Save to history",
+    share: "Share",
+    downloadMedia: "Download media",
     language: "Language",
     theme: "Theme",
     xApiSetup: "Android API setup",

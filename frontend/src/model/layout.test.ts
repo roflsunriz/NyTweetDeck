@@ -36,7 +36,7 @@ describe("layout storage", () => {
     const layout = {
       ...createDefaultLayout(),
       locale: "en" as const,
-      columns: [{ id: "home-1", kind: "home" as const }],
+      columns: [{ id: "home-1", kind: "home" as const, target: null }],
     };
 
     saveLayout(storage, layout);
@@ -50,5 +50,26 @@ describe("layout storage", () => {
 
     expect(loadLayout(storage)).toEqual(createDefaultLayout());
     expect(storage.getItem(layoutStorageKey)).toBeNull();
+  });
+
+  test("force-migrates version 1 layout to version 2", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        version: 1,
+        columns: [{ id: "legacy-home", kind: "home" }],
+        navItems: [...createDefaultLayout().navItems],
+        locale: "ja",
+        theme: "dark",
+      }),
+    );
+
+    const migrated = loadLayout(storage);
+
+    expect(migrated.version).toBe(2);
+    expect(migrated.columns[0]?.target).toBeNull();
+    expect(migrated.activeAccountId).toBeNull();
+    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(2);
   });
 });

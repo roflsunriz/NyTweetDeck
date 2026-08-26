@@ -1,0 +1,248 @@
+package dev.nytweetdeck.timeline;
+
+import dev.nytweetdeck.timeline.TimelinePage.Author;
+import dev.nytweetdeck.timeline.TimelinePage.Media;
+import dev.nytweetdeck.timeline.TimelinePage.Post;
+import dev.nytweetdeck.xapi.http.XApiHttpException;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+@Component
+public class TimelineResponseParser {
+
+    private static final DateTimeFormatter X_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss Z yyyy", Locale.ENGLISH);
+
+    private final ObjectMapper objectMapper;
+
+    public TimelineResponseParser(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    public TimelinePage parse(String body) {
+        try {
+            var root = objectMapper.readTree(body);
+            var posts = new LinkedHashMap<String, Post>();
+            var cursor = new String[1];
+            visit(root, posts, cursor);
+            return new TimelinePage(new ArrayList<>(posts.values()), cursor[0]);
+        } catch (JacksonException | IllegalArgumentException exception) {
+            throw new XApiHttpException("タイムライン応答を解析できません。", exception);
+        }
+    }
+
+    private void visit(JsonNode node, Map<String, Post> posts, String[] cursor) {
+        if (node == null || node.isNull()) {
+            return;
+        }
+        if (node.isArray()) {
+            for (JsonNode child : node) {
+                visit(child, posts, cursor);
+            }
+            return;
+        }
+        if (!node.isObject()) {
+            return;
+        }
+
+        findCursor(node, cursor);
+        var tweetNode = unwrapTweet(node);
+        if (isTweet(tweetNode)) {
+            var post = parsePost(tweetNode);
+            posts.putIfAbsent(post.id(), post);
+            return;
+        }
+        for (Map.Entry<String, JsonNode> property : node.properties()) {
+            visit(property.getValue(), posts, cursor);
+        }
+    }
+
+    private static JsonNode unwrapTweet(JsonNode node) {
+        var typename = text(node, "__typename");
+        if ("TweetWithVisibilityResults".equals(typename) && node.get("tweet") != null) {
+            return node.get("tweet");
+        }
+        var result = node.get("result");
+        if (result != null && result.isObject()) {
+            var resultType = text(result, "__typename");
+            if ("Tweet".equals(resultType) || "TweetWithVisibilityResults".equals(resultType)) {
+                return unwrapTweet(result);
+            }
+        }
+        return node;
+    }
+
+    private static boolean isTweet(JsonNode node) {
+        var legacy = node.get("legacy");
+        return legacy != null
+                && legacy.isObject()
+                && text(legacy, "full_text") != null
+                && (text(node, "rest_id") != null || text(legacy, "id_str") != null);
+    }
+
+    private static Post parsePost(JsonNode node) {
+        var legacy = node.get("legacy");
+        var id = firstNonNull(text(node, "rest_id"), text(legacy, "id_str"));
+        var author = parseAuthor(node.get("core"));
+        return new Post(
+                id,
+                text(legacy, "full_text"),
+                parseCreatedAt(text(legacy, "created_at")),
+                author,
+                number(legacy, "reply_count"),
+                number(legacy, "retweet_count"),
+                number(legacy, "quote_count"),
+                number(legacy, "favorite_count"),
+                number(legacy, "bookmark_count"),
+                parseViewCount(node.get("views")),
+                bool(legacy, "favorited"),
+                bool(legacy, "retweeted"),
+                bool(legacy, "bookmarked"),
+                text(legacy, "in_reply_to_status_id_str"),
+                text(legacy, "quoted_status_id_str"),
+                parseMedia(legacy.get("extended_entities")));
+    }
+
+    private static Author parseAuthor(JsonNode core) {
+        var user = core == null ? null : core.get("user_results");
+        user = user == null ? null : unwrapResult(user.get("result"));
+        var legacy = user == null ? null : user.get("legacy");
+        if (user == null || legacy == null) {
+            return new Author("", "", "", null, false);
+        }
+        return new Author(
+                firstNonNull(text(user, "rest_id"), text(legacy, "id_str")),
+                text(legacy, "screen_name"),
+                text(legacy, "name"),
+                text(legacy, "profile_image_url_https"),
+                bool(legacy, "verified") || bool(user, "is_blue_verified"));
+    }
+
+    private static JsonNode unwrapResult(JsonNode node) {
+        if (node == null) {
+            return null;
+        }
+        if ("UserUnavailable".equals(text(node, "__typename"))) {
+            return null;
+        }
+        var result = node.get("result");
+        return result != null && result.isObject() ? result : node;
+    }
+
+    private static List<Media> parseMedia(JsonNode extendedEntities) {
+        var mediaNodes = extendedEntities == null ? null : extendedEntities.get("media");
+        if (mediaNodes == null || !mediaNodes.isArray()) {
+            return List.of();
+        }
+        var media = new ArrayList<Media>();
+        for (JsonNode item : mediaNodes) {
+            var type = text(item, "type");
+            var preview = text(item, "media_url_https");
+            var url = "photo".equals(type) ? preview : bestVideoUrl(item.get("video_info"));
+            if (url == null) {
+                url = preview;
+            }
+            media.add(new Media(
+                    firstNonNull(text(item, "id_str"), Integer.toString(media.size())),
+                    type == null ? "unknown" : type,
+                    url,
+                    preview));
+        }
+        return media;
+    }
+
+    private static String bestVideoUrl(JsonNode videoInfo) {
+        var variants = videoInfo == null ? null : videoInfo.get("variants");
+        if (variants == null || !variants.isArray()) {
+            return null;
+        }
+        JsonNode best = null;
+        long bestBitrate = -1;
+        for (JsonNode variant : variants) {
+            if (!"video/mp4".equals(text(variant, "content_type"))) {
+                continue;
+            }
+            var bitrate = number(variant, "bitrate");
+            if (best == null || bitrate > bestBitrate) {
+                best = variant;
+                bestBitrate = bitrate;
+            }
+        }
+        return best == null ? null : text(best, "url");
+    }
+
+    private static void findCursor(JsonNode node, String[] cursor) {
+        var cursorType = firstNonNull(text(node, "cursorType"), text(node, "cursor_type"));
+        if ("Bottom".equalsIgnoreCase(cursorType)) {
+            cursor[0] = text(node, "value");
+            return;
+        }
+        var entryId = firstNonNull(text(node, "entryId"), text(node, "entry_id"));
+        if (entryId != null && entryId.toLowerCase(Locale.ROOT).contains("cursor-bottom")) {
+            var content = node.get("content");
+            if (content != null && text(content, "value") != null) {
+                cursor[0] = text(content, "value");
+            }
+        }
+    }
+
+    private static String parseCreatedAt(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(value, X_DATE_FORMAT).toInstant().toString();
+        } catch (RuntimeException exception) {
+            try {
+                return Instant.parse(value).toString();
+            } catch (RuntimeException ignored) {
+                return value;
+            }
+        }
+    }
+
+    private static long parseViewCount(JsonNode views) {
+        var count = views == null ? null : text(views, "count");
+        if (count == null) {
+            return 0;
+        }
+        try {
+            return Long.parseLong(count);
+        } catch (NumberFormatException exception) {
+            return 0;
+        }
+    }
+
+    private static String text(JsonNode node, String field) {
+        if (node == null) {
+            return null;
+        }
+        var value = node.get(field);
+        return value == null || value.isNull() ? null : value.asString(null);
+    }
+
+    private static long number(JsonNode node, String field) {
+        if (node == null || node.get(field) == null) {
+            return 0;
+        }
+        return node.get(field).asLong(0);
+    }
+
+    private static boolean bool(JsonNode node, String field) {
+        return node != null && node.get(field) != null && node.get(field).asBoolean(false);
+    }
+
+    private static String firstNonNull(String first, String second) {
+        return first == null ? second : first;
+    }
+}

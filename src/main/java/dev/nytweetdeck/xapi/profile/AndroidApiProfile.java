@@ -1,6 +1,7 @@
 package dev.nytweetdeck.xapi.profile;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 public record AndroidApiProfile(
@@ -11,12 +12,35 @@ public record AndroidApiProfile(
         URI graphqlBaseUri,
         Map<String, String> standardHeaders,
         Map<String, String> restEndpoints,
+        List<String> featureKeys,
         Map<String, GraphQlOperation> graphqlOperations) {
 
     public AndroidApiProfile {
         standardHeaders = Map.copyOf(standardHeaders);
         restEndpoints = Map.copyOf(restEndpoints);
+        featureKeys = List.copyOf(featureKeys);
         graphqlOperations = Map.copyOf(graphqlOperations);
+    }
+
+    public AndroidApiProfile(
+            String packageName,
+            String versionName,
+            long versionCode,
+            URI restBaseUri,
+            URI graphqlBaseUri,
+            Map<String, String> standardHeaders,
+            Map<String, String> restEndpoints,
+            Map<String, GraphQlOperation> graphqlOperations) {
+        this(
+                packageName,
+                versionName,
+                versionCode,
+                restBaseUri,
+                graphqlBaseUri,
+                standardHeaders,
+                restEndpoints,
+                List.of(),
+                graphqlOperations);
     }
 
     public record GraphQlOperation(

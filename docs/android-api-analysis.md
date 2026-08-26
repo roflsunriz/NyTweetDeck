@@ -20,6 +20,8 @@
 
 GraphQLの操作キー、operation ID、公開操作名、Query/Mutation種別は、アプリ内の`GraphQlOperationRegistry`から319件を抽出しています。全件は [android-graphql-operations.json](generated/android-graphql-operations.json) に記録しています。
 
+`feature_switch_manifest`から値がbooleanの1,619件だけを抽出し、[android-boolean-feature-defaults.json](generated/android-boolean-feature-defaults.json) に記録しています。文字列・URL・SDKキーなどは製品リソースへ含めません。主要タイムライン操作が参照する28キーだけをGraphQL要求の`features`へ送ります。
+
 Javaソース中で直接確認できたRESTパス145件は [android-rest-endpoints.json](generated/android-rest-endpoints.json) に記録しています。動的に組み立てられるパスはこの一覧だけでは網羅できないため、利用する機能ごとに呼び出し元も確認します。
 
 ## 標準ヘッダー
