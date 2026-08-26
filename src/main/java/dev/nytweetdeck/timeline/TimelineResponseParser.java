@@ -103,6 +103,7 @@ public class TimelineResponseParser {
         return new Post(
                 id,
                 text(legacy, "full_text"),
+                text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 author,
                 number(legacy, "reply_count"),

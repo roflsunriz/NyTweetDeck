@@ -25,6 +25,7 @@ class TimelineResponseParserTest {
         assertThat(page.posts()).extracting(TimelinePage.Post::id).containsExactly("101", "100");
         var detailed = page.posts().get(1);
         assertThat(detailed.text()).contains("#NyTweetDeck");
+        assertThat(detailed.language()).isEqualTo("ja");
         assertThat(detailed.createdAt()).isEqualTo("2018-10-10T20:19:24Z");
         assertThat(detailed.author().username()).isEqualTo("alice");
         assertThat(detailed.author().verified()).isTrue();

@@ -112,6 +112,12 @@ export function SettingsDialog({
           </select>
         </label>
         <ToggleSetting
+          id="auto-translate-posts"
+          label={translation.autoTranslatePosts}
+          checked={display.autoTranslatePosts}
+          onChange={(checked) => onDisplayChange({ ...display, autoTranslatePosts: checked })}
+        />
+        <ToggleSetting
           id="reduce-motion"
           label={translation.reduceMotion}
           checked={display.reduceMotion}

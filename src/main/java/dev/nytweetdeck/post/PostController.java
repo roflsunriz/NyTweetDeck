@@ -17,9 +17,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class PostController {
 
     private final PostService postService;
+    private final PostTranslationService translationService;
 
-    public PostController(PostService postService) {
+    public PostController(PostService postService, PostTranslationService translationService) {
         this.postService = postService;
+        this.translationService = translationService;
+    }
+
+    @GetMapping("/{postId}/translation")
+    public PostTranslationService.TranslationResult translation(
+            @PathVariable String postId,
+            @RequestParam String accountId,
+            @RequestParam String sourceLanguage,
+            @RequestParam String targetLanguage) {
+        return translationService.translate(
+                accountId, postId, sourceLanguage, targetLanguage);
     }
 
     @GetMapping("/{postId}")

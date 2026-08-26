@@ -210,6 +210,7 @@ function post(id: string, text: string) {
   return {
     id,
     text,
+    language: "ja",
     createdAt: "2026-08-26T00:00:00Z",
     author: {
       id: "42",

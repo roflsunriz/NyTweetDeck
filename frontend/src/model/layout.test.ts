@@ -30,6 +30,7 @@ describe("layout storage", () => {
 
     expect(layout).toEqual(createDefaultLayout());
     expect(layout.columns).toHaveLength(0);
+    expect(layout.display.autoTranslatePosts).toBe(true);
   });
 
   test("round-trips a valid layout", () => {
@@ -68,11 +69,11 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.columns[0]?.target).toBeNull();
     expect(migrated.activeAccountId).toBeNull();
     expect(migrated.display.mediaPreview).toBe(true);
-    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(4);
+    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(5);
   });
 
   test("migrates version 2 layout while preserving columns and account", () => {
@@ -91,7 +92,7 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.columns).toHaveLength(1);
     expect(migrated.activeAccountId).toBe("account-1");
     expect(migrated.display.accentColor).toBe("blue");
@@ -110,8 +111,27 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.columns[0]?.label).toBeNull();
+    expect(migrated.display.autoTranslatePosts).toBe(true);
+  });
+
+  test("migrates version 4 with automatic post translation enabled by default", () => {
+    const storage = new MemoryStorage();
+    const { autoTranslatePosts: _removed, ...legacyDisplay } = createDefaultLayout().display;
+    storage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...createDefaultLayout(),
+        version: 4,
+        display: legacyDisplay,
+      }),
+    );
+
+    const migrated = loadLayout(storage);
+
+    expect(migrated.version).toBe(5);
+    expect(migrated.display.autoTranslatePosts).toBe(true);
   });
 
   test("moves an item without mutating the source", () => {

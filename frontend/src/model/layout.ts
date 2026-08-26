@@ -1,5 +1,5 @@
 export const layoutStorageKey = "nytweetdeck.layout";
-export const layoutVersion = 4 as const;
+export const layoutVersion = 5 as const;
 
 export const columnKinds = [
   "home",
@@ -63,6 +63,7 @@ export interface DisplayPreferences {
   reduceMotion: boolean;
   mediaPreview: boolean;
   videoAutoplay: boolean;
+  autoTranslatePosts: boolean;
 }
 
 export const defaultDisplayPreferences: DisplayPreferences = {
@@ -72,6 +73,7 @@ export const defaultDisplayPreferences: DisplayPreferences = {
   reduceMotion: false,
   mediaPreview: true,
   videoAutoplay: false,
+  autoTranslatePosts: true,
 };
 
 export interface ColumnConfig {
@@ -148,6 +150,16 @@ export function loadLayout(storage: StorageLike): AppLayout {
         ...candidate,
         version: layoutVersion,
         columns: candidate.columns.map((column) => ({ ...column, label: null })),
+        display: { ...candidate.display, autoTranslatePosts: true },
+      };
+      saveLayout(storage, migrated);
+      return migrated;
+    }
+    if (isLegacyLayoutV4(candidate)) {
+      const migrated: AppLayout = {
+        ...candidate,
+        version: layoutVersion,
+        display: { ...candidate.display, autoTranslatePosts: true },
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -204,9 +216,13 @@ function isAppLayout(value: unknown): value is AppLayout {
   return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
 }
 
-function isLegacyLayoutV3(value: unknown): value is Omit<AppLayout, "version" | "columns"> & {
+function isLegacyLayoutV3(value: unknown): value is Omit<
+  AppLayout,
+  "version" | "columns" | "display"
+> & {
   version: 3;
   columns: Array<Omit<ColumnConfig, "label">>;
+  display: LegacyDisplayPreferences;
 } {
   if (!isRecord(value) || value.version !== 3) {
     return false;
@@ -215,7 +231,7 @@ function isLegacyLayoutV3(value: unknown): value is Omit<AppLayout, "version" | 
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
     !isNullableString(value.activeAccountId) ||
-    !isDisplayPreferences(value.display)
+    !isLegacyDisplayPreferences(value.display)
   ) {
     return false;
   }
@@ -223,6 +239,27 @@ function isLegacyLayoutV3(value: unknown): value is Omit<AppLayout, "version" | 
     return false;
   }
   return Array.isArray(value.columns) && value.columns.every(isLegacyTargetedColumn);
+}
+
+function isLegacyLayoutV4(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
+  version: 4;
+  display: LegacyDisplayPreferences;
+} {
+  if (!isRecord(value) || value.version !== 4) {
+    return false;
+  }
+  if (
+    !isLocale(value.locale) ||
+    !isTheme(value.theme) ||
+    !isNullableString(value.activeAccountId) ||
+    !isLegacyDisplayPreferences(value.display)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) {
+    return false;
+  }
+  return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
 }
 
 function isLegacyLayoutV2(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
@@ -314,6 +351,16 @@ function isTheme(value: unknown): value is Theme {
 }
 
 function isDisplayPreferences(value: unknown): value is DisplayPreferences {
+  return (
+    isLegacyDisplayPreferences(value) &&
+    isRecord(value) &&
+    typeof (value as Record<string, unknown>).autoTranslatePosts === "boolean"
+  );
+}
+
+type LegacyDisplayPreferences = Omit<DisplayPreferences, "autoTranslatePosts">;
+
+function isLegacyDisplayPreferences(value: unknown): value is LegacyDisplayPreferences {
   return (
     isRecord(value) &&
     ["small", "default", "large"].includes(String(value.fontSize)) &&

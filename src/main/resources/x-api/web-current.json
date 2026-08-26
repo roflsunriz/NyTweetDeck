@@ -25,7 +25,8 @@
     "livePipelineEvents": "/1.1/live_pipeline/events",
     "followUser": "/1.1/friendships/create.json",
     "muteUser": "/1.1/mutes/users/create.json",
-    "blockUser": "/1.1/blocks/create.json"
+    "blockUser": "/1.1/blocks/create.json",
+    "translatePost": "/1.1/strato/column/None/tweetId={postId},destinationLanguage=None,translationSource=Some({translationSource}),feature=None,timeout=None,onlyCached=None/translation/service/translateTweet"
   },
   "featureKeys": [
     "rweb_video_screen_enabled",

@@ -73,6 +73,7 @@ function post(id: string, type: "photo" | "video") {
   return {
     id,
     text: id,
+    language: "ja",
     createdAt: "2026-08-26T00:00:00Z",
     author: {
       id: "42",

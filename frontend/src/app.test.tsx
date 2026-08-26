@@ -68,6 +68,10 @@ describe("NyTweetDeck shell", () => {
     await user.selectOptions(screen.getByTestId("setting-font-size"), "large");
     await user.selectOptions(screen.getByTestId("setting-accent-color"), "purple");
     await user.selectOptions(screen.getByTestId("setting-density"), "compact");
+    expect((screen.getByTestId("setting-auto-translate-posts") as HTMLInputElement).checked).toBe(
+      true,
+    );
+    await user.click(screen.getByTestId("setting-auto-translate-posts"));
     await user.click(screen.getByTestId("setting-reduce-motion"));
     expect(document.documentElement.dataset.fontSize).toBe("large");
     expect(document.documentElement.dataset.accent).toBe("purple");
@@ -77,9 +81,10 @@ describe("NyTweetDeck shell", () => {
       version: number;
       display: { accentColor: string; reduceMotion: boolean };
     };
-    expect(stored.version).toBe(4);
+    expect(stored.version).toBe(5);
     expect(stored.display.accentColor).toBe("purple");
     expect(stored.display.reduceMotion).toBe(true);
+    expect((stored.display as { autoTranslatePosts?: boolean }).autoTranslatePosts).toBe(false);
   });
 
   test("opens direct messages and trends from the default menu", async () => {

@@ -5,7 +5,7 @@
     "versionCode": 0,
     "featureSetToken": "responsive-web"
   },
-  "count": 39,
+  "count": 40,
   "defaults": {
     "rweb_video_screen_enabled": false,
     "rweb_cashtags_enabled": true,
@@ -45,6 +45,7 @@
     "responsive_web_grok_imagine_annotation_enabled": true,
     "responsive_web_grok_community_note_auto_translation_is_enabled": true,
     "responsive_web_enhance_cards_enabled": false,
-    "c9s_enabled": true
+    "c9s_enabled": true,
+    "responsive_web_x_translation_enabled": false
   }
 }

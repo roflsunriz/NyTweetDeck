@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { translate } from "../i18n/translations";
 import { defaultDisplayPreferences } from "../model/layout";
 import { PostCard, type TimelinePost } from "./post-card";
+import { PostTranslationProvider } from "./post-translation-context";
 
 const originalFetch = globalThis.fetch;
 
@@ -178,12 +180,116 @@ describe("post actions", () => {
 
     expect(openUser).toHaveBeenCalledWith("42");
   });
+
+  test("automatically translates a foreign-language post and toggles original and global state", async () => {
+    globalThis.fetch = (async (input) => {
+      if (String(input).includes("/translation?")) {
+        return Response.json({
+          postId: "900",
+          sourceLanguage: "en",
+          targetLanguage: "ja",
+          text: "自動翻訳された本文",
+          provider: "Google",
+        });
+      }
+      return Response.json({ completed: true });
+    }) as typeof fetch;
+    const user = userEvent.setup();
+
+    function Harness() {
+      const [enabled, setEnabled] = useState(true);
+      return (
+        <PostTranslationProvider
+          value={{ locale: "ja", autoTranslatePosts: enabled, setAutoTranslatePosts: setEnabled }}
+        >
+          <PostCard
+            post={{ ...post(), id: "900", language: "en", text: "Original post" }}
+            accountId="account-1"
+            translation={translate("ja")}
+          />
+        </PostTranslationProvider>
+      );
+    }
+
+    render(<Harness />);
+
+    expect(await screen.findByText("自動翻訳された本文")).toBeDefined();
+    expect(screen.getByText("Googleによる自動翻訳")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "原文を表示" }));
+    expect(screen.getByText("Original post")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "翻訳を表示" }));
+    expect(screen.getByText("自動翻訳された本文")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "すべてのカラムで自動翻訳をオフにする" }));
+    expect(screen.getByText("Original post")).toBeDefined();
+    expect(
+      screen.getByRole("button", { name: "すべてのカラムで自動翻訳をオンにする" }),
+    ).toBeDefined();
+  });
+
+  test("applies the gear setting to every post and retries a failed translation", async () => {
+    const attempts = new Map<string, number>();
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      const postId = url.includes("/911/") ? "911" : "910";
+      const count = (attempts.get(postId) ?? 0) + 1;
+      attempts.set(postId, count);
+      if (postId === "910" && count === 1) return new Response(null, { status: 502 });
+      return Response.json({
+        postId,
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+        text: `翻訳 ${postId}`,
+        provider: "Google",
+      });
+    }) as typeof fetch;
+    const user = userEvent.setup();
+
+    function Harness() {
+      const [enabled, setEnabled] = useState(true);
+      return (
+        <PostTranslationProvider
+          value={{ locale: "ja", autoTranslatePosts: enabled, setAutoTranslatePosts: setEnabled }}
+        >
+          <PostCard
+            post={{ ...post(), id: "910", language: "en", text: "Original 910" }}
+            accountId="account-1"
+            translation={translate("ja")}
+          />
+          <PostCard
+            post={{ ...post(), id: "911", language: "en", text: "Original 911" }}
+            accountId="account-1"
+            translation={translate("ja")}
+          />
+        </PostTranslationProvider>
+      );
+    }
+
+    render(<Harness />);
+
+    expect(await screen.findByText("翻訳できませんでした。原文を表示しています。")).toBeDefined();
+    expect(await screen.findByText("翻訳 911")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+    expect(await screen.findByText("翻訳 910")).toBeDefined();
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "すべてのカラムで自動翻訳をオフにする",
+      })[0] as HTMLButtonElement,
+    );
+    expect(screen.getByText("Original 910")).toBeDefined();
+    expect(screen.getByText("Original 911")).toBeDefined();
+    expect(
+      screen.getAllByRole("button", {
+        name: "すべてのカラムで自動翻訳をオンにする",
+      }),
+    ).toHaveLength(2);
+  });
 });
 
 function post(): TimelinePost {
   return {
     id: "100",
     text: "post",
+    language: "ja",
     createdAt: null,
     author: { id: "42", username: "alice", displayName: "Alice", avatarUrl: null, verified: false },
     replyCount: 1,

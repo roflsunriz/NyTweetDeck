@@ -29,6 +29,7 @@ import { DirectMessageColumn } from "./components/direct-message-column";
 import { MenuEditorDialog } from "./components/menu-editor-dialog";
 import { LoginDialog } from "./components/login-dialog";
 import { NotificationsColumn } from "./components/notifications-column";
+import { PostTranslationProvider } from "./components/post-translation-context";
 import { SettingsDialog } from "./components/settings-dialog";
 import { TimelineColumn } from "./components/timeline-column";
 import { TrendsColumn } from "./components/trends-column";
@@ -167,6 +168,11 @@ export function App() {
   const setTheme = (theme: Theme) => setLayout((current) => ({ ...current, theme }));
   const setDisplay = (display: AppLayout["display"]) =>
     setLayout((current) => ({ ...current, display }));
+  const setAutoTranslatePosts = (autoTranslatePosts: boolean) =>
+    setLayout((current) => ({
+      ...current,
+      display: { ...current.display, autoTranslatePosts },
+    }));
   const setNavigationItems = (navItems: NavItemId[]) =>
     setLayout((current) => ({ ...current, navItems }));
   const setActiveAccount = (activeAccountId: string) => {
@@ -226,227 +232,235 @@ export function App() {
   };
 
   return (
-    <div className="app-shell">
-      <aside className="main-navigation" aria-label={translation.appName}>
-        <div className="brand-mark" aria-hidden="true">
-          N
-        </div>
-        <nav className="primary-actions">
-          {layout.navItems.map((item) => {
-            const Icon = navIcons[item];
-            return (
-              <button
-                className="nav-button"
-                data-nav-item={item}
-                type="button"
-                key={item}
-                draggable
-                aria-label={translation.nav[item]}
-                onClick={() => activateNavigation(item)}
-                onDragStart={(event) => event.dataTransfer.setData("text/plain", `nav:${item}`)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  const source = event.dataTransfer.getData("text/plain");
-                  if (source.startsWith("nav:")) {
-                    moveNavigation(source.slice(4) as NavItemId, item);
-                  }
-                }}
-              >
-                <Icon aria-hidden="true" size={21} strokeWidth={1.9} />
-              </button>
-            );
-          })}
-          <button
-            className="nav-button add-nav-button"
-            data-action="edit-menu"
-            type="button"
-            aria-label={translation.addColumn}
-            onClick={() => setDialog("menu")}
-          >
-            <Plus aria-hidden="true" size={22} />
-          </button>
-        </nav>
-        <div className="secondary-actions">
-          <button
-            className="nav-button"
-            data-action="switch-account"
-            type="button"
-            aria-label={translation.accountSwitcher}
-            onClick={() => setDialog("accounts")}
-          >
-            <CircleUserRound aria-hidden="true" size={22} />
-          </button>
-          <button
-            className="nav-button"
-            data-action="open-settings"
-            type="button"
-            aria-label={translation.settings}
-            onClick={() => setDialog("settings")}
-          >
-            <Settings aria-hidden="true" size={21} />
-          </button>
-        </div>
-      </aside>
-
-      <main className="deck" aria-live="polite">
-        {layout.columns.length === 0 ? (
-          <section className="empty-state">
-            <button
-              className="large-add-button"
-              data-action="add-column"
-              type="button"
-              aria-label={translation.addColumn}
-              onClick={() => setDialog("columns")}
-            >
-              <Plus aria-hidden="true" size={34} strokeWidth={1.5} />
-            </button>
-            <h1>{translation.noColumns}</h1>
-            <p>{translation.noColumnsDescription}</p>
-          </section>
-        ) : (
-          <div className="column-track">
-            {layout.columns.map((column) => {
-              const columnText = translation.column[column.kind];
+    <PostTranslationProvider
+      value={{
+        locale: layout.locale,
+        autoTranslatePosts: layout.display.autoTranslatePosts,
+        setAutoTranslatePosts,
+      }}
+    >
+      <div className="app-shell">
+        <aside className="main-navigation" aria-label={translation.appName}>
+          <div className="brand-mark" aria-hidden="true">
+            N
+          </div>
+          <nav className="primary-actions">
+            {layout.navItems.map((item) => {
+              const Icon = navIcons[item];
               return (
-                <article
-                  className="deck-column"
-                  key={column.id}
-                  data-column-kind={column.kind}
+                <button
+                  className="nav-button"
+                  data-nav-item={item}
+                  type="button"
+                  key={item}
                   draggable
-                  onDragStart={(event) =>
-                    event.dataTransfer.setData("text/plain", `column:${column.id}`)
-                  }
+                  aria-label={translation.nav[item]}
+                  onClick={() => activateNavigation(item)}
+                  onDragStart={(event) => event.dataTransfer.setData("text/plain", `nav:${item}`)}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
                     const source = event.dataTransfer.getData("text/plain");
-                    if (source.startsWith("column:")) {
-                      moveColumn(source.slice(7), column.id);
+                    if (source.startsWith("nav:")) {
+                      moveNavigation(source.slice(4) as NavItemId, item);
                     }
                   }}
                 >
-                  <header className="column-header">
-                    <div>
-                      <span className="column-kicker">NyTweetDeck</span>
-                      <h2>
-                        {column.target === null
-                          ? columnText.title
-                          : `${columnText.title}: ${column.label ?? column.target}`}
-                      </h2>
-                    </div>
-                    <button
-                      className="icon-button"
-                      data-action="remove-column"
-                      type="button"
-                      aria-label={translation.removeColumn(columnText.title)}
-                      onClick={() => removeColumn(column.id)}
-                    >
-                      <Minus aria-hidden="true" size={20} />
-                    </button>
-                  </header>
-                  {column.kind === "messages" ? (
-                    <DirectMessageColumn
-                      accountId={activeAccountId}
-                      translation={translation}
-                      subscriptionId={column.id}
-                    />
-                  ) : column.kind === "notifications" ? (
-                    <NotificationsColumn
-                      accountId={activeAccountId}
-                      translation={translation}
-                      display={layout.display}
-                    />
-                  ) : column.kind === "trends" ? (
-                    <TrendsColumn
-                      accountId={activeAccountId}
-                      translation={translation}
-                      onSelect={(query) => addColumn("search", query)}
-                    />
-                  ) : (
-                    <TimelineColumn
-                      column={column}
-                      accountId={activeAccountId}
-                      translation={translation}
-                      display={layout.display}
-                    />
-                  )}
-                </article>
+                  <Icon aria-hidden="true" size={21} strokeWidth={1.9} />
+                </button>
               );
             })}
             <button
-              className="inline-add-column"
-              data-action="add-column"
+              className="nav-button add-nav-button"
+              data-action="edit-menu"
               type="button"
               aria-label={translation.addColumn}
-              onClick={() => setDialog("columns")}
+              onClick={() => setDialog("menu")}
             >
-              <Plus aria-hidden="true" size={30} strokeWidth={1.5} />
-              <span>{translation.addColumn}</span>
+              <Plus aria-hidden="true" size={22} />
+            </button>
+          </nav>
+          <div className="secondary-actions">
+            <button
+              className="nav-button"
+              data-action="switch-account"
+              type="button"
+              aria-label={translation.accountSwitcher}
+              onClick={() => setDialog("accounts")}
+            >
+              <CircleUserRound aria-hidden="true" size={22} />
+            </button>
+            <button
+              className="nav-button"
+              data-action="open-settings"
+              type="button"
+              aria-label={translation.settings}
+              onClick={() => setDialog("settings")}
+            >
+              <Settings aria-hidden="true" size={21} />
             </button>
           </div>
-        )}
-      </main>
+        </aside>
 
-      {dialog === "columns" && (
-        <AddColumnDialog
-          translation={translation}
-          accountId={activeAccountId}
-          onAdd={addColumn}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog === "search" && (
-        <AddColumnDialog
-          translation={translation}
-          accountId={activeAccountId}
-          initialKind="search"
-          onAdd={addColumn}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog === "settings" && (
-        <SettingsDialog
-          translation={translation}
-          locale={layout.locale}
-          theme={layout.theme}
-          display={layout.display}
-          onLocaleChange={setLocale}
-          onThemeChange={setTheme}
-          onDisplayChange={setDisplay}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog === "accounts" && (
-        <AccountSwitcherDialog
-          translation={translation}
-          activeAccountId={layout.activeAccountId}
-          onSelect={setActiveAccount}
-          onLogin={() => setDialog("login")}
-          onSetup={() => setDialog("settings")}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog === "login" && (
-        <LoginDialog
-          translation={translation}
-          onComplete={setActiveAccount}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog === "composer" && (
-        <ComposerDialog
-          translation={translation}
-          accountId={activeAccountId}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog === "menu" && (
-        <MenuEditorDialog
-          translation={translation}
-          selected={layout.navItems}
-          onChange={setNavigationItems}
-          onClose={() => setDialog(null)}
-        />
-      )}
-    </div>
+        <main className="deck" aria-live="polite">
+          {layout.columns.length === 0 ? (
+            <section className="empty-state">
+              <button
+                className="large-add-button"
+                data-action="add-column"
+                type="button"
+                aria-label={translation.addColumn}
+                onClick={() => setDialog("columns")}
+              >
+                <Plus aria-hidden="true" size={34} strokeWidth={1.5} />
+              </button>
+              <h1>{translation.noColumns}</h1>
+              <p>{translation.noColumnsDescription}</p>
+            </section>
+          ) : (
+            <div className="column-track">
+              {layout.columns.map((column) => {
+                const columnText = translation.column[column.kind];
+                return (
+                  <article
+                    className="deck-column"
+                    key={column.id}
+                    data-column-kind={column.kind}
+                    draggable
+                    onDragStart={(event) =>
+                      event.dataTransfer.setData("text/plain", `column:${column.id}`)
+                    }
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      const source = event.dataTransfer.getData("text/plain");
+                      if (source.startsWith("column:")) {
+                        moveColumn(source.slice(7), column.id);
+                      }
+                    }}
+                  >
+                    <header className="column-header">
+                      <div>
+                        <span className="column-kicker">NyTweetDeck</span>
+                        <h2>
+                          {column.target === null
+                            ? columnText.title
+                            : `${columnText.title}: ${column.label ?? column.target}`}
+                        </h2>
+                      </div>
+                      <button
+                        className="icon-button"
+                        data-action="remove-column"
+                        type="button"
+                        aria-label={translation.removeColumn(columnText.title)}
+                        onClick={() => removeColumn(column.id)}
+                      >
+                        <Minus aria-hidden="true" size={20} />
+                      </button>
+                    </header>
+                    {column.kind === "messages" ? (
+                      <DirectMessageColumn
+                        accountId={activeAccountId}
+                        translation={translation}
+                        subscriptionId={column.id}
+                      />
+                    ) : column.kind === "notifications" ? (
+                      <NotificationsColumn
+                        accountId={activeAccountId}
+                        translation={translation}
+                        display={layout.display}
+                      />
+                    ) : column.kind === "trends" ? (
+                      <TrendsColumn
+                        accountId={activeAccountId}
+                        translation={translation}
+                        onSelect={(query) => addColumn("search", query)}
+                      />
+                    ) : (
+                      <TimelineColumn
+                        column={column}
+                        accountId={activeAccountId}
+                        translation={translation}
+                        display={layout.display}
+                      />
+                    )}
+                  </article>
+                );
+              })}
+              <button
+                className="inline-add-column"
+                data-action="add-column"
+                type="button"
+                aria-label={translation.addColumn}
+                onClick={() => setDialog("columns")}
+              >
+                <Plus aria-hidden="true" size={30} strokeWidth={1.5} />
+                <span>{translation.addColumn}</span>
+              </button>
+            </div>
+          )}
+        </main>
+
+        {dialog === "columns" && (
+          <AddColumnDialog
+            translation={translation}
+            accountId={activeAccountId}
+            onAdd={addColumn}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === "search" && (
+          <AddColumnDialog
+            translation={translation}
+            accountId={activeAccountId}
+            initialKind="search"
+            onAdd={addColumn}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === "settings" && (
+          <SettingsDialog
+            translation={translation}
+            locale={layout.locale}
+            theme={layout.theme}
+            display={layout.display}
+            onLocaleChange={setLocale}
+            onThemeChange={setTheme}
+            onDisplayChange={setDisplay}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === "accounts" && (
+          <AccountSwitcherDialog
+            translation={translation}
+            activeAccountId={layout.activeAccountId}
+            onSelect={setActiveAccount}
+            onLogin={() => setDialog("login")}
+            onSetup={() => setDialog("settings")}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === "login" && (
+          <LoginDialog
+            translation={translation}
+            onComplete={setActiveAccount}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === "composer" && (
+          <ComposerDialog
+            translation={translation}
+            accountId={activeAccountId}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === "menu" && (
+          <MenuEditorDialog
+            translation={translation}
+            selected={layout.navItems}
+            onChange={setNavigationItems}
+            onClose={() => setDialog(null)}
+          />
+        )}
+      </div>
+    </PostTranslationProvider>
   );
 }

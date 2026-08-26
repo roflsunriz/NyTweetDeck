@@ -81,6 +81,14 @@ export interface Translation {
   downloadMedia: string;
   viewMedia: string;
   askGrok: string;
+  autoTranslatePosts: string;
+  enableAutoTranslation: string;
+  disableAutoTranslation: string;
+  showOriginal: string;
+  showTranslation: string;
+  translationLoading: string;
+  translationFailed: string;
+  translatedBy: (provider: string) => string;
   postMenu: string;
   notInterested: string;
   followUser: string;
@@ -229,6 +237,14 @@ const translations: Partial<Record<Locale, Translation>> = {
     downloadMedia: "メディアをダウンロード",
     viewMedia: "メディアを表示",
     askGrok: "Grokに聞く",
+    autoTranslatePosts: "表示言語と異なるポストを自動翻訳",
+    enableAutoTranslation: "すべてのカラムで自動翻訳をオンにする",
+    disableAutoTranslation: "すべてのカラムで自動翻訳をオフにする",
+    showOriginal: "原文を表示",
+    showTranslation: "翻訳を表示",
+    translationLoading: "翻訳中…",
+    translationFailed: "翻訳できませんでした。原文を表示しています。",
+    translatedBy: (provider) => `${provider}による自動翻訳`,
     postMenu: "ポストメニュー",
     notInterested: "このポストに興味がない",
     followUser: "フォロー",
@@ -422,6 +438,14 @@ const translations: Partial<Record<Locale, Translation>> = {
     downloadMedia: "Download media",
     viewMedia: "View media",
     askGrok: "Ask Grok",
+    autoTranslatePosts: "Automatically translate posts that use another language",
+    enableAutoTranslation: "Turn on automatic translation for every column",
+    disableAutoTranslation: "Turn off automatic translation for every column",
+    showOriginal: "Show original",
+    showTranslation: "Show translation",
+    translationLoading: "Translating…",
+    translationFailed: "Translation failed. Showing the original post.",
+    translatedBy: (provider) => `Automatically translated by ${provider}`,
     postMenu: "Post menu",
     notInterested: "Not interested in this post",
     followUser: "Follow",

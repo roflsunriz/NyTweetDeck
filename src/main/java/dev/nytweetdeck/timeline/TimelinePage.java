@@ -11,6 +11,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
     public record Post(
             String id,
             String text,
+            String language,
             String createdAt,
             Author author,
             long replyCount,

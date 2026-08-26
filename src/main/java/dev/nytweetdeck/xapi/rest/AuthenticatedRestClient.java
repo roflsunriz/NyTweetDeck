@@ -14,12 +14,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthenticatedRestClient {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final Pattern PATH_VARIABLE = Pattern.compile("\\{([A-Za-z][A-Za-z0-9]*)}");
 
     private final HttpClient httpClient;
     private final XApiProfileService profileService;
@@ -35,16 +37,26 @@ public class AuthenticatedRestClient {
     }
 
     public RestResult get(String accountId, String endpointName, Map<String, String> parameters) {
+        return get(accountId, endpointName, Map.of(), parameters, "ja");
+    }
+
+    public RestResult get(
+            String accountId,
+            String endpointName,
+            Map<String, String> pathVariables,
+            Map<String, String> parameters,
+            String language) {
         var profile = profileService.profile();
         var path = profile.restEndpoints().get(endpointName);
         if (path == null) {
             throw new IllegalArgumentException("未定義のRESTエンドポイントです: " + endpointName);
         }
+        path = expandPath(path, pathVariables);
         var account = vaultSessionManager.requireAccount(accountId);
         var baseUri = URI.create("https://api.x.com");
         var requestUri = withQuery(baseUri.resolve(path), parameters);
         var requestBuilder = HttpRequest.newBuilder(requestUri).timeout(REQUEST_TIMEOUT).GET();
-        applyAuthentication(requestBuilder, requestUri, "GET", List.of(), account);
+        applyAuthentication(requestBuilder, requestUri, "GET", List.of(), account, language);
         return send(requestBuilder.build(), endpointName);
     }
 
@@ -67,7 +79,7 @@ public class AuthenticatedRestClient {
                 .timeout(REQUEST_TIMEOUT)
                 .header("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
                 .POST(HttpRequest.BodyPublishers.ofString(body));
-        applyAuthentication(requestBuilder, requestUri, "POST", bodyParameters, account);
+        applyAuthentication(requestBuilder, requestUri, "POST", bodyParameters, account, "ja");
         return send(requestBuilder.build(), endpointName);
     }
 
@@ -76,8 +88,26 @@ public class AuthenticatedRestClient {
             URI requestUri,
             String method,
             List<Parameter> bodyParameters,
-            dev.nytweetdeck.account.vault.AccountSecrets account) {
-        WebSessionRequestHeaders.apply(requestBuilder, account, "ja");
+            dev.nytweetdeck.account.vault.AccountSecrets account,
+            String language) {
+        WebSessionRequestHeaders.apply(requestBuilder, account, language);
+    }
+
+    static String expandPath(String template, Map<String, String> variables) {
+        var matcher = PATH_VARIABLE.matcher(template);
+        var result = new StringBuilder();
+        while (matcher.find()) {
+            var value = variables.get(matcher.group(1));
+            if (value == null || value.isBlank()) {
+                throw new IllegalArgumentException("RESTパス変数がありません: " + matcher.group(1));
+            }
+            matcher.appendReplacement(result, java.util.regex.Matcher.quoteReplacement(encode(value)));
+        }
+        matcher.appendTail(result);
+        if (result.indexOf("{") >= 0 || !result.toString().startsWith("/")) {
+            throw new IllegalArgumentException("RESTパステンプレートが不正です。");
+        }
+        return result.toString();
     }
 
     static String formBody(List<Parameter> parameters) {

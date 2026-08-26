@@ -630,7 +630,7 @@ select:focus-visible {
 
 .post-card > header {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto 28px 28px;
+  grid-template-columns: 36px minmax(0, 1fr) auto 28px 28px 28px;
   align-items: center;
   gap: 9px;
 }
@@ -672,6 +672,32 @@ select:focus-visible {
   line-height: 1.48;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.post-translation-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: -3px 0 8px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.post-translation-status button {
+  padding: 2px 0;
+  color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+}
+
+.post-translation-toggle.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.post-translation-error {
+  color: var(--danger);
 }
 
 .post-open-button {

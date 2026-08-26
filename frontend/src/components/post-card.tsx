@@ -7,17 +7,21 @@ import {
   MessageCircle,
   MoreHorizontal,
   Repeat2,
+  Settings,
   Share2,
 } from "lucide-react";
-import { type KeyboardEvent, type MouseEvent, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, useEffect, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
+import { loadPostTranslation, shouldTranslatePost } from "../model/post-translation";
 import { useRelativeTime } from "../model/relative-time";
 import { ComposerDialog } from "./composer-dialog";
+import { usePostTranslationSettings } from "./post-translation-context";
 
 export interface TimelinePost {
   id: string;
   text: string;
+  language: string | null;
   createdAt: string | null;
   author: {
     id: string;
@@ -66,8 +70,63 @@ export function PostCard({
   const [replying, setReplying] = useState(false);
   const [quoting, setQuoting] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [translationProvider, setTranslationProvider] = useState<string | null>(null);
+  const [translationLoading, setTranslationLoading] = useState(false);
+  const [translationError, setTranslationError] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [translationAttempt, setTranslationAttempt] = useState(0);
+  const { locale, autoTranslatePosts, setAutoTranslatePosts } = usePostTranslationSettings();
   const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
   const postUrl = `https://x.com/${post.author.username}/status/${post.id}`;
+  const translationNeeded =
+    post.text.trim().length > 0 && shouldTranslatePost(post.language, locale);
+  const visibleText =
+    autoTranslatePosts && translatedText !== null && !showOriginal ? translatedText : post.text;
+
+  useEffect(() => {
+    if (!autoTranslatePosts || !translationNeeded || post.language === null) {
+      setTranslationLoading(false);
+      setTranslationError(false);
+      setShowOriginal(false);
+      return;
+    }
+    let active = true;
+    setTranslatedText(null);
+    setTranslationProvider(null);
+    setTranslationLoading(true);
+    setTranslationError(false);
+    setShowOriginal(false);
+    void loadPostTranslation({
+      accountId,
+      postId: post.id,
+      sourceLanguage: post.language,
+      targetLanguage: locale,
+      force: translationAttempt > 0,
+    })
+      .then((result) => {
+        if (!active) return;
+        setTranslatedText(result.text);
+        setTranslationProvider(result.provider);
+      })
+      .catch(() => {
+        if (active) setTranslationError(true);
+      })
+      .finally(() => {
+        if (active) setTranslationLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    accountId,
+    autoTranslatePosts,
+    locale,
+    post.id,
+    post.language,
+    translationAttempt,
+    translationNeeded,
+  ]);
 
   const mutate = async (action: string, onSuccess: () => void) => {
     setBusyAction(action);
@@ -148,6 +207,24 @@ export function PostCard({
             </span>
           </button>
           {time !== null && <time dateTime={post.createdAt ?? undefined}>{time}</time>}
+          <button
+            className={`post-header-action post-translation-toggle${autoTranslatePosts ? " active" : ""}`}
+            type="button"
+            aria-label={
+              autoTranslatePosts
+                ? translation.disableAutoTranslation
+                : translation.enableAutoTranslation
+            }
+            aria-pressed={autoTranslatePosts}
+            title={
+              autoTranslatePosts
+                ? translation.disableAutoTranslation
+                : translation.enableAutoTranslation
+            }
+            onClick={() => setAutoTranslatePosts(!autoTranslatePosts)}
+          >
+            <Settings aria-hidden="true" size={16} />
+          </button>
           <a
             className="post-header-action"
             aria-label={translation.askGrok}
@@ -166,11 +243,32 @@ export function PostCard({
           />
         </header>
         {onOpen === undefined ? (
-          <p className="post-text">{renderPostText(post.text)}</p>
+          <p className="post-text">{renderPostText(visibleText)}</p>
         ) : (
           <button className="post-open-button post-text" type="button" onClick={onOpen}>
-            {renderPostText(post.text)}
+            {renderPostText(visibleText)}
           </button>
+        )}
+        {autoTranslatePosts && translationNeeded && (
+          <div className="post-translation-status" aria-live="polite">
+            {translationLoading && <span>{translation.translationLoading}</span>}
+            {translationError && (
+              <>
+                <span className="post-translation-error">{translation.translationFailed}</span>
+                <button type="button" onClick={() => setTranslationAttempt((value) => value + 1)}>
+                  {translation.retry}
+                </button>
+              </>
+            )}
+            {translatedText !== null && translationProvider !== null && (
+              <>
+                <span>{translation.translatedBy(translationProvider)}</span>
+                <button type="button" onClick={() => setShowOriginal((value) => !value)}>
+                  {showOriginal ? translation.showTranslation : translation.showOriginal}
+                </button>
+              </>
+            )}
+          </div>
         )}
         {post.media.length > 0 && display.mediaPreview && (
           <div className="post-media">
