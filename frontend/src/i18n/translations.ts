@@ -31,6 +31,19 @@ export interface Translation {
   saved: string;
   setupLoadError: string;
   setupSaveError: string;
+  accountVault: string;
+  vaultPassphrase: string;
+  confirmPassphrase: string;
+  createVault: string;
+  unlockVault: string;
+  lockVault: string;
+  vaultLocked: string;
+  vaultUnlocked: string;
+  passphraseRequirement: string;
+  passphraseMismatch: string;
+  vaultOperationError: string;
+  accounts: string;
+  noAccounts: string;
   localeName: Record<Locale, string>;
   themeName: Record<Theme, string>;
   nav: Record<NavItemId, string>;
@@ -69,6 +82,20 @@ const translations: Record<Locale, Translation> = {
     saved: "保存しました",
     setupLoadError: "Android API設定を読み込めませんでした。",
     setupSaveError: "Android端末プロファイルを保存できませんでした。",
+    accountVault: "アカウントVault",
+    vaultPassphrase: "Vaultパスフレーズ",
+    confirmPassphrase: "パスフレーズを確認",
+    createVault: "Vaultを作成",
+    unlockVault: "Vaultを解除",
+    lockVault: "Vaultをロック",
+    vaultLocked: "ロック中",
+    vaultUnlocked: "解除済み",
+    passphraseRequirement:
+      "12文字以上の専用パスフレーズを指定してください。Xのパスワードは使用しません。",
+    passphraseMismatch: "確認用パスフレーズが一致しません。",
+    vaultOperationError: "アカウントVaultを操作できませんでした。",
+    accounts: "保存済みアカウント",
+    noAccounts: "保存済みアカウントはありません。",
     localeName: { ja: "日本語", en: "English" },
     themeName: { system: "システム設定", light: "ライト", dark: "ダーク" },
     nav: {
@@ -118,6 +145,20 @@ const translations: Record<Locale, Translation> = {
     saved: "Saved",
     setupLoadError: "Could not load Android API setup.",
     setupSaveError: "Could not save the Android device profile.",
+    accountVault: "Account vault",
+    vaultPassphrase: "Vault passphrase",
+    confirmPassphrase: "Confirm passphrase",
+    createVault: "Create vault",
+    unlockVault: "Unlock vault",
+    lockVault: "Lock vault",
+    vaultLocked: "Locked",
+    vaultUnlocked: "Unlocked",
+    passphraseRequirement:
+      "Use a dedicated passphrase of at least 12 characters. Do not use your X password.",
+    passphraseMismatch: "The confirmation passphrase does not match.",
+    vaultOperationError: "Could not operate the account vault.",
+    accounts: "Saved accounts",
+    noAccounts: "No saved accounts yet.",
     localeName: { ja: "日本語", en: "English" },
     themeName: { system: "System", light: "Light", dark: "Dark" },
     nav: {

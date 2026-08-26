@@ -17,6 +17,12 @@ describe("NyTweetDeck shell", () => {
           deviceProfileAvailable: false,
         });
       }
+      if (url.endsWith("/vault/status")) {
+        return Response.json({ exists: false, unlocked: false, accountCount: 0, unlockedAt: null });
+      }
+      if (url.endsWith("/vault/accounts")) {
+        return Response.json([]);
+      }
       return Response.json(null);
     }) as typeof fetch;
   });

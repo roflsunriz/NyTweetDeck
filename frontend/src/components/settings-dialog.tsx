@@ -1,6 +1,7 @@
 import type { Translation } from "../i18n/translations";
 import type { Locale, Theme } from "../model/layout";
 import { Modal } from "./modal";
+import { AccountVaultSetup } from "./account-vault-setup";
 import { XApiSetup } from "./x-api-setup";
 
 interface SettingsDialogProps {
@@ -40,6 +41,7 @@ export function SettingsDialog({
         </label>
       </div>
       <XApiSetup translation={translation} />
+      <AccountVaultSetup translation={translation} />
     </Modal>
   );
 }
