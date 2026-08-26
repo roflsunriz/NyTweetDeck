@@ -95,6 +95,9 @@ jobs:
 
       - name: Set up Java
         uses: actions/setup-java@v5
+        env:
+          # JetBrains resolver reads this environment variable for authenticated GitHub API calls.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           distribution: ${{ matrix.distribution }}
           java-version: ${{ matrix.java-version }}

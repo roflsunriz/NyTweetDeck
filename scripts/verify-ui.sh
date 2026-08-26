@@ -28,9 +28,15 @@ if [[ -z "$chrome_binary" || ! -x "$chrome_binary" ]]; then
 fi
 
 cleanup() {
-  if [[ -n "$chrome_pid" ]]; then kill "$chrome_pid" 2>/dev/null || true; fi
-  if [[ -n "$java_pid" ]]; then kill "$java_pid" 2>/dev/null || true; fi
-  rm -rf -- "$profile_directory"
+  if [[ -n "$chrome_pid" ]]; then
+    kill "$chrome_pid" 2>/dev/null || true
+    wait "$chrome_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$java_pid" ]]; then
+    kill "$java_pid" 2>/dev/null || true
+    wait "$java_pid" 2>/dev/null || true
+  fi
+  rm -rf -- "$profile_directory" || true
 }
 trap cleanup EXIT
 
