@@ -12,15 +12,20 @@ import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.profile.XApiProfile;
 import dev.nytweetdeck.xapi.profile.XApiProfile.OperationType;
 import dev.nytweetdeck.xapi.profile.XApiProfileService;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,10 +107,35 @@ class AuthenticatedGraphQlClientTest {
         assertThat(result.rawJson()).contains("timeline");
     }
 
+    @Test
+    void sendsSearchTimelineAsPostWithJsonPayload() throws Exception {
+        var client = createClient("search", "SearchTimeline");
+
+        var request = client
+                .prepareRequest(
+                        "account-1",
+                        "search",
+                        Map.of("rawQuery", "NyTweetDeck", "count", 20))
+                .request();
+
+        var payload = JsonMapper.builder().build().readTree(readBody(request));
+        assertThat(request.method()).isEqualTo("POST");
+        assertThat(request.uri().getRawQuery()).isNull();
+        assertThat(request.headers().firstValue("Content-Type")).contains("application/json");
+        assertThat(payload.get("variables").get("rawQuery").asString()).isEqualTo("NyTweetDeck");
+        assertThat(payload.get("features").get("feature_enabled").asBoolean()).isTrue();
+        assertThat(payload.get("fieldToggles").get("withArticlePlainText").asBoolean()).isFalse();
+    }
+
     private AuthenticatedGraphQlClient createClient() throws Exception {
+        return createClient("homeForYou", "HomeTimeline");
+    }
+
+    private AuthenticatedGraphQlClient createClient(String purpose, String operationName)
+            throws Exception {
         var jsonMapper = JsonMapper.builder().build();
         var operation = new XApiProfile.GraphQlOperation(
-                "home_timeline", "op-id", "HomeTimeline", OperationType.QUERY);
+                purpose, "op-id", operationName, OperationType.QUERY);
         var profile = new XApiProfile(
                 "x-web",
                 "current",
@@ -115,7 +145,7 @@ class AuthenticatedGraphQlClientTest {
                 Map.of("X-Twitter-Client", "TwitterWebClient"),
                 Map.of(),
                 java.util.List.of("feature_enabled"),
-                Map.of("homeForYou", operation));
+                Map.of(purpose, operation));
         var profileService = new XApiProfileService(jsonMapper) {
             @Override
             public XApiProfile profile() {
@@ -157,6 +187,44 @@ class AuthenticatedGraphQlClientTest {
                     URLDecoder.decode(part.substring(separator + 1), StandardCharsets.UTF_8));
         }
         return pairs;
+    }
+
+    private static String readBody(HttpRequest request) {
+        var publisher = request.bodyPublisher().orElseThrow();
+        var subscriber = new BodySubscriber();
+        publisher.subscribe(subscriber);
+        return subscriber.body().join();
+    }
+
+    private static final class BodySubscriber implements Flow.Subscriber<ByteBuffer> {
+        private final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        private final CompletableFuture<String> body = new CompletableFuture<>();
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            subscription.request(Long.MAX_VALUE);
+        }
+
+        @Override
+        public void onNext(ByteBuffer item) {
+            var bytes = new byte[item.remaining()];
+            item.get(bytes);
+            output.writeBytes(bytes);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            body.completeExceptionally(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            body.complete(output.toString(StandardCharsets.UTF_8));
+        }
+
+        CompletableFuture<String> body() {
+            return body;
+        }
     }
 
     private static void respond(HttpExchange exchange, int status, String body) throws IOException {

@@ -3,6 +3,7 @@ package dev.nytweetdeck.xapi.graphql;
 import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.http.WebSessionRequestHeaders;
+import dev.nytweetdeck.xapi.profile.XApiProfile;
 import dev.nytweetdeck.xapi.profile.XApiProfile.OperationType;
 import dev.nytweetdeck.xapi.profile.XApiProfileService;
 import java.io.IOException;
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -23,6 +25,7 @@ import tools.jackson.databind.ObjectMapper;
 public class AuthenticatedGraphQlClient {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final Set<String> POST_QUERY_PURPOSES = Set.of("search");
     private static final Map<String, Boolean> DEFAULT_FIELD_TOGGLES = Map.of(
             "withPayments", false,
             "withAuxiliaryUserLabels", false,
@@ -51,23 +54,48 @@ public class AuthenticatedGraphQlClient {
 
     public GraphQlResult execute(
             String accountId, String purpose, Map<String, Object> variables) {
+        var prepared = prepareRequest(accountId, purpose, variables);
+        try {
+            var response = httpClient.send(
+                    prepared.request(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new XApiHttpException(
+                        "GraphQL " + purpose + "に失敗しました。HTTP " + response.statusCode(),
+                        response.statusCode());
+            }
+            rejectGraphQlErrors(response.body(), purpose);
+            return new GraphQlResult(
+                    purpose, prepared.operation().operationName(), response.body());
+        } catch (IOException exception) {
+            throw new XApiHttpException("GraphQL " + purpose + "の通信に失敗しました。", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new XApiHttpException("GraphQL " + purpose + "が中断されました。", exception);
+        }
+    }
+
+    PreparedRequest prepareRequest(
+            String accountId, String purpose, Map<String, Object> variables) {
         var profile = profileService.profile();
         var operation = profileService.requireOperation(purpose);
         var features = profileService.selectFeatures(operation);
         var account = vaultSessionManager.requireAccount(accountId);
         var operationUri = operation.resolveAgainst(profile.graphqlBaseUri());
 
+        var fieldToggles = operation.fieldToggles().isEmpty()
+                ? DEFAULT_FIELD_TOGGLES
+                : operation.fieldToggles().stream()
+                        .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                                key -> key, key -> false));
         String body = null;
         URI requestUri;
         if (operation.type() == OperationType.MUTATION) {
             body = writeJson(Map.of("variables", variables, "features", features));
             requestUri = operationUri;
+        } else if (POST_QUERY_PURPOSES.contains(purpose)) {
+            body = postQueryBody(variables, features, fieldToggles);
+            requestUri = operationUri;
         } else {
-            var fieldToggles = operation.fieldToggles().isEmpty()
-                    ? DEFAULT_FIELD_TOGGLES
-                    : operation.fieldToggles().stream()
-                            .collect(java.util.stream.Collectors.toUnmodifiableMap(
-                                    key -> key, key -> false));
             requestUri = withQuery(
                     operationUri,
                     Map.of(
@@ -85,22 +113,7 @@ public class AuthenticatedGraphQlClient {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body));
         }
-
-        try {
-            var response = httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new XApiHttpException(
-                        "GraphQL " + purpose + "に失敗しました。HTTP " + response.statusCode(),
-                        response.statusCode());
-            }
-            rejectGraphQlErrors(response.body(), purpose);
-            return new GraphQlResult(purpose, operation.operationName(), response.body());
-        } catch (IOException exception) {
-            throw new XApiHttpException("GraphQL " + purpose + "の通信に失敗しました。", exception);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new XApiHttpException("GraphQL " + purpose + "が中断されました。", exception);
-        }
+        return new PreparedRequest(requestBuilder.build(), operation);
     }
 
     private void rejectGraphQlErrors(String body, String purpose) {
@@ -126,6 +139,16 @@ public class AuthenticatedGraphQlClient {
         } catch (JacksonException exception) {
             throw new IllegalArgumentException("GraphQL入力をJSONへ変換できません。", exception);
         }
+    }
+
+    private String postQueryBody(
+            Map<String, Object> variables,
+            Map<String, Boolean> features,
+            Map<String, Boolean> fieldToggles) {
+        return writeJson(Map.of(
+                "variables", variables,
+                "features", features,
+                "fieldToggles", fieldToggles));
     }
 
     private static URI withQuery(URI uri, Map<String, String> values) {
@@ -154,4 +177,6 @@ public class AuthenticatedGraphQlClient {
                     + ", rawJson=<redacted>]";
         }
     }
+
+    record PreparedRequest(HttpRequest request, XApiProfile.GraphQlOperation operation) {}
 }
