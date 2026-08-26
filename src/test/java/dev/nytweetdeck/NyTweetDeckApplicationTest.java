@@ -44,4 +44,21 @@ class NyTweetDeckApplicationTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("NyTweetDeck").contains("id=\"root\"");
     }
+
+    @Test
+    void servesPublicAndroidApiProfileWithoutCredentials() throws Exception {
+        var request = HttpRequest.newBuilder(
+                        URI.create("http://127.0.0.1:" + port + "/api/v1/x-api/profile"))
+                .GET()
+                .build();
+
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body())
+                .contains("\"packageName\":\"com.twitter.android\"")
+                .contains("\"homeForYou\"")
+                .doesNotContainIgnoringCase("consumerSecret")
+                .doesNotContainIgnoringCase("Authorization");
+    }
 }

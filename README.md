@@ -4,6 +4,8 @@ NyTweetDeckは、ローカルで動作するカラム型Xクライアントで�
 
 現在は最初の実装段階です。カラム型UI、カラムの追加・削除、表示設定の保存まで動作します。Xへのログインや実データ取得はまだ接続していません。
 
+Android版X 12.19.1の通信仕様解析を開始しており、確認済みのAPIプロファイルとOAuth 1.0a署名基盤をJava側へ組み込んでいます。解析根拠は [docs/android-api-analysis.md](docs/android-api-analysis.md) に記録しています。
+
 ## 必要な環境
 
 - JDK 21以上
@@ -44,6 +46,12 @@ bun audit
 Set-Location ..
 mvn verify
 .\scripts\audit-maven.ps1
+```
+
+解析対象APKMを更新した場合は、JADX出力後に次を実行し、GraphQL操作、RESTパス、APKメタデータを再生成します。
+
+```powershell
+.\scripts\extract-android-api.ps1
 ```
 
 ## セキュリティ上の境界

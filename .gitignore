@@ -5,6 +5,7 @@ frontend/node_modules/
 frontend/coverage/
 frontend/.npm-cache/
 .tmp/
+.local/
 .idea/
 .vscode/
 *.log

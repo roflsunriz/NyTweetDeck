@@ -21,6 +21,14 @@ bun install
 
 5. lockfileの差分に、意図しない依存関係や配布元の変更がないことを確認します。
 
+Android版XのAPKMを更新した場合は、JADXでBase APKを再解析した後、次を実行します。
+
+```powershell
+.\scripts\extract-android-api.ps1 -JadxRoot x-apks\jadx-<version> -ExtractedRoot x-apks\extracted-<version>
+```
+
+生成されたAPKハッシュ、GraphQL件数、REST件数を旧版と比較し、製品で利用する操作IDとヘッダーを実コードの呼び出し元まで確認します。consumer key、secret、Bearer Token、Cookieなどの値は生成物や変更履歴へ含めません。
+
 ## 検証
 
 ```powershell

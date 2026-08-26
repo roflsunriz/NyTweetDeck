@@ -1,6 +1,7 @@
 import type { Translation } from "../i18n/translations";
 import type { Locale, Theme } from "../model/layout";
 import { Modal } from "./modal";
+import { XApiSetup } from "./x-api-setup";
 
 interface SettingsDialogProps {
   translation: Translation;
@@ -38,6 +39,7 @@ export function SettingsDialog({
           </select>
         </label>
       </div>
+      <XApiSetup translation={translation} />
     </Modal>
   );
 }

@@ -3,13 +3,27 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./app";
 
+const originalFetch = globalThis.fetch;
+
 describe("NyTweetDeck shell", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/readiness")) {
+        return Response.json({
+          androidApiVersion: "12.19.1-release.0",
+          clientCredentialsAvailable: false,
+          deviceProfileAvailable: false,
+        });
+      }
+      return Response.json(null);
+    }) as typeof fetch;
   });
 
   afterEach(() => {
     cleanup();
+    globalThis.fetch = originalFetch;
   });
 
   test("adds, persists, and removes a column", async () => {

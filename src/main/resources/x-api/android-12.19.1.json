@@ -1,0 +1,128 @@
+{
+  "packageName": "com.twitter.android",
+  "versionName": "12.19.1-release.0",
+  "versionCode": 312191000,
+  "restBaseUri": "https://api.twitter.com",
+  "graphqlBaseUri": "https://api.x.com/graphql",
+  "standardHeaders": {
+    "X-Twitter-Client": "TwitterAndroid",
+    "X-Twitter-Client-Version": "12.19.1-release.0",
+    "X-Twitter-API-Version": "5",
+    "X-Twitter-Client-Flavor": "",
+    "Accept": "application/json"
+  },
+  "restEndpoints": {
+    "oauth2Token": "/oauth2/token",
+    "guestActivate": "/1.1/guest/activate.json",
+    "onboardingTask": "/1.1/onboarding/task.json",
+    "homeForYou": "/2/timeline/home.json",
+    "homeFollowing": "/2/timeline/home_latest.json",
+    "notificationsAll": "/2/notifications/all.json",
+    "notificationsMentions": "/2/notifications/mentions.json",
+    "search": "/2/search/adaptive.json"
+  },
+  "graphqlOperations": {
+    "homeForYou": {
+      "key": "home_timeline",
+      "operationId": "HHfhIGSiG31KoQG5mStocg",
+      "operationName": "HomeTimeline",
+      "type": "QUERY"
+    },
+    "homeFollowing": {
+      "key": "home_timeline_latest",
+      "operationId": "ZQtqG0VdArwgg-DAb7SAuA",
+      "operationName": "HomeTimelineLatest",
+      "type": "QUERY"
+    },
+    "userPosts": {
+      "key": "user_with_profile_tweets_query_v2",
+      "operationId": "f5sdG-ZXXjOW8-A8SUUT0g",
+      "operationName": "UserWithProfileTweetsQueryV2",
+      "type": "QUERY"
+    },
+    "userReplies": {
+      "key": "user_with_profile_tweets_and_replies_query_v2",
+      "operationId": "jMswUa21BS6ZG27Ycs2tvg",
+      "operationName": "UserWithProfileTweetsAndRepliesQueryV2",
+      "type": "QUERY"
+    },
+    "list": {
+      "key": "list_timeline",
+      "operationId": "zX245EoMh2ASZl6p1UQDfQ",
+      "operationName": "ListTimeline",
+      "type": "QUERY"
+    },
+    "history": {
+      "key": "bookmark_timeline_v2",
+      "operationId": "fpFLmlq5XEz0-VLK7ezWsg",
+      "operationName": "BookmarkTimelineV2",
+      "type": "QUERY"
+    },
+    "search": {
+      "key": "search_timeline",
+      "operationId": "Cw4mGS_lykQpyPf6S3H1Aw",
+      "operationName": "SearchTimeline",
+      "type": "QUERY"
+    },
+    "postDetail": {
+      "key": "tweet_result_by_id_query",
+      "operationId": "6_R9YTLJBjc5p0bJcZossw",
+      "operationName": "TweetResultByIdQuery",
+      "type": "QUERY"
+    },
+    "conversation": {
+      "key": "conversation_timeline_v2",
+      "operationId": "UdJ-AMLajw7xjmZNXZ62TA",
+      "operationName": "ConversationTimelineV2",
+      "type": "QUERY"
+    },
+    "createPost": {
+      "key": "create_tweet",
+      "operationId": "uEboV_NG_E0q9bHb1FZpRg",
+      "operationName": "CreateTweet",
+      "type": "MUTATION"
+    },
+    "deletePost": {
+      "key": "delete_tweet",
+      "operationId": "kZyJ4Q1TNsZNByfrGX7Huw",
+      "operationName": "DeleteTweet",
+      "type": "MUTATION"
+    },
+    "like": {
+      "key": "favorite_tweet",
+      "operationId": "lI07N6Otwv1PhnEgXILM7A",
+      "operationName": "FavoriteTweet",
+      "type": "MUTATION"
+    },
+    "unlike": {
+      "key": "unfavorite_tweet",
+      "operationId": "ZYKSe-w7KEslx3JhSIk5LA",
+      "operationName": "UnfavoriteTweet",
+      "type": "MUTATION"
+    },
+    "repost": {
+      "key": "create_retweet",
+      "operationId": "ghj-EbF5LFOULByyH4aM0Q",
+      "operationName": "CreateRetweet",
+      "type": "MUTATION"
+    },
+    "undoRepost": {
+      "key": "delete_retweet",
+      "operationId": "r1IaAd_GIEunlPjVWVlD_w",
+      "operationName": "DeleteRetweet",
+      "type": "MUTATION"
+    },
+    "bookmark": {
+      "key": "bookmark_add",
+      "operationId": "-V21wukAaCGXHbUZPZ2wGw",
+      "operationName": "BookmarkAdd",
+      "type": "MUTATION"
+    },
+    "removeBookmark": {
+      "key": "bookmark_delete",
+      "operationId": "G-V_AGDp-QKivnyTUCtTjA",
+      "operationName": "BookmarkDelete",
+      "type": "MUTATION"
+    }
+  }
+}

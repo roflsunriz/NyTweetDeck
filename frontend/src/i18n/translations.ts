@@ -14,6 +14,23 @@ export interface Translation {
   accountSwitcher: string;
   language: string;
   theme: string;
+  xApiSetup: string;
+  xApiVersion: string;
+  ready: string;
+  notReady: string;
+  clientCredentials: string;
+  deviceProfile: string;
+  deviceModel: string;
+  androidVersion: string;
+  manufacturer: string;
+  brand: string;
+  product: string;
+  securityPatch: string;
+  saveDeviceProfile: string;
+  saving: string;
+  saved: string;
+  setupLoadError: string;
+  setupSaveError: string;
   localeName: Record<Locale, string>;
   themeName: Record<Theme, string>;
   nav: Record<NavItemId, string>;
@@ -35,6 +52,23 @@ const translations: Record<Locale, Translation> = {
     accountSwitcher: "アカウント切り替え",
     language: "表示言語",
     theme: "テーマ",
+    xApiSetup: "Android API設定",
+    xApiVersion: "解析済みAPI版",
+    ready: "準備済み",
+    notReady: "未設定",
+    clientCredentials: "Androidクライアント資格情報",
+    deviceProfile: "Android端末プロファイル",
+    deviceModel: "端末モデル",
+    androidVersion: "Androidバージョン",
+    manufacturer: "メーカー",
+    brand: "ブランド",
+    product: "製品コード",
+    securityPatch: "セキュリティパッチ日",
+    saveDeviceProfile: "端末プロファイルを保存",
+    saving: "保存中…",
+    saved: "保存しました",
+    setupLoadError: "Android API設定を読み込めませんでした。",
+    setupSaveError: "Android端末プロファイルを保存できませんでした。",
     localeName: { ja: "日本語", en: "English" },
     themeName: { system: "システム設定", light: "ライト", dark: "ダーク" },
     nav: {
@@ -67,6 +101,23 @@ const translations: Record<Locale, Translation> = {
     accountSwitcher: "Switch account",
     language: "Language",
     theme: "Theme",
+    xApiSetup: "Android API setup",
+    xApiVersion: "Analyzed API version",
+    ready: "Ready",
+    notReady: "Not configured",
+    clientCredentials: "Android client credentials",
+    deviceProfile: "Android device profile",
+    deviceModel: "Device model",
+    androidVersion: "Android version",
+    manufacturer: "Manufacturer",
+    brand: "Brand",
+    product: "Product code",
+    securityPatch: "Security patch date",
+    saveDeviceProfile: "Save device profile",
+    saving: "Saving…",
+    saved: "Saved",
+    setupLoadError: "Could not load Android API setup.",
+    setupSaveError: "Could not save the Android device profile.",
     localeName: { ja: "日本語", en: "English" },
     themeName: { system: "System", light: "Light", dark: "Dark" },
     nav: {
