@@ -52,3 +52,4 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 ## 環境
 - `x-apks`フォルダに.apkmという解析用の X アプリがある
+- フロントエンドのバンドルには Bun bundler を使用する
