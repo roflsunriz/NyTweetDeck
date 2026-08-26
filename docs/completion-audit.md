@@ -64,7 +64,7 @@
 
 | 要件 | 状態 | 証拠 |
 | --- | --- | --- |
-| CI | 構成済み・リモート検証中 | Bun検証、Maven検証、OSV、パッケージ済みJARのChrome検証、13 JDKディストリビューション×Java 17・21・25行列 |
+| CI | 検証済み | Bun検証、Maven検証、OSV、パッケージ済みJARのChrome検証、13 JDKディストリビューション×Java 17・21・25行列（[CI #33013623718](https://github.com/roflsunriz/NyTweetDeck/actions/runs/33013623718)、40/40ジョブ成功） |
 | リリースワークフロー | 構成済み・公開未実行 | `v*`タグ、ZIP、SHA-256、GitHub Release作成 |
 | Windows/macOS/Linuxランチャー | ローカル構文・JAR起動検証済み | 3ランチャーを配布ZIPへ同梱 |
 | 公開リリース | 未実行 | 実データ経路の許可済み検証後にタグ・push・Releaseを行う |
