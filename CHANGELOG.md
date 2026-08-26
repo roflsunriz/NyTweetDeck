@@ -45,6 +45,7 @@
 
 ### Fixed
 
+- リスト候補を現行`TimelineTwitterList.list`／`id_str`構造から復元し、`ListSearchTimeline`へ廃止済み`querySource`を送らず現行の`rawQuery`＋`count=20`へ揃えることで、自分・おすすめ・検索結果が空になる問題を修正した。
 - Firefoxでトレンド取得がサーバー到達前にstallして「読み込み中」のまま残る場合に備え、ブラウザー側通信を15秒で中断し、エラー表示から再試行できるよう修正した。
 - 現行`ExplorePage`の`TimelineTrend.trend_url`／`trend_metadata`へパーサーを更新し、不要な旧`url`互換を削除するとともに、通信成功時も全トレンドを破棄して「トレンドなし」になる問題を修正した。
 - 自動翻訳をXネイティブ提供機能へ限定するため、Feature Switch無効時のGoogle翻訳フォールバックを削除し、X公式Stratoへ常に`translationSource=X`を指定するよう修正した。

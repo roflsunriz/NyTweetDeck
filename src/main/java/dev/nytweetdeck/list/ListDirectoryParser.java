@@ -45,25 +45,26 @@ public class ListDirectoryParser {
         if (!node.isObject()) {
             return;
         }
-        var cursorType = firstNonNull(text(node, "cursorType"), text(node, "cursor_type"));
+        var cursorType = text(node, "cursorType");
         if ("Bottom".equalsIgnoreCase(cursorType)) {
             cursor[0] = text(node, "value");
         }
-        if ("List".equals(text(node, "__typename"))
-                && text(node, "rest_id") != null
-                && text(node, "name") != null) {
-            var owner = node.path("user_results").path("result");
+        var list = "TimelineTwitterList".equals(text(node, "__typename"))
+                ? object(node, "list")
+                : null;
+        if (list != null && text(list, "id_str") != null && text(list, "name") != null) {
+            var owner = list.path("user_results").path("result");
             var ownerCore = owner.path("core");
             lists.putIfAbsent(
-                    text(node, "rest_id"),
+                    text(list, "id_str"),
                     new ListOption(
-                            text(node, "rest_id"),
-                            text(node, "name"),
-                            text(node, "description"),
+                            text(list, "id_str"),
+                            text(list, "name"),
+                            text(list, "description"),
                             text(ownerCore, "name"),
                             text(ownerCore, "screen_name"),
-                            number(node, "member_count"),
-                            number(node, "subscriber_count"),
+                            number(list, "member_count"),
+                            number(list, "subscriber_count"),
                             source));
             return;
         }
@@ -77,12 +78,13 @@ public class ListDirectoryParser {
         return value == null || value.isNull() ? null : value.asString(null);
     }
 
+    private static JsonNode object(JsonNode node, String field) {
+        var value = node == null ? null : node.get(field);
+        return value != null && value.isObject() ? value : null;
+    }
+
     private static long number(JsonNode node, String field) {
         var value = node == null ? null : node.get(field);
         return value == null ? 0 : value.asLong(0);
-    }
-
-    private static String firstNonNull(String first, String second) {
-        return first == null ? second : first;
     }
 }

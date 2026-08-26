@@ -40,8 +40,8 @@ public class ListDirectoryService {
                 if (query == null || query.isBlank() || query.length() > 100) {
                     throw new IllegalArgumentException("リスト検索語を入力してください。");
                 }
+                variables.put("count", 20);
                 variables.put("rawQuery", query.strip());
-                variables.put("querySource", "typed_query");
             }
             default -> throw new IllegalArgumentException("未対応のリスト範囲です。");
         }
