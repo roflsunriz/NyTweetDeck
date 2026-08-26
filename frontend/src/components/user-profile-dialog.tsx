@@ -4,6 +4,7 @@ import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { Modal } from "./modal";
 import { PostCard, type TimelinePost } from "./post-card";
+import { PostDetailDialog } from "./post-detail-dialog";
 import { filterPosts, type PostFilter } from "./post-filter";
 
 type ProfileTab = "all" | "posts" | "highlights" | "replies" | "media";
@@ -59,6 +60,7 @@ export function UserProfileDialog({
   const [mediaFilter, setMediaFilter] = useState<PostFilter>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const loadTimeline = useCallback(
     async (nextCursor?: string) => {
@@ -170,6 +172,8 @@ export function UserProfileDialog({
               accountId={accountId}
               translation={translation}
               display={display}
+              onOpen={() => setSelectedPostId(post.id)}
+              onOpenQuotedPost={setSelectedPostId}
             />
           ))
         )}
@@ -177,6 +181,16 @@ export function UserProfileDialog({
           <button className="load-more-button" type="button" onClick={() => loadTimeline(cursor)}>
             {translation.loadMore}
           </button>
+        )}
+        {selectedPostId !== null && (
+          <PostDetailDialog
+            postId={selectedPostId}
+            accountId={accountId}
+            translation={translation}
+            display={display}
+            onClose={() => setSelectedPostId(null)}
+            onOpenPost={setSelectedPostId}
+          />
         )}
       </div>
     </Modal>

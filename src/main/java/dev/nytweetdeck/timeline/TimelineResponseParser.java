@@ -1,6 +1,7 @@
 package dev.nytweetdeck.timeline;
 
 import dev.nytweetdeck.timeline.TimelinePage.Author;
+import dev.nytweetdeck.timeline.TimelinePage.EmbeddedPost;
 import dev.nytweetdeck.timeline.TimelinePage.Media;
 import dev.nytweetdeck.timeline.TimelinePage.Post;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
@@ -74,6 +75,9 @@ public class TimelineResponseParser {
     }
 
     private static JsonNode unwrapTweet(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
         var typename = text(node, "__typename");
         if ("TweetWithVisibilityResults".equals(typename) && node.get("tweet") != null) {
             return node.get("tweet");
@@ -89,6 +93,9 @@ public class TimelineResponseParser {
     }
 
     private static boolean isTweet(JsonNode node) {
+        if (node == null) {
+            return false;
+        }
         var legacy = node.get("legacy");
         return legacy != null
                 && legacy.isObject()
@@ -97,26 +104,83 @@ public class TimelineResponseParser {
     }
 
     private static Post parsePost(JsonNode node) {
-        var legacy = node.get("legacy");
-        var id = firstNonNull(text(node, "rest_id"), text(legacy, "id_str"));
-        var author = parseAuthor(node);
+        var retweetedTweet = findReferencedTweet(
+                node, "retweeted_status_result", "retweetRefResult");
+        var content = retweetedTweet == null ? node : retweetedTweet;
+        var legacy = content.get("legacy");
+        var id = firstNonNull(text(content, "rest_id"), text(legacy, "id_str"));
+        var author = parseAuthor(content);
+        var outerAuthor = retweetedTweet == null ? null : parseAuthor(node);
+        var repostedBy = hasAuthorIdentity(outerAuthor) ? outerAuthor : null;
+        var quotedTweet = findReferencedTweet(
+                content, "quoted_status_result", "quotedRefResult");
+        var quotedPost = parseEmbeddedPost(quotedTweet);
         return new Post(
                 id,
                 text(legacy, "full_text"),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 author,
+                repostedBy,
                 number(legacy, "reply_count"),
                 number(legacy, "retweet_count"),
                 number(legacy, "quote_count"),
                 number(legacy, "favorite_count"),
                 number(legacy, "bookmark_count"),
-                parseViewCount(node.get("views")),
+                parseViewCount(content.get("views")),
                 bool(legacy, "favorited"),
                 bool(legacy, "retweeted"),
                 bool(legacy, "bookmarked"),
                 text(legacy, "in_reply_to_status_id_str"),
-                text(legacy, "quoted_status_id_str"),
+                firstNonNull(text(legacy, "quoted_status_id_str"),
+                        quotedPost == null ? null : quotedPost.id()),
+                quotedPost,
+                parseMedia(legacy.get("extended_entities")));
+    }
+
+    private static boolean hasAuthorIdentity(Author author) {
+        return author != null
+                && (!author.id().isBlank()
+                        || !author.username().isBlank()
+                        || !author.displayName().isBlank());
+    }
+
+    private static JsonNode findReferencedTweet(JsonNode tweet, String... fields) {
+        for (var field : fields) {
+            var referenced = referencedTweet(tweet == null ? null : tweet.get(field));
+            if (referenced != null) {
+                return referenced;
+            }
+            var legacy = tweet == null ? null : tweet.get("legacy");
+            referenced = referencedTweet(legacy == null ? null : legacy.get(field));
+            if (referenced != null) {
+                return referenced;
+            }
+        }
+        return null;
+    }
+
+    private static JsonNode referencedTweet(JsonNode wrapper) {
+        var candidate = unwrapTweet(wrapper);
+        if (isTweet(candidate)) {
+            return candidate;
+        }
+        var result = wrapper == null ? null : wrapper.get("result");
+        candidate = unwrapTweet(result == null ? null : result.get("tweet"));
+        return isTweet(candidate) ? candidate : null;
+    }
+
+    private static EmbeddedPost parseEmbeddedPost(JsonNode node) {
+        if (!isTweet(node)) {
+            return null;
+        }
+        var legacy = node.get("legacy");
+        return new EmbeddedPost(
+                firstNonNull(text(node, "rest_id"), text(legacy, "id_str")),
+                text(legacy, "full_text"),
+                text(legacy, "lang"),
+                parseCreatedAt(text(legacy, "created_at")),
+                parseAuthor(node),
                 parseMedia(legacy.get("extended_entities")));
     }
 

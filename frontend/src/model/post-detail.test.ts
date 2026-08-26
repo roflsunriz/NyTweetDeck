@@ -1,0 +1,28 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { loadPostDetail } from "./post-detail";
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+describe("post detail requests", () => {
+  test("shares only an in-flight request for the same account and post", async () => {
+    let requests = 0;
+    globalThis.fetch = (async () => {
+      requests += 1;
+      await Promise.resolve();
+      return Response.json({ post: null, replies: [], nextCursor: null });
+    }) as unknown as typeof fetch;
+
+    const first = loadPostDetail("account-1", "249");
+    const second = loadPostDetail("account-1", "249");
+
+    expect(first).toBe(second);
+    await Promise.all([first, second]);
+    expect(requests).toBe(1);
+    await loadPostDetail("account-1", "249");
+    expect(requests).toBe(2);
+  });
+});

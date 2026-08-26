@@ -30,6 +30,7 @@ export interface TimelinePost {
     avatarUrl: string | null;
     verified: boolean;
   };
+  repostedBy: TimelinePost["author"] | null;
   replyCount: number;
   repostCount: number;
   quoteCount: number;
@@ -39,7 +40,17 @@ export interface TimelinePost {
   liked: boolean;
   reposted: boolean;
   bookmarked: boolean;
+  quotedPost: EmbeddedPost | null;
   media: Array<{ id: string; type: string; url: string; previewUrl: string }>;
+}
+
+interface EmbeddedPost {
+  id: string;
+  text: string;
+  language: string | null;
+  createdAt: string | null;
+  author: TimelinePost["author"];
+  media: TimelinePost["media"];
 }
 
 interface PostCardProps {
@@ -48,6 +59,7 @@ interface PostCardProps {
   translation: Translation;
   onOpen?: () => void;
   onOpenUser?: (userId: string) => void;
+  onOpenQuotedPost?: (postId: string) => void;
   display?: DisplayPreferences;
 }
 
@@ -57,6 +69,7 @@ export function PostCard({
   translation,
   onOpen,
   onOpenUser,
+  onOpenQuotedPost,
   display = defaultDisplayPreferences,
 }: PostCardProps) {
   const [liked, setLiked] = useState(post.liked);
@@ -186,6 +199,20 @@ export function PostCard({
         onClick={openFromCard}
         onKeyDown={openFromKeyboard}
       >
+        {post.repostedBy != null && (
+          <button
+            className="repost-context"
+            type="button"
+            disabled={onOpenUser === undefined || post.repostedBy.id.length === 0}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenUser?.(post.repostedBy?.id ?? "");
+            }}
+          >
+            <Repeat2 aria-hidden="true" size={13} />
+            <span>{translation.repostedBy(post.repostedBy.displayName)}</span>
+          </button>
+        )}
         <header>
           <button
             className="post-author-button"
@@ -298,6 +325,14 @@ export function PostCard({
             ))}
           </div>
         )}
+        {post.quotedPost != null && (
+          <QuotedPostCard
+            post={post.quotedPost}
+            translation={translation}
+            display={display}
+            onOpen={onOpenQuotedPost}
+          />
+        )}
         <footer className="post-actions">
           <Action
             icon={MessageCircle}
@@ -385,6 +420,54 @@ export function PostCard({
         />
       )}
     </>
+  );
+}
+
+function QuotedPostCard({
+  post,
+  translation,
+  display,
+  onOpen,
+}: {
+  post: EmbeddedPost;
+  translation: Translation;
+  display: DisplayPreferences;
+  onOpen?: (postId: string) => void;
+}) {
+  const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
+  return (
+    <button
+      className="quoted-post-card"
+      type="button"
+      disabled={onOpen === undefined}
+      aria-label={`${translation.postDetail}: ${post.author.displayName}, ${post.text}`}
+      onClick={() => onOpen?.(post.id)}
+    >
+      <span className="quoted-post-header">
+        {post.author.avatarUrl !== null ? (
+          <img src={post.author.avatarUrl} alt="" loading="lazy" />
+        ) : (
+          <span className="quoted-avatar-placeholder" aria-hidden="true" />
+        )}
+        <span className="quoted-post-author">
+          <strong>{post.author.displayName}</strong>
+          <span>@{post.author.username}</span>
+        </span>
+        {time !== null && (
+          <time className="quoted-post-time" dateTime={post.createdAt ?? undefined}>
+            {time}
+          </time>
+        )}
+      </span>
+      <span className="quoted-post-text">{renderPostText(post.text)}</span>
+      {display.mediaPreview && post.media.length > 0 && (
+        <span className="quoted-post-media">
+          {post.media.map((media) => (
+            <img key={media.id} src={media.previewUrl || media.url} alt="" loading="lazy" />
+          ))}
+        </span>
+      )}
+    </button>
   );
 }
 

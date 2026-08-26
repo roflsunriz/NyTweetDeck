@@ -38,6 +38,8 @@ class TimelineResponseParserTest {
         assertThat(detailed.liked()).isTrue();
         assertThat(detailed.bookmarked()).isTrue();
         assertThat(detailed.quotedPostId()).isEqualTo("99");
+        assertThat(detailed.quotedPost()).isNotNull();
+        assertThat(detailed.quotedPost().text()).isEqualTo("引用元");
         assertThat(detailed.media()).hasSize(2);
         assertThat(detailed.media().get(1).url()).isEqualTo("https://video.twimg.com/high.mp4");
         assertThat(page.posts()).extracting(TimelinePage.Post::id).doesNotContain("99");
@@ -123,5 +125,58 @@ class TimelineResponseParserTest {
         assertThat(post.author().username()).isEqualTo("dave");
         assertThat(post.author().displayName()).isEqualTo("Dave");
         assertThat(post.author().avatarUrl()).isEqualTo("https://pbs.twimg.com/dave.jpg");
+    }
+
+    @Test
+    void rendersTheRetweetedSourceAsThePostAndKeepsOnlyTheReposterContext() {
+        var body = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"300",
+                "core":{"user_results":{"result":{"__typename":"User","rest_id":"30",
+                "core":{"screen_name":"reposter","name":"Reposter"}}}},"legacy":{
+                "full_text":"RT @origin: source text","created_at":"2019-01-02T00:00:00Z",
+                "retweeted_status_result":{"result":{"__typename":"Tweet","rest_id":"250",
+                "core":{"user_results":{"result":{"__typename":"User","rest_id":"25",
+                "core":{"screen_name":"origin","name":"Original Author"},"avatar":{
+                "image_url":"https://pbs.twimg.com/origin.jpg"}}}},"views":{"count":"99"},
+                "legacy":{"full_text":"source text","lang":"en",
+                "created_at":"2019-01-01T00:00:00Z","favorite_count":8,
+                "retweet_count":4}}}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().getFirst();
+
+        assertThat(post.id()).isEqualTo("250");
+        assertThat(post.text()).isEqualTo("source text");
+        assertThat(post.author().username()).isEqualTo("origin");
+        assertThat(post.repostedBy().username()).isEqualTo("reposter");
+        assertThat(post.likeCount()).isEqualTo(8);
+        assertThat(post.repostCount()).isEqualTo(4);
+        assertThat(post.viewCount()).isEqualTo(99);
+    }
+
+    @Test
+    void normalizesAQuotedTweetForTheEmbeddedWebStyleCard() {
+        var body = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"400",
+                "core":{"user_results":{"result":{"__typename":"User","rest_id":"40",
+                "core":{"screen_name":"quoter","name":"Quoter"}}}},"legacy":{
+                "full_text":"my comment","lang":"en","created_at":"2019-01-02T00:00:00Z",
+                "quoted_status_id_str":"399"},"quoted_status_result":{"result":{
+                "__typename":"Tweet","rest_id":"399","core":{"user_results":{"result":{
+                "__typename":"User","rest_id":"39","core":{"screen_name":"quoted",
+                "name":"Quoted Author"},"avatar":{"image_url":"https://pbs.twimg.com/q.jpg"}}}},
+                "legacy":{"full_text":"quoted text","lang":"ja",
+                "created_at":"2019-01-01T00:00:00Z","extended_entities":{"media":[{
+                "id_str":"photo-1","type":"photo","media_url_https":
+                "https://pbs.twimg.com/quote.jpg"}]}}}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().getFirst();
+
+        assertThat(post.text()).isEqualTo("my comment");
+        assertThat(post.quotedPostId()).isEqualTo("399");
+        assertThat(post.quotedPost().author().username()).isEqualTo("quoted");
+        assertThat(post.quotedPost().text()).isEqualTo("quoted text");
+        assertThat(post.quotedPost().media()).hasSize(1);
     }
 }

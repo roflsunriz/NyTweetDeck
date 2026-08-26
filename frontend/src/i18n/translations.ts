@@ -72,6 +72,7 @@ export interface Translation {
   notifications: string;
   reply: string;
   repost: string;
+  repostedBy: (name: string) => string;
   quote: string;
   quotingPost: string;
   like: string;
@@ -228,6 +229,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     notifications: "通知",
     reply: "返信",
     repost: "リポスト",
+    repostedBy: (name) => `${name}さんがリポスト`,
     quote: "引用",
     quotingPost: "引用するポストを表示",
     like: "いいね",
@@ -429,6 +431,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     notifications: "Notifications",
     reply: "Reply",
     repost: "Repost",
+    repostedBy: (name) => `${name} reposted`,
     quote: "Quote",
     quotingPost: "View the post being quoted",
     like: "Like",

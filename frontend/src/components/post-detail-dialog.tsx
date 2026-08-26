@@ -1,15 +1,10 @@
 import { useEffect, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
+import { loadPostDetail, type PostDetail } from "../model/post-detail";
 import { ComposerDialog } from "./composer-dialog";
 import { Modal } from "./modal";
-import { PostCard, type TimelinePost } from "./post-card";
-
-interface PostDetail {
-  post: TimelinePost;
-  replies: TimelinePost[];
-  nextCursor: string | null;
-}
+import { PostCard } from "./post-card";
 
 interface PostDetailDialogProps {
   postId: string;
@@ -17,6 +12,7 @@ interface PostDetailDialogProps {
   translation: Translation;
   onClose: () => void;
   display?: DisplayPreferences;
+  onOpenPost?: (postId: string) => void;
   onOpenUser?: (userId: string) => void;
 }
 
@@ -26,6 +22,7 @@ export function PostDetailDialog({
   translation,
   onClose,
   display = defaultDisplayPreferences,
+  onOpenPost,
   onOpenUser,
 }: PostDetailDialogProps) {
   const [detail, setDetail] = useState<PostDetail | null>(null);
@@ -33,23 +30,19 @@ export function PostDetailDialog({
   const [replying, setReplying] = useState(false);
 
   useEffect(() => {
-    const controller = new AbortController();
-    void fetch(`/api/v1/posts/${postId}?accountId=${encodeURIComponent(accountId)}`, {
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        return response.json() as Promise<PostDetail>;
+    let active = true;
+    setDetail(null);
+    setError(null);
+    void loadPostDetail(accountId, postId)
+      .then((value) => {
+        if (active) setDetail(value);
       })
-      .then(setDetail)
-      .catch((loadError) => {
-        if (!(loadError instanceof DOMException && loadError.name === "AbortError")) {
-          setError(translation.timelineLoadError);
-        }
+      .catch(() => {
+        if (active) setError(translation.timelineLoadError);
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+    };
   }, [accountId, postId, translation.timelineLoadError]);
 
   return (
@@ -67,6 +60,7 @@ export function PostDetailDialog({
                 accountId={accountId}
                 translation={translation}
                 display={display}
+                onOpenQuotedPost={onOpenPost}
                 onOpenUser={onOpenUser}
               />
               <button
@@ -87,6 +81,7 @@ export function PostDetailDialog({
                     accountId={accountId}
                     translation={translation}
                     display={display}
+                    onOpenQuotedPost={onOpenPost}
                     onOpenUser={onOpenUser}
                   />
                 ))

@@ -156,6 +156,8 @@ export function NotificationsColumn({
           accountId={accountId}
           translation={translation}
           display={display}
+          onOpen={() => setSelectedPostId(post.id)}
+          onOpenQuotedPost={setSelectedPostId}
           onOpenUser={setSelectedUserId}
         />
       ))}
@@ -178,6 +180,7 @@ export function NotificationsColumn({
           translation={translation}
           display={display}
           onClose={() => setSelectedPostId(null)}
+          onOpenPost={setSelectedPostId}
           onOpenUser={setSelectedUserId}
         />
       )}

@@ -635,6 +635,32 @@ select:focus-visible {
   gap: 9px;
 }
 
+.repost-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  margin: -2px 0 7px 5px;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 0.66rem;
+  font-weight: 650;
+  text-align: start;
+  cursor: pointer;
+}
+
+.repost-context span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repost-context:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .post-card > header img,
 .avatar-placeholder {
   width: 36px;
@@ -730,6 +756,93 @@ select:focus-visible {
   max-height: 360px;
   background: #000;
   object-fit: contain;
+}
+
+.quoted-post-card {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  margin: 8px 0 10px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.quoted-post-card:hover:not(:disabled),
+.quoted-post-card:focus-visible:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.quoted-post-card:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.quoted-post-header {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px 0;
+}
+
+.quoted-post-header > img,
+.quoted-avatar-placeholder {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-hover);
+  object-fit: cover;
+}
+
+.quoted-post-author {
+  display: flex;
+  min-width: 0;
+  gap: 5px;
+}
+
+.quoted-post-author strong,
+.quoted-post-author span,
+.quoted-post-time {
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quoted-post-author span,
+.quoted-post-time {
+  color: var(--text-muted);
+}
+
+.quoted-post-text {
+  padding: 0 10px 9px;
+  font-size: 0.78rem;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.quoted-post-media {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  border-top: 1px solid var(--border);
+}
+
+.quoted-post-media img {
+  width: 100%;
+  height: min(150px, 32vw);
+  object-fit: cover;
+}
+
+.quoted-post-media img:only-child {
+  grid-column: 1 / -1;
 }
 
 .post-actions {

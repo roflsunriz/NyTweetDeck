@@ -219,6 +219,7 @@ function post(id: string, text: string) {
       avatarUrl: null,
       verified: false,
     },
+    repostedBy: null,
     replyCount: 1,
     repostCount: 2,
     quoteCount: 0,
@@ -228,6 +229,7 @@ function post(id: string, text: string) {
     liked: false,
     reposted: false,
     bookmarked: false,
+    quotedPost: null,
     media: [],
   };
 }

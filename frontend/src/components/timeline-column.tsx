@@ -222,6 +222,7 @@ export function TimelineColumn({
           translation={translation}
           display={display}
           onOpen={() => setSelectedPostId(post.id)}
+          onOpenQuotedPost={setSelectedPostId}
           onOpenUser={setSelectedUserId}
         />
       ))}
@@ -245,6 +246,7 @@ export function TimelineColumn({
           translation={translation}
           display={display}
           onClose={() => setSelectedPostId(null)}
+          onOpenPost={setSelectedPostId}
           onOpenUser={setSelectedUserId}
         />
       )}

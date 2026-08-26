@@ -14,6 +14,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             String language,
             String createdAt,
             Author author,
+            Author repostedBy,
             long replyCount,
             long repostCount,
             long quoteCount,
@@ -25,6 +26,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             boolean bookmarked,
             String replyToPostId,
             String quotedPostId,
+            EmbeddedPost quotedPost,
             List<Media> media) {
 
         public Post {
@@ -34,6 +36,19 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
 
     public record Author(
             String id, String username, String displayName, String avatarUrl, boolean verified) {}
+
+    public record EmbeddedPost(
+            String id,
+            String text,
+            String language,
+            String createdAt,
+            Author author,
+            List<Media> media) {
+
+        public EmbeddedPost {
+            media = List.copyOf(media);
+        }
+    }
 
     public record Media(String id, String type, String url, String previewUrl) {}
 }

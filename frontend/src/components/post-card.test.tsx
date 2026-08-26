@@ -74,6 +74,74 @@ describe("post actions", () => {
     expect(screen.getByRole("heading", { name: "引用" })).toBeDefined();
   });
 
+  test("shows only subtle reposter context and renders a web-style quoted post card", async () => {
+    const openUser = mock(() => undefined);
+    const openQuotedPost = mock(() => undefined);
+    const user = userEvent.setup();
+    const socialPost: TimelinePost = {
+      ...post(),
+      id: "250",
+      text: "Source post",
+      author: {
+        id: "25",
+        username: "origin",
+        displayName: "Original Author",
+        avatarUrl: null,
+        verified: false,
+      },
+      repostedBy: {
+        id: "30",
+        username: "reposter",
+        displayName: "Reposter",
+        avatarUrl: null,
+        verified: false,
+      },
+      quotedPost: {
+        id: "249",
+        text: "Quoted source",
+        language: "ja",
+        createdAt: null,
+        author: {
+          id: "24",
+          username: "quoted",
+          displayName: "Quoted Author",
+          avatarUrl: null,
+          verified: false,
+        },
+        media: [
+          {
+            id: "quote-photo",
+            type: "photo",
+            url: "https://pbs.twimg.com/quote.jpg",
+            previewUrl: "https://pbs.twimg.com/quote.jpg",
+          },
+        ],
+      },
+    };
+
+    render(
+      <PostCard
+        post={socialPost}
+        accountId="account-1"
+        translation={translate("ja")}
+        onOpenUser={openUser}
+        onOpenQuotedPost={openQuotedPost}
+      />,
+    );
+
+    expect(screen.getByText("Source post")).toBeDefined();
+    expect(screen.getByText("Original Author")).toBeDefined();
+    expect(screen.queryByText(/RT @origin/)).toBeNull();
+    const repostContext = screen.getByRole("button", { name: "Reposterさんがリポスト" });
+    expect(repostContext.classList.contains("repost-context")).toBe(true);
+    await user.click(repostContext);
+    expect(openUser).toHaveBeenCalledWith("30");
+    const quote = screen.getByRole("button", { name: /Quoted source/ });
+    expect(quote.classList.contains("quoted-post-card")).toBe(true);
+    await user.click(quote);
+    expect(openQuotedPost).toHaveBeenCalledWith("249");
+  });
+
   test("honors media preview and video autoplay data settings", () => {
     const mediaPost = {
       ...post(),
@@ -292,6 +360,7 @@ function post(): TimelinePost {
     language: "ja",
     createdAt: null,
     author: { id: "42", username: "alice", displayName: "Alice", avatarUrl: null, verified: false },
+    repostedBy: null,
     replyCount: 1,
     repostCount: 2,
     quoteCount: 0,
@@ -301,6 +370,7 @@ function post(): TimelinePost {
     liked: false,
     reposted: false,
     bookmarked: false,
+    quotedPost: null,
     media: [],
   };
 }

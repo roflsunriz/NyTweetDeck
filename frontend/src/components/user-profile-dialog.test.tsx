@@ -82,6 +82,7 @@ function post(id: string, type: "photo" | "video") {
       avatarUrl: null,
       verified: false,
     },
+    repostedBy: null,
     replyCount: 0,
     repostCount: 0,
     quoteCount: 0,
@@ -91,6 +92,7 @@ function post(id: string, type: "photo" | "video") {
     liked: false,
     reposted: false,
     bookmarked: false,
+    quotedPost: null,
     media: [
       {
         id,
