@@ -154,13 +154,20 @@ try {
         -servername 'ny.tweetdeck.com' `
         -verify_hostname 'ny.tweetdeck.com' `
         -CAfile $rootCertificate `
+        -ign_eof `
         -verify_return_error 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "専用CAを使ったローカルHTTPSの証明書検証に失敗しました: $opensslOutput"
     }
     $httpsResponse = $opensslOutput -join [Environment]::NewLine
     if ($httpsResponse -notmatch 'HTTP/1\.1 200') {
-        throw '専用CAを使ったローカルHTTPS応答が不正です。'
+        $statusLine = [regex]::Match($httpsResponse, 'HTTP/[^\r\n]+').Value
+        $statusDetail = if ([string]::IsNullOrWhiteSpace($statusLine)) {
+            'HTTPステータスを受信できませんでした。'
+        } else {
+            $statusLine
+        }
+        throw "専用CAを使ったローカルHTTPS応答が不正です: $statusDetail"
     }
     Write-Host '専用CAで署名したny.tweetdeck.com用HTTPSとHTTP互換コネクタを検証しました。'
 }
