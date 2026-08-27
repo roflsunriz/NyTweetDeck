@@ -6,6 +6,7 @@ import { fetchWithTimeout } from "../model/fetch-with-timeout";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import { filterPosts, type PostFilter, PostFilterBar } from "./post-filter";
+import { useManualRefreshAtTop } from "./use-manual-refresh-at-top";
 import { UserProfileDialog } from "./user-profile-dialog";
 
 interface TimelinePage {
@@ -129,6 +130,7 @@ export function TimelineColumn({
       translation.timelineLoadError,
     ],
   );
+  const { manualRefreshing, manualRefreshHandlers } = useManualRefreshAtTop(load);
 
   useEffect(() => {
     setPosts([]);
@@ -340,7 +342,16 @@ export function TimelineColumn({
   }
   const visiblePosts = filterPosts(posts, postFilter);
   return (
-    <div className="timeline-content">
+    <div
+      className="timeline-content refreshable-scroll"
+      data-testid="timeline-scroll"
+      {...manualRefreshHandlers}
+    >
+      {manualRefreshing && (
+        <div className="manual-refresh-status" role="status">
+          {translation.loading}
+        </div>
+      )}
       <PostFilterBar value={postFilter} translation={translation} onChange={setPostFilter} />
       {visiblePosts.length === 0 && <ColumnMessage title={translation.noFilteredPosts} />}
       {visiblePosts.map((post) => (

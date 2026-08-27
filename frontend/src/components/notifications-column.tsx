@@ -7,6 +7,7 @@ import { CommunityNoteDetailDialog } from "./community-note-detail-dialog";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import { filterPosts, type PostFilter, PostFilterBar } from "./post-filter";
+import { useManualRefreshAtTop } from "./use-manual-refresh-at-top";
 import { UserProfileDialog } from "./user-profile-dialog";
 
 interface NotificationItem {
@@ -93,6 +94,7 @@ export function NotificationsColumn({
     },
     [accountId, locale],
   );
+  const { manualRefreshing, manualRefreshHandlers } = useManualRefreshAtTop(load);
 
   useEffect(() => {
     setNotifications([]);
@@ -143,7 +145,16 @@ export function NotificationsColumn({
     return <div className="column-message">{translation.noNotifications}</div>;
   }
   return (
-    <div className="notification-list">
+    <div
+      className="notification-list refreshable-scroll"
+      data-testid="notification-scroll"
+      {...manualRefreshHandlers}
+    >
+      {manualRefreshing && (
+        <div className="manual-refresh-status" role="status">
+          {translation.loading}
+        </div>
+      )}
       {posts.length > 0 && (
         <PostFilterBar value={postFilter} translation={translation} onChange={setPostFilter} />
       )}

@@ -398,6 +398,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     window.__qaTranslationMaximumActive = 0;
     window.__qaTranslationPostIds = [];
     window.__qaTranslationAttempts = {};
+    window.__qaTimelineRequests = 0;
     window.fetch = (input, init) => {
       const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const url = new URL(raw, location.href);
@@ -416,6 +417,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
         }));
       }
       if (url.pathname === "/api/v1/timelines/homeForYou") {
+        window.__qaTimelineRequests += 1;
         return Promise.resolve(Response.json({
           posts: [{
             id: "100", text: "Initial engagement state https://t.co/article100", language: "en",
@@ -642,6 +644,26 @@ await waitForCondition(
   'document.querySelector(".quoted-post-text")?.textContent === "translated-quoted-100"',
 );
 await waitForCondition("window.__qaTranslationActive === 0");
+const timelineRequestsBeforeManualRefresh = await client.evaluate<number>(
+  "window.__qaTimelineRequests",
+);
+const manualRefreshTriggered = await client.evaluate<boolean>(`(() => {
+  const timeline = document.querySelector("[data-testid=timeline-scroll]");
+  if (!(timeline instanceof HTMLElement)) return false;
+  timeline.scrollTop = 0;
+  timeline.dispatchEvent(new WheelEvent("wheel", { deltaY: -80, bubbles: true }));
+  timeline.dispatchEvent(new WheelEvent("wheel", { deltaY: -40, bubbles: true }));
+  return true;
+})()`);
+if (!manualRefreshTriggered) {
+  throw new Error("タイムライン最上部で手動更新操作を実行できませんでした。");
+}
+await waitForCondition(
+  `window.__qaTimelineRequests === ${timelineRequestsBeforeManualRefresh + 1}`,
+);
+const manualRefreshRequests = await client.evaluate<number>(
+  `window.__qaTimelineRequests - ${timelineRequestsBeforeManualRefresh}`,
+);
 const quotedOriginalClicked = await client.evaluate<boolean>(`(() => {
   const button = document.querySelector(".quoted-post-translation-status button");
   if (!(button instanceof HTMLButtonElement)) return false;
@@ -743,6 +765,7 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
     translatedPostCount: new Set(window.__qaTranslationPostIds).size,
     translationMaximumActive: window.__qaTranslationMaximumActive,
     firstPostTranslationAttempts: window.__qaTranslationAttempts["100"] ?? 0,
+    manualRefreshRequests: ${manualRefreshRequests},
     quotedPostText: document.querySelector(".quoted-post-text")?.textContent,
     quotedTranslationProvider: document.querySelector(".quoted-post-translation-status")?.textContent,
     quoteToggleOpenedDialog: document.querySelector('[role="dialog"]') !== null,
@@ -761,6 +784,7 @@ if (
   Number(engagementMetrics.translatedPostCount) >= 14 ||
   engagementMetrics.translationMaximumActive !== 2 ||
   engagementMetrics.firstPostTranslationAttempts !== 2 ||
+  engagementMetrics.manualRefreshRequests !== 1 ||
   engagementMetrics.quotedPostText !== "Quoted original" ||
   !String(engagementMetrics.quotedTranslationProvider).includes("Xによる自動翻訳") ||
   engagementMetrics.quoteToggleOpenedDialog !== false

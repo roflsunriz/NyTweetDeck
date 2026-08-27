@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
 import type { ColumnConfig } from "../model/layout";
@@ -154,6 +154,73 @@ describe("timeline column", () => {
     act(() => triggerIntersection?.());
 
     await screen.findByText("automatic");
+  });
+
+  test("treats an upward wheel gesture beyond the top as one manual refresh", async () => {
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (!String(input).includes("/api/v1/timelines/")) {
+        return Response.json({ connected: true });
+      }
+      timelineLoads += 1;
+      return Response.json({
+        posts: [timelineLoads === 1 ? post("1", "before manual refresh") : post("2", "refreshed")],
+        nextCursor: null,
+      });
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "home", kind: "home", target: null, label: null };
+
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+    await screen.findByText("before manual refresh");
+    const timeline = screen.getByTestId("timeline-scroll");
+
+    timeline.scrollTop = 40;
+    fireEvent.wheel(timeline, { deltaY: -80, deltaX: 0 });
+    timeline.scrollTop = 0;
+    fireEvent.wheel(timeline, { deltaY: -20, deltaX: 60 });
+    expect(timelineLoads).toBe(1);
+
+    fireEvent.wheel(timeline, { deltaY: -80, deltaX: 0 });
+    fireEvent.wheel(timeline, { deltaY: -40, deltaX: 0 });
+
+    await screen.findByText("refreshed");
+    expect(timelineLoads).toBe(2);
+  });
+
+  test("does not manually refresh until a touch pull starts at the top and passes the threshold", async () => {
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (String(input).includes("/api/v1/timelines/")) {
+        timelineLoads += 1;
+        return Response.json({
+          posts: [post(String(timelineLoads), "touch timeline")],
+          nextCursor: null,
+        });
+      }
+      return Response.json({ connected: true });
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "touch", kind: "home", target: null, label: null };
+
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+    await screen.findByText("touch timeline");
+    const timeline = screen.getByTestId("timeline-scroll");
+
+    timeline.scrollTop = 20;
+    fireEvent.touchStart(timeline, { touches: [{ clientY: 100 }] });
+    fireEvent.touchMove(timeline, { touches: [{ clientY: 180 }] });
+    fireEvent.touchEnd(timeline);
+    timeline.scrollTop = 0;
+
+    fireEvent.touchStart(timeline, { touches: [{ clientY: 100 }] });
+    fireEvent.touchMove(timeline, { touches: [{ clientY: 130 }] });
+    fireEvent.touchEnd(timeline);
+    expect(timelineLoads).toBe(1);
+
+    fireEvent.touchStart(timeline, { touches: [{ clientY: 100 }] });
+    fireEvent.touchMove(timeline, { touches: [{ clientY: 160 }] });
+    fireEvent.touchEnd(timeline);
+
+    await waitFor(() => expect(timelineLoads).toBe(2));
   });
 
   test("updates engagement in place and refreshes only for timeline membership changes", async () => {

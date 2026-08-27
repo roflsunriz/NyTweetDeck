@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
 import { NotificationsColumn } from "./notifications-column";
@@ -82,6 +82,35 @@ describe("notifications column", () => {
     expect(source.getAttribute("href")).toBe("https://example.com/source");
     expect(requestedUrls.some((url) => url.includes("accountId=account-1"))).toBe(true);
     expect(requestedUrls.some((url) => url.includes("language=ja"))).toBe(true);
+  });
+
+  test("refreshes notifications when scrolling upward beyond the top", async () => {
+    let notificationLoads = 0;
+    globalThis.fetch = (async () => {
+      notificationLoads += 1;
+      return Response.json({
+        notifications: [
+          {
+            id: String(notificationLoads),
+            kind: "follow",
+            text: notificationLoads === 1 ? "Before refresh" : "After refresh",
+            noteId: null,
+            postId: null,
+            imageUrls: [],
+          },
+        ],
+        posts: [],
+        nextCursor: null,
+      });
+    }) as unknown as typeof fetch;
+
+    render(<NotificationsColumn accountId="account-1" translation={translate("ja")} />);
+    await screen.findByText("Before refresh");
+
+    fireEvent.wheel(screen.getByTestId("notification-scroll"), { deltaY: -60, deltaX: 0 });
+
+    await screen.findByText("After refresh");
+    await waitFor(() => expect(notificationLoads).toBe(2));
   });
 });
 

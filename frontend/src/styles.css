@@ -560,6 +560,22 @@ select:focus-visible {
   scrollbar-color: var(--border-strong) transparent;
 }
 
+.refreshable-scroll {
+  overscroll-behavior-y: contain;
+}
+
+.manual-refresh-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .direct-message-list {
   min-height: 0;
   overflow-y: auto;
