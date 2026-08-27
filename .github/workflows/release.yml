@@ -71,6 +71,13 @@ jobs:
           mvn --batch-mode --no-transfer-progress
           "-Drevision=${RELEASE_VERSION}" clean verify
 
+      - name: Extract release notes from changelog
+        shell: pwsh
+        run: >-
+          ./scripts/verify-release-notes.ps1
+          -Version "$env:RELEASE_VERSION"
+          -OutputPath target/release-notes.md
+
       - name: Verify packaged browser UI
         run: bash ./scripts/verify-ui.sh "target/nytweetdeck-${RELEASE_VERSION}.jar"
 
@@ -137,4 +144,4 @@ jobs:
           "dist/NyTweetDeck-${RELEASE_TAG}.zip"
           "dist/NyTweetDeck-${RELEASE_TAG}.zip.sha256"
           --verify-tag
-          --generate-notes
+          --notes-file target/release-notes.md

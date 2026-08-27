@@ -60,6 +60,12 @@ Java互換性を変更した場合は、JDK 17で`--release 17`コンパイル�
 ```
 
 リリースワークフローは`v`を除いたタグをMavenの`revision`へ渡し、`SNAPSHOT`ではないJARを生成します。タグはSemVer形式で、mainの履歴に含まれるコミットを指す必要があります。
+GitHub Releaseの本文には、`CHANGELOG.md`の同じバージョン見出しから次のバージョン見出し直前までを自動抽出します。タグを作成する前に対象バージョンの見出し、分類、変更項目を記載し、次のコマンドで抽出範囲を確認してください。
+
+```powershell
+.\scripts\verify-release-notes.ps1 -Version 1.0.0
+```
+
 配布ZIPには3OSのランチャー、自動起動登録・解除、ローカル証明書／hosts登録・解除スクリプトを必ず含めます。
 
 ## ロールバック

@@ -58,6 +58,10 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-local-domain.ps1
 
+      - name: Verify release notes extraction
+        shell: pwsh
+        run: ./scripts/verify-release-notes.ps1
+
       - name: Audit Maven dependencies
         shell: pwsh
         run: ./scripts/audit-maven.ps1

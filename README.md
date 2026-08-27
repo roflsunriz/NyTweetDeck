@@ -76,7 +76,7 @@ macOSではLaunchAgent、Linuxではsystemd user serviceへ登録します。
 
 保存先はWindowsが`%LOCALAPPDATA%\NyTweetDeck\accounts.json`、macOSが`~/Library/Application Support/NyTweetDeck/accounts.json`、Linuxが`${XDG_DATA_HOME:-~/.local/share}/NyTweetDeck/accounts.json`です。JARや配布ZIPを移動しても同じファイルを使用します。
 
-ログイン状態は次回起動時に自動で読み込まれます。保存時には直前のデータを`.bak`へ退避し、破損時は自動復旧します。旧作業ディレクトリや`target/.local/accounts.json`に保存された同形式のファイルは初回起動時に新しい保存先へ自動移行し、元ファイルも復旧用に残します。暗号化された旧形式は自動移行しません。
+ログイン状態は次回起動時に自動で読み込まれます。保存時には直前のデータを`.bak`へ退避し、破損時は自動復旧します。
 
 ## カラムを追加する
 
@@ -138,7 +138,7 @@ macOSではLaunchAgent、Linuxではsystemd user serviceへ登録します。
 
 設定JSONにはメニュー、カラム、表示設定、トレンド検索履歴だけを含めます。XのCookie、トークン、保存済みアカウント、選択中アカウントIDは出力されません。インポート時はファイル形式と全設定値を検証し、現在選択中のアカウントを維持したまま反映します。
 
-動画は従来どおり初期ミュートで表示します。動画コントロールでミュートを解除した場合、保存済みの音量が使われます。
+動画は初期ミュートで表示します。動画コントロールでミュートを解除した場合、保存済みの音量が使われます。
 
 ## 困ったとき
 
@@ -209,4 +209,4 @@ mvn verify
 
 ## リリース
 
-`v`で始まるSemVerタグをmainへプッシュすると、検証と脆弱性監査の成功後に、JAR、各OS用ランチャー、ドキュメント、SHA-256ファイルをまとめたZIPをGitHub Releaseへ公開します。ワークフローはタグがmainの履歴を指すことを確認してから公開します。
+`v`で始まるSemVerタグをmainへプッシュすると、検証と脆弱性監査の成功後に、JAR、各OS用ランチャー、ドキュメント、SHA-256ファイルをまとめたZIPをGitHub Releaseへ公開します。本文には`CHANGELOG.md`の該当バージョンだけを使用し、ワークフローはタグがmainの履歴を指すことを確認してから公開します。
