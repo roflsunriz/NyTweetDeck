@@ -36,7 +36,25 @@ class NotificationResponseParserTest {
                 """).get(0);
 
         assertThat(notification.kind()).isEqualTo("like");
+        assertThat(notification.detailText()).isEqualTo("Alice liked your post");
         assertThat(notification.postId()).isEqualTo("123");
         assertThat(notification.imageUrls()).containsExactly("https://pbs.twimg.com/alice.jpg");
+    }
+
+    @Test
+    void linksACommunityNoteFromItsNestedWebDeepLink() {
+        var parser = new NotificationResponseParser(JsonMapper.builder().build());
+
+        var notification = parser.parse("""
+                {"notification":{"id":"community-1","notification_icon":"birdwatch",
+                "socialContext":{"generalContext":{"text":"Community Note added"}},
+                "rich_message":{"text":"Readers added context to this post.","entities":[
+                {"ref":{"type":"TimelineUrl","url":"twitter://tweet?id=987"}}]}}}
+                """).get(0);
+
+        assertThat(notification.kind()).isEqualTo("community_note");
+        assertThat(notification.text()).isEqualTo("Community Note added");
+        assertThat(notification.detailText()).isEqualTo("Readers added context to this post.");
+        assertThat(notification.postId()).isEqualTo("987");
     }
 }

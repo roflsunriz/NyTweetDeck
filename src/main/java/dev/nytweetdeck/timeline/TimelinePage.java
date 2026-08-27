@@ -28,6 +28,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             String replyToUsername,
             String quotedPostId,
             EmbeddedPost quotedPost,
+            CommunityNote communityNote,
             Translation preTranslated,
             List<Media> media) {
 
@@ -51,6 +52,8 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             media = List.copyOf(media);
         }
     }
+
+    public record CommunityNote(String title, String text, String footer) {}
 
     public record Translation(
             String text,

@@ -1,5 +1,6 @@
 export const layoutStorageKey = "nytweetdeck.layout";
-export const layoutVersion = 5 as const;
+export const layoutVersion = 6 as const;
+export const trendSearchHistoryLimit = 20;
 
 export const columnKinds = [
   "home",
@@ -91,6 +92,7 @@ export interface AppLayout {
   theme: Theme;
   activeAccountId: string | null;
   display: DisplayPreferences;
+  trendSearchHistory: string[];
 }
 
 export interface StorageLike {
@@ -108,6 +110,7 @@ export function createDefaultLayout(): AppLayout {
     theme: "system",
     activeAccountId: null,
     display: { ...defaultDisplayPreferences },
+    trendSearchHistory: [],
   };
 }
 
@@ -131,6 +134,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
         theme: candidate.theme,
         activeAccountId: null,
         display: { ...defaultDisplayPreferences },
+        trendSearchHistory: [],
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -141,6 +145,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
         version: layoutVersion,
         columns: candidate.columns.map((column) => ({ ...column, label: null })),
         display: { ...defaultDisplayPreferences },
+        trendSearchHistory: [],
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -151,6 +156,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
         version: layoutVersion,
         columns: candidate.columns.map((column) => ({ ...column, label: null })),
         display: { ...candidate.display, autoTranslatePosts: true },
+        trendSearchHistory: [],
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -160,6 +166,16 @@ export function loadLayout(storage: StorageLike): AppLayout {
         ...candidate,
         version: layoutVersion,
         display: { ...candidate.display, autoTranslatePosts: true },
+        trendSearchHistory: [],
+      };
+      saveLayout(storage, migrated);
+      return migrated;
+    }
+    if (isLegacyLayoutV5(candidate)) {
+      const migrated: AppLayout = {
+        ...candidate,
+        version: layoutVersion,
+        trendSearchHistory: [],
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -195,8 +211,48 @@ export function moveItem<T>(items: readonly T[], fromIndex: number, toIndex: num
   return result;
 }
 
+export function rememberTrendSearch(history: readonly string[], query: string): string[] {
+  const normalized = query.trim();
+  if (normalized.length === 0) {
+    return [...history];
+  }
+  const key = normalized.toLocaleLowerCase();
+  const existing = history.find((item) => item.toLocaleLowerCase() === key);
+  return [
+    existing ?? normalized,
+    ...history.filter((item) => item.toLocaleLowerCase() !== key),
+  ].slice(0, trendSearchHistoryLimit);
+}
+
 function isAppLayout(value: unknown): value is AppLayout {
   if (!isRecord(value) || value.version !== layoutVersion) {
+    return false;
+  }
+  if (
+    !isLocale(value.locale) ||
+    !isTheme(value.theme) ||
+    !isNullableString(value.activeAccountId) ||
+    !isDisplayPreferences(value.display) ||
+    !isTrendSearchHistory(value.trendSearchHistory)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) {
+    return false;
+  }
+  if (new Set(value.navItems).size !== value.navItems.length) {
+    return false;
+  }
+  return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
+}
+
+function isLegacyLayoutV5(value: unknown): value is Omit<
+  AppLayout,
+  "version" | "trendSearchHistory"
+> & {
+  version: 5;
+} {
+  if (!isRecord(value) || value.version !== 5) {
     return false;
   }
   if (
@@ -210,15 +266,12 @@ function isAppLayout(value: unknown): value is AppLayout {
   if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) {
     return false;
   }
-  if (new Set(value.navItems).size !== value.navItems.length) {
-    return false;
-  }
   return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
 }
 
 function isLegacyLayoutV3(value: unknown): value is Omit<
   AppLayout,
-  "version" | "columns" | "display"
+  "version" | "columns" | "display" | "trendSearchHistory"
 > & {
   version: 3;
   columns: Array<Omit<ColumnConfig, "label">>;
@@ -241,7 +294,10 @@ function isLegacyLayoutV3(value: unknown): value is Omit<
   return Array.isArray(value.columns) && value.columns.every(isLegacyTargetedColumn);
 }
 
-function isLegacyLayoutV4(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
+function isLegacyLayoutV4(value: unknown): value is Omit<
+  AppLayout,
+  "version" | "display" | "trendSearchHistory"
+> & {
   version: 4;
   display: LegacyDisplayPreferences;
 } {
@@ -262,7 +318,10 @@ function isLegacyLayoutV4(value: unknown): value is Omit<AppLayout, "version" | 
   return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
 }
 
-function isLegacyLayoutV2(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
+function isLegacyLayoutV2(value: unknown): value is Omit<
+  AppLayout,
+  "version" | "display" | "trendSearchHistory"
+> & {
   version: 2;
 } {
   if (!isRecord(value) || value.version !== 2) {
@@ -304,7 +363,7 @@ function isLegacyTargetedColumn(value: unknown): value is Omit<ColumnConfig, "la
 
 function isLegacyLayoutV1(value: unknown): value is Omit<
   AppLayout,
-  "version" | "activeAccountId" | "display"
+  "version" | "activeAccountId" | "display" | "trendSearchHistory"
 > & {
   version: 1;
   columns: Array<Omit<ColumnConfig, "target" | "label">>;
@@ -374,4 +433,16 @@ function isLegacyDisplayPreferences(value: unknown): value is LegacyDisplayPrefe
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === "string";
+}
+
+function isTrendSearchHistory(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= trendSearchHistoryLimit &&
+    value.every(
+      (item) =>
+        typeof item === "string" && item.length > 0 && item.length <= 100 && item.trim() === item,
+    ) &&
+    new Set(value.map((item) => item.toLocaleLowerCase())).size === value.length
+  );
 }

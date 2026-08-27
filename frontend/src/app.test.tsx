@@ -78,7 +78,7 @@ describe("NyTweetDeck shell", () => {
       version: number;
       display: { accentColor: string; reduceMotion: boolean };
     };
-    expect(stored.version).toBe(5);
+    expect(stored.version).toBe(6);
     expect(stored.display.accentColor).toBe("purple");
     expect(stored.display.reduceMotion).toBe(true);
     expect((stored.display as { autoTranslatePosts?: boolean }).autoTranslatePosts).toBe(false);
@@ -93,6 +93,64 @@ describe("NyTweetDeck shell", () => {
 
     expect(screen.getByRole("heading", { name: "メッセージ" })).toBeDefined();
     expect(screen.getByRole("heading", { name: "トレンド" })).toBeDefined();
+  });
+
+  test("persists each trend filter and its submitted search history across restart", async () => {
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/accounts")) {
+        return Response.json([
+          { accountId: "account-1", userId: "42", username: "alice", displayName: "Alice" },
+        ]);
+      }
+      if (url.includes("/api/v1/trends")) {
+        return Response.json({
+          trends: [
+            {
+              name: "#NyTweetDeck",
+              description: "1,234 posts",
+              rank: "1",
+              url: "https://x.com/search?q=NyTweetDeck",
+              domainContext: "Technology",
+              metaDescription: "Trending now",
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+      return Response.json(null);
+    }) as typeof fetch;
+    window.localStorage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...createDefaultLayout(),
+        activeAccountId: "account-1",
+        columns: [{ id: "trends", kind: "trends", target: "AI", label: null }],
+        trendSearchHistory: ["AI", "Japan"],
+      }),
+    );
+    const user = userEvent.setup();
+    const firstRender = render(<App />);
+
+    const input = (await screen.findByTestId("trend-filter-input")) as HTMLInputElement;
+    expect(input.value).toBe("AI");
+    expect(firstRender.container.querySelector('option[value="Japan"]')).not.toBeNull();
+    await user.clear(input);
+    await user.type(input, "Technology{Enter}");
+    expect(await screen.findByText("#NyTweetDeck")).toBeDefined();
+
+    const stored = JSON.parse(String(window.localStorage.getItem(layoutStorageKey))) as {
+      columns: Array<{ target: string | null }>;
+      trendSearchHistory: string[];
+    };
+    expect(stored.columns[0]?.target).toBe("Technology");
+    expect(stored.trendSearchHistory.slice(0, 3)).toEqual(["Technology", "AI", "Japan"]);
+
+    firstRender.unmount();
+    render(<App />);
+    expect(((await screen.findByTestId("trend-filter-input")) as HTMLInputElement).value).toBe(
+      "Technology",
+    );
   });
 
   test("creates a targeted search column from the default search menu", async () => {

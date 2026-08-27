@@ -16,7 +16,9 @@ import tools.jackson.databind.ObjectMapper;
 public class NotificationResponseParser {
 
     private static final Pattern POST_ID_PATTERN =
-            Pattern.compile("(?:status(?:es)?/|tweet(?:_id|id)[=:])([0-9]{1,24})");
+            Pattern.compile(
+                    "(?:status(?:es)?/|tweet(?:_id|id)[=:]|(?:tweet|post)\\?(?:[^\\s#]*&)?(?:id|tweet_id)=)([0-9]{1,24})",
+                    Pattern.CASE_INSENSITIVE);
 
     private final ObjectMapper objectMapper;
 
@@ -72,13 +74,17 @@ public class NotificationResponseParser {
         var socialContext = firstObject(node, "socialContext", "social_context");
         var general = firstObject(socialContext, "generalContext", "general_context");
         var topic = firstObject(socialContext, "topicContext", "topic_context");
-        var text = firstNonNull(text(general, "text"), text(topic, "text"));
-        text = firstNonNull(text, text(object(node, "message"), "text"));
-        text = firstNonNull(text, text(object(node, "rich_message"), "text"));
-        text = firstNonNull(text, text(node, "text"));
-        if (text == null) {
-            text = "";
+        var contextText = firstNonNull(text(general, "text"), text(topic, "text"));
+        var messageText = text(object(node, "message"), "text");
+        var richMessageText = text(firstObject(node, "rich_message", "richMessage"), "text");
+        var displayText = firstNonNull(contextText, messageText);
+        displayText = firstNonNull(displayText, richMessageText);
+        displayText = firstNonNull(displayText, text(node, "text"));
+        if (displayText == null) {
+            displayText = "";
         }
+        var detailText = firstNonNull(richMessageText, messageText);
+        detailText = firstNonNull(detailText, displayText);
         var images = new ArrayList<String>();
         var imageNodes = general == null ? null : general.get("contextImageUrls");
         if (imageNodes != null && imageNodes.isArray()) {
@@ -91,7 +97,12 @@ public class NotificationResponseParser {
         }
         collectImageUrls(node, images);
         return new NotificationPage.Notification(
-                text(node, "id"), notificationKind(node), text, findPostId(node), images);
+                text(node, "id"),
+                notificationKind(node),
+                displayText,
+                detailText,
+                findPostId(node),
+                images);
     }
 
     private static String notificationKind(JsonNode node) {
@@ -125,7 +136,46 @@ public class NotificationResponseParser {
                 return matcher.group(1);
             }
         }
+        var referenced = findPostReference(node);
+        if (referenced != null) {
+            return referenced;
+        }
         return findTweetId(node);
+    }
+
+    private static String findPostReference(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isString()) {
+            var matcher = POST_ID_PATTERN.matcher(node.asString(""));
+            return matcher.find() ? matcher.group(1) : null;
+        }
+        if (node.isObject()) {
+            for (Map.Entry<String, JsonNode> property : node.properties()) {
+                var field = property.getKey();
+                var value = property.getValue();
+                if ((field.equals("tweet_id")
+                                || field.equals("tweetId")
+                                || field.equals("tweet_id_str")
+                                || field.equals("postId"))
+                        && value.asString("").matches("[0-9]{1,24}")) {
+                    return value.asString("");
+                }
+                var found = findPostReference(value);
+                if (found != null) {
+                    return found;
+                }
+            }
+        } else if (node.isArray()) {
+            for (var child : node) {
+                var found = findPostReference(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     private static String findTweetId(JsonNode node) {

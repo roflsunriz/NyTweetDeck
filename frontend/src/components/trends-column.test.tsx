@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
-import { TrendsColumn } from "./trends-column";
+import { filterTrends, TrendsColumn } from "./trends-column";
 
 const originalFetch = globalThis.fetch;
 
@@ -12,6 +12,33 @@ afterEach(() => {
 });
 
 describe("trends column", () => {
+  test("filters names and metadata without another request", () => {
+    const trends = [
+      {
+        name: "#NyTweetDeck",
+        description: "1,234 posts",
+        rank: "1",
+        url: "https://x.com/search?q=NyTweetDeck",
+        domainContext: "Technology",
+        metaDescription: "Trending now",
+      },
+      {
+        name: "Japan",
+        description: null,
+        rank: "2",
+        url: "https://x.com/search?q=Japan",
+        domainContext: "News",
+        metaDescription: null,
+      },
+    ];
+
+    expect(filterTrends(trends, " technology ").map((trend) => trend.name)).toEqual([
+      "#NyTweetDeck",
+    ]);
+    expect(filterTrends(trends, "JAPAN").map((trend) => trend.name)).toEqual(["Japan"]);
+    expect(filterTrends(trends, "")).toEqual(trends);
+  });
+
   test("renders Explore trend names and metadata instead of discarding them as non-posts", async () => {
     globalThis.fetch = (async () =>
       Response.json({

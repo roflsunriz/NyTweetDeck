@@ -28,11 +28,52 @@ describe("post actions", () => {
     expect(likeButton.textContent).toBe("3");
     await user.click(likeButton);
     await waitFor(() => expect(likeButton.textContent).toBe("4"));
+    expect(likeButton.classList.contains("like-active")).toBe(true);
+    expect(likeButton.querySelector("svg")?.getAttribute("fill")).toBe("currentColor");
     await user.click(likeButton);
     await waitFor(() => expect(likeButton.textContent).toBe("3"));
+    expect(likeButton.classList.contains("like-active")).toBe(false);
+    expect(likeButton.querySelector("svg")?.getAttribute("fill")).toBe("none");
 
     expect(urls[0]).toContain("/posts/100/actions/like?accountId=account-1");
     expect(urls[1]).toContain("/posts/100/actions/unlike?accountId=account-1");
+  });
+
+  test("colors engagement controls from the initially loaded X state", () => {
+    render(
+      <PostCard
+        post={{ ...post(), liked: true, reposted: true }}
+        accountId="account-1"
+        translation={translate("ja")}
+      />,
+    );
+
+    const likeButton = screen.getByRole("button", { name: "いいね" });
+    const repostButton = screen.getByLabelText("リポスト");
+    expect(likeButton.classList.contains("like-active")).toBe(true);
+    expect(likeButton.querySelector("svg")?.getAttribute("fill")).toBe("currentColor");
+    expect(repostButton.classList.contains("repost-active")).toBe(true);
+  });
+
+  test("renders a Community Note returned with the related post", () => {
+    render(
+      <PostCard
+        post={{
+          ...post(),
+          communityNote: {
+            title: "コミュニティノート",
+            text: "この画像は2024年に撮影されたものです。",
+            footer: "役に立ったと評価されました",
+          },
+        }}
+        accountId="account-1"
+        translation={translate("ja")}
+      />,
+    );
+
+    const note = screen.getByTestId("community-note-card");
+    expect(note.textContent).toContain("この画像は2024年に撮影されたものです。");
+    expect(note.textContent).toContain("役に立ったと評価されました");
   });
 
   test("keeps state when mutation fails", async () => {

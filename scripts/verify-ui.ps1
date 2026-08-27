@@ -56,6 +56,10 @@ try {
     Push-Location (Join-Path $repositoryRoot 'frontend')
     try {
         bun run verify:ui
+        if ($LASTEXITCODE -ne 0) {
+            $browserExitCode = $LASTEXITCODE
+            throw "ブラウザUI検証が終了コード${browserExitCode}で失敗しました。"
+        }
     } finally {
         Pop-Location
     }

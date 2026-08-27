@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Search, X } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { fetchWithTimeout } from "../model/fetch-with-timeout";
 
@@ -20,11 +21,19 @@ export function TrendsColumn({
   accountId,
   translation,
   onSelect,
+  filterQuery = "",
+  searchHistory = [],
+  onFilterChange,
+  onRememberFilter,
   requestTimeoutMilliseconds = 15_000,
 }: {
   accountId: string | null;
   translation: Translation;
   onSelect?: (query: string) => void;
+  filterQuery?: string;
+  searchHistory?: readonly string[];
+  onFilterChange?: (query: string) => void;
+  onRememberFilter?: (query: string) => void;
   requestTimeoutMilliseconds?: number;
 }) {
   const [trends, setTrends] = useState<Trend[]>([]);
@@ -33,6 +42,7 @@ export function TrendsColumn({
   const [error, setError] = useState(false);
   const loadingRef = useRef(false);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
+  const historyId = useId();
 
   const load = useCallback(
     async (nextCursor?: string) => {
@@ -106,52 +116,110 @@ export function TrendsColumn({
       </div>
     );
   }
-  if (loading && trends.length === 0) {
-    return <div className="column-message">{translation.loading}</div>;
-  }
-  if (error && trends.length === 0) {
-    return (
-      <div className="column-message">
-        <strong>{translation.trendLoadError}</strong>
-        <button className="secondary-button" type="button" onClick={() => load()}>
-          {translation.retry}
-        </button>
-      </div>
-    );
-  }
-  if (trends.length === 0) {
-    return <div className="column-message">{translation.noTrends}</div>;
-  }
+  const visibleTrends = filterTrends(trends, filterQuery);
+  const rememberFilter = (event: FormEvent) => {
+    event.preventDefault();
+    const normalized = filterQuery.trim();
+    if (normalized !== filterQuery) {
+      onFilterChange?.(normalized);
+    }
+    onRememberFilter?.(normalized);
+  };
   return (
-    <div className="trend-list">
-      {trends.map((trend, index) => (
-        <button
-          type="button"
-          key={trend.name}
-          className="deck-feed-item trend-item"
-          data-trend-rank={trend.rank ?? index + 1}
-          onClick={() => onSelect?.(trend.name)}
-        >
-          <small>
-            {trend.rank ?? index + 1} ·{" "}
-            {trend.domainContext ?? trend.metaDescription ?? translation.trends}
-          </small>
-          <strong>{trend.name}</strong>
-          {trend.description !== null && <span>{trend.description}</span>}
-        </button>
-      ))}
-      {cursor !== null && (
-        <button
-          ref={loadMoreRef}
-          className="load-more-button"
-          type="button"
-          disabled={loading}
-          onClick={() => load(cursor)}
-        >
-          {loading ? translation.loading : translation.loadMore}
-        </button>
-      )}
-      {error && <p className="inline-error">{translation.trendLoadError}</p>}
+    <div className="trend-column-content">
+      <form className="trend-filter-form" onSubmit={rememberFilter}>
+        <label htmlFor={`${historyId}-input`}>{translation.trendFilterLabel}</label>
+        <span className="trend-filter-input">
+          <Search aria-hidden="true" size={16} />
+          <input
+            id={`${historyId}-input`}
+            data-testid="trend-filter-input"
+            type="search"
+            list={historyId}
+            maxLength={100}
+            placeholder={translation.trendFilterPlaceholder}
+            value={filterQuery}
+            onChange={(event) => onFilterChange?.(event.target.value)}
+          />
+          {filterQuery.length > 0 && (
+            <button
+              type="button"
+              aria-label={translation.clearTrendFilter}
+              onClick={() => onFilterChange?.("")}
+            >
+              <X aria-hidden="true" size={15} />
+            </button>
+          )}
+        </span>
+        <datalist id={historyId}>
+          {searchHistory.map((query) => (
+            <option key={query} value={query} />
+          ))}
+        </datalist>
+      </form>
+      <div className="trend-list">
+        {loading && trends.length === 0 ? (
+          <p className="column-message">{translation.loading}</p>
+        ) : error && trends.length === 0 ? (
+          <div className="column-message">
+            <strong>{translation.trendLoadError}</strong>
+            <button className="secondary-button" type="button" onClick={() => load()}>
+              {translation.retry}
+            </button>
+          </div>
+        ) : trends.length === 0 ? (
+          <p className="column-message">{translation.noTrends}</p>
+        ) : (
+          <>
+            {visibleTrends.length === 0 && (
+              <p className="column-message">{translation.noFilteredTrends}</p>
+            )}
+            {visibleTrends.map((trend) => {
+              const fallbackRank = trends.indexOf(trend) + 1;
+              return (
+                <button
+                  type="button"
+                  key={trend.name}
+                  className="deck-feed-item trend-item"
+                  data-trend-rank={trend.rank ?? fallbackRank}
+                  onClick={() => onSelect?.(trend.name)}
+                >
+                  <small>
+                    {trend.rank ?? fallbackRank} ·{" "}
+                    {trend.domainContext ?? trend.metaDescription ?? translation.trends}
+                  </small>
+                  <strong>{trend.name}</strong>
+                  {trend.description !== null && <span>{trend.description}</span>}
+                </button>
+              );
+            })}
+            {cursor !== null && (
+              <button
+                ref={loadMoreRef}
+                className="load-more-button"
+                type="button"
+                disabled={loading}
+                onClick={() => load(cursor)}
+              >
+                {loading ? translation.loading : translation.loadMore}
+              </button>
+            )}
+            {error && <p className="inline-error">{translation.trendLoadError}</p>}
+          </>
+        )}
+      </div>
     </div>
+  );
+}
+
+export function filterTrends(trends: readonly Trend[], query: string): Trend[] {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (normalized.length === 0) {
+    return [...trends];
+  }
+  return trends.filter((trend) =>
+    [trend.name, trend.description, trend.domainContext, trend.metaDescription].some((value) =>
+      value?.toLocaleLowerCase().includes(normalized),
+    ),
   );
 }

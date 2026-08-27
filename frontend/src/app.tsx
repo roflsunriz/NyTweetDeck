@@ -42,6 +42,7 @@ import {
   loadLayout,
   moveItem,
   type NavItemId,
+  rememberTrendSearch,
   saveLayout,
   rtlLocales,
   type Theme,
@@ -204,6 +205,25 @@ export function App() {
         current.columns.findIndex((column) => column.id === sourceId),
         current.columns.findIndex((column) => column.id === targetId),
       ),
+    }));
+  };
+
+  const setTrendFilter = (columnId: string, query: string) => {
+    const target = query.length === 0 ? null : query;
+    setLayout((current) => ({
+      ...current,
+      columns: current.columns.map((column) =>
+        column.id === columnId && column.kind === "trends"
+          ? { ...column, target, label: null }
+          : column,
+      ),
+    }));
+  };
+
+  const rememberTrendFilter = (query: string) => {
+    setLayout((current) => ({
+      ...current,
+      trendSearchHistory: rememberTrendSearch(current.trendSearchHistory, query),
     }));
   };
 
@@ -378,6 +398,10 @@ export function App() {
                       <TrendsColumn
                         accountId={activeAccountId}
                         translation={translation}
+                        filterQuery={column.target ?? ""}
+                        searchHistory={layout.trendSearchHistory}
+                        onFilterChange={(query) => setTrendFilter(column.id, query)}
+                        onRememberFilter={rememberTrendFilter}
                         onSelect={(query) => addColumn("search", query)}
                       />
                     ) : (

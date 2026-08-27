@@ -66,9 +66,16 @@ export interface Translation {
   noTrends: string;
   trendLoadError: string;
   trends: string;
+  trendFilterLabel: string;
+  trendFilterPlaceholder: string;
+  clearTrendFilter: string;
+  noFilteredTrends: string;
   noNotifications: string;
   notificationLoadError: string;
   notifications: string;
+  communityNote: string;
+  communityNoteDetails: string;
+  viewRelatedPost: string;
   reply: string;
   replyingToPost: string;
   replyingTo: (username: string) => string;
@@ -213,9 +220,16 @@ const translations: Partial<Record<Locale, Translation>> = {
     noTrends: "表示するトレンドがありません。",
     trendLoadError: "トレンドを読み込めませんでした。",
     trends: "トレンド",
+    trendFilterLabel: "トレンドを絞り込む",
+    trendFilterPlaceholder: "検索ワードを入力",
+    clearTrendFilter: "トレンドの絞り込みを解除",
+    noFilteredTrends: "検索ワードに一致するトレンドがありません。",
     noNotifications: "表示する通知がありません。",
     notificationLoadError: "通知を読み込めませんでした。",
     notifications: "通知",
+    communityNote: "コミュニティノート",
+    communityNoteDetails: "コミュニティノートの詳細",
+    viewRelatedPost: "関連するポストを表示",
     reply: "返信",
     replyingToPost: "返信先のポスト",
     replyingTo: (username) => `返信先: @${username}`,
@@ -403,9 +417,16 @@ const translations: Partial<Record<Locale, Translation>> = {
     noTrends: "No trends to display.",
     trendLoadError: "Could not load trends.",
     trends: "Trends",
+    trendFilterLabel: "Filter trends",
+    trendFilterPlaceholder: "Enter a search term",
+    clearTrendFilter: "Clear trend filter",
+    noFilteredTrends: "No trends match this search term.",
     noNotifications: "No notifications to display.",
     notificationLoadError: "Could not load notifications.",
     notifications: "Notifications",
+    communityNote: "Community Note",
+    communityNoteDetails: "Community Note details",
+    viewRelatedPost: "View related post",
     reply: "Reply",
     replyingToPost: "Replying to a post",
     replyingTo: (username) => `Replying to @${username}`,

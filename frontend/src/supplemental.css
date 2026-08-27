@@ -410,6 +410,68 @@
   color: var(--text);
 }
 
+.trend-column-content {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.trend-filter-form {
+  display: grid;
+  gap: 5px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.trend-filter-form > label {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.trend-filter-input {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding-inline: 9px 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.trend-filter-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.trend-filter-input input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.trend-filter-input button {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.trend-filter-input button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
 .trend-list {
   min-height: 0;
   overflow-y: auto;
@@ -542,6 +604,62 @@ button.deck-feed-item:focus-visible {
   text-align: start;
   background: var(--panel);
   cursor: pointer;
+}
+
+.community-note-detail {
+  display: grid;
+  gap: 14px;
+  padding: 0 20px 20px;
+}
+
+.community-note-detail p {
+  margin: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.community-note-detail .notification-avatars img {
+  width: 38px;
+  height: 38px;
+}
+
+.community-note-card {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+.community-note-card strong {
+  font-size: 0.78rem;
+}
+
+.community-note-card p,
+.community-note-card small {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.community-note-card p {
+  font-size: 0.76rem;
+}
+
+.community-note-card small {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+}
+
+.post-action.like-active {
+  color: #f91880;
+}
+
+.post-action.repost-active {
+  color: #00ba7c;
 }
 
 .list-option:hover,

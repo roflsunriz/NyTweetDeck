@@ -224,4 +224,25 @@ class TimelineResponseParserTest {
         assertThat(post.quotedPost().text()).isEqualTo("quoted text");
         assertThat(post.quotedPost().media()).hasSize(1);
     }
+
+    @Test
+    void preservesInitialEngagementStateAndCommunityNoteDetails() {
+        var body = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"500",
+                "legacy":{"full_text":"post with context","lang":"en",
+                "created_at":"2019-01-02T00:00:00Z","favorited":true,"retweeted":true},
+                "birdwatch_pivot":{"title":{"text":"Community Note"},
+                "note":{"data_v1":{"summary":{"text":"This image was taken in 2024."}}},
+                "footer":{"text":"Rated helpful by readers"}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().get(0);
+
+        assertThat(post.liked()).isTrue();
+        assertThat(post.reposted()).isTrue();
+        assertThat(post.communityNote()).isNotNull();
+        assertThat(post.communityNote().title()).isEqualTo("Community Note");
+        assertThat(post.communityNote().text()).isEqualTo("This image was taken in 2024.");
+        assertThat(post.communityNote().footer()).isEqualTo("Rated helpful by readers");
+    }
 }

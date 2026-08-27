@@ -157,7 +157,7 @@ async function reload(): Promise<void> {
   await loaded;
 }
 
-async function waitForCondition(expression: string, timeoutMilliseconds = 3_000): Promise<void> {
+async function waitForCondition(expression: string, timeoutMilliseconds = 5_000): Promise<void> {
   const deadline = Date.now() + timeoutMilliseconds;
   while (Date.now() < deadline) {
     if (await client.evaluate<boolean>(expression)) {
@@ -305,6 +305,210 @@ const rtlScreenshot = await client.call<{ data: string }>("Page.captureScreensho
 const rtlScreenshotPath = resolve(import.meta.dir, "../../target/ui-settings-rtl-768x1024.png");
 await Bun.write(rtlScreenshotPath, Buffer.from(rtlScreenshot.data, "base64"));
 results.push({ view: "settings-rtl", ...rtlMetrics, screenshotPath: rtlScreenshotPath });
+
+await client.call("Page.addScriptToEvaluateOnNewDocument", {
+  source: `(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const url = new URL(raw, location.href);
+      if (url.pathname === "/api/v1/accounts") {
+        return Promise.resolve(Response.json([
+          { accountId: "qa-account", userId: "42", username: "qa", displayName: "QA" }
+        ]));
+      }
+      if (url.pathname === "/api/v1/trends") {
+        return Promise.resolve(Response.json({
+          trends: [
+            { name: "#NyTweetDeck", description: "1,234 posts", rank: "1", url: "https://x.com/search?q=NyTweetDeck", domainContext: "Technology", metaDescription: "Trending now" },
+            { name: "Japan", description: "2,345 posts", rank: "2", url: "https://x.com/search?q=Japan", domainContext: "News", metaDescription: "Trending in Japan" }
+          ],
+          nextCursor: null
+        }));
+      }
+      if (url.pathname === "/api/v1/timelines/homeForYou") {
+        return Promise.resolve(Response.json({
+          posts: [{
+            id: "100", text: "Initial engagement state", language: "ja",
+            createdAt: "2026-08-27T00:00:00Z",
+            author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
+            repostedBy: null, replyCount: 1, repostCount: 2, quoteCount: 0,
+            likeCount: 3, bookmarkCount: 0, viewCount: 10,
+            liked: true, reposted: true, bookmarked: false,
+            replyToPostId: null, replyToUsername: null, quotedPost: null,
+            communityNote: {
+              title: "Community Note",
+              text: "This image was taken in 2024.",
+              footer: "Rated helpful by readers"
+            },
+            media: []
+          }],
+          nextCursor: null
+        }));
+      }
+      if (url.pathname === "/api/v1/notifications") {
+        return Promise.resolve(Response.json({
+          notifications: [{
+            id: "community-qa", kind: "community_note",
+            text: "Community Note added",
+            detailText: "Readers added context to this post.",
+            postId: null, imageUrls: []
+          }],
+          posts: [], nextCursor: null
+        }));
+      }
+      if (url.pathname.startsWith("/api/v1/live/subscriptions/")) {
+        return Promise.resolve(Response.json({
+          subscriptionId: "qa-subscription", connected: true, topicCount: 1
+        }));
+      }
+      return originalFetch(input, init);
+    };
+  })();`,
+});
+await client.evaluate(`(() => {
+  const stored = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "null") ?? {};
+  localStorage.setItem("nytweetdeck.layout", JSON.stringify({
+    ...stored,
+    version: 6,
+    locale: "ja",
+    activeAccountId: "qa-account",
+    columns: [{ id: "qa-trends", kind: "trends", target: "", label: null }],
+    trendSearchHistory: ["AI"]
+  }));
+})()`);
+await reload();
+await waitForCondition('document.querySelector("[data-testid=trend-filter-input]") !== null');
+await waitForCondition('document.querySelectorAll(".trend-item").length === 2');
+const trendFilterChanged = await client.evaluate<boolean>(`(() => {
+  const input = document.querySelector("[data-testid=trend-filter-input]");
+  if (!(input instanceof HTMLInputElement)) return false;
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  setter?.call(input, "technology");
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.closest("form")?.requestSubmit();
+  return true;
+})()`);
+if (!trendFilterChanged) {
+  throw new Error("トレンド絞り込み語句を入力できませんでした。");
+}
+await waitForCondition(
+  'document.querySelectorAll(".trend-item").length === 1 && document.querySelector(".trend-item")?.textContent?.includes("#NyTweetDeck") === true',
+);
+await waitForCondition(
+  'JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}").trendSearchHistory?.[0] === "technology"',
+);
+await reload();
+await waitForCondition(
+  'document.querySelector("[data-testid=trend-filter-input]")?.value === "technology"',
+);
+const trendMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
+  const input = document.querySelector("[data-testid=trend-filter-input]");
+  const history = document.querySelector("datalist");
+  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
+  return {
+    filterValue: input instanceof HTMLInputElement ? input.value : null,
+    historyValues: history instanceof HTMLDataListElement
+      ? Array.from(history.options, option => option.value)
+      : [],
+    storedTarget: layout.columns?.[0]?.target,
+    storedHistory: layout.trendSearchHistory,
+    visibleTrends: document.querySelectorAll(".trend-item").length,
+    documentOverflow: document.documentElement.scrollWidth > innerWidth
+  };
+})()`);
+const trendScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const trendScreenshotPath = resolve(import.meta.dir, "../../target/ui-trend-filter-768x1024.png");
+await Bun.write(trendScreenshotPath, Buffer.from(trendScreenshot.data, "base64"));
+results.push({ view: "trend-filter", ...trendMetrics, screenshotPath: trendScreenshotPath });
+
+await client.evaluate(`(() => {
+  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
+  localStorage.setItem("nytweetdeck.layout", JSON.stringify({
+    ...layout,
+    locale: "ja",
+    columns: [{ id: "qa-home", kind: "home", target: null, label: null }]
+  }));
+})()`);
+await reload();
+await waitForCondition('document.querySelector("[data-post-action=like]") !== null');
+const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
+  const like = document.querySelector("[data-post-action=like]");
+  const repost = document.querySelector("[data-post-action=repost]");
+  const heart = like?.querySelector("svg");
+  return {
+    likeColor: like instanceof HTMLElement ? getComputedStyle(like).color : null,
+    likeFilled: heart?.getAttribute("fill"),
+    repostColor: repost instanceof HTMLElement ? getComputedStyle(repost).color : null,
+    communityNoteText: document.querySelector("[data-testid=community-note-card]")?.textContent,
+    documentOverflow: document.documentElement.scrollWidth > innerWidth
+  };
+})()`);
+if (
+  engagementMetrics.likeColor !== "rgb(249, 24, 128)" ||
+  engagementMetrics.likeFilled !== "currentColor" ||
+  engagementMetrics.repostColor !== "rgb(0, 186, 124)"
+) {
+  throw new Error(`反応済み色の検証に失敗しました: ${JSON.stringify(engagementMetrics)}`);
+}
+const engagementScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const engagementScreenshotPath = resolve(
+  import.meta.dir,
+  "../../target/ui-engagement-community-note-768x1024.png",
+);
+await Bun.write(engagementScreenshotPath, Buffer.from(engagementScreenshot.data, "base64"));
+results.push({
+  view: "engagement-community-note",
+  ...engagementMetrics,
+  screenshotPath: engagementScreenshotPath,
+});
+
+await client.evaluate(`(() => {
+  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
+  localStorage.setItem("nytweetdeck.layout", JSON.stringify({
+    ...layout,
+    columns: [{ id: "qa-notifications", kind: "notifications", target: null, label: null }]
+  }));
+})()`);
+await reload();
+await waitForCondition(
+  'document.querySelector("[data-notification-kind=community_note]") !== null',
+);
+const communityNoteClicked = await client.evaluate<boolean>(`(() => {
+  const notification = document.querySelector("[data-notification-kind=community_note]");
+  if (!(notification instanceof HTMLButtonElement)) return false;
+  notification.click();
+  return true;
+})()`);
+if (!communityNoteClicked) {
+  throw new Error("コミュニティノート通知を選択できませんでした。");
+}
+await waitForCondition('document.querySelector("[role=dialog]") !== null');
+const communityNoteMetrics = await client.evaluate<Record<string, unknown>>(`({
+  title: document.querySelector(".modal-header h2")?.textContent,
+  detail: document.querySelector(".community-note-detail")?.textContent,
+  documentOverflow: document.documentElement.scrollWidth > innerWidth
+})`);
+const communityNoteScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const communityNoteScreenshotPath = resolve(
+  import.meta.dir,
+  "../../target/ui-community-note-detail-768x1024.png",
+);
+await Bun.write(communityNoteScreenshotPath, Buffer.from(communityNoteScreenshot.data, "base64"));
+results.push({
+  view: "community-note-detail",
+  ...communityNoteMetrics,
+  screenshotPath: communityNoteScreenshotPath,
+});
 
 console.info(JSON.stringify(results, null, 2));
 if (browserErrors.length > 0) {

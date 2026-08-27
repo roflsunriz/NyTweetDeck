@@ -48,7 +48,14 @@ export interface TimelinePost {
   replyToUsername: string | null;
   quotedPost: EmbeddedPost | null;
   preTranslated?: PreTranslatedPost | null;
+  communityNote?: CommunityNote | null;
   media: Array<{ id: string; type: string; url: string; previewUrl: string }>;
+}
+
+interface CommunityNote {
+  title: string | null;
+  text: string | null;
+  footer: string | null;
 }
 
 interface PreTranslatedPost {
@@ -377,6 +384,13 @@ export function PostCard({
             )}
           </div>
         )}
+        {post.communityNote != null && (
+          <aside className="community-note-card" data-testid="community-note-card">
+            <strong>{post.communityNote.title || translation.communityNote}</strong>
+            {post.communityNote.text !== null && <p>{post.communityNote.text}</p>}
+            {post.communityNote.footer !== null && <small>{post.communityNote.footer}</small>}
+          </aside>
+        )}
         {post.media.length > 0 && display.mediaPreview && (
           <div className="post-media">
             {post.media.map((media) =>
@@ -584,7 +598,7 @@ function RepostMenu({
   return (
     <details className="repost-menu">
       <summary
-        className={`post-action${active ? " active" : ""}${disabled ? " disabled" : ""}`}
+        className={`post-action${active ? " active repost-active" : ""}${disabled ? " disabled" : ""}`}
         data-post-action="repost"
         aria-label={label}
         aria-disabled={disabled}
@@ -784,13 +798,17 @@ function Action({
   return (
     <button
       type="button"
-      className={`post-action${active ? " active" : ""}`}
+      className={`post-action${active ? ` active ${actionId}-active` : ""}`}
       data-post-action={actionId}
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
     >
-      <Icon aria-hidden="true" size={16} />
+      <Icon
+        aria-hidden="true"
+        size={16}
+        fill={active && actionId === "like" ? "currentColor" : "none"}
+      />
       <span>{compactNumber(count)}</span>
     </button>
   );

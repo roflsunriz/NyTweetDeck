@@ -1,6 +1,7 @@
 package dev.nytweetdeck.timeline;
 
 import dev.nytweetdeck.timeline.TimelinePage.Author;
+import dev.nytweetdeck.timeline.TimelinePage.CommunityNote;
 import dev.nytweetdeck.timeline.TimelinePage.EmbeddedPost;
 import dev.nytweetdeck.timeline.TimelinePage.Media;
 import dev.nytweetdeck.timeline.TimelinePage.Post;
@@ -141,6 +142,7 @@ public class TimelineResponseParser {
                 firstNonNull(text(legacy, "quoted_status_id_str"),
                         quotedPost == null ? null : quotedPost.id()),
                 quotedPost,
+                parseCommunityNote(content, responseNode),
                 parsePreTranslated(content, responseNode),
                 parseMedia(legacy.get("extended_entities")));
     }
@@ -198,6 +200,44 @@ public class TimelineResponseParser {
                 parseCreatedAt(text(legacy, "created_at")),
                 parseAuthor(node),
                 parseMedia(legacy.get("extended_entities")));
+    }
+
+    private static CommunityNote parseCommunityNote(JsonNode tweet, JsonNode responseNode) {
+        var pivot = object(tweet, "birdwatch_pivot");
+        if (pivot == null) {
+            pivot = object(tweet, "birdwatchPivot");
+        }
+        if (pivot == null && responseNode != tweet) {
+            pivot = object(responseNode, "birdwatch_pivot");
+            if (pivot == null) {
+                pivot = object(responseNode, "birdwatchPivot");
+            }
+        }
+        if (pivot == null) {
+            return null;
+        }
+        var note = object(pivot, "note");
+        var data = firstObject(note, "data_v1", "dataV1");
+        var summary = object(data, "summary");
+        var title = firstNonBlank(richText(pivot.get("title")), richText(pivot.get("heading")));
+        var noteText = firstNonBlank(
+                richText(summary),
+                richText(note == null ? null : note.get("summary")),
+                richText(pivot.get("subtitle")),
+                richText(pivot.get("text")));
+        var footer = richText(pivot.get("footer"));
+        if (title == null && noteText == null && footer == null) {
+            return null;
+        }
+        return new CommunityNote(title, noteText, footer);
+    }
+
+    private static String richText(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        var value = node.isString() ? node.asString(null) : text(node, "text");
+        return value == null || value.isBlank() ? null : value;
     }
 
     private static Translation parsePreTranslated(JsonNode tweet, JsonNode responseNode) {
@@ -333,6 +373,9 @@ public class TimelineResponseParser {
     }
 
     private static JsonNode firstObject(JsonNode node, String... fields) {
+        if (node == null) {
+            return null;
+        }
         for (var field : fields) {
             var value = node.get(field);
             if (value != null && value.isObject()) {
@@ -458,5 +501,19 @@ public class TimelineResponseParser {
 
     private static String firstNonNull(String first, String second) {
         return first == null ? second : first;
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (var value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static JsonNode object(JsonNode node, String field) {
+        var value = node == null ? null : node.get(field);
+        return value != null && value.isObject() ? value : null;
     }
 }
