@@ -20,17 +20,24 @@ if ($plan.host -ne 'ny.tweetdeck.com' `
         -or -not $plan.requiresInteractiveUser) {
     throw 'ローカルドメインの導入計画が不正です。'
 }
-$shell = Get-Command sh -ErrorAction SilentlyContinue
-if ($null -eq $shell) { $shell = Get-Command bash -ErrorAction SilentlyContinue }
-if ($null -eq $shell) { throw 'macOS/Linux証明書スクリプトの検証にshが必要です。' }
+$shellCommands = @(Get-Command sh -CommandType Application -ErrorAction SilentlyContinue)
+if ($shellCommands.Count -eq 0) {
+    $shellCommands = @(
+        Get-Command bash -CommandType Application -ErrorAction SilentlyContinue
+    )
+}
+if ($shellCommands.Count -eq 0) {
+    throw 'macOS/Linux証明書スクリプトの検証にshが必要です。'
+}
+$shellPath = $shellCommands[0].Source
 $installShell = Join-Path $PSScriptRoot 'install-local-domain.sh'
 $uninstallShell = Join-Path $PSScriptRoot 'uninstall-local-domain.sh'
-& $shell.Source -n $installShell
+& $shellPath -n $installShell
 if ($LASTEXITCODE -ne 0) { throw 'install-local-domain.shの構文検証に失敗しました。' }
-& $shell.Source -n $uninstallShell
+& $shellPath -n $uninstallShell
 if ($LASTEXITCODE -ne 0) { throw 'uninstall-local-domain.shの構文検証に失敗しました。' }
-$linuxPlan = (& $shell.Source $installShell --platform linux --dry-run) -join "`n"
-$macPlan = (& $shell.Source $installShell --platform macos --dry-run) -join "`n"
+$linuxPlan = (& $shellPath $installShell --platform linux --dry-run) -join "`n"
+$macPlan = (& $shellPath $installShell --platform macos --dry-run) -join "`n"
 if ($linuxPlan -notlike '*httpsPort=443*' `
         -or $linuxPlan -notlike '*ny.tweetdeck.com.p12*' `
         -or $linuxPlan -notlike '*nytweetdeck-local-ca.cer*') {

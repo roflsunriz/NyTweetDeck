@@ -82,8 +82,14 @@ if ($nativeWindows) {
         $null
     }
 } else {
-    $shell = Get-Command sh -CommandType Application -ErrorAction SilentlyContinue
-    $shellPath = if ($null -eq $shell) { $null } else { $shell.Source }
+    $shellCommands = @(
+        Get-Command sh -CommandType Application -ErrorAction SilentlyContinue
+    )
+    $shellPath = if ($shellCommands.Count -eq 0) {
+        $null
+    } else {
+        $shellCommands[0].Source
+    }
 }
 if ([string]::IsNullOrWhiteSpace($shellPath)) {
     throw 'macOS/Linux統合インストール検証にshが必要です。'

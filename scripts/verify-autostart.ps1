@@ -25,14 +25,16 @@ if ($windowsDefinition.taskName -ne 'NyTweetDeck' `
     throw 'Windowsログオンタスク定義が不正です。'
 }
 
-$shell = Get-Command sh -ErrorAction SilentlyContinue
-if ($null -eq $shell) {
-    $shell = Get-Command bash -ErrorAction SilentlyContinue
+$shellCommands = @(Get-Command sh -CommandType Application -ErrorAction SilentlyContinue)
+if ($shellCommands.Count -eq 0) {
+    $shellCommands = @(
+        Get-Command bash -CommandType Application -ErrorAction SilentlyContinue
+    )
 }
-if ($null -eq $shell) {
+if ($shellCommands.Count -eq 0) {
     throw 'macOS/Linux自動起動スクリプトの検証にbashが必要です。'
 }
-$shellPath = $shell.Source
+$shellPath = $shellCommands[0].Source
 $installShell = Join-Path $repositoryRoot 'scripts\install-autostart.sh'
 $uninstallShell = Join-Path $repositoryRoot 'scripts\uninstall-autostart.sh'
 & $shellPath -n $installShell
