@@ -185,24 +185,23 @@ NyTweetDeckは既定で`127.0.0.1:18080`だけを使用します。ローカル�
 - Bun 1.4以上
 - Google Chrome
 
-リポジトリ直下で次を実行します。MavenがBun bundlerでフロントエンドを生成してからSpring Bootを起動します。
+バックエンドとホットリロード対応フロントエンドをまとめて起動するには、リポジトリ直下で次を実行します。両方の準備完了後に開発画面がブラウザで開き、終了時は`Ctrl+C`で両プロセスをまとめて停止できます。Windowsのログは画面に表示される`target/dev-*.log`、macOS/Linuxのログは同じターミナルで確認できます。
 
 ```powershell
-mvn spring-boot:run
+.\scripts\run-dev.cmd
 ```
 
-フロントエンドをホットリロードする場合は、2つのターミナルでそれぞれ次を実行します。
+macOSまたはLinuxでは次を実行します。
 
-```powershell
-mvn spring-boot:run "-Dexec.skip=true"
+```sh
+sh ./scripts/run-dev.sh
 ```
 
-```powershell
-Set-Location .\frontend
-bun run dev
-```
+この開発用スクリプトはJARやバージョン付きファイル名を参照せず、現在のソースコードをMavenとBunから直接起動します。既定ではバックエンドに18080番、フロントエンドに5173番を使用します。別ポートで起動する場合、Windowsでは`.\scripts\run-dev.ps1 -BackendPort 18082 -FrontendPort 5174`、macOS/Linuxでは`sh ./scripts/run-dev.sh --backend-port 18082 --frontend-port 5174`を実行します。
 
 開発画面は <http://127.0.0.1:5173> です。`/api/`へのリクエストはJavaバックエンドへ転送されます。
+
+個別に起動する必要がある場合は、1つ目のターミナルで`mvn spring-boot:run "-Dexec.skip=true"`、2つ目のターミナルで`frontend`へ移動して`bun run dev`を実行できます。
 
 ## 検証する
 

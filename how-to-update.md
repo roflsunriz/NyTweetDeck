@@ -41,6 +41,16 @@ mvn verify
 .\scripts\audit-maven.ps1
 ```
 
+開発ランチャーを変更した場合は、リリースJARやバージョン付きファイル名を用意せず、別ポートでバックエンドとフロントエンドの準備完了および終了後のポート解放を確認します。
+
+```powershell
+.\scripts\run-dev.ps1 -BackendPort 18082 -FrontendPort 5174 -NoBrowser -ExitAfterReady
+```
+
+```sh
+sh ./scripts/run-dev.sh --backend-port 18083 --frontend-port 5175 --no-browser --exit-after-ready
+```
+
 Java互換性を変更した場合は、JDK 17で`--release 17`コンパイルと全テストを実行した後、JDK 21・25でも同じテストとJAR起動を確認します。CIのメーカー行列は`docs/jdk-compatibility.md`の固定一覧と一致させます。
 
 ブラウザUIを変更した場合は、デスクトップ、狭幅、低高さの代表的なビューポートで、カラム追加・削除、設定変更、再読み込み後の復元を確認します。動画表示を変更した場合は、ビューポート上端〜中央への進入前は`src`が未設定で、進入時だけロード・自動再生され、離脱時は停止して`src`も解除されることを確認します。
