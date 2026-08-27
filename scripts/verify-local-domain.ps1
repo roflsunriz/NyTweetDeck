@@ -117,8 +117,14 @@ try {
         }
     }
     if (-not $ready) { throw 'HTTP互換コネクタが20秒以内に起動しませんでした。' }
-    $opensslCommand = Get-Command openssl -CommandType Application -ErrorAction SilentlyContinue
-    $opensslPath = if ($null -eq $opensslCommand) { $null } else { $opensslCommand.Source }
+    $opensslCommands = @(
+        Get-Command openssl -CommandType Application -ErrorAction SilentlyContinue
+    )
+    $opensslPath = if ($opensslCommands.Count -eq 0) {
+        $null
+    } else {
+        $opensslCommands[0].Source
+    }
     if ($PSVersionTable.PSEdition -ne 'Core' -or $IsWindows) {
         $gitOpenSslCandidates = @(
             (Join-Path $env:ProgramFiles 'Git\mingw64\bin\openssl.exe')
