@@ -261,7 +261,6 @@ if (!settingsClicked) {
 }
 await waitForCondition("document.querySelector('[role=\"dialog\"]') !== null");
 await waitForCondition('document.querySelector("[data-testid=refresh-api-metadata]") !== null');
-await waitForCondition('document.querySelector("[data-testid=account-vault-setup]") !== null');
 const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const panel = document.querySelector(".modal-panel");
   if (!(panel instanceof HTMLElement)) return { found: false };

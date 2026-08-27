@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("X公式ブラウザログイン", () => {
-  test("公式ログイン完了後に暗号化保存されたアカウントを選択する", async () => {
+  test("公式ログイン完了後に自動保存されたアカウントを選択する", async () => {
     let polls = 0;
     let captured = false;
     globalThis.fetch = (async (input, init) => {
@@ -65,19 +65,6 @@ describe("X公式ブラウザログイン", () => {
     expect(await screen.findByTestId("browser-login-flow")).toBeDefined();
     await user.click(screen.getByRole("button", { name: "Xへのログインが完了しました" }));
     await waitFor(() => expect(selected).toBe("42"), { timeout: 3_000 });
-  });
-
-  test("Vault未解除時は解除手順を表示する", async () => {
-    globalThis.fetch = (async () => new Response(null, { status: 423 })) as unknown as typeof fetch;
-    render(
-      <LoginDialog
-        translation={translate("ja")}
-        onComplete={() => undefined}
-        onClose={() => undefined}
-      />,
-    );
-
-    expect(await screen.findByText(/先に設定でアカウントVault/)).toBeDefined();
   });
 
   test("専用Chromeが閉じられた場合は再ログイン手順を表示する", async () => {

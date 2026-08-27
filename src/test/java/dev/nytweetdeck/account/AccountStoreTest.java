@@ -1,0 +1,89 @@
+package dev.nytweetdeck.account;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.json.JsonMapper;
+
+class AccountStoreTest {
+
+    @TempDir
+    Path temporaryDirectory;
+
+    @Test
+    void startsWithoutSetupAndAutomaticallyLoadsSavedAccountsAfterRestart() throws Exception {
+        var path = temporaryDirectory.resolve("accounts.json");
+        var mapper = JsonMapper.builder().build();
+        var store = new AccountStore(mapper, path);
+
+        assertThat(store.accountSummaries()).isEmpty();
+        store.addOrReplace(account("1", "alice", "token-a", "auth-a"));
+
+        var restarted = new AccountStore(mapper, path);
+        assertThat(restarted.accountSummaries()).containsExactly(
+                new AccountStore.AccountSummary("1", "1", "alice", "alice"));
+        assertThat(restarted.requireAccount("1").authToken()).isEqualTo("auth-a");
+        assertThat(restarted.accountSummaries().toString())
+                .doesNotContain("token-a", "auth-a", "csrf-1");
+        assertThat(restarted.requireAccount("1").toString())
+                .doesNotContain("token-a", "auth-a", "csrf-1");
+        assertThat(Files.readString(path)).contains("token-a", "auth-a", "csrf-1");
+    }
+
+    @Test
+    void replacesAnAccountAtomicallyAndRecoversThePreviousBackup() throws Exception {
+        var path = temporaryDirectory.resolve("accounts.json");
+        var mapper = JsonMapper.builder().build();
+        var store = new AccountStore(mapper, path);
+        store.addOrReplace(account("1", "alice", "token-a", "auth-a"));
+        store.addOrReplace(account("1", "alice-new", "token-b", "auth-b"));
+        Files.writeString(path, "corrupted");
+
+        var recovered = new AccountStore(mapper, path);
+
+        assertThat(recovered.requireAccount("1").username()).isEqualTo("alice");
+        assertThat(new AccountStore(mapper, path).requireAccount("1").username())
+                .isEqualTo("alice");
+    }
+
+    @Test
+    void reportsMissingAccountsAndUnrecoverableDataWithoutLeakingSecrets() throws Exception {
+        var path = temporaryDirectory.resolve("accounts.json");
+        var store = new AccountStore(JsonMapper.builder().build(), path);
+
+        assertThatThrownBy(() -> store.requireAccount("missing"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("指定したアカウント");
+        Files.writeString(path, "corrupted-secret-marker");
+        assertThatThrownBy(() -> new AccountStore(JsonMapper.builder().build(), path))
+                .isInstanceOf(AccountStoreException.class)
+                .hasMessageContaining("読み込めません")
+                .hasMessageNotContaining("corrupted-secret-marker");
+    }
+
+    @Test
+    void restrictsTheStoreToTheOwnerOnPosixSystems() throws Exception {
+        var path = temporaryDirectory.resolve("accounts.json");
+        var store = new AccountStore(JsonMapper.builder().build(), path);
+        store.addOrReplace(account("1", "alice", "token-a", "auth-a"));
+
+        if (Files.getFileStore(path).supportsFileAttributeView("posix")) {
+            assertThat(Files.getPosixFilePermissions(path))
+                    .isEqualTo(Set.of(
+                            PosixFilePermission.OWNER_READ,
+                            PosixFilePermission.OWNER_WRITE));
+        }
+    }
+
+    private static AccountSecrets account(
+            String id, String username, String bearer, String authToken) {
+        return AccountSecrets.webSession(
+                id, id, username, username, bearer, authToken, "csrf-" + id);
+    }
+}

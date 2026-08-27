@@ -12,10 +12,7 @@ describe("NyTweetDeck shell", () => {
     window.localStorage.clear();
     globalThis.fetch = (async (input) => {
       const url = String(input);
-      if (url.endsWith("/vault/status")) {
-        return Response.json({ exists: false, unlocked: false, accountCount: 0, unlockedAt: null });
-      }
-      if (url.endsWith("/vault/accounts")) {
+      if (url.endsWith("/api/v1/accounts")) {
         return Response.json([]);
       }
       return Response.json(null);
@@ -109,13 +106,11 @@ describe("NyTweetDeck shell", () => {
     expect(screen.getByRole("heading", { name: "検索: NyTweetDeck" })).toBeDefined();
   });
 
-  test("detects a locked vault on startup before loading persisted account columns", async () => {
+  test("clears a persisted account that is no longer in the automatic account store", async () => {
     let timelineRequests = 0;
     globalThis.fetch = (async (input) => {
       const url = String(input);
-      if (url.endsWith("/vault/status")) {
-        return Response.json({ exists: true, unlocked: false, accountCount: 0, unlockedAt: null });
-      }
+      if (url.endsWith("/api/v1/accounts")) return Response.json([]);
       if (url.includes("/api/v1/timelines/")) timelineRequests += 1;
       return Response.json(null);
     }) as typeof fetch;
@@ -130,9 +125,39 @@ describe("NyTweetDeck shell", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: "設定" })).toBeDefined();
+    expect(await screen.findByRole("heading", { name: "アカウントを選択" })).toBeDefined();
     expect(screen.getByText("ログインが必要です")).toBeDefined();
     expect(timelineRequests).toBe(0);
+  });
+
+  test("loads a persisted account and its columns automatically after restart", async () => {
+    let timelineRequests = 0;
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/accounts")) {
+        return Response.json([
+          { accountId: "account-1", userId: "42", username: "alice", displayName: "Alice" },
+        ]);
+      }
+      if (url.includes("/api/v1/timelines/")) {
+        timelineRequests += 1;
+        return Response.json({ posts: [], nextCursor: null });
+      }
+      return Response.json({ connected: true, topicCount: 0 });
+    }) as typeof fetch;
+    window.localStorage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...createDefaultLayout(),
+        activeAccountId: "account-1",
+        columns: [{ id: "home", kind: "home", target: null, label: null }],
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("表示するポストがありません。")).toBeDefined();
+    expect(timelineRequests).toBe(1);
   });
 
   test("reorders navigation and columns through drag and drop and persists the order", async () => {

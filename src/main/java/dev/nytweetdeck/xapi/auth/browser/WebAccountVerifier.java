@@ -1,6 +1,6 @@
 package dev.nytweetdeck.xapi.auth.browser;
 
-import dev.nytweetdeck.account.vault.AccountSecrets;
+import dev.nytweetdeck.account.AccountSecrets;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;

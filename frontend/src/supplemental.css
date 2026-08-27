@@ -1,38 +1,3 @@
-.vault-unlocked-content {
-  margin-top: 13px;
-}
-
-.vault-unlocked-content h4 {
-  margin: 0 0 8px;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.vault-unlocked-content p {
-  margin: 0 0 12px;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.vault-unlocked-content ul {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 12px;
-  padding: 0;
-  list-style: none;
-}
-
-.vault-unlocked-content li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-raised);
-  font-size: 0.76rem;
-}
-
 .secondary-button {
   min-height: 38px;
   padding: 0 14px;
@@ -80,10 +45,6 @@
 .composer-footer > span {
   color: var(--text-muted);
   font-size: 0.74rem;
-}
-
-.vault-unlocked-content li span {
-  color: var(--text-muted);
 }
 
 .post-detail-content {
@@ -136,7 +97,6 @@
   }
 
   .column-type-grid,
-  .vault-form,
   .menu-editor-grid {
     grid-template-columns: 1fr;
   }

@@ -1,6 +1,6 @@
 package dev.nytweetdeck.list;
 
-import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
+import dev.nytweetdeck.account.AccountStore;
 import dev.nytweetdeck.xapi.graphql.AuthenticatedGraphQlClient;
 import java.util.LinkedHashMap;
 import org.springframework.stereotype.Service;
@@ -9,15 +9,15 @@ import org.springframework.stereotype.Service;
 public class ListDirectoryService {
 
     private final AuthenticatedGraphQlClient graphQlClient;
-    private final AccountVaultSessionManager vaultSessionManager;
+    private final AccountStore accountStore;
     private final ListDirectoryParser parser;
 
     public ListDirectoryService(
             AuthenticatedGraphQlClient graphQlClient,
-            AccountVaultSessionManager vaultSessionManager,
+            AccountStore accountStore,
             ListDirectoryParser parser) {
         this.graphQlClient = graphQlClient;
-        this.vaultSessionManager = vaultSessionManager;
+        this.accountStore = accountStore;
         this.parser = parser;
     }
 
@@ -32,7 +32,7 @@ public class ListDirectoryService {
         switch (scope) {
             case "mine" -> {
                 purpose = "combinedLists";
-                variables.put("userId", vaultSessionManager.requireAccount(accountId).userId());
+                variables.put("userId", accountStore.requireAccount(accountId).userId());
             }
             case "suggested" -> purpose = "listsDiscovery";
             case "search" -> {

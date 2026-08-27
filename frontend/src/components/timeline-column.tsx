@@ -49,7 +49,6 @@ export function TimelineColumn({
   const [liveError, setLiveError] = useState(false);
   const [postFilter, setPostFilter] = useState<PostFilter>("all");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [vaultLocked, setVaultLocked] = useState(false);
   const loadingRef = useRef(false);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
@@ -91,19 +90,13 @@ export function TimelineColumn({
               ],
         );
         setCursor(page.nextCursor);
-        setVaultLocked(false);
       } catch (loadError) {
-        if (loadError instanceof TimelineHttpError && loadError.status === 423) {
-          setVaultLocked(true);
-          window.dispatchEvent(new Event("nytweetdeck:vault-locked"));
-        } else {
-          const detail = loadError instanceof TimelineHttpError ? loadError.detail : null;
-          setError(
-            detail === null
-              ? translation.timelineLoadError
-              : `${translation.timelineLoadError} ${detail}`,
-          );
-        }
+        const detail = loadError instanceof TimelineHttpError ? loadError.detail : null;
+        setError(
+          detail === null
+            ? translation.timelineLoadError
+            : `${translation.timelineLoadError} ${detail}`,
+        );
       } finally {
         loadingRef.current = false;
         setLoading(false);
@@ -156,9 +149,7 @@ export function TimelineColumn({
       const action = update.reason;
       if (update.postId != null && isPostAction(action)) {
         setPosts((current) =>
-          current.map((post) =>
-            post.id === update.postId ? applyPostAction(post, action) : post,
-          ),
+          current.map((post) => (post.id === update.postId ? applyPostAction(post, action) : post)),
         );
       }
       if (update.reason === "bookmark" || update.reason === "removeBookmark") {
@@ -232,14 +223,6 @@ export function TimelineColumn({
   }, [cursor, load]);
 
   if (accountId === null) {
-    return (
-      <ColumnMessage
-        title={translation.loginRequired}
-        body={translation.loginRequiredDescription}
-      />
-    );
-  }
-  if (vaultLocked) {
     return (
       <ColumnMessage
         title={translation.loginRequired}

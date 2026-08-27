@@ -1,6 +1,6 @@
 package dev.nytweetdeck.xapi.live;
 
-import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
+import dev.nytweetdeck.account.AccountStore;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.http.WebSessionRequestHeaders;
 import dev.nytweetdeck.xapi.profile.XApiProfileService;
@@ -29,15 +29,15 @@ public class LivePipelineClient implements LivePipelineConnector {
 
     private final HttpClient httpClient;
     private final XApiProfileService profileService;
-    private final AccountVaultSessionManager vaultSessionManager;
+    private final AccountStore accountStore;
 
     public LivePipelineClient(
             HttpClient httpClient,
             XApiProfileService profileService,
-            AccountVaultSessionManager vaultSessionManager) {
+            AccountStore accountStore) {
         this.httpClient = httpClient;
         this.profileService = profileService;
-        this.vaultSessionManager = vaultSessionManager;
+        this.accountStore = accountStore;
     }
 
     @Override
@@ -148,7 +148,7 @@ public class LivePipelineClient implements LivePipelineConnector {
         var uri = URI.create(URI.create("https://api.x.com").resolve(endpoint)
                 + "?topic="
                 + URLEncoder.encode(topicValue, StandardCharsets.UTF_8).replace("+", "%20"));
-        var account = vaultSessionManager.requireAccount(accountId);
+        var account = accountStore.requireAccount(accountId);
         var requestBuilder = HttpRequest.newBuilder(uri)
                 .timeout(CONNECT_TIMEOUT)
                 .GET();

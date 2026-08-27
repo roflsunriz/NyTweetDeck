@@ -1,6 +1,7 @@
 package dev.nytweetdeck.xapi.rest;
 
-import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
+import dev.nytweetdeck.account.AccountStore;
+import dev.nytweetdeck.account.AccountSecrets;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.http.WebSessionRequestHeaders;
 import dev.nytweetdeck.xapi.profile.XApiProfileService;
@@ -25,15 +26,15 @@ public class AuthenticatedRestClient {
 
     private final HttpClient httpClient;
     private final XApiProfileService profileService;
-    private final AccountVaultSessionManager vaultSessionManager;
+    private final AccountStore accountStore;
 
     public AuthenticatedRestClient(
             HttpClient httpClient,
             XApiProfileService profileService,
-            AccountVaultSessionManager vaultSessionManager) {
+            AccountStore accountStore) {
         this.httpClient = httpClient;
         this.profileService = profileService;
-        this.vaultSessionManager = vaultSessionManager;
+        this.accountStore = accountStore;
     }
 
     public RestResult get(String accountId, String endpointName, Map<String, String> parameters) {
@@ -52,7 +53,7 @@ public class AuthenticatedRestClient {
             throw new IllegalArgumentException("未定義のRESTエンドポイントです: " + endpointName);
         }
         path = expandPath(path, pathVariables);
-        var account = vaultSessionManager.requireAccount(accountId);
+        var account = accountStore.requireAccount(accountId);
         var baseUri = URI.create("https://api.x.com");
         var requestUri = withQuery(baseUri.resolve(path), parameters);
         var requestBuilder = HttpRequest.newBuilder(requestUri).timeout(REQUEST_TIMEOUT).GET();
@@ -67,7 +68,7 @@ public class AuthenticatedRestClient {
         if (path == null) {
             throw new IllegalArgumentException("未定義のRESTエンドポイントです: " + endpointName);
         }
-        var account = vaultSessionManager.requireAccount(accountId);
+        var account = accountStore.requireAccount(accountId);
         var baseUri = URI.create("https://api.x.com");
         var requestUri = baseUri.resolve(path);
         var bodyParameters = parameters.entrySet().stream()
@@ -88,7 +89,7 @@ public class AuthenticatedRestClient {
             URI requestUri,
             String method,
             List<Parameter> bodyParameters,
-            dev.nytweetdeck.account.vault.AccountSecrets account,
+            AccountSecrets account,
             String language) {
         WebSessionRequestHeaders.apply(requestBuilder, account, language);
     }

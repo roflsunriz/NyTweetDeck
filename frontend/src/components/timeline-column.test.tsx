@@ -65,33 +65,6 @@ describe("timeline column", () => {
     expect(requestedUrl).toContain("target=42");
   });
 
-  test("reports a locked vault instead of a generic timeline failure", async () => {
-    let lockedEvents = 0;
-    const handleLocked = () => {
-      lockedEvents += 1;
-    };
-    window.addEventListener("nytweetdeck:vault-locked", handleLocked);
-    globalThis.fetch = (async () =>
-      Response.json(
-        { detail: "アカウントVaultはロックされています。" },
-        { status: 423 },
-      )) as unknown as typeof fetch;
-    const column: ColumnConfig = {
-      id: "search",
-      kind: "search",
-      target: "NyTweetDeck",
-      label: "NyTweetDeck",
-    };
-
-    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
-
-    expect(await screen.findByText("ログインが必要です")).toBeDefined();
-    expect(screen.getByText(/Vaultを解除/)).toBeDefined();
-    expect(screen.queryByText("タイムラインを読み込めませんでした。")).toBeNull();
-    expect(lockedEvents).toBe(1);
-    window.removeEventListener("nytweetdeck:vault-locked", handleLocked);
-  });
-
   test("shows the redacted backend reason for a real timeline API failure", async () => {
     globalThis.fetch = (async () =>
       Response.json(

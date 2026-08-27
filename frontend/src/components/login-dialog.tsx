@@ -27,11 +27,7 @@ export function LoginDialog({ translation, onComplete, onClose }: LoginDialogPro
 
     const handleError = (loadError: unknown) => {
       if (!(loadError instanceof DOMException && loadError.name === "AbortError")) {
-        setError(
-          loadError instanceof LoginHttpError && loadError.status === 423
-            ? translation.unlockVaultBeforeLogin
-            : translation.loginFailed,
-        );
+        setError(translation.loginFailed);
       }
     };
 
@@ -64,7 +60,7 @@ export function LoginDialog({ translation, onComplete, onClose }: LoginDialogPro
       controller.abort();
       if (timeout !== undefined) clearTimeout(timeout);
     };
-  }, [retryKey, translation.loginFailed, translation.unlockVaultBeforeLogin]);
+  }, [retryKey, translation.loginFailed]);
 
   useEffect(() => {
     if (status?.phase === "COMPLETE" && status.account !== null) {

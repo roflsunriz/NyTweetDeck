@@ -1,6 +1,6 @@
 package dev.nytweetdeck.xapi.live;
 
-import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
+import dev.nytweetdeck.account.AccountStore;
 import dev.nytweetdeck.timeline.TimelineEventBus;
 import java.time.Instant;
 import java.util.HashMap;
@@ -9,8 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
-import org.springframework.context.event.EventListener;
-import dev.nytweetdeck.account.vault.VaultLockedEvent;
+import jakarta.annotation.PreDestroy;
 
 @Service
 public class LivePipelineSubscriptionService {
@@ -20,18 +19,18 @@ public class LivePipelineSubscriptionService {
     private final LivePipelineConnector connector;
     private final LivePipelineEventParser eventParser;
     private final TimelineEventBus timelineEventBus;
-    private final AccountVaultSessionManager vaultSessionManager;
+    private final AccountStore accountStore;
     private final Map<String, AccountState> accounts = new HashMap<>();
 
     public LivePipelineSubscriptionService(
             LivePipelineConnector connector,
             LivePipelineEventParser eventParser,
             TimelineEventBus timelineEventBus,
-            AccountVaultSessionManager vaultSessionManager) {
+            AccountStore accountStore) {
         this.connector = connector;
         this.eventParser = eventParser;
         this.timelineEventBus = timelineEventBus;
-        this.vaultSessionManager = vaultSessionManager;
+        this.accountStore = accountStore;
     }
 
     public synchronized SubscriptionStatus update(
@@ -51,7 +50,7 @@ public class LivePipelineSubscriptionService {
             topics.add("/tweet_engagement/" + postId);
         }
         if (directMessages) {
-            var userId = vaultSessionManager.requireAccount(accountId).userId();
+            var userId = accountStore.requireAccount(accountId).userId();
             topics.add("/dm_update/" + userId);
             topics.add("/dm_typing/" + userId);
         }
@@ -78,8 +77,8 @@ public class LivePipelineSubscriptionService {
         }
     }
 
-    @EventListener
-    public synchronized void closeAll(VaultLockedEvent ignored) {
+    @PreDestroy
+    public synchronized void closeAll() {
         for (var state : accounts.values()) {
             close(state.connection);
         }

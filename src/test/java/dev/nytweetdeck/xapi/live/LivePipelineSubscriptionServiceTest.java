@@ -3,7 +3,6 @@ package dev.nytweetdeck.xapi.live;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.nytweetdeck.timeline.TimelineEventBus;
-import dev.nytweetdeck.account.vault.VaultLockedEvent;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -54,7 +53,7 @@ class LivePipelineSubscriptionServiceTest {
         assertThat(connector.opens.get(connector.opens.size() - 1).topics())
                 .containsExactly("/tweet_engagement/2");
         var activeConnection = connector.opens.get(connector.opens.size() - 1);
-        service.closeAll(new VaultLockedEvent());
+        service.closeAll();
         assertThat(activeConnection.closed()).isTrue();
         eventSubscription.close();
     }

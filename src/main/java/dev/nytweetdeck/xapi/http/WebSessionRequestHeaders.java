@@ -1,6 +1,6 @@
 package dev.nytweetdeck.xapi.http;
 
-import dev.nytweetdeck.account.vault.AccountSecrets;
+import dev.nytweetdeck.account.AccountSecrets;
 import dev.nytweetdeck.xapi.auth.browser.WebBearerTokenProvider;
 import java.net.http.HttpRequest;
 

@@ -10,7 +10,6 @@ import type {
 } from "../model/layout";
 import { supportedLocales } from "../model/layout";
 import { Modal } from "./modal";
-import { AccountVaultSetup } from "./account-vault-setup";
 
 interface SettingsDialogProps {
   translation: Translation;
@@ -137,7 +136,6 @@ export function SettingsDialog({
         />
       </div>
       <ApiMetadataSettings translation={translation} />
-      <AccountVaultSetup translation={translation} />
     </Modal>
   );
 }

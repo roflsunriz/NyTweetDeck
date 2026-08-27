@@ -12,29 +12,22 @@ afterEach(() => {
 });
 
 describe("account switcher", () => {
-  test("routes to vault settings instead of offering a login that must fail while locked", async () => {
-    globalThis.fetch = (async () =>
-      Response.json({
-        exists: false,
-        unlocked: false,
-        accountCount: 0,
-      })) as unknown as typeof fetch;
-    const onSetup = mock(() => undefined);
+  test("offers login immediately when no account has been saved", async () => {
+    globalThis.fetch = (async () => Response.json([])) as unknown as typeof fetch;
+    const onLogin = mock(() => undefined);
     const user = userEvent.setup();
     render(
       <AccountSwitcherDialog
         translation={translate("ja")}
         activeAccountId={null}
         onSelect={() => undefined}
-        onLogin={() => undefined}
-        onSetup={onSetup}
+        onLogin={onLogin}
         onClose={() => undefined}
       />,
     );
 
-    await user.click(await screen.findByRole("button", { name: "Vault設定を開く" }));
+    await user.click(await screen.findByRole("button", { name: "Xアカウントにログイン" }));
 
-    expect(onSetup).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "Xアカウントにログイン" })).toBeNull();
+    expect(onLogin).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,7 +1,7 @@
 package dev.nytweetdeck.xapi.auth.browser;
 
-import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
-import dev.nytweetdeck.account.vault.AccountVaultSessionManager.AccountSummary;
+import dev.nytweetdeck.account.AccountStore;
+import dev.nytweetdeck.account.AccountStore.AccountSummary;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
@@ -42,7 +42,7 @@ public class BrowserLoginService {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-    private final AccountVaultSessionManager vaultSessionManager;
+    private final AccountStore accountStore;
     private final WebBearerTokenProvider bearerTokenProvider;
     private final WebAccountVerifier accountVerifier;
     private final Path sessionRoot;
@@ -59,14 +59,14 @@ public class BrowserLoginService {
     public BrowserLoginService(
             HttpClient httpClient,
             ObjectMapper objectMapper,
-            AccountVaultSessionManager vaultSessionManager,
+            AccountStore accountStore,
             WebBearerTokenProvider bearerTokenProvider,
             WebAccountVerifier accountVerifier,
             @Value("${nytweetdeck.login.browser-session-path:.local/browser-login}") String sessionRoot,
             @Value("${nytweetdeck.login.chrome-path:}") String configuredChromePath) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
-        this.vaultSessionManager = vaultSessionManager;
+        this.accountStore = accountStore;
         this.bearerTokenProvider = bearerTokenProvider;
         this.accountVerifier = accountVerifier;
         this.sessionRoot = Path.of(sessionRoot).toAbsolutePath().normalize();
@@ -77,7 +77,6 @@ public class BrowserLoginService {
         if (requestKey == null || !requestKey.matches("[A-Za-z0-9:-]{1,100}")) {
             throw new IllegalArgumentException("ブラウザログイン要求IDが不正です。");
         }
-        vaultSessionManager.accountSummaries();
         removeExpiredSessions();
         var existingSessionId = requestSessions.get(requestKey);
         if (existingSessionId != null) {
@@ -157,8 +156,8 @@ public class BrowserLoginService {
             var identity = readBrowserIdentity(cdp);
             stage = "PREPARE_ACCOUNT";
             var account = accountVerifier.verify(cookies, bearerTokenProvider.require(), identity);
-            stage = "SAVE_VAULT";
-            vaultSessionManager.addOrReplace(account);
+            stage = "SAVE_ACCOUNT";
+            accountStore.addOrReplace(account);
             state.complete(new AccountSummary(
                     account.accountId(), account.userId(), account.username(), account.displayName()));
         } catch (Exception exception) {

@@ -1,6 +1,6 @@
 package dev.nytweetdeck.xapi.graphql;
 
-import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
+import dev.nytweetdeck.account.AccountStore;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.http.WebSessionRequestHeaders;
 import dev.nytweetdeck.xapi.http.XClientTransactionIdService;
@@ -45,7 +45,7 @@ public class AuthenticatedGraphQlClient {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final XApiProfileService profileService;
-    private final AccountVaultSessionManager vaultSessionManager;
+    private final AccountStore accountStore;
     private final XClientTransactionIdService transactionIdService;
 
     @Autowired
@@ -53,12 +53,12 @@ public class AuthenticatedGraphQlClient {
             HttpClient httpClient,
             ObjectMapper objectMapper,
             XApiProfileService profileService,
-            AccountVaultSessionManager vaultSessionManager,
+            AccountStore accountStore,
             XClientTransactionIdService transactionIdService) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.profileService = profileService;
-        this.vaultSessionManager = vaultSessionManager;
+        this.accountStore = accountStore;
         this.transactionIdService = transactionIdService;
     }
 
@@ -66,8 +66,8 @@ public class AuthenticatedGraphQlClient {
             HttpClient httpClient,
             ObjectMapper objectMapper,
             XApiProfileService profileService,
-            AccountVaultSessionManager vaultSessionManager) {
-        this(httpClient, objectMapper, profileService, vaultSessionManager, null);
+            AccountStore accountStore) {
+        this(httpClient, objectMapper, profileService, accountStore, null);
     }
 
     public GraphQlResult execute(
@@ -120,7 +120,7 @@ public class AuthenticatedGraphQlClient {
         var profile = profileService.profile();
         var operation = profileService.requireOperation(purpose);
         var features = profileService.selectFeatures(operation);
-        var account = vaultSessionManager.requireAccount(accountId);
+        var account = accountStore.requireAccount(accountId);
         var operationUri = operation.resolveAgainst(profile.graphqlBaseUri());
 
         var fieldToggles = operation.fieldToggles().isEmpty()

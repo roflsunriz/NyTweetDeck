@@ -90,7 +90,7 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 
 export function App() {
   const [layout, setLayout] = useState<AppLayout>(() => loadLayout(window.localStorage));
-  const [vaultUnlocked, setVaultUnlocked] = useState<boolean | null>(null);
+  const [accountIds, setAccountIds] = useState<string[] | null>(null);
   const [dialog, setDialog] = useState<
     "accounts" | "columns" | "composer" | "login" | "menu" | "search" | "settings" | null
   >(null);
@@ -121,34 +121,35 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetchWithTimeout("/api/v1/accounts/vault/status", { signal: controller.signal })
+    void fetchWithTimeout("/api/v1/accounts", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return (await response.json()) as { unlocked: boolean };
+        return (await response.json()) as Array<{ accountId: string }>;
       })
-      .then((status) => {
-        setVaultUnlocked(status.unlocked);
-        if (!status.unlocked && layout.activeAccountId !== null) {
-          setDialog("settings");
+      .then((accounts) => {
+        const ids = accounts.map((account) => account.accountId);
+        setAccountIds(ids);
+        if (layout.activeAccountId !== null && !ids.includes(layout.activeAccountId)) {
+          setLayout((current) => ({ ...current, activeAccountId: null }));
+          setDialog("accounts");
         }
       })
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setVaultUnlocked(false);
+          setAccountIds([]);
+          if (layout.activeAccountId !== null) {
+            setLayout((current) => ({ ...current, activeAccountId: null }));
+            setDialog("accounts");
+          }
         }
       });
-    const handleLocked = () => setVaultUnlocked(false);
-    const handleUnlocked = () => setVaultUnlocked(true);
-    window.addEventListener("nytweetdeck:vault-locked", handleLocked);
-    window.addEventListener("nytweetdeck:vault-unlocked", handleUnlocked);
-    return () => {
-      controller.abort();
-      window.removeEventListener("nytweetdeck:vault-locked", handleLocked);
-      window.removeEventListener("nytweetdeck:vault-unlocked", handleUnlocked);
-    };
+    return () => controller.abort();
   }, [layout.activeAccountId]);
 
-  const activeAccountId = vaultUnlocked === true ? layout.activeAccountId : null;
+  const activeAccountId =
+    layout.activeAccountId !== null && accountIds?.includes(layout.activeAccountId) === true
+      ? layout.activeAccountId
+      : null;
 
   const addColumn = (kind: ColumnKind, target: string | null, label: string | null = null) => {
     setLayout((current) => ({
@@ -177,6 +178,9 @@ export function App() {
   const setNavigationItems = (navItems: NavItemId[]) =>
     setLayout((current) => ({ ...current, navItems }));
   const setActiveAccount = (activeAccountId: string) => {
+    setAccountIds((current) =>
+      current?.includes(activeAccountId) === true ? current : [...(current ?? []), activeAccountId],
+    );
     setLayout((current) => ({ ...current, activeAccountId }));
     setDialog(null);
   };
@@ -437,7 +441,6 @@ export function App() {
             activeAccountId={layout.activeAccountId}
             onSelect={setActiveAccount}
             onLogin={() => setDialog("login")}
-            onSetup={() => setDialog("settings")}
             onClose={() => setDialog(null)}
           />
         )}

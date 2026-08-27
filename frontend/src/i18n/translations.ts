@@ -38,7 +38,6 @@ export interface Translation {
   accountSwitcher: string;
   selectAccount: string;
   activeAccount: string;
-  noUnlockedAccounts: string;
   loading: string;
   retry: string;
   loadMore: string;
@@ -133,17 +132,6 @@ export interface Translation {
   apiMetadataFallback: string;
   apiMetadataFailed: string;
   saving: string;
-  accountVault: string;
-  vaultPassphrase: string;
-  confirmPassphrase: string;
-  createVault: string;
-  unlockVault: string;
-  lockVault: string;
-  vaultLocked: string;
-  vaultUnlocked: string;
-  passphraseRequirement: string;
-  passphraseMismatch: string;
-  vaultOperationError: string;
   accounts: string;
   noAccounts: string;
   loginAccount: string;
@@ -155,8 +143,6 @@ export interface Translation {
   selectLoginChoice: string;
   loginFailed: string;
   unsupportedLoginStep: string;
-  unlockVaultBeforeLogin: string;
-  openVaultSettings: string;
   localeName: Record<Locale, string>;
   themeName: Record<Theme, string>;
   fontSizeName: Record<FontSize, string>;
@@ -193,12 +179,12 @@ const translations: Partial<Record<Locale, Translation>> = {
     close: "閉じる",
     removeColumn: (title) => `${title}を削除`,
     loginRequired: "ログインが必要です",
-    loginRequiredDescription: "Vaultを解除し、使用するXアカウントを選択してください。",
+    loginRequiredDescription:
+      "使用するXアカウントへログインするか、保存済みアカウントを選択してください。",
     settings: "設定",
     accountSwitcher: "アカウント切り替え",
     selectAccount: "アカウントを選択",
     activeAccount: "使用中",
-    noUnlockedAccounts: "Vaultを解除し、アカウントへログインしてください。",
     loading: "読み込み中…",
     retry: "再試行",
     loadMore: "さらに読み込む",
@@ -294,18 +280,6 @@ const translations: Partial<Record<Locale, Translation>> = {
     apiMetadataFallback: "同梱された検証済み定義を使用中です。",
     apiMetadataFailed: "更新できませんでした。直前の検証済み定義を維持しています。",
     saving: "保存中…",
-    accountVault: "アカウントVault",
-    vaultPassphrase: "Vaultパスフレーズ",
-    confirmPassphrase: "パスフレーズを確認",
-    createVault: "Vaultを作成",
-    unlockVault: "Vaultを解除",
-    lockVault: "Vaultをロック",
-    vaultLocked: "ロック中",
-    vaultUnlocked: "解除済み",
-    passphraseRequirement:
-      "12文字以上の専用パスフレーズを指定してください。Xのパスワードは使用しません。",
-    passphraseMismatch: "確認用パスフレーズが一致しません。",
-    vaultOperationError: "アカウントVaultを操作できませんでした。",
     accounts: "保存済みアカウント",
     noAccounts: "保存済みアカウントはありません。",
     loginAccount: "Xアカウントにログイン",
@@ -313,13 +287,11 @@ const translations: Partial<Record<Locale, Translation>> = {
     browserLoginInstructions:
       "専用ChromeでXへのログインを完了し、Chromeを閉じずに下のボタンを押してください。",
     browserLoginCapture: "Xへのログインが完了しました",
-    browserLoginCapturing: "Xのログインセッションを安全に保存しています。",
+    browserLoginCapturing: "Xのログインセッションをローカルに保存しています。",
     browserLoginBrowserClosed: "専用Chromeが閉じられました。もう一度ログインを開始してください。",
     selectLoginChoice: "選択してください",
     loginFailed: "Xアカウントへログインできませんでした。設定と入力を確認してください。",
     unsupportedLoginStep: "この認証手順には現在の端末では対応できません。",
-    unlockVaultBeforeLogin: "先に設定でアカウントVaultを作成または解除してください。",
-    openVaultSettings: "Vault設定を開く",
     localeName: {
       ja: "日本語",
       en: "English",
@@ -398,12 +370,11 @@ const translations: Partial<Record<Locale, Translation>> = {
     close: "Close",
     removeColumn: (title) => `Remove ${title}`,
     loginRequired: "Sign-in required",
-    loginRequiredDescription: "Unlock the vault and select the X account to use.",
+    loginRequiredDescription: "Sign in to X or select the saved account to use.",
     settings: "Settings",
     accountSwitcher: "Switch account",
     selectAccount: "Select account",
     activeAccount: "Active",
-    noUnlockedAccounts: "Unlock the vault and sign in to an account.",
     loading: "Loading…",
     retry: "Retry",
     loadMore: "Load more",
@@ -499,18 +470,6 @@ const translations: Partial<Record<Locale, Translation>> = {
     apiMetadataFallback: "Using the bundled verified definitions.",
     apiMetadataFailed: "Update failed. The last verified definitions remain active.",
     saving: "Saving…",
-    accountVault: "Account vault",
-    vaultPassphrase: "Vault passphrase",
-    confirmPassphrase: "Confirm passphrase",
-    createVault: "Create vault",
-    unlockVault: "Unlock vault",
-    lockVault: "Lock vault",
-    vaultLocked: "Locked",
-    vaultUnlocked: "Unlocked",
-    passphraseRequirement:
-      "Use a dedicated passphrase of at least 12 characters. Do not use your X password.",
-    passphraseMismatch: "The confirmation passphrase does not match.",
-    vaultOperationError: "Could not operate the account vault.",
     accounts: "Saved accounts",
     noAccounts: "No saved accounts yet.",
     loginAccount: "Sign in to X",
@@ -518,13 +477,11 @@ const translations: Partial<Record<Locale, Translation>> = {
     browserLoginInstructions:
       "Finish signing in to X in the dedicated Chrome window, keep it open, then use the button below.",
     browserLoginCapture: "I finished signing in to X",
-    browserLoginCapturing: "Securely saving the X login session.",
+    browserLoginCapturing: "Saving the X login session locally.",
     browserLoginBrowserClosed: "The dedicated Chrome window was closed. Start sign-in again.",
     selectLoginChoice: "Select an option",
     loginFailed: "Could not sign in to X. Check setup and your input.",
     unsupportedLoginStep: "This authentication step is not supported on this device.",
-    unlockVaultBeforeLogin: "Create or unlock the account vault in Settings first.",
-    openVaultSettings: "Open vault settings",
     localeName: {
       ja: "日本語",
       en: "English",

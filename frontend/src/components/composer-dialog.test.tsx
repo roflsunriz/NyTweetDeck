@@ -46,7 +46,7 @@ describe("composer", () => {
       <ComposerDialog translation={translate("ja")} accountId={null} onClose={() => undefined} />,
     );
 
-    expect(screen.getByText("Vaultを解除し、アカウントへログインしてください。")).toBeDefined();
+    expect(screen.getByText("保存済みアカウントはありません。")).toBeDefined();
     expect(screen.queryByPlaceholderText("いまどうしてる？")).toBeNull();
   });
 

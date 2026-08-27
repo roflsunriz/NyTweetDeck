@@ -1,4 +1,4 @@
-package dev.nytweetdeck.account.vault;
+package dev.nytweetdeck.account;
 
 public record AccountSecrets(
         String accountId,
@@ -13,8 +13,7 @@ public record AccountSecrets(
         requireValue(accountId, "accountId");
         requireValue(userId, "userId");
         requireValue(username, "username");
-        var webReady = hasValue(webBearerToken) && hasValue(authToken) && hasValue(csrfToken);
-        if (!webReady) {
+        if (!hasWebSession(webBearerToken, authToken, csrfToken)) {
             throw new IllegalArgumentException("Webセッション資格情報が必要です。");
         }
     }
@@ -38,7 +37,7 @@ public record AccountSecrets(
     }
 
     public boolean hasWebSession() {
-        return hasValue(webBearerToken) && hasValue(authToken) && hasValue(csrfToken);
+        return hasWebSession(webBearerToken, authToken, csrfToken);
     }
 
     @Override
@@ -58,6 +57,10 @@ public record AccountSecrets(
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(name + "が空です。");
         }
+    }
+
+    private static boolean hasWebSession(String bearer, String auth, String csrf) {
+        return hasValue(bearer) && hasValue(auth) && hasValue(csrf);
     }
 
     private static boolean hasValue(String value) {

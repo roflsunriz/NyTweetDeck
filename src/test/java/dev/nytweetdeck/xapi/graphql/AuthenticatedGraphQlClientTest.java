@@ -5,9 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import dev.nytweetdeck.account.vault.AccountSecrets;
-import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
-import dev.nytweetdeck.account.vault.EncryptedAccountVault;
+import dev.nytweetdeck.account.AccountSecrets;
+import dev.nytweetdeck.account.AccountStore;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.http.XClientTransactionIdService;
 import dev.nytweetdeck.xapi.profile.XApiProfile;
@@ -23,7 +22,6 @@ import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
@@ -244,20 +242,15 @@ class AuthenticatedGraphQlClientTest {
                 return Map.of("feature_enabled", true);
             }
         };
-        var passphrase = "correct horse battery staple".toCharArray();
-        var vault = new EncryptedAccountVault(
-                jsonMapper,
-                temporaryDirectory.resolve("accounts.vault").toString());
-        var vaultSession = new AccountVaultSessionManager(vault);
-        vaultSession.create(passphrase);
-        vaultSession.addOrReplace(AccountSecrets.webSession(
+        var accountStore = new AccountStore(
+                jsonMapper, temporaryDirectory.resolve("accounts.json"));
+        accountStore.addOrReplace(AccountSecrets.webSession(
                 "account-1", "42", "alice", "Alice", "web-bearer", "web-auth", "web-csrf"));
-        Arrays.fill(passphrase, '\0');
         return new AuthenticatedGraphQlClient(
                 HttpClient.newHttpClient(),
                 jsonMapper,
                 profileService,
-                vaultSession,
+                accountStore,
                 transactionIdService);
     }
 

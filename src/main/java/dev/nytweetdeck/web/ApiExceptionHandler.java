@@ -1,6 +1,6 @@
 package dev.nytweetdeck.web;
 
-import dev.nytweetdeck.account.vault.VaultException;
+import dev.nytweetdeck.account.AccountStoreException;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import java.net.URI;
 import org.springframework.http.HttpStatus;
@@ -12,12 +12,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-    @ExceptionHandler(VaultException.class)
-    ProblemDetail handleVault(VaultException exception) {
-        var status = exception.getMessage().contains("ロック")
-                ? HttpStatus.LOCKED
-                : HttpStatus.CONFLICT;
-        return problem(status, "アカウントVaultエラー", exception.getMessage());
+    @ExceptionHandler(AccountStoreException.class)
+    ProblemDetail handleAccountStore(AccountStoreException exception) {
+        return problem(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "アカウント保存エラー",
+                exception.getMessage());
     }
 
     @ExceptionHandler(XApiHttpException.class)

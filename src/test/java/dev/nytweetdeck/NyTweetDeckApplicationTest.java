@@ -7,13 +7,26 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class NyTweetDeckApplicationTest {
+
+    private static final Path ACCOUNT_STORE_PATH = Path.of(
+            System.getProperty("java.io.tmpdir"),
+            "nytweetdeck-test-" + UUID.randomUUID() + ".json");
+
+    @DynamicPropertySource
+    static void accountStoreProperties(DynamicPropertyRegistry registry) {
+        registry.add("nytweetdeck.account.store-path", ACCOUNT_STORE_PATH::toString);
+    }
 
     @LocalServerPort
     private int port;
@@ -67,5 +80,18 @@ class NyTweetDeckApplicationTest {
                 .contains("\"homeForYou\"")
                 .doesNotContainIgnoringCase("consumerSecret")
                 .doesNotContainIgnoringCase("Authorization");
+    }
+
+    @Test
+    void servesTheAutomaticallyLoadedAccountListWithoutSetup() throws Exception {
+        var request = HttpRequest.newBuilder(
+                        URI.create("http://127.0.0.1:" + port + "/api/v1/accounts"))
+                .GET()
+                .build();
+
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).isEqualTo("[]");
     }
 }

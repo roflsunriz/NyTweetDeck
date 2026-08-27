@@ -64,7 +64,7 @@ export function ComposerDialog({
       onClose={onClose}
     >
       {accountId === null ? (
-        <p className="composer-message">{translation.noUnlockedAccounts}</p>
+        <p className="composer-message">{translation.noAccounts}</p>
       ) : (
         <form className="composer-form" onSubmit={submit}>
           {quotePostUrl !== undefined && (
