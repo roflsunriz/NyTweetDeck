@@ -199,6 +199,7 @@ public class TimelineResponseParser {
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 parseAuthor(node),
+                parsePreTranslated(node, node),
                 parseMedia(legacy.get("extended_entities")));
     }
 

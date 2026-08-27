@@ -363,7 +363,13 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
             repostedBy: null, replyCount: 1, repostCount: 2, quoteCount: 0,
             likeCount: 3, bookmarkCount: 0, viewCount: 10,
             liked: true, reposted: true, bookmarked: false,
-            replyToPostId: null, replyToUsername: null, quotedPost: null,
+            replyToPostId: null, replyToUsername: null,
+            quotedPost: {
+              id: "quoted-100", text: "Quoted original", language: "en",
+              createdAt: "2026-08-27T00:00:00Z",
+              author: { id: "43", username: "quoted", displayName: "Quoted", avatarUrl: null, verified: false },
+              preTranslated: null, media: []
+            },
             communityNote: {
               title: "Community Note",
               text: "This image was taken in 2024.",
@@ -527,7 +533,22 @@ await client.evaluate(`(() => {
 await reload();
 await waitForCondition('document.querySelector("[data-post-action=like]") !== null');
 await waitForCondition('document.querySelector(".post-text")?.textContent === "translated-100"');
+await waitForCondition(
+  'document.querySelector(".quoted-post-text")?.textContent === "translated-quoted-100"',
+);
 await waitForCondition("window.__qaTranslationActive === 0");
+const quotedOriginalClicked = await client.evaluate<boolean>(`(() => {
+  const button = document.querySelector(".quoted-post-translation-status button");
+  if (!(button instanceof HTMLButtonElement)) return false;
+  button.click();
+  return true;
+})()`);
+if (!quotedOriginalClicked) {
+  throw new Error("引用元の原文切替を操作できませんでした。");
+}
+await waitForCondition(
+  'document.querySelector(".quoted-post-text")?.textContent === "Quoted original"',
+);
 const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const like = document.querySelector("[data-post-action=like]");
   const repost = document.querySelector("[data-post-action=repost]");
@@ -545,6 +566,9 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
     translatedPostCount: new Set(window.__qaTranslationPostIds).size,
     translationMaximumActive: window.__qaTranslationMaximumActive,
     firstPostTranslationAttempts: window.__qaTranslationAttempts["100"] ?? 0,
+    quotedPostText: document.querySelector(".quoted-post-text")?.textContent,
+    quotedTranslationProvider: document.querySelector(".quoted-post-translation-status")?.textContent,
+    quoteToggleOpenedDialog: document.querySelector('[role="dialog"]') !== null,
     documentOverflow: document.documentElement.scrollWidth > innerWidth
   };
 })()`);
@@ -555,9 +579,12 @@ if (
   engagementMetrics.videoLoop !== true ||
   engagementMetrics.videoVolume !== 1 ||
   engagementMetrics.videoMuted !== true ||
-  Number(engagementMetrics.translatedPostCount) >= 13 ||
+  Number(engagementMetrics.translatedPostCount) >= 14 ||
   engagementMetrics.translationMaximumActive !== 2 ||
-  engagementMetrics.firstPostTranslationAttempts !== 2
+  engagementMetrics.firstPostTranslationAttempts !== 2 ||
+  engagementMetrics.quotedPostText !== "Quoted original" ||
+  !String(engagementMetrics.quotedTranslationProvider).includes("Xによる自動翻訳") ||
+  engagementMetrics.quoteToggleOpenedDialog !== false
 ) {
   throw new Error(`反応済み色の検証に失敗しました: ${JSON.stringify(engagementMetrics)}`);
 }

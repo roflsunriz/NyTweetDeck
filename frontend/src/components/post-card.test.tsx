@@ -188,9 +188,117 @@ describe("post actions", () => {
     await user.click(repostContext);
     expect(openUser).toHaveBeenCalledWith("30");
     const quote = screen.getByRole("button", { name: /Quoted source/ });
-    expect(quote.classList.contains("quoted-post-card")).toBe(true);
+    expect(quote.classList.contains("quoted-post-open")).toBe(true);
+    expect(quote.closest(".quoted-post-card")).not.toBeNull();
     await user.click(quote);
     expect(openQuotedPost).toHaveBeenCalledWith("249");
+  });
+
+  test("automatically translates a fresh quoted post and keeps its original toggle internal", async () => {
+    const openQuotedPost = mock(() => undefined);
+    const requestedPostIds: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/translation?")) {
+        const postId = /\/posts\/([^/]+)\/translation/.exec(url)?.[1] ?? "unknown";
+        requestedPostIds.push(postId);
+        return Response.json({
+          postId,
+          sourceLanguage: "en",
+          targetLanguage: "ja",
+          text: "翻訳された引用元",
+          provider: "X",
+        });
+      }
+      return Response.json({ completed: true });
+    }) as unknown as typeof fetch;
+    const user = userEvent.setup();
+    const quotedPost: TimelinePost = {
+      ...post(),
+      id: "quote-container",
+      text: "引用コメント",
+      quotedPost: {
+        id: "quote-source",
+        text: "Fresh quoted source",
+        language: "en",
+        createdAt: null,
+        author: {
+          id: "24",
+          username: "quoted",
+          displayName: "Quoted Author",
+          avatarUrl: null,
+          verified: false,
+        },
+        media: [],
+      },
+    };
+
+    render(
+      <PostTranslationProvider
+        value={{ locale: "ja", autoTranslatePosts: true, setAutoTranslatePosts: () => undefined }}
+      >
+        <PostCard
+          post={quotedPost}
+          accountId="account-1"
+          translation={translate("ja")}
+          onOpenQuotedPost={openQuotedPost}
+        />
+      </PostTranslationProvider>,
+    );
+
+    expect(await screen.findByText("翻訳された引用元")).toBeDefined();
+    expect(requestedPostIds).toEqual(["quote-source"]);
+    await user.click(screen.getByRole("button", { name: "原文を表示" }));
+    expect(screen.getByText("Fresh quoted source")).toBeDefined();
+    expect(openQuotedPost).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /Fresh quoted source/ }));
+    expect(openQuotedPost).toHaveBeenCalledWith("quote-source");
+  });
+
+  test("uses an X pretranslation embedded in a quoted post without another request", async () => {
+    let translationRequests = 0;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      if (String(input).includes("/translation?")) translationRequests += 1;
+      return new Response(null, { status: 500 });
+    }) as unknown as typeof fetch;
+
+    render(
+      <PostTranslationProvider
+        value={{ locale: "ja", autoTranslatePosts: true, setAutoTranslatePosts: () => undefined }}
+      >
+        <PostCard
+          post={{
+            ...post(),
+            quotedPost: {
+              id: "quote-pretranslated",
+              text: "Quoted original",
+              language: "en",
+              createdAt: null,
+              author: {
+                id: "24",
+                username: "quoted",
+                displayName: "Quoted Author",
+                avatarUrl: null,
+                verified: false,
+              },
+              preTranslated: {
+                text: "事前翻訳された引用元",
+                sourceLanguage: "en",
+                targetLanguage: "ja",
+                provider: "Grok",
+              },
+              media: [],
+            },
+          }}
+          accountId="account-1"
+          translation={translate("ja")}
+        />
+      </PostTranslationProvider>,
+    );
+
+    expect(screen.getByText("事前翻訳された引用元")).toBeDefined();
+    expect(screen.getByText("Grokによる自動翻訳")).toBeDefined();
+    expect(translationRequests).toBe(0);
   });
 
   test("honors persistent media preview, autoplay, loop, and volume settings", async () => {

@@ -13,14 +13,14 @@ import {
 import { type KeyboardEvent, type MouseEvent, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
-import {
-  loadPostTranslation,
-  shouldTranslatePost,
-  translationTargetsLocale,
-} from "../model/post-translation";
 import { useRelativeTime } from "../model/relative-time";
 import { ComposerDialog } from "./composer-dialog";
 import { usePostTranslationSettings } from "./post-translation-context";
+import {
+  type PostTranslationView,
+  type PreTranslatedPost,
+  usePostTranslation,
+} from "./use-post-translation";
 
 export interface TimelinePost {
   id: string;
@@ -59,19 +59,13 @@ interface CommunityNote {
   sources?: Array<{ fromIndex: number; toIndex: number; url: string }>;
 }
 
-interface PreTranslatedPost {
-  text: string;
-  sourceLanguage: string | null;
-  targetLanguage: string;
-  provider: "Grok";
-}
-
 interface EmbeddedPost {
   id: string;
   text: string;
   language: string | null;
   createdAt: string | null;
   author: TimelinePost["author"];
+  preTranslated?: PreTranslatedPost | null;
   media: TimelinePost["media"];
 }
 
@@ -105,33 +99,21 @@ export function PostCard({
   const [replying, setReplying] = useState(false);
   const [quoting, setQuoting] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [fetchedTranslatedText, setFetchedTranslatedText] = useState<string | null>(null);
-  const [fetchedTranslationProvider, setFetchedTranslationProvider] = useState<string | null>(null);
-  const [translationLoading, setTranslationLoading] = useState(false);
-  const [translationError, setTranslationError] = useState(false);
-  const [translationRetrySeconds, setTranslationRetrySeconds] = useState(0);
   const [translationInViewport, setTranslationInViewport] = useState(
     () => typeof globalThis.IntersectionObserver === "undefined",
   );
-  const [showOriginal, setShowOriginal] = useState(false);
-  const [translationAttempt, setTranslationAttempt] = useState(0);
   const cardRef = useRef<HTMLElement | null>(null);
-  const { locale, autoTranslatePosts, setAutoTranslatePosts } = usePostTranslationSettings();
+  const { autoTranslatePosts, setAutoTranslatePosts } = usePostTranslationSettings();
   const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
   const postUrl = `https://x.com/${post.author.username}/status/${post.id}`;
-  const preTranslated =
-    post.preTranslated !== undefined &&
-    post.preTranslated !== null &&
-    translationTargetsLocale(post.preTranslated.targetLanguage, locale)
-      ? post.preTranslated
-      : null;
-  const translationNeeded =
-    post.text.trim().length > 0 &&
-    (preTranslated !== null || shouldTranslatePost(post.language, locale));
-  const translatedText = preTranslated?.text ?? fetchedTranslatedText;
-  const translationProvider = preTranslated?.provider ?? fetchedTranslationProvider;
-  const visibleText =
-    autoTranslatePosts && translatedText !== null && !showOriginal ? translatedText : post.text;
+  const postTranslation = usePostTranslation({
+    accountId,
+    postId: post.id,
+    text: post.text,
+    language: post.language,
+    preTranslated: post.preTranslated,
+    active: translationInViewport,
+  });
 
   useEffect(() => setLiked(post.liked), [post.liked]);
   useEffect(() => setReposted(post.reposted), [post.reposted]);
@@ -166,77 +148,6 @@ export function PostCard({
     observer.observe(target);
     return () => observer.disconnect();
   }, [post.id]);
-
-  useEffect(() => {
-    if (!autoTranslatePosts || !translationNeeded || !translationInViewport) {
-      setTranslationLoading(false);
-      setTranslationError(false);
-      setTranslationRetrySeconds(0);
-      setShowOriginal(false);
-      return;
-    }
-    if (preTranslated !== null) {
-      setFetchedTranslatedText(null);
-      setFetchedTranslationProvider(null);
-      setTranslationLoading(false);
-      setTranslationError(false);
-      setTranslationRetrySeconds(0);
-      setShowOriginal(false);
-      return;
-    }
-    if (post.language === null) {
-      setTranslationLoading(false);
-      setTranslationError(false);
-      setTranslationRetrySeconds(0);
-      setShowOriginal(false);
-      return;
-    }
-    let active = true;
-    setFetchedTranslatedText(null);
-    setFetchedTranslationProvider(null);
-    setTranslationLoading(true);
-    setTranslationError(false);
-    setTranslationRetrySeconds(0);
-    setShowOriginal(false);
-    void loadPostTranslation({
-      accountId,
-      postId: post.id,
-      sourceLanguage: post.language,
-      targetLanguage: locale,
-      force: translationAttempt > 0,
-      onRetryScheduled: (delaySeconds) => {
-        if (active) setTranslationRetrySeconds(delaySeconds);
-      },
-    })
-      .then((result) => {
-        if (!active) return;
-        setFetchedTranslatedText(result.text);
-        setFetchedTranslationProvider(result.provider);
-        setTranslationRetrySeconds(0);
-      })
-      .catch(() => {
-        if (active) {
-          setTranslationRetrySeconds(0);
-          setTranslationError(true);
-        }
-      })
-      .finally(() => {
-        if (active) setTranslationLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [
-    accountId,
-    autoTranslatePosts,
-    locale,
-    post.id,
-    post.language,
-    preTranslated,
-    translationAttempt,
-    translationInViewport,
-    translationNeeded,
-  ]);
 
   const mutate = async (action: string, onSuccess: () => void) => {
     setBusyAction(action);
@@ -400,39 +311,13 @@ export function PostCard({
           </button>
         )}
         {onOpen === undefined ? (
-          <p className="post-text">{renderPostText(visibleText)}</p>
+          <p className="post-text">{renderPostText(postTranslation.visibleText)}</p>
         ) : (
           <button className="post-open-button post-text" type="button" onClick={onOpen}>
-            {renderPostText(visibleText)}
+            {renderPostText(postTranslation.visibleText)}
           </button>
         )}
-        {autoTranslatePosts && translationNeeded && (
-          <div className="post-translation-status" aria-live="polite">
-            {translationLoading && (
-              <span>
-                {translationRetrySeconds > 0
-                  ? translation.translationRetryScheduled(translationRetrySeconds)
-                  : translation.translationLoading}
-              </span>
-            )}
-            {translationError && (
-              <>
-                <span className="post-translation-error">{translation.translationFailed}</span>
-                <button type="button" onClick={() => setTranslationAttempt((value) => value + 1)}>
-                  {translation.retry}
-                </button>
-              </>
-            )}
-            {translatedText !== null && translationProvider !== null && (
-              <>
-                <span>{translation.translatedBy(translationProvider)}</span>
-                <button type="button" onClick={() => setShowOriginal((value) => !value)}>
-                  {showOriginal ? translation.showTranslation : translation.showOriginal}
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        <PostTranslationStatus state={postTranslation} translation={translation} />
         {post.communityNote != null && (
           <aside className="community-note-card" data-testid="community-note-card">
             <strong>{post.communityNote.title || translation.communityNote}</strong>
@@ -472,8 +357,10 @@ export function PostCard({
         {post.quotedPost != null && (
           <QuotedPostCard
             post={post.quotedPost}
+            accountId={accountId}
             translation={translation}
             display={display}
+            translationActive={translationInViewport}
             onOpen={onOpenQuotedPost}
           />
         )}
@@ -612,51 +499,108 @@ function ConfiguredVideo({
   );
 }
 
+function PostTranslationStatus({
+  state,
+  translation,
+  compact = false,
+}: {
+  state: PostTranslationView;
+  translation: Translation;
+  compact?: boolean;
+}) {
+  if (!state.autoTranslatePosts || !state.needed) return null;
+  return (
+    <div
+      className={`post-translation-status${compact ? " quoted-post-translation-status" : ""}`}
+      aria-live="polite"
+    >
+      {state.loading && (
+        <span>
+          {state.retrySeconds > 0
+            ? translation.translationRetryScheduled(state.retrySeconds)
+            : translation.translationLoading}
+        </span>
+      )}
+      {state.error && (
+        <>
+          <span className="post-translation-error">{translation.translationFailed}</span>
+          <button type="button" onClick={state.retry}>
+            {translation.retry}
+          </button>
+        </>
+      )}
+      {state.translatedText !== null && state.provider !== null && (
+        <>
+          <span>{translation.translatedBy(state.provider)}</span>
+          <button type="button" onClick={state.toggleOriginal}>
+            {state.showOriginal ? translation.showTranslation : translation.showOriginal}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function QuotedPostCard({
   post,
+  accountId,
   translation,
   display,
+  translationActive,
   onOpen,
 }: {
   post: EmbeddedPost;
+  accountId: string;
   translation: Translation;
   display: DisplayPreferences;
+  translationActive: boolean;
   onOpen?: (postId: string) => void;
 }) {
   const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
+  const postTranslation = usePostTranslation({
+    accountId,
+    postId: post.id,
+    text: post.text,
+    language: post.language,
+    preTranslated: post.preTranslated,
+    active: translationActive,
+  });
   return (
-    <button
-      className="quoted-post-card"
-      type="button"
-      disabled={onOpen === undefined}
-      aria-label={`${translation.postDetail}: ${post.author.displayName}, ${post.text}`}
-      onClick={() => onOpen?.(post.id)}
-    >
-      <span className="quoted-post-header">
-        {post.author.avatarUrl !== null ? (
-          <img src={post.author.avatarUrl} alt="" loading="lazy" />
-        ) : (
-          <span className="quoted-avatar-placeholder" aria-hidden="true" />
-        )}
-        <span className="quoted-post-author">
-          <strong>{post.author.displayName}</strong>
-          <span>@{post.author.username}</span>
+    <article className="quoted-post-card">
+      <button
+        className="quoted-post-open"
+        type="button"
+        disabled={onOpen === undefined}
+        aria-label={`${translation.postDetail}: ${post.author.displayName}, ${post.text}`}
+        onClick={() => onOpen?.(post.id)}
+      >
+        <span className="quoted-post-header">
+          {post.author.avatarUrl !== null ? (
+            <img src={post.author.avatarUrl} alt="" loading="lazy" />
+          ) : (
+            <span className="quoted-avatar-placeholder" aria-hidden="true" />
+          )}
+          <span className="quoted-post-author">
+            <strong>{post.author.displayName}</strong>
+            <span>@{post.author.username}</span>
+          </span>
+          {time !== null && (
+            <time className="quoted-post-time" dateTime={post.createdAt ?? undefined}>
+              {time}
+            </time>
+          )}
         </span>
-        {time !== null && (
-          <time className="quoted-post-time" dateTime={post.createdAt ?? undefined}>
-            {time}
-          </time>
+        <span className="quoted-post-text">{renderPostText(postTranslation.visibleText)}</span>
+        {display.mediaPreview && post.media.length > 0 && (
+          <span className="quoted-post-media">
+            {post.media.map((media) => (
+              <img key={media.id} src={media.previewUrl || media.url} alt="" loading="lazy" />
+            ))}
+          </span>
         )}
-      </span>
-      <span className="quoted-post-text">{renderPostText(post.text)}</span>
-      {display.mediaPreview && post.media.length > 0 && (
-        <span className="quoted-post-media">
-          {post.media.map((media) => (
-            <img key={media.id} src={media.previewUrl || media.url} alt="" loading="lazy" />
-          ))}
-        </span>
-      )}
-    </button>
+      </button>
+      <PostTranslationStatus state={postTranslation} translation={translation} compact />
+    </article>
   );
 }
 

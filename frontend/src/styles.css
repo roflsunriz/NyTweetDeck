@@ -796,15 +796,27 @@ select:focus-visible {
   background: transparent;
   color: var(--text);
   text-align: start;
+}
+
+.quoted-post-open {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  text-align: start;
   cursor: pointer;
 }
 
-.quoted-post-card:hover:not(:disabled),
-.quoted-post-card:focus-visible:not(:disabled) {
+.quoted-post-open:hover:not(:disabled),
+.quoted-post-open:focus-visible:not(:disabled) {
   background: var(--surface-hover);
 }
 
-.quoted-post-card:disabled {
+.quoted-post-open:disabled {
   opacity: 1;
   cursor: default;
 }
@@ -852,6 +864,10 @@ select:focus-visible {
   line-height: 1.42;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.quoted-post-translation-status {
+  padding: 0 10px 9px;
 }
 
 .quoted-post-media {

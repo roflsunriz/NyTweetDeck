@@ -46,6 +46,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             String language,
             String createdAt,
             Author author,
+            Translation preTranslated,
             List<Media> media) {
 
         public EmbeddedPost {

@@ -210,7 +210,9 @@ class TimelineResponseParserTest {
                 "__typename":"Tweet","rest_id":"399","core":{"user_results":{"result":{
                 "__typename":"User","rest_id":"39","core":{"screen_name":"quoted",
                 "name":"Quoted Author"},"avatar":{"image_url":"https://pbs.twimg.com/q.jpg"}}}},
-                "legacy":{"full_text":"quoted text","lang":"ja",
+                "grok_translated_post_with_availability":{"is_available":true,"data":{
+                "translation":"quoted translation","source_language":"ja",
+                "destination_language":"en"}},"legacy":{"full_text":"quoted text","lang":"ja",
                 "created_at":"2019-01-01T00:00:00Z","extended_entities":{"media":[{
                 "id_str":"photo-1","type":"photo","media_url_https":
                 "https://pbs.twimg.com/quote.jpg"}]}}}}}}}}
@@ -222,6 +224,9 @@ class TimelineResponseParserTest {
         assertThat(post.quotedPostId()).isEqualTo("399");
         assertThat(post.quotedPost().author().username()).isEqualTo("quoted");
         assertThat(post.quotedPost().text()).isEqualTo("quoted text");
+        assertThat(post.quotedPost().preTranslated()).isNotNull();
+        assertThat(post.quotedPost().preTranslated().text()).isEqualTo("quoted translation");
+        assertThat(post.quotedPost().preTranslated().targetLanguage()).isEqualTo("en");
         assertThat(post.quotedPost().media()).hasSize(1);
     }
 
