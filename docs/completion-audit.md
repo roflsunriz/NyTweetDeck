@@ -68,15 +68,14 @@
 
 | 要件 | 状態 | 証拠 |
 | --- | --- | --- |
-| CI | 検証済み | Bun検証、Maven検証、OSV、パッケージ済みJARのChrome検証、13 JDKディストリビューション×Java 17・21・25行列（[CI #33013623718](https://github.com/roflsunriz/NyTweetDeck/actions/runs/33013623718)、40/40ジョブ成功） |
-| リリースワークフロー | 構成済み・公開未実行 | `v*`タグ、ZIP、SHA-256、GitHub Release作成 |
+| CI | 検証済み | Bun検証、Maven検証、OSV、パッケージ済みJARのChrome検証、13 JDKディストリビューション×Java 17・21・25行列（[CI #33059356475](https://github.com/roflsunriz/NyTweetDeck/actions/runs/33059356475)、40/40ジョブ成功） |
+| リリースワークフロー | 公開実行済み | 正式1.0.0ビルド、全ゲート、ZIP必須ファイル、SHA-256、ZIP内JAR一致、GitHub Release作成（[Release #33059364727](https://github.com/roflsunriz/NyTweetDeck/actions/runs/33059364727)） |
 | Windows/macOS/Linuxランチャー | ローカル構文・JAR起動検証済み | 3ランチャーを配布ZIPへ同梱 |
 | Windows/macOS/Linuxログオン自動起動 | 定義・dry-run検証済み、Windows実登録済み | Task Scheduler、LaunchAgent、systemd userの登録・解除スクリプト、CI/Releaseゲート |
 | `https://ny.tweetdeck.com`ローカル接続 | HTTPS実起動検証済み・Windows実登録は管理者権限待ち | 3OS証明書生成・信頼登録・hosts設定、loopback限定443/18443、HTTP 18080併存、解除スクリプト |
-| 公開リリース | 未実行 | 実データ経路の許可済み検証後にタグ・push・Releaseを行う |
+| 公開リリース | v1.0.0公開済み | [NyTweetDeck v1.0.0](https://github.com/roflsunriz/NyTweetDeck/releases/tag/v1.0.0)、公開ZIP再取得後のSHA-256一致・必須ファイル確認済み |
 
 ## 完了を阻む外部確認
 
 1. 利用者自身によるX公式Chrome画面へのX認証情報入力。
 2. 実ログイン後のホーム、通知、DM、トレンド、Mutation、Live Pipeline payload確認。
-3. 検証済みコミットのmain push、リリースタグ作成、GitHub Actions成功、GitHub Release公開確認。
