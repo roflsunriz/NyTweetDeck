@@ -6,7 +6,7 @@ import { Modal } from "./modal";
 import { PostCard, type TimelinePost } from "./post-card";
 import { usePostTranslationSettings } from "./post-translation-context";
 import { PostDetailDialog } from "./post-detail-dialog";
-import { filterPosts, type PostFilter } from "./post-filter";
+import { filterPosts, type PostTypeFilter } from "./post-filter";
 
 type ProfileTab = "all" | "posts" | "highlights" | "replies" | "media";
 
@@ -58,7 +58,7 @@ export function UserProfileDialog({
   const [tab, setTab] = useState<ProfileTab>("all");
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [mediaFilter, setMediaFilter] = useState<PostFilter>("all");
+  const [mediaFilter, setMediaFilter] = useState<PostTypeFilter | "all">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -106,7 +106,9 @@ export function UserProfileDialog({
   }, [accountId, loadTimeline, locale, userId]);
 
   const visiblePosts =
-    tab === "media" && mediaFilter !== "all" ? filterPosts(posts, mediaFilter) : posts;
+    tab === "media" && mediaFilter !== "all"
+      ? filterPosts(posts, { types: [mediaFilter], excludeReposts: false })
+      : posts;
   const tabs: Array<[ProfileTab, string]> = [
     ["all", translation.profileAll],
     ["posts", translation.profilePosts],

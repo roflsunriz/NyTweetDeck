@@ -5,7 +5,12 @@ import { defaultDisplayPreferences, type DisplayPreferences } from "../model/lay
 import { fetchWithTimeout } from "../model/fetch-with-timeout";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
-import { filterPosts, type PostFilter, PostFilterBar } from "./post-filter";
+import {
+  createDefaultPostFilter,
+  filterPosts,
+  type PostFilter,
+  PostFilterBar,
+} from "./post-filter";
 import { useManualRefreshAtTop } from "./use-manual-refresh-at-top";
 import { UserProfileDialog } from "./user-profile-dialog";
 
@@ -56,7 +61,7 @@ export function TimelineColumn({
   const [error, setError] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [liveError, setLiveError] = useState(false);
-  const [postFilter, setPostFilter] = useState<PostFilter>("all");
+  const [postFilter, setPostFilter] = useState<PostFilter>(createDefaultPostFilter);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const loadingRef = useRef(false);
   const latestPostIdRef = useRef<string | null>(null);

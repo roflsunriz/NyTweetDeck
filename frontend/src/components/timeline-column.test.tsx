@@ -385,7 +385,7 @@ describe("timeline column", () => {
     await waitFor(() => expect(timelineLoads).toBe(2));
   });
 
-  test("filters loaded posts by text, image, and video without another request", async () => {
+  test("combines post types and excludes reposts without another request", async () => {
     let timelineLoads = 0;
     globalThis.fetch = (async (input) => {
       if (String(input).includes("/api/v1/timelines/")) {
@@ -395,6 +395,17 @@ describe("timeline column", () => {
             post("1", "text only"),
             { ...post("2", "image post"), media: [media("photo")] },
             { ...post("3", "video post"), media: [media("video")] },
+            {
+              ...post("4", "reposted image"),
+              repostedBy: {
+                id: "84",
+                username: "bob",
+                displayName: "Bob",
+                avatarUrl: null,
+                verified: false,
+              },
+              media: [media("photo")],
+            },
           ],
           nextCursor: null,
         });
@@ -408,10 +419,31 @@ describe("timeline column", () => {
     await screen.findByText("text only");
     await user.click(screen.getByRole("button", { name: "画像" }));
     expect(screen.getByText("image post")).toBeDefined();
+    expect(screen.getByText("reposted image")).toBeDefined();
     expect(screen.queryByText("text only")).toBeNull();
     await user.click(screen.getByRole("button", { name: "動画" }));
     expect(screen.getByText("video post")).toBeDefined();
+    expect(screen.getByText("image post")).toBeDefined();
+    expect(screen.getByRole("button", { name: "画像" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "動画" }).getAttribute("aria-pressed")).toBe("true");
+
+    await user.click(screen.getByRole("button", { name: "リポストを除く" }));
+    expect(screen.queryByText("reposted image")).toBeNull();
+    expect(screen.getByText("image post")).toBeDefined();
+    expect(screen.getByText("video post")).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "画像" }));
     expect(screen.queryByText("image post")).toBeNull();
+    expect(screen.getByText("video post")).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "すべて" }));
+    expect(screen.getByText("text only")).toBeDefined();
+    expect(screen.getByText("image post")).toBeDefined();
+    expect(screen.getByText("video post")).toBeDefined();
+    expect(screen.queryByText("reposted image")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "リポストを除く" }));
+    expect(screen.getByText("reposted image")).toBeDefined();
     expect(timelineLoads).toBe(1);
   });
 });

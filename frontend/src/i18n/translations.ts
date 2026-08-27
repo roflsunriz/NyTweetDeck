@@ -47,6 +47,7 @@ export interface Translation {
   filterText: string;
   filterImages: string;
   filterVideos: string;
+  filterExcludeReposts: string;
   noFilteredPosts: string;
   userProfile: string;
   profileLoadError: string;
@@ -222,12 +223,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     retry: "再試行",
     loadMore: "さらに読み込む",
     noPosts: "表示するポストがありません。",
-    filterPosts: "ポストを種類で絞り込む",
+    filterPosts: "ポストを複数条件で絞り込む",
     filterAll: "すべて",
     filterText: "文字",
     filterImages: "画像",
     filterVideos: "動画",
-    noFilteredPosts: "この種類のポストはありません。",
+    filterExcludeReposts: "リポストを除く",
+    noFilteredPosts: "条件に一致するポストはありません。",
     userProfile: "ユーザープロフィール",
     profileLoadError: "ユーザープロフィールを読み込めませんでした。",
     profileAll: "すべて",
@@ -449,11 +451,12 @@ const translations: Partial<Record<Locale, Translation>> = {
     retry: "Retry",
     loadMore: "Load more",
     noPosts: "No posts to display.",
-    filterPosts: "Filter posts by type",
+    filterPosts: "Filter posts with multiple criteria",
     filterAll: "All",
     filterText: "Text",
     filterImages: "Images",
     filterVideos: "Videos",
+    filterExcludeReposts: "Exclude reposts",
     noFilteredPosts: "No posts match this filter.",
     userProfile: "User profile",
     profileLoadError: "Could not load the user profile.",
