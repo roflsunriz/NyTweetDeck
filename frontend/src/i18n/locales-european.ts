@@ -28,6 +28,12 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     retry: "Reintentar",
     loadMore: "Cargar más",
     noPosts: "No hay publicaciones que mostrar.",
+    sharedSettingsLoadError:
+      "No se pudo cargar la configuración compartida. Reinicia NyTweetDeck o inténtalo de nuevo.",
+    sharedSettingsSaveError:
+      "No se pudo guardar la configuración compartida. Los cambios aún no están disponibles en otras direcciones.",
+    sharedSettingsConflict:
+      "La configuración cambió en otra ventana; se cargó la versión compartida más reciente.",
     filterPosts: "Filtrar publicaciones con varios criterios",
     filterAll: "Todas",
     filterText: "Texto",
@@ -168,6 +174,12 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     retry: "Réessayer",
     loadMore: "Charger plus",
     noPosts: "Aucune publication à afficher.",
+    sharedSettingsLoadError:
+      "Impossible de charger les réglages partagés. Redémarrez NyTweetDeck ou réessayez.",
+    sharedSettingsSaveError:
+      "Impossible d’enregistrer les réglages partagés. Les changements ne sont pas encore disponibles aux autres adresses.",
+    sharedSettingsConflict:
+      "Les réglages ont changé dans une autre fenêtre ; la dernière version partagée a été chargée.",
     filterPosts: "Filtrer les publications selon plusieurs critères",
     filterAll: "Toutes",
     filterText: "Texte",
@@ -311,6 +323,12 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     retry: "Tentar novamente",
     loadMore: "Carregar mais",
     noPosts: "Não há posts para exibir.",
+    sharedSettingsLoadError:
+      "Não foi possível carregar as configurações compartilhadas. Reinicie o NyTweetDeck ou tente novamente.",
+    sharedSettingsSaveError:
+      "Não foi possível salvar as configurações compartilhadas. As mudanças ainda não estão disponíveis nos outros endereços.",
+    sharedSettingsConflict:
+      "As configurações mudaram em outra janela; a versão compartilhada mais recente foi carregada.",
     filterPosts: "Filtrar posts por vários critérios",
     filterAll: "Todos",
     filterText: "Texto",
@@ -450,6 +468,11 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     retry: "Повторить",
     loadMore: "Загрузить ещё",
     noPosts: "Нет публикаций для отображения.",
+    sharedSettingsLoadError:
+      "Не удалось загрузить общие настройки. Перезапустите NyTweetDeck или повторите попытку.",
+    sharedSettingsSaveError:
+      "Не удалось сохранить общие настройки. Изменения пока недоступны по другим адресам.",
+    sharedSettingsConflict: "Настройки изменились в другом окне; загружена последняя общая версия.",
     filterPosts: "Фильтровать публикации по нескольким условиям",
     filterAll: "Все",
     filterText: "Текст",

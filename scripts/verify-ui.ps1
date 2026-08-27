@@ -16,7 +16,8 @@ if ([string]::IsNullOrWhiteSpace($JarPath)) {
 $resolvedJar = (Resolve-Path -LiteralPath $JarPath).Path
 $resolvedChrome = (Resolve-Path -LiteralPath $ChromePath).Path
 $targetDirectory = Join-Path $repositoryRoot 'target'
-$profileDirectory = Join-Path $targetDirectory "cdp-profile-verification-$CdpPort"
+$profileDirectory = Join-Path $targetDirectory "cdp-profile-verification-$CdpPort-$PID"
+$settingsStorePath = Join-Path $targetDirectory "ui-settings-$CdpPort-$PID.json"
 $existingChrome = @(Get-Process chrome -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
 $javaProcess = $null
 $previousApplicationUrl = $env:NYTWEETDECK_URL
@@ -24,7 +25,12 @@ $previousCdpPort = $env:CHROME_CDP_PORT
 
 try {
     $javaProcess = Start-Process -FilePath 'java' `
-        -ArgumentList @('-jar', $resolvedJar, "--server.port=$HttpPort") `
+        -ArgumentList @(
+            '-jar',
+            $resolvedJar,
+            "--server.port=$HttpPort",
+            "--nytweetdeck.settings.store-path=$settingsStorePath"
+        ) `
         -WorkingDirectory $repositoryRoot `
         -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $targetDirectory 'ui-server.log') `

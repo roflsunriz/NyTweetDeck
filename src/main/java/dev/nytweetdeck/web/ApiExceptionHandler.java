@@ -1,6 +1,7 @@
 package dev.nytweetdeck.web;
 
 import dev.nytweetdeck.account.AccountStoreException;
+import dev.nytweetdeck.settings.LayoutSettingsStoreException;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import java.net.URI;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,14 @@ public class ApiExceptionHandler {
         return problem(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "アカウント保存エラー",
+                exception.getMessage());
+    }
+
+    @ExceptionHandler(LayoutSettingsStoreException.class)
+    ProblemDetail handleLayoutSettingsStore(LayoutSettingsStoreException exception) {
+        return problem(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "共有設定保存エラー",
                 exception.getMessage());
     }
 

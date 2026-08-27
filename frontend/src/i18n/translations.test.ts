@@ -21,6 +21,9 @@ describe("translation coverage", () => {
         expect(translate(locale).communityNoteDetails).not.toBe(english.communityNoteDetails);
         expect(translate(locale).videoLoop).not.toBe(english.videoLoop);
         expect(translate(locale).videoVolume).not.toBe(english.videoVolume);
+        expect(translate(locale).sharedSettingsLoadError).not.toBe(english.sharedSettingsLoadError);
+        expect(translate(locale).sharedSettingsSaveError).not.toBe(english.sharedSettingsSaveError);
+        expect(translate(locale).sharedSettingsConflict).not.toBe(english.sharedSettingsConflict);
       }
     }
   });

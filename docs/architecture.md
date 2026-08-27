@@ -7,11 +7,11 @@ NyTweetDeckは、Spring Boot製Javaプロセスを製品のエントリーポイ
 Javaソースと配布JARは`--release 17`で生成し、LTSのJDK 17・21・25を正式な実行対象とします。バックグラウンド処理はJava 17のデーモンスレッドとExecutor APIだけを使い、上位JDK固有APIへ依存しません。
 
 ```text
-ブラウザ ── http://127.0.0.1:18080 ── Spring Boot
-   │                                      ├─ 静的React UI
-   │                                      ├─ /api/v1/*
-   │                                      └─ X Web API通信アダプター
-   └─ 非機密の表示設定だけをlocalStorageへ保存
+ブラウザ ─┬─ https://ny.tweetdeck.com ─┬─ Spring Boot
+          ├─ http://127.0.0.1:18080 ───┤  ├─ 静的React UI
+          └─ その他のloopback URL ─────┘  ├─ /api/v1/settings/layout・SSE
+                                            ├─ ユーザー別settings.json
+                                            └─ X Web API通信アダプター
 ```
 
 ## 責務境界
@@ -20,6 +20,7 @@ Javaソースと配布JARは`--release 17`で生成し、LTSのJDK 17・21・25�
 - `src/main/java/dev/nytweetdeck/system/`: アプリケーション状態など、X通信に依存しないAPIを担当します。
 - `src/main/java/dev/nytweetdeck/xapi/`: X公式Webログイン、Web Cookie認証、GraphQL/REST通信を担当します。公開BearerはX公式Web資産から動的に解決します。
 - `src/main/java/dev/nytweetdeck/account/`: 複数アカウント資格情報の自動読込、原子的保存、スキーマ検証、バックアップ復旧を担当します。
+- `src/main/java/dev/nytweetdeck/settings/`: アドレス非依存のレイアウト設定、入力検証、リビジョン競合制御、原子的保存、バックアップ復旧、画面間SSE同期を担当します。
 - `src/main/java/dev/nytweetdeck/web/`: loopback Host・Origin・接続元検証に加え、ローカルHTTPS有効時の443番と既存18080番の併存を担当します。
 - WebセッションはOS標準のユーザー別アプリケーションデータ領域へ保存し、起動時に自動読込します。保存先はJARや作業ディレクトリから独立し、手動の作成・解除・ロック状態は持ちません。POSIX環境では所有者だけが読み書きできる権限へ設定します。
 
@@ -40,7 +41,7 @@ BunのHTMLエントリーポイントをBun bundlerへ渡し、`target/classes/s
 9. cursorで過去ページを追加し、いいね、リポスト、履歴保存を実行する。
 10. 投稿・返信・引用ではアカウント別SSEでカラムを更新し、いいね・リポスト等は対象ポストへ差分反映する。
 11. アカウント切替画面からX公式ログイン専用Chromeを開き、完了後のWebセッションをブラウザへ返さずローカルアカウントストアへ自動保存する。
-12. 主要10言語と日本語、RTL、文字サイズ、色、密度、動き、メディア表示、動画ループ・音量、自動翻訳ON/OFF、トレンド検索語句と履歴を変更し、レイアウトとして自動保存・復元する。
+12. 主要10言語と日本語、RTL、文字サイズ、色、密度、動き、メディア表示、動画ループ・音量、自動翻訳ON/OFF、トレンド検索語句と履歴を変更し、サーバー側の単一レイアウトとして自動保存・復元する。全loopbackアドレスは同じリビジョンを読み書きし、別画面の更新はSSE、フォーカス、可視化復帰時に追従する。競合時は古い画面の上書きを拒否して最新設定へ揃える。
 13. 表示中ポストの数字とDMをWeb認証済みLive Pipelineで購読する。現行イベントURL、接続時の20 topic、`/system/config`で得るセッション、残りtopicの追加購読、TTL前の更新へ追従し、切断時だけ指数バックオフで再接続してローカルSSEへ転送する。Live Pipelineが通知しない通常タイムラインの新規投稿は、可視タブ限定、全カラム15秒以上の共有間隔、変化なしで60秒から最大5分へ延びる適応的な確認で補完する。
 14. CIとReleaseでパッケージ済みJARを起動し、Chromeで複数画面幅、永続化、設定、RTLを自動操作する。
 15. X Web API metadataは公式Web資産から非同期取得し、全必須operationのqueryId・Feature・field toggleを検証後、単一スナップショットとして原子的に差し替える。失敗時は直前のスナップショットを維持する。
@@ -54,3 +55,4 @@ BunのHTMLエントリーポイントをBun bundlerへ渡し、`target/classes/s
 23. ローカルドメインはOSのhostsで`ny.tweetdeck.com`をloopbackへ解決し、端末内で生成したNyTweetDeck専用ルートCAだけをOSの信頼ストアへ登録する。HTTPSサーバーはそのCAが署名したホスト名付き証明書を使用する。HTTPS有効時も追加HTTPコネクタを127.0.0.1へ固定し、APIは接続元IP・Host・Originをすべて検証する。
 24. ログオン自動起動は統合インストーラーがユーザー別アプリ領域へ配置したJARとランチャーをWindows Task Scheduler、macOS LaunchAgent、Linux systemd user serviceへ登録し、ブラウザを自動表示せず多重起動を抑止する。
 25. 統合インストーラーはJARとランチャーをOSのユーザー別アプリ領域に安定配置し、専用CA・hosts・自動起動を設定した後、旧プロセスを安全に更新してHTTP/HTTPSの実応答まで確認する。Windowsランチャーは設定済みCAが欠落した場合、設定内のthumbprintとCA制約を検証してCurrentUserへ自己修復し、修復不能時はHTTPへ隠れてフォールバックせず永続化した起動エラーとして失敗する。
+26. 旧`localStorage`レイアウトは共有ストアが空の場合だけ初回要求の値をリビジョン1として移行する。複数アドレスが同時移行した場合は最初の成功だけを採用し、後続は409応答の共有設定へ揃える。共有設定が存在する場合はアドレス別の旧値を削除して再移行しない。

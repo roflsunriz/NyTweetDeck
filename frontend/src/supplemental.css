@@ -705,6 +705,43 @@ button.deck-feed-item:focus-visible {
   gap: 8px;
 }
 
+.shared-settings-status {
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  min-height: 100vh;
+  padding: 24px;
+  color: var(--text);
+  text-align: center;
+  background: var(--background);
+}
+
+.shared-settings-warning {
+  position: fixed;
+  z-index: 30;
+  inset-block-start: 12px;
+  inset-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  max-width: 720px;
+  margin-inline: auto;
+  padding: 10px 14px;
+  border: 1px solid #f4b942;
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+}
+
+.shared-settings-warning button {
+  flex: none;
+  color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+}
+
 .settings-import-button {
   position: relative;
   display: inline-flex;

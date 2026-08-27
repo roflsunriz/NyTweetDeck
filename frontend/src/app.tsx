@@ -39,14 +39,14 @@ import {
   type AppLayout,
   type ColumnKind,
   type Locale,
-  loadLayout,
   moveItem,
   type NavItemId,
   rememberTrendSearch,
-  saveLayout,
   rtlLocales,
+  supportedLocales,
   type Theme,
 } from "./model/layout";
+import { useSharedLayout } from "./model/use-shared-layout";
 
 const navIcons: Record<NavItemId, LucideIcon> = {
   compose: PenLine,
@@ -89,17 +89,31 @@ function resolveTheme(theme: Theme): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
+function resolveBrowserLocale(): Locale {
+  const language = navigator.language.split("-")[0];
+  return supportedLocales.includes(language as Locale) ? (language as Locale) : "en";
+}
+
 export function App() {
-  const [layout, setLayout] = useState<AppLayout>(() => loadLayout(window.localStorage));
+  const {
+    layout,
+    error: sharedLayoutError,
+    setLayout,
+    retry: retrySharedLayout,
+  } = useSharedLayout();
   const [accountIds, setAccountIds] = useState<string[] | null>(null);
-  const initialActiveAccountId = useRef(layout.activeAccountId).current;
+  const browserLocale = useRef(resolveBrowserLocale()).current;
+  const accountInitializationStarted = useRef(false);
   const [dialog, setDialog] = useState<
     "accounts" | "columns" | "composer" | "login" | "menu" | "search" | "settings" | null
   >(null);
-  const translation = useMemo(() => translate(layout.locale), [layout.locale]);
+  const translation = useMemo(
+    () => translate(layout?.locale ?? browserLocale),
+    [browserLocale, layout?.locale],
+  );
 
   useEffect(() => {
-    saveLayout(window.localStorage, layout);
+    if (layout === null) return;
     document.documentElement.lang = layout.locale;
     document.documentElement.dir = rtlLocales.includes(layout.locale) ? "rtl" : "ltr";
     document.documentElement.dataset.theme = resolveTheme(layout.theme);
@@ -109,8 +123,9 @@ export function App() {
     document.documentElement.dataset.reduceMotion = String(layout.display.reduceMotion);
   }, [layout]);
 
+  const layoutTheme = layout?.theme;
   useEffect(() => {
-    if (layout.theme !== "system") {
+    if (layoutTheme !== "system") {
       return;
     }
     const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
@@ -119,9 +134,12 @@ export function App() {
     };
     mediaQuery.addEventListener("change", updateTheme);
     return () => mediaQuery.removeEventListener("change", updateTheme);
-  }, [layout.theme]);
+  }, [layoutTheme]);
 
   useEffect(() => {
+    if (layout === null || accountInitializationStarted.current) return;
+    accountInitializationStarted.current = true;
+    const initialActiveAccountId = layout.activeAccountId;
     const controller = new AbortController();
     void fetchWithTimeout("/api/v1/accounts", { signal: controller.signal })
       .then(async (response) => {
@@ -153,10 +171,43 @@ export function App() {
         }
       });
     return () => controller.abort();
-  }, [initialActiveAccountId]);
+  }, [layout, setLayout]);
+
+  const selectedSharedAccountId = layout?.activeAccountId;
+  useEffect(() => {
+    if (
+      selectedSharedAccountId === null ||
+      selectedSharedAccountId === undefined ||
+      accountIds === null ||
+      accountIds.includes(selectedSharedAccountId)
+    ) {
+      return;
+    }
+    const controller = new AbortController();
+    void fetchWithTimeout("/api/v1/accounts", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return (await response.json()) as Array<{ accountId: string }>;
+      })
+      .then((accounts) => {
+        const ids = accounts.map((account) => account.accountId);
+        setAccountIds(ids);
+        if (!ids.includes(selectedSharedAccountId)) {
+          setLayout((current) => ({ ...current, activeAccountId: ids[0] ?? null }));
+        }
+      })
+      .catch((refreshError) => {
+        if (!(refreshError instanceof DOMException && refreshError.name === "AbortError")) {
+          setAccountIds([]);
+        }
+      });
+    return () => controller.abort();
+  }, [accountIds, selectedSharedAccountId, setLayout]);
 
   const activeAccountId =
-    layout.activeAccountId !== null && accountIds?.includes(layout.activeAccountId) === true
+    layout?.activeAccountId !== null &&
+    layout?.activeAccountId !== undefined &&
+    accountIds?.includes(layout.activeAccountId) === true
       ? layout.activeAccountId
       : null;
 
@@ -264,6 +315,21 @@ export function App() {
     }
   };
 
+  if (layout === null) {
+    return (
+      <main className="shared-settings-status">
+        <strong>
+          {sharedLayoutError === null ? translation.loading : translation.sharedSettingsLoadError}
+        </strong>
+        {sharedLayoutError !== null && (
+          <button className="secondary-button" type="button" onClick={retrySharedLayout}>
+            {translation.retry}
+          </button>
+        )}
+      </main>
+    );
+  }
+
   return (
     <PostTranslationProvider
       value={{
@@ -273,6 +339,18 @@ export function App() {
       }}
     >
       <div className="app-shell">
+        {sharedLayoutError !== null && (
+          <div className="shared-settings-warning" role="alert">
+            <span>
+              {sharedLayoutError === "conflict"
+                ? translation.sharedSettingsConflict
+                : translation.sharedSettingsSaveError}
+            </span>
+            <button type="button" onClick={retrySharedLayout}>
+              {translation.retry}
+            </button>
+          </div>
+        )}
         <aside className="main-navigation" aria-label={translation.appName}>
           <div className="brand-mark" aria-hidden="true">
             N

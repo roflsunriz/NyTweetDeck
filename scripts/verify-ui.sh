@@ -8,6 +8,7 @@ app_version="$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)"
 jar_path="${1:-target/nytweetdeck-${app_version}.jar}"
 chrome_binary="${CHROME_BIN:-}"
 profile_directory="$(mktemp -d)"
+settings_store_path="$profile_directory/settings.json"
 java_pid=""
 chrome_pid=""
 
@@ -40,7 +41,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-java -jar "$jar_path" > target/ui-server.log 2> target/ui-server-error.log &
+java -jar "$jar_path" \
+  "--nytweetdeck.settings.store-path=$settings_store_path" \
+  > target/ui-server.log 2> target/ui-server-error.log &
 java_pid=$!
 
 ready=false

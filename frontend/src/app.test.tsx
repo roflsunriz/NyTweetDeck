@@ -2,22 +2,49 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./app";
-import { createDefaultLayout, layoutStorageKey } from "./model/layout";
+import { type AppLayout, createDefaultLayout, layoutStorageKey } from "./model/layout";
 import { exportLayoutSettings } from "./model/layout-transfer";
 
 const originalFetch = globalThis.fetch;
 const originalOpen = window.open;
+let sharedSnapshot: { revision: number; layout: AppLayout } | null;
+type FetchHandler = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+function withSharedLayoutApi(fallback: FetchHandler): typeof fetch {
+  return (async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/api/v1/settings/layout")) {
+      if (init?.method === "PUT") {
+        const request = JSON.parse(String(init.body)) as {
+          expectedRevision: number;
+          layout: AppLayout;
+        };
+        const currentRevision = sharedSnapshot?.revision ?? 0;
+        if (request.expectedRevision !== currentRevision) {
+          return Response.json(sharedSnapshot, { status: 409 });
+        }
+        sharedSnapshot = { revision: currentRevision + 1, layout: request.layout };
+        return Response.json(sharedSnapshot);
+      }
+      return sharedSnapshot === null
+        ? new Response(null, { status: 204 })
+        : Response.json(sharedSnapshot);
+    }
+    return fallback(input, init);
+  }) as typeof fetch;
+}
 
 describe("NyTweetDeck shell", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    globalThis.fetch = (async (input) => {
+    sharedSnapshot = null;
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) {
         return Response.json([]);
       }
       return Response.json(null);
-    }) as typeof fetch;
+    });
   });
 
   afterEach(() => {
@@ -30,7 +57,7 @@ describe("NyTweetDeck shell", () => {
     const user = userEvent.setup();
     const firstRender = render(<App />);
 
-    expect(screen.getByText("カラムがありません")).toBeDefined();
+    expect(await screen.findByText("カラムがありません")).toBeDefined();
     const addColumnButton = screen
       .getAllByRole("button", { name: "カラムを追加" })
       .find((button) => button.classList.contains("large-add-button"));
@@ -41,16 +68,17 @@ describe("NyTweetDeck shell", () => {
     await user.click(screen.getByRole("button", { name: /おすすめ/ }));
     expect(screen.getByRole("heading", { name: "おすすめ" })).toBeDefined();
 
+    await waitFor(() => expect(sharedSnapshot?.layout.columns).toHaveLength(1));
     firstRender.unmount();
     render(<App />);
-    expect(screen.getByRole("heading", { name: "おすすめ" })).toBeDefined();
+    expect(await screen.findByRole("heading", { name: "おすすめ" })).toBeDefined();
 
     await user.click(screen.getByRole("button", { name: "おすすめを削除" }));
     expect(screen.getByText("カラムがありません")).toBeDefined();
   });
 
   test("changes language and theme from settings", async () => {
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) return Response.json([]);
       if (url.endsWith("/api/v1/system/translation-health")) {
@@ -66,11 +94,11 @@ describe("NyTweetDeck shell", () => {
         });
       }
       return Response.json(null);
-    }) as typeof fetch;
+    });
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "設定" }));
+    await user.click(await screen.findByRole("button", { name: "設定" }));
     expect(await screen.findByText("通信成功率 95%（成功 19 / 通信 20）")).toBeDefined();
     expect(screen.getByText("X翻訳の残り利用枠 153 / 187")).toBeDefined();
     await user.selectOptions(screen.getByTestId("setting-language"), "en");
@@ -98,25 +126,16 @@ describe("NyTweetDeck shell", () => {
     expect(document.documentElement.dataset.accent).toBe("purple");
     expect(document.documentElement.dataset.density).toBe("compact");
     expect(document.documentElement.dataset.reduceMotion).toBe("true");
-    const stored = JSON.parse(String(window.localStorage.getItem("nytweetdeck.layout"))) as {
-      version: number;
-      display: {
-        accentColor: string;
-        reduceMotion: boolean;
-        videoLoop: boolean;
-        videoVolume: number;
-      };
-    };
-    expect(stored.version).toBe(7);
-    expect(stored.display.accentColor).toBe("purple");
-    expect(stored.display.reduceMotion).toBe(true);
-    expect((stored.display as { autoTranslatePosts?: boolean }).autoTranslatePosts).toBe(false);
-    expect(stored.display.videoLoop).toBe(false);
-    expect(stored.display.videoVolume).toBe(35);
+    await waitFor(() => expect(sharedSnapshot?.layout.display.videoVolume).toBe(35));
+    expect(sharedSnapshot?.layout.version).toBe(7);
+    expect(sharedSnapshot?.layout.display.accentColor).toBe("purple");
+    expect(sharedSnapshot?.layout.display.reduceMotion).toBe(true);
+    expect(sharedSnapshot?.layout.display.autoTranslatePosts).toBe(false);
+    expect(sharedSnapshot?.layout.display.videoLoop).toBe(false);
   });
 
   test("imports menu columns and display settings while preserving the selected account", async () => {
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) {
         return Response.json([
@@ -127,7 +146,7 @@ describe("NyTweetDeck shell", () => {
         return Response.json({ posts: [], nextCursor: null });
       }
       return Response.json(null);
-    }) as typeof fetch;
+    });
     window.localStorage.setItem(
       layoutStorageKey,
       JSON.stringify({ ...createDefaultLayout(), activeAccountId: "account-1" }),
@@ -142,7 +161,7 @@ describe("NyTweetDeck shell", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "設定" }));
+    await user.click(await screen.findByRole("button", { name: "設定" }));
     const file = new File([exportLayoutSettings(imported)], "settings.json", {
       type: "application/json",
     });
@@ -151,21 +170,16 @@ describe("NyTweetDeck shell", () => {
     expect(await screen.findByText("設定を読み込み、自動保存しました。")).toBeDefined();
     expect(screen.getByRole("heading", { name: "おすすめ" })).toBeDefined();
     expect(document.documentElement.dataset.theme).toBe("light");
-    const stored = JSON.parse(String(window.localStorage.getItem(layoutStorageKey))) as {
-      activeAccountId: string | null;
-      navItems: string[];
-      display: { videoVolume: number };
-    };
-    expect(stored.activeAccountId).toBe("account-1");
-    expect(stored.navItems).toEqual(["home", "trends"]);
-    expect(stored.display.videoVolume).toBe(35);
+    await waitFor(() => expect(sharedSnapshot?.layout.display.videoVolume).toBe(35));
+    expect(sharedSnapshot?.layout.activeAccountId).toBe("account-1");
+    expect(sharedSnapshot?.layout.navItems).toEqual(["home", "trends"]);
   });
 
   test("opens direct messages and trends from the default menu", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "ダイレクトメッセージ" }));
+    await user.click(await screen.findByRole("button", { name: "ダイレクトメッセージ" }));
     await user.click(screen.getByRole("button", { name: "トレンド" }));
 
     expect(screen.getByRole("heading", { name: "メッセージ" })).toBeDefined();
@@ -173,7 +187,7 @@ describe("NyTweetDeck shell", () => {
   });
 
   test("persists each trend filter and its submitted search history across restart", async () => {
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) {
         return Response.json([
@@ -196,7 +210,7 @@ describe("NyTweetDeck shell", () => {
         });
       }
       return Response.json(null);
-    }) as typeof fetch;
+    });
     window.localStorage.setItem(
       layoutStorageKey,
       JSON.stringify({
@@ -216,12 +230,12 @@ describe("NyTweetDeck shell", () => {
     await user.type(input, "Technology{Enter}");
     expect(await screen.findByText("#NyTweetDeck")).toBeDefined();
 
-    const stored = JSON.parse(String(window.localStorage.getItem(layoutStorageKey))) as {
-      columns: Array<{ target: string | null }>;
-      trendSearchHistory: string[];
-    };
-    expect(stored.columns[0]?.target).toBe("Technology");
-    expect(stored.trendSearchHistory.slice(0, 3)).toEqual(["Technology", "AI", "Japan"]);
+    await waitFor(() => expect(sharedSnapshot?.layout.columns[0]?.target).toBe("Technology"));
+    expect(sharedSnapshot?.layout.trendSearchHistory.slice(0, 3)).toEqual([
+      "Technology",
+      "AI",
+      "Japan",
+    ]);
 
     firstRender.unmount();
     render(<App />);
@@ -234,7 +248,7 @@ describe("NyTweetDeck shell", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "検索" }));
+    await user.click(await screen.findByRole("button", { name: "検索" }));
     await user.type(screen.getByPlaceholderText("検索語句を入力"), "NyTweetDeck");
     await user.click(screen.getByRole("button", { name: "このカラムを追加" }));
 
@@ -243,12 +257,12 @@ describe("NyTweetDeck shell", () => {
 
   test("clears a persisted account that is no longer in the automatic account store", async () => {
     let timelineRequests = 0;
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) return Response.json([]);
       if (url.includes("/api/v1/timelines/")) timelineRequests += 1;
       return Response.json(null);
-    }) as typeof fetch;
+    });
     window.localStorage.setItem(
       layoutStorageKey,
       JSON.stringify({
@@ -267,7 +281,7 @@ describe("NyTweetDeck shell", () => {
 
   test("loads a persisted account and its columns automatically after restart", async () => {
     let timelineRequests = 0;
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) {
         return Response.json([
@@ -279,7 +293,7 @@ describe("NyTweetDeck shell", () => {
         return Response.json({ posts: [], nextCursor: null });
       }
       return Response.json({ connected: true, topicCount: 0 });
-    }) as typeof fetch;
+    });
     window.localStorage.setItem(
       layoutStorageKey,
       JSON.stringify({
@@ -297,7 +311,7 @@ describe("NyTweetDeck shell", () => {
 
   test("selects the first saved account and displays persisted columns without interaction", async () => {
     const timelineAccountIds: string[] = [];
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) {
         return Response.json([
@@ -312,7 +326,7 @@ describe("NyTweetDeck shell", () => {
         return Response.json({ posts: [], nextCursor: null });
       }
       return Response.json({ connected: true, topicCount: 0 });
-    }) as typeof fetch;
+    });
     window.localStorage.setItem(
       layoutStorageKey,
       JSON.stringify({
@@ -325,16 +339,13 @@ describe("NyTweetDeck shell", () => {
 
     await waitFor(() => expect(timelineAccountIds).toEqual(["account-1"]));
     expect(screen.getByText("表示するポストがありません。")).toBeDefined();
-    const stored = JSON.parse(String(window.localStorage.getItem(layoutStorageKey))) as {
-      activeAccountId: string | null;
-    };
-    expect(stored.activeAccountId).toBe("account-1");
+    await waitFor(() => expect(sharedSnapshot?.layout.activeAccountId).toBe("account-1"));
     expect(screen.queryByRole("heading", { name: "アカウントを選択" })).toBeNull();
   });
 
   test("prefers the previously selected saved account over the first account", async () => {
     const timelineAccountIds: string[] = [];
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) {
         return Response.json([
@@ -349,7 +360,7 @@ describe("NyTweetDeck shell", () => {
         return Response.json({ posts: [], nextCursor: null });
       }
       return Response.json({ connected: true, topicCount: 0 });
-    }) as typeof fetch;
+    });
     window.localStorage.setItem(
       layoutStorageKey,
       JSON.stringify({
@@ -367,7 +378,7 @@ describe("NyTweetDeck shell", () => {
 
   test("falls back to the first saved account when the previous account is unavailable", async () => {
     const timelineAccountIds: string[] = [];
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
       const url = String(input);
       if (url.endsWith("/api/v1/accounts")) {
         return Response.json([
@@ -381,7 +392,7 @@ describe("NyTweetDeck shell", () => {
         return Response.json({ posts: [], nextCursor: null });
       }
       return Response.json({ connected: true, topicCount: 0 });
-    }) as typeof fetch;
+    });
     window.localStorage.setItem(
       layoutStorageKey,
       JSON.stringify({
@@ -402,7 +413,7 @@ describe("NyTweetDeck shell", () => {
     const user = userEvent.setup();
     render(<App />);
     const navigationTransfer = dataTransfer();
-    const compose = screen.getByRole("button", { name: "ポストを作成" });
+    const compose = await screen.findByRole("button", { name: "ポストを作成" });
     const search = screen.getByRole("button", { name: "検索" });
 
     fireEvent.dragStart(compose, { dataTransfer: navigationTransfer });
@@ -419,12 +430,13 @@ describe("NyTweetDeck shell", () => {
     fireEvent.dragStart(homeColumn, { dataTransfer: columnTransfer });
     fireEvent.drop(notificationColumn, { dataTransfer: columnTransfer });
 
-    const stored = JSON.parse(String(window.localStorage.getItem("nytweetdeck.layout"))) as {
-      navItems: string[];
-      columns: Array<{ kind: string }>;
-    };
-    expect(stored.navItems.slice(0, 2)).toEqual(["search", "compose"]);
-    expect(stored.columns.map((column) => column.kind)).toEqual(["notifications", "home"]);
+    await waitFor(() =>
+      expect(sharedSnapshot?.layout.columns.map((column) => column.kind)).toEqual([
+        "notifications",
+        "home",
+      ]),
+    );
+    expect(sharedSnapshot?.layout.navItems.slice(0, 2)).toEqual(["search", "compose"]);
   });
 
   test("activates optional following and official web menu destinations", async () => {
@@ -435,6 +447,7 @@ describe("NyTweetDeck shell", () => {
     }) as typeof window.open;
     const user = userEvent.setup();
     const view = render(<App />);
+    await screen.findByText("カラムがありません");
     const editMenu = view.container.querySelector('[data-action="edit-menu"]');
     if (!(editMenu instanceof HTMLButtonElement)) {
       throw new Error("メニュー編集ボタンが見つかりません。");

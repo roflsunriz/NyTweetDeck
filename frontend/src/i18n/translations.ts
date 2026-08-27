@@ -159,6 +159,9 @@ export interface Translation {
   importSettings: string;
   settingsImported: string;
   settingsImportFailed: string;
+  sharedSettingsLoadError: string;
+  sharedSettingsSaveError: string;
+  sharedSettingsConflict: string;
   translationHealth: string;
   translationHealthDescription: string;
   translationHealthNoRequests: string;
@@ -342,6 +345,12 @@ const translations: Partial<Record<Locale, Translation>> = {
     importSettings: "設定をインポート",
     settingsImported: "設定を読み込み、自動保存しました。",
     settingsImportFailed: "設定を読み込めませんでした。有効なNyTweetDeck設定JSONを選んでください。",
+    sharedSettingsLoadError:
+      "共有設定を読み込めませんでした。NyTweetDeckを再起動するか、再試行してください。",
+    sharedSettingsSaveError:
+      "共有設定を保存できませんでした。変更は他のアドレスへまだ反映されていません。",
+    sharedSettingsConflict:
+      "別のNyTweetDeck画面で設定が更新されたため、最新の共有設定を読み込みました。",
     translationHealth: "X自動翻訳の稼働状況",
     translationHealthDescription:
       "画面に近いポストだけを翻訳し、レート制限時は解除後に自動再試行します。値はNyTweetDeck起動後の集計です。",
@@ -570,6 +579,11 @@ const translations: Partial<Record<Locale, Translation>> = {
     importSettings: "Import settings",
     settingsImported: "Settings imported and saved automatically.",
     settingsImportFailed: "Import failed. Select a valid NyTweetDeck settings JSON file.",
+    sharedSettingsLoadError: "Could not load shared settings. Restart NyTweetDeck or try again.",
+    sharedSettingsSaveError:
+      "Could not save shared settings. Changes are not yet available at other addresses.",
+    sharedSettingsConflict:
+      "Settings changed in another NyTweetDeck window, so the latest shared settings were loaded.",
     translationHealth: "X automatic translation status",
     translationHealthDescription:
       "Only nearby posts are translated. Rate-limited requests retry automatically after the limit resets. Values cover this NyTweetDeck session.",

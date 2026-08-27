@@ -22,16 +22,22 @@ class NyTweetDeckApplicationTest {
     private static final Path ACCOUNT_STORE_PATH = Path.of(
             System.getProperty("java.io.tmpdir"),
             "nytweetdeck-test-" + UUID.randomUUID() + ".json");
+    private static final Path SETTINGS_STORE_PATH = Path.of(
+            System.getProperty("java.io.tmpdir"),
+            "nytweetdeck-settings-test-" + UUID.randomUUID() + ".json");
 
     @DynamicPropertySource
     static void accountStoreProperties(DynamicPropertyRegistry registry) {
         registry.add("nytweetdeck.account.store-path", ACCOUNT_STORE_PATH::toString);
+        registry.add("nytweetdeck.settings.store-path", SETTINGS_STORE_PATH::toString);
     }
 
     @LocalServerPort
     private int port;
 
-    private final HttpClient client = HttpClient.newHttpClient();
+    private final HttpClient client = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .build();
 
     @Test
     void servesStatusApiWithSecurityHeaders() throws Exception {
@@ -111,5 +117,52 @@ class NyTweetDeckApplicationTest {
                 .doesNotContainIgnoringCase("accountId")
                 .doesNotContainIgnoringCase("postId")
                 .doesNotContainIgnoringCase("token");
+    }
+
+    @Test
+    void sharesOneLayoutBetweenIpAndHostnameOrigins() throws Exception {
+        var layout = """
+                {
+                  "expectedRevision": 0,
+                  "layout": {
+                    "version": 7,
+                    "columns": [{"id":"shared-home","kind":"home","target":null,"label":null}],
+                    "navItems": ["home","trends"],
+                    "locale": "ja",
+                    "theme": "dark",
+                    "activeAccountId": null,
+                    "display": {
+                      "fontSize":"default","accentColor":"blue","density":"comfortable",
+                      "reduceMotion":false,"mediaPreview":true,"videoAutoplay":false,
+                      "videoLoop":true,"videoVolume":100,"autoTranslatePosts":true
+                    },
+                    "trendSearchHistory": ["shared-origin"]
+                  }
+                }
+                """;
+        var saveRequest = HttpRequest.newBuilder(
+                        URI.create("http://127.0.0.1:" + port + "/api/v1/settings/layout"))
+                .header("Content-Type", "application/json")
+                .header("Origin", "http://127.0.0.1:" + port)
+                .header("Sec-Fetch-Site", "same-origin")
+                .PUT(HttpRequest.BodyPublishers.ofString(layout))
+                .build();
+
+        var saved = client.send(saveRequest, HttpResponse.BodyHandlers.ofString());
+        var loadRequest = HttpRequest.newBuilder(
+                        URI.create("http://localhost:" + port + "/api/v1/settings/layout"))
+                .header("Origin", "http://localhost:" + port)
+                .header("Sec-Fetch-Site", "same-origin")
+                .GET()
+                .build();
+        var loaded = client.send(loadRequest, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(saved.statusCode()).isEqualTo(200);
+        assertThat(loaded.statusCode()).isEqualTo(200);
+        assertThat(loaded.body())
+                .contains("\"revision\":1")
+                .contains("\"id\":\"shared-home\"")
+                .contains("\"trendSearchHistory\":[\"shared-origin\"]");
+        assertThat(loaded.headers().firstValue("Cache-Control")).contains("no-store");
     }
 }

@@ -28,6 +28,11 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     retry: "إعادة المحاولة",
     loadMore: "تحميل المزيد",
     noPosts: "لا توجد منشورات لعرضها.",
+    sharedSettingsLoadError:
+      "تعذّر تحميل الإعدادات المشتركة. أعد تشغيل NyTweetDeck أو حاول مرة أخرى.",
+    sharedSettingsSaveError:
+      "تعذّر حفظ الإعدادات المشتركة. التغييرات غير متاحة بعد عبر العناوين الأخرى.",
+    sharedSettingsConflict: "تغيّرت الإعدادات في نافذة أخرى، فتم تحميل أحدث إعدادات مشتركة.",
     filterPosts: "تصفية المنشورات وفق معايير متعددة",
     filterAll: "الكل",
     filterText: "نص",
@@ -167,6 +172,12 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     retry: "دوبارہ کوشش کریں",
     loadMore: "مزید لوڈ کریں",
     noPosts: "دکھانے کے لیے کوئی پوسٹ نہیں ہے۔",
+    sharedSettingsLoadError:
+      "مشترکہ ترتیبات لوڈ نہیں ہو سکیں۔ NyTweetDeck دوبارہ شروع کریں یا پھر کوشش کریں۔",
+    sharedSettingsSaveError:
+      "مشترکہ ترتیبات محفوظ نہیں ہو سکیں۔ تبدیلیاں ابھی دوسرے پتوں پر دستیاب نہیں ہیں۔",
+    sharedSettingsConflict:
+      "ترتیبات دوسری ونڈو میں بدل گئی تھیں؛ تازہ ترین مشترکہ ترتیبات لوڈ کر دی گئی ہیں۔",
     filterPosts: "متعدد شرائط سے پوسٹس فلٹر کریں",
     filterAll: "سب",
     filterText: "متن",

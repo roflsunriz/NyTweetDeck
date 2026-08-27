@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { readSharedLayout, updateSharedLayout } from "./shared-layout-cdp";
 
 interface CdpTarget {
   type: string;
@@ -139,15 +140,18 @@ client.on("Runtime.consoleAPICalled", (params) => {
   }
 });
 client.on("Log.entryAdded", (params) => {
-  const event = params as { entry?: { level?: string } };
-  if (event.entry?.level === "error") {
+  const event = params as { entry?: { level?: string; text?: string; url?: string } };
+  const expectedSettingsConflict =
+    event.entry?.url?.endsWith("/api/v1/settings/layout") === true &&
+    event.entry.text?.includes("status of 409") === true;
+  if (event.entry?.level === "error" && !expectedSettingsConflict) {
     browserErrors.push(JSON.stringify(params));
   }
 });
 
-async function navigate(): Promise<void> {
+async function navigate(url = applicationUrl): Promise<void> {
   const loaded = client.waitForEvent("Page.loadEventFired");
-  await client.call("Page.navigate", { url: applicationUrl });
+  await client.call("Page.navigate", { url });
   await loaded;
 }
 
@@ -165,24 +169,21 @@ async function waitForCondition(expression: string, timeoutMilliseconds = 10_000
     }
     await Bun.sleep(40);
   }
-  const diagnostics = await client.evaluate<Record<string, unknown>>(`(() => {
-    const stored = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "null");
-    return {
+  const diagnostics = await client.evaluate<Record<string, unknown>>(`(() => ({
       columnCount: document.querySelectorAll(".deck-column").length,
       dialogCount: document.querySelectorAll('[role="dialog"]').length,
       addColumnButtonCount: document.querySelectorAll('[data-action="add-column"]').length,
-      homeChoiceCount: document.querySelectorAll('[role="dialog"] [data-column-kind="home"]').length,
-      storedColumnCount: Array.isArray(stored?.columns) ? stored.columns.length : null,
-      storedActiveAccount: typeof stored?.activeAccountId === "string" ? "selected" : null,
-    };
-  })()`);
+      homeChoiceCount: document.querySelectorAll('[role="dialog"] [data-column-kind="home"]').length
+  }))()`);
   throw new Error(
     `DOM状態の待機がタイムアウトしました: ${expression}; ${JSON.stringify(diagnostics)}`,
   );
 }
 
 await navigate();
+await waitForCondition('document.querySelector(".app-shell") !== null');
 await client.evaluate("localStorage.clear()");
+await updateSharedLayout(client, "layout => ({ ...layout, columns: [], activeAccountId: null })");
 await reload();
 
 const viewports = [
@@ -199,8 +200,9 @@ for (const viewport of viewports) {
     deviceScaleFactor: 1,
     mobile: viewport.width <= 390,
   });
-  await client.evaluate("localStorage.clear()");
+  await updateSharedLayout(client, "layout => ({ ...layout, columns: [], activeAccountId: null })");
   await reload();
+  await waitForCondition('document.querySelector("[data-action=add-column]") !== null');
 
   for (let index = 0; index < viewport.columns; index += 1) {
     const clicked = await client.evaluate<boolean>(`(() => {
@@ -224,6 +226,9 @@ for (const viewport of viewports) {
     }
     await waitForCondition(`document.querySelectorAll(".deck-column").length === ${index + 1}`);
   }
+  await waitForCondition(
+    `(async () => (await (await fetch("/api/v1/settings/layout")).json()).layout.columns.length === ${viewport.columns})()`,
+  );
 
   const metrics = await client.evaluate<Record<string, unknown>>(`({
     viewport: { width: innerWidth, height: innerHeight },
@@ -246,6 +251,9 @@ for (const viewport of viewports) {
   await Bun.write(screenshotPath, Buffer.from(screenshot.data, "base64"));
 
   await reload();
+  await waitForCondition(
+    `document.querySelectorAll(".deck-column").length === ${viewport.columns}`,
+  );
   const persistedColumns = await client.evaluate<number>(
     'document.querySelectorAll(".deck-column").length',
   );
@@ -263,6 +271,7 @@ await client.call("Emulation.setDeviceMetricsOverride", {
   mobile: false,
 });
 await reload();
+await waitForCondition('document.querySelector("[data-action=open-settings]") !== null');
 const settingsClicked = await client.evaluate<boolean>(`(() => {
   const button = document.querySelector('[data-action="open-settings"]');
   if (!(button instanceof HTMLButtonElement)) return false;
@@ -329,7 +338,7 @@ const importDispatched = await client.evaluate<boolean>(`(() => {
 if (!importDispatched) throw new Error("設定インポートを開始できませんでした。");
 await waitForCondition('document.querySelector("[data-testid=settings-import-status]") !== null');
 await waitForCondition(
-  'JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}").navItems?.join(",") === "home,trends"',
+  'document.querySelectorAll("[data-nav-item]").length === 2 && document.querySelector("[data-nav-item=home]") !== null && document.querySelector("[data-nav-item=trends]") !== null',
 );
 const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const panel = document.querySelector(".modal-panel");
@@ -343,7 +352,7 @@ const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
     documentOverflow: document.documentElement.scrollWidth > innerWidth,
     translationHealthFound: document.querySelector("[data-testid=translation-health]") !== null,
     settingsTransferFound: document.querySelector("[data-testid=layout-transfer-settings]") !== null,
-    importedNavigation: JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}").navItems,
+    importedNavigation: Array.from(document.querySelectorAll("[data-nav-item]"), item => item.getAttribute("data-nav-item")),
     videoLoopChecked: document.querySelector("[data-testid=setting-video-loop]")?.checked,
     videoVolume: document.querySelector("[data-testid=setting-video-volume]")?.value
   };
@@ -561,17 +570,16 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     };
   })();`,
 });
-await client.evaluate(`(() => {
-  const stored = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "null") ?? {};
-  localStorage.setItem("nytweetdeck.layout", JSON.stringify({
-    ...stored,
-    version: 6,
+await updateSharedLayout(
+  client,
+  `layout => ({
+    ...layout,
     locale: "ja",
     activeAccountId: null,
     columns: [{ id: "qa-trends", kind: "trends", target: "", label: null }],
     trendSearchHistory: ["AI"]
-  }));
-})()`);
+  })`,
+);
 await reload();
 await waitForCondition('document.querySelector("[data-testid=trend-filter-input]") !== null');
 await waitForCondition('document.querySelectorAll(".trend-item").length === 2');
@@ -591,36 +599,36 @@ await waitForCondition(
   'document.querySelectorAll(".trend-item").length === 1 && document.querySelector(".trend-item")?.textContent?.includes("#NyTweetDeck") === true',
 );
 await waitForCondition(
-  'JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}").trendSearchHistory?.[0] === "technology"',
+  '(async () => (await (await fetch("/api/v1/settings/layout")).json()).layout.trendSearchHistory?.[0] === "technology")()',
 );
 await reload();
 await waitForCondition(
   'document.querySelector("[data-testid=trend-filter-input]")?.value === "technology"',
 );
+const storedTrendLayout = await readSharedLayout<Record<string, unknown>>(client);
 const trendMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const input = document.querySelector("[data-testid=trend-filter-input]");
   const history = document.querySelector("datalist");
-  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
   return {
     filterValue: input instanceof HTMLInputElement ? input.value : null,
     historyValues: history instanceof HTMLDataListElement
       ? Array.from(history.options, option => option.value)
       : [],
-    storedTarget: layout.columns?.[0]?.target,
-    storedHistory: layout.trendSearchHistory,
-    activeAccountId: layout.activeAccountId,
-    layoutVersion: layout.version,
     visibleTrends: document.querySelectorAll(".trend-item").length,
     documentOverflow: document.documentElement.scrollWidth > innerWidth
   };
 })()`);
+Object.assign(trendMetrics, {
+  storedTarget: (storedTrendLayout.columns as Array<{ target?: unknown }> | undefined)?.[0]?.target,
+  storedHistory: storedTrendLayout.trendSearchHistory,
+  activeAccountId: storedTrendLayout.activeAccountId,
+  layoutVersion: storedTrendLayout.version,
+});
 const trendScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
   format: "png",
   fromSurface: true,
 });
-if (trendMetrics.layoutVersion !== 7) {
-  throw new Error(`レイアウトv6からv7への移行に失敗しました: ${JSON.stringify(trendMetrics)}`);
-}
+if (trendMetrics.layoutVersion !== 7) throw new Error("共有レイアウト版が不正です。");
 if (trendMetrics.activeAccountId !== "qa-account") {
   throw new Error(`保存済み#1アカウントの自動選択に失敗しました: ${JSON.stringify(trendMetrics)}`);
 }
@@ -628,15 +636,15 @@ const trendScreenshotPath = resolve(import.meta.dir, "../../target/ui-trend-filt
 await Bun.write(trendScreenshotPath, Buffer.from(trendScreenshot.data, "base64"));
 results.push({ view: "trend-filter", ...trendMetrics, screenshotPath: trendScreenshotPath });
 
-await client.evaluate(`(() => {
-  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
-  localStorage.setItem("nytweetdeck.layout", JSON.stringify({
+await updateSharedLayout(
+  client,
+  `layout => ({
     ...layout,
     locale: "ja",
     columns: [{ id: "qa-home", kind: "home", target: null, label: null }],
     display: { ...layout.display, videoAutoplay: true }
-  }));
-})()`);
+  })`,
+);
 await reload();
 await waitForCondition('document.querySelector("[data-post-action=like]") !== null');
 await waitForCondition('document.querySelector(".post-text")?.textContent === "translated-100"');
@@ -892,26 +900,26 @@ await client.evaluate(
 await waitForCondition('document.querySelector(".post-detail-content") === null');
 results.push({ view: "image-viewer", ...imageViewerMetrics, screenshotPath: imageScreenshotPath });
 
-await client.evaluate(`(() => {
-  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
-  localStorage.setItem("nytweetdeck.layout", JSON.stringify({
+await updateSharedLayout(
+  client,
+  `layout => ({
     ...layout,
     display: { ...layout.display, videoLoop: false, videoVolume: 35 }
-  }));
-})()`);
+  })`,
+);
 await reload();
 await waitForCondition('document.querySelector(".post-media video") !== null');
 await waitForCondition('document.querySelector(".post-media video")?.volume === 0.35');
 const persistedVideoMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const video = document.querySelector(".post-media video");
-  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
   return {
     videoLoop: video instanceof HTMLVideoElement ? video.loop : null,
-    videoVolume: video instanceof HTMLVideoElement ? video.volume : null,
-    storedLoop: layout.display?.videoLoop,
-    storedVolume: layout.display?.videoVolume
+    videoVolume: video instanceof HTMLVideoElement ? video.volume : null
   };
 })()`);
+const storedVideoLayout = await readSharedLayout<{ display?: Record<string, unknown> }>(client);
+persistedVideoMetrics.storedLoop = storedVideoLayout.display?.videoLoop;
+persistedVideoMetrics.storedVolume = storedVideoLayout.display?.videoVolume;
 if (
   persistedVideoMetrics.videoLoop !== false ||
   persistedVideoMetrics.videoVolume !== 0.35 ||
@@ -922,13 +930,13 @@ if (
 }
 results.push({ view: "persisted-video-settings", ...persistedVideoMetrics });
 
-await client.evaluate(`(() => {
-  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
-  localStorage.setItem("nytweetdeck.layout", JSON.stringify({
+await updateSharedLayout(
+  client,
+  `layout => ({
     ...layout,
     columns: [{ id: "qa-notifications", kind: "notifications", target: null, label: null }]
-  }));
-})()`);
+  })`,
+);
 await reload();
 await waitForCondition(
   'document.querySelector("[data-notification-kind=community_note]") !== null',
@@ -973,6 +981,14 @@ results.push({
   ...communityNoteMetrics,
   screenshotPath: communityNoteScreenshotPath,
 });
+
+const alternateUrl = applicationUrl.replace("127.0.0.1", "localhost");
+await navigate(alternateUrl);
+await waitForCondition('document.querySelector("[data-column-kind=notifications]") !== null');
+const alternateLayout = await readSharedLayout<{ display?: { videoVolume?: unknown } }>(client);
+if (alternateLayout.display?.videoVolume !== 35)
+  throw new Error("アドレス間設定共有に失敗しました。");
+results.push({ view: "address-independent-settings", alternateUrl, videoVolume: 35 });
 
 console.info(JSON.stringify(results, null, 2));
 if (browserErrors.length > 0) {

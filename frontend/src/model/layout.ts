@@ -255,7 +255,7 @@ export function isAppLayout(value: unknown): value is AppLayout {
   if (
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
-    !isNullableString(value.activeAccountId) ||
+    !isNullableString(value.activeAccountId, 200) ||
     !isDisplayPreferences(value.display) ||
     !isTrendSearchHistory(value.trendSearchHistory)
   ) {
@@ -283,7 +283,7 @@ function isLegacyLayoutV5(value: unknown): value is Omit<
   if (
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
-    !isNullableString(value.activeAccountId) ||
+    !isNullableString(value.activeAccountId, 200) ||
     !isLegacyDisplayPreferencesV5(value.display)
   ) {
     return false;
@@ -304,7 +304,7 @@ function isLegacyLayoutV6(value: unknown): value is Omit<AppLayout, "version" | 
   if (
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
-    !isNullableString(value.activeAccountId) ||
+    !isNullableString(value.activeAccountId, 200) ||
     !isLegacyDisplayPreferencesV5(value.display) ||
     !isTrendSearchHistory(value.trendSearchHistory)
   ) {
@@ -330,7 +330,7 @@ function isLegacyLayoutV3(value: unknown): value is Omit<
   if (
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
-    !isNullableString(value.activeAccountId) ||
+    !isNullableString(value.activeAccountId, 200) ||
     !isLegacyDisplayPreferencesV3(value.display)
   ) {
     return false;
@@ -354,7 +354,7 @@ function isLegacyLayoutV4(value: unknown): value is Omit<
   if (
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
-    !isNullableString(value.activeAccountId) ||
+    !isNullableString(value.activeAccountId, 200) ||
     !isLegacyDisplayPreferencesV3(value.display)
   ) {
     return false;
@@ -377,7 +377,7 @@ function isLegacyLayoutV2(value: unknown): value is Omit<
   if (
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
-    !isNullableString(value.activeAccountId)
+    !isNullableString(value.activeAccountId, 200)
   ) {
     return false;
   }
@@ -392,9 +392,10 @@ function isColumnConfig(value: unknown): value is ColumnConfig {
     isRecord(value) &&
     typeof value.id === "string" &&
     value.id.length > 0 &&
+    value.id.length <= 200 &&
     isColumnKind(value.kind) &&
-    isNullableString(value.target) &&
-    isNullableString(value.label)
+    isNullableString(value.target, 500) &&
+    isNullableString(value.label, 500)
   );
 }
 
@@ -403,8 +404,9 @@ function isLegacyTargetedColumn(value: unknown): value is Omit<ColumnConfig, "la
     isRecord(value) &&
     typeof value.id === "string" &&
     value.id.length > 0 &&
+    value.id.length <= 200 &&
     isColumnKind(value.kind) &&
-    isNullableString(value.target)
+    isNullableString(value.target, 500)
   );
 }
 
@@ -431,6 +433,7 @@ function isLegacyLayoutV1(value: unknown): value is Omit<
         isRecord(column) &&
         typeof column.id === "string" &&
         column.id.length > 0 &&
+        column.id.length <= 200 &&
         isColumnKind(column.kind),
     )
   );
@@ -497,8 +500,8 @@ function isLegacyDisplayPreferencesV3(value: unknown): value is LegacyDisplayPre
   );
 }
 
-function isNullableString(value: unknown): value is string | null {
-  return value === null || typeof value === "string";
+function isNullableString(value: unknown, maximumLength: number): value is string | null {
+  return value === null || (typeof value === "string" && value.length <= maximumLength);
 }
 
 function isTrendSearchHistory(value: unknown): value is string[] {
