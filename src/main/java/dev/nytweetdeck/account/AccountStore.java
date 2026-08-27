@@ -1,5 +1,6 @@
 package dev.nytweetdeck.account;
 
+import dev.nytweetdeck.system.ApplicationDataPaths;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -7,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -32,14 +34,23 @@ public class AccountStore {
     @Autowired
     public AccountStore(
             ObjectMapper objectMapper,
-            @Value("${nytweetdeck.account.store-path:.local/accounts.json}") String storePath) {
-        this(objectMapper, Path.of(storePath).toAbsolutePath().normalize());
+            @Value("${nytweetdeck.account.store-path:}") String configuredStorePath) {
+        this(
+                objectMapper,
+                ApplicationDataPaths.resolve(configuredStorePath, "accounts.json"),
+                configuredStorePath == null || configuredStorePath.isBlank()
+                        ? ApplicationDataPaths.legacyCandidates("accounts.json", AccountStore.class)
+                        : List.of());
     }
 
     public AccountStore(ObjectMapper objectMapper, Path storePath) {
+        this(objectMapper, storePath, List.of());
+    }
+
+    AccountStore(ObjectMapper objectMapper, Path storePath, List<Path> legacyCandidates) {
         this.objectMapper = objectMapper;
-        this.storePath = storePath;
-        this.accounts = loadWithRecovery();
+        this.storePath = storePath.toAbsolutePath().normalize();
+        this.accounts = loadInitial(legacyCandidates);
     }
 
     public synchronized List<AccountSummary> accountSummaries() {
@@ -69,6 +80,37 @@ public class AccountStore {
                 .filter(account -> account.accountId().equals(accountId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("指定したアカウントがありません。"));
+    }
+
+    private List<AccountSecrets> loadInitial(List<Path> legacyCandidates) {
+        if (Files.isRegularFile(storePath)) {
+            return loadWithRecovery();
+        }
+        AccountStoreException firstFailure = null;
+        var candidates = legacyCandidates.stream()
+                .map(path -> path.toAbsolutePath().normalize())
+                .filter(path -> !path.equals(storePath))
+                .filter(Files::isRegularFile)
+                .sorted(Comparator.comparing(AccountStore::lastModified).reversed())
+                .toList();
+        for (var candidate : candidates) {
+            try {
+                var migrated = load(candidate);
+                save(migrated);
+                LOGGER.info(
+                        "旧アカウント保存データをユーザー別保存先へ移行しました: source={}",
+                        candidate);
+                return migrated;
+            } catch (AccountStoreException exception) {
+                if (firstFailure == null) {
+                    firstFailure = exception;
+                }
+            }
+        }
+        if (firstFailure != null) {
+            throw new AccountStoreException("旧アカウント保存データを移行できません。", firstFailure);
+        }
+        return List.of();
     }
 
     private List<AccountSecrets> loadWithRecovery() {
@@ -142,6 +184,14 @@ public class AccountStore {
 
     private Path backupPath() {
         return storePath.resolveSibling(storePath.getFileName() + ".bak");
+    }
+
+    private static java.nio.file.attribute.FileTime lastModified(Path path) {
+        try {
+            return Files.getLastModifiedTime(path);
+        } catch (IOException exception) {
+            return java.nio.file.attribute.FileTime.fromMillis(0);
+        }
     }
 
     private static List<AccountSecrets> validateAccounts(List<AccountSecrets> accounts) {

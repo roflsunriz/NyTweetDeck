@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -79,6 +81,29 @@ class AccountStoreTest {
                             PosixFilePermission.OWNER_READ,
                             PosixFilePermission.OWNER_WRITE));
         }
+    }
+
+    @Test
+    void migratesTheNewestValidWorkingDirectoryStoreWithoutDeletingTheSource() throws Exception {
+        var mapper = JsonMapper.builder().build();
+        var older = temporaryDirectory.resolve("project/.local/accounts.json");
+        var newer = temporaryDirectory.resolve("project/target/.local/accounts.json");
+        var canonical = temporaryDirectory.resolve("user-data/NyTweetDeck/accounts.json");
+        new AccountStore(mapper, older)
+                .addOrReplace(account("1", "older", "token-old", "auth-old"));
+        new AccountStore(mapper, newer)
+                .addOrReplace(account("1", "newer", "token-new", "auth-new"));
+        Files.setLastModifiedTime(older, FileTime.fromMillis(1_000));
+        Files.setLastModifiedTime(newer, FileTime.fromMillis(2_000));
+
+        var migrated = new AccountStore(mapper, canonical, List.of(older, newer));
+
+        assertThat(migrated.requireAccount("1").username()).isEqualTo("newer");
+        assertThat(Files.isRegularFile(canonical)).isTrue();
+        assertThat(Files.isRegularFile(older)).isTrue();
+        assertThat(Files.isRegularFile(newer)).isTrue();
+        assertThat(new AccountStore(mapper, canonical).requireAccount("1").authToken())
+                .isEqualTo("auth-new");
     }
 
     private static AccountSecrets account(

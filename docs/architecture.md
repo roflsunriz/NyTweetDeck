@@ -20,7 +20,7 @@ Javaソースと配布JARは`--release 17`で生成し、LTSのJDK 17・21・25�
 - `src/main/java/dev/nytweetdeck/system/`: アプリケーション状態など、X通信に依存しないAPIを担当します。
 - `src/main/java/dev/nytweetdeck/xapi/`: X公式Webログイン、Web Cookie認証、GraphQL/REST通信を担当します。公開BearerはX公式Web資産から動的に解決します。
 - `src/main/java/dev/nytweetdeck/account/`: 複数アカウント資格情報の自動読込、原子的保存、スキーマ検証、バックアップ復旧を担当します。
-- WebセッションはGit管理外の`.local/accounts.json`へ保存し、起動時に自動読込します。手動の作成・解除・ロック状態は持ちません。POSIX環境では所有者だけが読み書きできる権限へ設定します。
+- WebセッションはOS標準のユーザー別アプリケーションデータ領域へ保存し、起動時に自動読込します。保存先はJARや作業ディレクトリから独立し、旧`.local/accounts.json`候補は更新時刻が最も新しい有効データを初回起動時に移行します。手動の作成・解除・ロック状態は持たず、POSIX環境では所有者だけが読み書きできる権限へ設定します。
 
 ## フロントエンドのビルド
 

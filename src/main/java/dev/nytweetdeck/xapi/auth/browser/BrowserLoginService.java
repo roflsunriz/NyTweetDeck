@@ -2,6 +2,7 @@ package dev.nytweetdeck.xapi.auth.browser;
 
 import dev.nytweetdeck.account.AccountStore;
 import dev.nytweetdeck.account.AccountStore.AccountSummary;
+import dev.nytweetdeck.system.ApplicationDataPaths;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
@@ -62,14 +63,14 @@ public class BrowserLoginService {
             AccountStore accountStore,
             WebBearerTokenProvider bearerTokenProvider,
             WebAccountVerifier accountVerifier,
-            @Value("${nytweetdeck.login.browser-session-path:.local/browser-login}") String sessionRoot,
+            @Value("${nytweetdeck.login.browser-session-path:}") String configuredSessionRoot,
             @Value("${nytweetdeck.login.chrome-path:}") String configuredChromePath) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.accountStore = accountStore;
         this.bearerTokenProvider = bearerTokenProvider;
         this.accountVerifier = accountVerifier;
-        this.sessionRoot = Path.of(sessionRoot).toAbsolutePath().normalize();
+        this.sessionRoot = ApplicationDataPaths.resolve(configuredSessionRoot, "browser-login");
         this.configuredChromePath = configuredChromePath;
     }
 
