@@ -1,12 +1,21 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v-prefixed release tag
+        required: true
+        type: string
   push:
     tags:
       - "v*"
 
 permissions:
   contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
   release:
@@ -15,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -43,7 +54,7 @@ jobs:
       - name: Validate release tag and source branch
         shell: bash
         env:
-          RELEASE_VERSION: ${{ github.ref_name }}
+          RELEASE_VERSION: ${{ env.RELEASE_TAG }}
         run: |
           version="${RELEASE_VERSION#v}"
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
@@ -51,7 +62,7 @@ jobs:
             exit 1
           fi
           git fetch origin main --depth=1
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/main
           echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Build application
@@ -64,11 +75,11 @@ jobs:
 
       - name: Verify autostart installers
         shell: pwsh
-        run: ./scripts/verify-autostart.ps1 "target/nytweetdeck-${RELEASE_VERSION}.jar"
+        run: ./scripts/verify-autostart.ps1 "target/nytweetdeck-$env:RELEASE_VERSION.jar"
 
       - name: Verify local HTTPS domain
         shell: pwsh
-        run: ./scripts/verify-local-domain.ps1 "target/nytweetdeck-${RELEASE_VERSION}.jar"
+        run: ./scripts/verify-local-domain.ps1 "target/nytweetdeck-$env:RELEASE_VERSION.jar"
 
       - name: Audit Maven dependencies
         shell: pwsh
@@ -89,14 +100,14 @@ jobs:
           chmod +x dist/NyTweetDeck/run-nytweetdeck.sh dist/NyTweetDeck/install-autostart.sh dist/NyTweetDeck/uninstall-autostart.sh
           chmod +x dist/NyTweetDeck/install-local-domain.sh dist/NyTweetDeck/uninstall-local-domain.sh
           cd dist
-          zip -r "NyTweetDeck-${GITHUB_REF_NAME}.zip" NyTweetDeck
-          sha256sum "NyTweetDeck-${GITHUB_REF_NAME}.zip" > "NyTweetDeck-${GITHUB_REF_NAME}.zip.sha256"
+          zip -r "NyTweetDeck-${RELEASE_TAG}.zip" NyTweetDeck
+          sha256sum "NyTweetDeck-${RELEASE_TAG}.zip" > "NyTweetDeck-${RELEASE_TAG}.zip.sha256"
 
       - name: Verify release archive
         shell: bash
         run: |
-          archive="dist/NyTweetDeck-${GITHUB_REF_NAME}.zip"
-          (cd dist && sha256sum -c "NyTweetDeck-${GITHUB_REF_NAME}.zip.sha256")
+          archive="dist/NyTweetDeck-${RELEASE_TAG}.zip"
+          (cd dist && sha256sum -c "NyTweetDeck-${RELEASE_TAG}.zip.sha256")
           for required in \
             NyTweetDeck/NyTweetDeck.jar \
             NyTweetDeck/run-nytweetdeck.ps1 \
@@ -121,8 +132,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "$GITHUB_REF_NAME"
-          "dist/NyTweetDeck-${GITHUB_REF_NAME}.zip"
-          "dist/NyTweetDeck-${GITHUB_REF_NAME}.zip.sha256"
+          gh release create "$RELEASE_TAG"
+          "dist/NyTweetDeck-${RELEASE_TAG}.zip"
+          "dist/NyTweetDeck-${RELEASE_TAG}.zip.sha256"
           --verify-tag
           --generate-notes
