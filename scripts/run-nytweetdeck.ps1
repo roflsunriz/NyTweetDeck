@@ -43,23 +43,38 @@ $localData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalAppl
 $domainConfigPath = Join-Path $localData 'NyTweetDeck\local-domain.json'
 if (Test-Path -LiteralPath $domainConfigPath) {
     $domainConfig = Get-Content -Raw -LiteralPath $domainConfigPath | ConvertFrom-Json
-    if ($domainConfig.schemaVersion -ne 1 `
+    if ($domainConfig.schemaVersion -eq 1) {
+        Write-Warning (
+            'ローカルHTTPS証明書が旧形式です。警告の出ない専用CA形式へ更新するには、' +
+            'install-local-domain.ps1を再実行してください。今回はHTTPで起動します。')
+    }
+    elseif ($domainConfig.schemaVersion -ne 2 `
             -or $domainConfig.host -ne 'ny.tweetdeck.com' `
             -or $domainConfig.httpsPort -ne 443 `
             -or $domainConfig.httpPort -ne 18080 `
             -or -not (Test-Path -LiteralPath $domainConfig.keyStorePath) `
+            -or -not (Test-Path -LiteralPath $domainConfig.rootCertificatePath) `
+            -or [string]::IsNullOrWhiteSpace([string]$domainConfig.rootThumbprint) `
             -or [string]::IsNullOrWhiteSpace([string]$domainConfig.keyStorePassword)) {
         throw "ローカルドメイン設定が不正です: $domainConfigPath"
     }
-    $javaArguments += @(
-        '--server.port=443',
-        '--server.ssl.enabled=true',
-        ('--server.ssl.key-store="{0}"' -f $domainConfig.keyStorePath),
-        ('--server.ssl.key-store-password={0}' -f $domainConfig.keyStorePassword),
-        '--server.ssl.key-store-type=PKCS12',
-        '--nytweetdeck.http.port=18080'
-    )
-    $accessUrl = 'https://ny.tweetdeck.com'
+    elseif (-not (Test-Path -LiteralPath (
+                'Cert:\CurrentUser\Root\' + [string]$domainConfig.rootThumbprint))) {
+        Write-Warning (
+            'NyTweetDeck専用ルートCAが現在のユーザーの信頼ストアにありません。' +
+            'install-local-domain.ps1を再実行してください。今回はHTTPで起動します。')
+    }
+    else {
+        $javaArguments += @(
+            '--server.port=443',
+            '--server.ssl.enabled=true',
+            ('--server.ssl.key-store="{0}"' -f $domainConfig.keyStorePath),
+            ('--server.ssl.key-store-password={0}' -f $domainConfig.keyStorePassword),
+            '--server.ssl.key-store-type=PKCS12',
+            '--nytweetdeck.http.port=18080'
+        )
+        $accessUrl = 'https://ny.tweetdeck.com'
+    }
 }
 $process = Start-Process `
     -FilePath 'java' `

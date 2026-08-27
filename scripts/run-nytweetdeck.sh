@@ -35,9 +35,11 @@ case "$(uname -s)" in
 esac
 KEYSTORE_PATH="$DATA_ROOT/https/ny.tweetdeck.com.p12"
 PASSWORD_PATH="$DATA_ROOT/https/keystore-password"
+ROOT_CERTIFICATE_PATH="$DATA_ROOT/https/nytweetdeck-local-ca.cer"
 set -- -jar "$JAR_PATH"
 ACCESS_URL=http://127.0.0.1:18080
-if [ -f "$KEYSTORE_PATH" ] && [ -f "$PASSWORD_PATH" ]; then
+if [ -f "$KEYSTORE_PATH" ] && [ -f "$PASSWORD_PATH" ] \
+    && [ -f "$ROOT_CERTIFICATE_PATH" ]; then
   KEYSTORE_PASSWORD=$(sed -n '1p' "$PASSWORD_PATH")
   set -- "$@" \
     "--server.port=$HTTPS_PORT" \
@@ -47,6 +49,8 @@ if [ -f "$KEYSTORE_PATH" ] && [ -f "$PASSWORD_PATH" ]; then
     '--server.ssl.key-store-type=PKCS12' \
     '--nytweetdeck.http.port=18080'
   ACCESS_URL=https://ny.tweetdeck.com
+elif [ -f "$KEYSTORE_PATH" ] || [ -f "$PASSWORD_PATH" ]; then
+  echo 'ローカルHTTPS証明書が旧形式です。警告の出ない専用CA形式へ更新するには、install-local-domain.shを再実行してください。今回はHTTPで起動します。' >&2
 fi
 
 java "$@" &

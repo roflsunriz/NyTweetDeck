@@ -1,51 +1,112 @@
-param([switch]$Elevated)
+param([switch]$ElevatedHosts)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$isAdministrator = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+$domain = 'ny.tweetdeck.com'
+$beginMarker = '# BEGIN NyTweetDeck local domain'
+$endMarker = '# END NyTweetDeck local domain'
+$hostsPath = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
+
+function Remove-ManagedHostsEntry {
+    param([Parameter(Mandatory)][string]$HostsPath)
+
+    $hostsContent = Get-Content -Raw -LiteralPath $HostsPath
+    $managedPattern = '(?ms)^' + [regex]::Escape($beginMarker) + '.*?^' +
+        [regex]::Escape($endMarker) + '\r?\n?'
+    $updatedHosts = [regex]::Replace($hostsContent, $managedPattern, '')
+    Set-Content -LiteralPath $HostsPath -Value $updatedHosts -Encoding ascii
+}
+
+function Remove-CurrentUserRootCertificate {
+    param([Parameter(Mandatory)][string]$Thumbprint)
+
+    if (-not (Test-Path -LiteralPath "Cert:\CurrentUser\Root\$Thumbprint")) {
+        return
+    }
+    & certutil.exe -user -delstore Root $Thumbprint *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "現在のユーザーの信頼済みルートから証明書を削除できませんでした: $Thumbprint"
+    }
+}
+
+if ($ElevatedHosts) {
+    $isAdministrator = ([Security.Principal.WindowsPrincipal] `
+            [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdministrator) {
+        throw 'hostsファイルの更新には管理者権限が必要です。'
+    }
+    Remove-ManagedHostsEntry -HostsPath $hostsPath
+    return
+}
+
+$isAdministrator = ([Security.Principal.WindowsPrincipal] `
+        [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdministrator -and -not $Elevated) {
+if ($isAdministrator) {
+    Remove-ManagedHostsEntry -HostsPath $hostsPath
+} else {
     $elevatedProcess = Start-Process `
         -FilePath 'powershell.exe' `
         -ArgumentList @(
             '-NoProfile',
             '-ExecutionPolicy', 'Bypass',
             '-File', ('"{0}"' -f $PSCommandPath),
-            '-Elevated'
+            '-ElevatedHosts'
         ) `
         -Verb RunAs `
+        -WindowStyle Hidden `
         -Wait `
         -PassThru
     if ($elevatedProcess.ExitCode -ne 0) {
-        throw "ローカルドメイン解除の管理者処理に失敗しました。終了コード: $($elevatedProcess.ExitCode)"
+        throw 'hostsファイルを更新できませんでした。管理者確認を承認して再実行してください。'
     }
-    return
 }
 
-$domain = 'ny.tweetdeck.com'
-$hostsPath = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
-$dataRoot = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)) 'NyTweetDeck'
+$dataRoot = Join-Path `
+    ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)) `
+    'NyTweetDeck'
+$httpsRoot = Join-Path $dataRoot 'https'
 $configPath = Join-Path $dataRoot 'local-domain.json'
 if (Test-Path -LiteralPath $configPath) {
     $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
-    if (-not [string]::IsNullOrWhiteSpace([string]$config.thumbprint)) {
-        Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($config.thumbprint)" -Force -ErrorAction SilentlyContinue
-        & certutil -user -delstore Root ([string]$config.thumbprint) *> $null
+    $thumbprints = @()
+    if ($null -ne $config.PSObject.Properties['thumbprint']) {
+        $thumbprints += [string]$config.thumbprint
     }
-    if (Test-Path -LiteralPath $config.keyStorePath) {
-        Remove-Item -LiteralPath $config.keyStorePath -Force
+    if ($null -ne $config.PSObject.Properties['rootThumbprint']) {
+        $thumbprints += [string]$config.rootThumbprint
     }
-    $certificatePath = Join-Path (Split-Path -Parent $config.keyStorePath) 'ny.tweetdeck.com.cer'
-    if (Test-Path -LiteralPath $certificatePath) {
-        Remove-Item -LiteralPath $certificatePath -Force
+    foreach ($thumbprint in $thumbprints | Select-Object -Unique) {
+        if (-not [string]::IsNullOrWhiteSpace($thumbprint)) {
+            Remove-Item `
+                -LiteralPath "Cert:\CurrentUser\My\$thumbprint" `
+                -Force `
+                -ErrorAction SilentlyContinue
+            Remove-CurrentUserRootCertificate -Thumbprint $thumbprint
+        }
     }
     Remove-Item -LiteralPath $configPath -Force
 }
-$beginMarker = '# BEGIN NyTweetDeck local domain'
-$endMarker = '# END NyTweetDeck local domain'
-$hostsContent = Get-Content -Raw -LiteralPath $hostsPath
-$managedPattern = '(?ms)^' + [regex]::Escape($beginMarker) + '.*?^' + [regex]::Escape($endMarker) + '\r?\n?'
-$updatedHosts = [regex]::Replace($hostsContent, $managedPattern, '')
-Set-Content -LiteralPath $hostsPath -Value $updatedHosts -Encoding ascii
+
+foreach ($fileName in @(
+        'ny.tweetdeck.com.p12',
+        'ny.tweetdeck.com.cer',
+        'nytweetdeck-local-ca.cer',
+        'keystore-password',
+        'java-capability-before'
+    )) {
+    $path = Join-Path $httpsRoot $fileName
+    if (Test-Path -LiteralPath $path) {
+        Remove-Item -LiteralPath $path -Force
+    }
+}
+if (Test-Path -LiteralPath $httpsRoot) {
+    $remainingFiles = Get-ChildItem -LiteralPath $httpsRoot -Force
+    if ($remainingFiles.Count -eq 0) {
+        Remove-Item -LiteralPath $httpsRoot -Force
+    }
+}
+
 Write-Host "ローカルHTTPSを解除しました: https://$domain"

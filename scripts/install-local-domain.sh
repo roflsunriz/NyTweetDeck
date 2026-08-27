@@ -37,9 +37,10 @@ HTTPS_ROOT="$DATA_ROOT/https"
 KEYSTORE_PATH="$HTTPS_ROOT/$DOMAIN.p12"
 PASSWORD_PATH="$HTTPS_ROOT/keystore-password"
 CERTIFICATE_PATH="$HTTPS_ROOT/$DOMAIN.cer"
+ROOT_CERTIFICATE_PATH="$HTTPS_ROOT/nytweetdeck-local-ca.cer"
 if [ "$DRY_RUN" -eq 1 ]; then
-  printf 'platform=%s\nhost=%s\naddress=127.0.0.1\nhttpsPort=%s\nkeyStorePath=%s\n' \
-    "$PLATFORM" "$DOMAIN" "$HTTPS_PORT" "$KEYSTORE_PATH"
+  printf 'platform=%s\nhost=%s\naddress=127.0.0.1\nhttpsPort=%s\nkeyStorePath=%s\nrootCertificatePath=%s\n' \
+    "$PLATFORM" "$DOMAIN" "$HTTPS_PORT" "$KEYSTORE_PATH" "$ROOT_CERTIFICATE_PATH"
   exit 0
 fi
 if ! command -v keytool >/dev/null 2>&1; then
@@ -55,27 +56,85 @@ if [ "$PLATFORM" = linux ] \
 fi
 mkdir -p "$HTTPS_ROOT"
 chmod 700 "$HTTPS_ROOT"
+WORK_ROOT=$(mktemp -d "$HTTPS_ROOT/.install.XXXXXX")
+cleanup() {
+  rm -rf -- "$WORK_ROOT"
+}
+trap cleanup EXIT HUP INT TERM
+
 PASSWORD=$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')
+CA_PASSWORD=$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')
+CA_KEYSTORE="$WORK_ROOT/nytweetdeck-local-ca.p12"
+STAGED_KEYSTORE="$WORK_ROOT/$DOMAIN.p12"
+STAGED_PASSWORD="$WORK_ROOT/keystore-password"
+STAGED_CERTIFICATE="$WORK_ROOT/$DOMAIN.cer"
+STAGED_ROOT_CERTIFICATE="$WORK_ROOT/nytweetdeck-local-ca.cer"
+CERTIFICATE_REQUEST="$WORK_ROOT/$DOMAIN.csr"
+
+keytool -genkeypair \
+  -alias nytweetdeck-local-ca \
+  -keyalg RSA \
+  -keysize 2048 \
+  -storetype PKCS12 \
+  -keystore "$CA_KEYSTORE" \
+  -storepass "$CA_PASSWORD" \
+  -keypass "$CA_PASSWORD" \
+  -dname 'CN=NyTweetDeck Local Root CA' \
+  -ext 'BC=ca:true,pathlen:0' \
+  -ext 'KU=keyCertSign,cRLSign' \
+  -validity 3650 \
+  -noprompt
+keytool -exportcert -rfc \
+  -alias nytweetdeck-local-ca \
+  -keystore "$CA_KEYSTORE" \
+  -storepass "$CA_PASSWORD" \
+  -file "$STAGED_ROOT_CERTIFICATE"
+
 keytool -genkeypair \
   -alias nytweetdeck \
   -keyalg RSA \
   -keysize 2048 \
   -storetype PKCS12 \
-  -keystore "$KEYSTORE_PATH" \
+  -keystore "$STAGED_KEYSTORE" \
   -storepass "$PASSWORD" \
   -keypass "$PASSWORD" \
   -dname "CN=$DOMAIN" \
   -ext "SAN=dns:$DOMAIN,ip:127.0.0.1" \
   -ext 'EKU=serverAuth' \
-  -validity 1825 \
+  -ext 'BC=ca:false' \
+  -validity 825 \
   -noprompt
-keytool -exportcert -rfc \
+keytool -certreq \
   -alias nytweetdeck \
-  -keystore "$KEYSTORE_PATH" \
+  -keystore "$STAGED_KEYSTORE" \
   -storepass "$PASSWORD" \
-  -file "$CERTIFICATE_PATH"
-printf '%s\n' "$PASSWORD" > "$PASSWORD_PATH"
-chmod 600 "$KEYSTORE_PATH" "$PASSWORD_PATH" "$CERTIFICATE_PATH"
+  -file "$CERTIFICATE_REQUEST" \
+  -ext "SAN=dns:$DOMAIN,ip:127.0.0.1"
+keytool -gencert -rfc \
+  -alias nytweetdeck-local-ca \
+  -keystore "$CA_KEYSTORE" \
+  -storepass "$CA_PASSWORD" \
+  -infile "$CERTIFICATE_REQUEST" \
+  -outfile "$STAGED_CERTIFICATE" \
+  -ext "SAN=dns:$DOMAIN,ip:127.0.0.1" \
+  -ext 'EKU=serverAuth' \
+  -ext 'KU=digitalSignature,keyEncipherment' \
+  -ext 'BC=ca:false' \
+  -validity 825
+keytool -importcert \
+  -alias nytweetdeck-local-ca \
+  -keystore "$STAGED_KEYSTORE" \
+  -storepass "$PASSWORD" \
+  -file "$STAGED_ROOT_CERTIFICATE" \
+  -noprompt
+keytool -importcert \
+  -alias nytweetdeck \
+  -keystore "$STAGED_KEYSTORE" \
+  -storepass "$PASSWORD" \
+  -file "$STAGED_CERTIFICATE" \
+  -noprompt
+printf '%s\n' "$PASSWORD" > "$STAGED_PASSWORD"
+chmod 600 "$STAGED_KEYSTORE" "$STAGED_PASSWORD" "$STAGED_CERTIFICATE" "$STAGED_ROOT_CERTIFICATE"
 
 BEGIN_MARKER='# BEGIN NyTweetDeck local domain'
 END_MARKER='# END NyTweetDeck local domain'
@@ -90,14 +149,27 @@ sudo cp "$HOSTS_TEMP" /etc/hosts
 rm -f -- "$HOSTS_TEMP"
 
 if [ "$PLATFORM" = linux ]; then
-  sudo cp "$CERTIFICATE_PATH" /usr/local/share/ca-certificates/nytweetdeck-local.crt
+  sudo rm -f -- /usr/local/share/ca-certificates/nytweetdeck-local.crt
+  sudo cp "$STAGED_ROOT_CERTIFICATE" \
+    /usr/local/share/ca-certificates/nytweetdeck-local-ca.crt
   sudo update-ca-certificates
   JAVA_BINARY=$(readlink -f "$(command -v java)")
   getcap "$JAVA_BINARY" > "$HTTPS_ROOT/java-capability-before" 2>/dev/null || true
   sudo setcap 'cap_net_bind_service=+ep' "$JAVA_BINARY"
 else
+  if [ -f "$ROOT_CERTIFICATE_PATH" ]; then
+    OLD_FINGERPRINT=$(openssl x509 -in "$ROOT_CERTIFICATE_PATH" -noout -fingerprint -sha1 \
+      | cut -d= -f2 | tr -d ':')
+    sudo security delete-certificate -Z "$OLD_FINGERPRINT" \
+      /Library/Keychains/System.keychain 2>/dev/null || true
+  elif [ -f "$CERTIFICATE_PATH" ]; then
+    OLD_FINGERPRINT=$(openssl x509 -in "$CERTIFICATE_PATH" -noout -fingerprint -sha1 \
+      | cut -d= -f2 | tr -d ':')
+    sudo security delete-certificate -Z "$OLD_FINGERPRINT" \
+      /Library/Keychains/System.keychain 2>/dev/null || true
+  fi
   sudo security add-trusted-cert -d -r trustRoot \
-    -k /Library/Keychains/System.keychain "$CERTIFICATE_PATH"
+    -k /Library/Keychains/System.keychain "$STAGED_ROOT_CERTIFICATE"
   PF_ANCHOR=/etc/pf.anchors/dev.nytweetdeck
   PF_TEMP=$(mktemp)
   printf 'rdr pass on lo0 inet proto tcp from any to 127.0.0.1 port 443 -> 127.0.0.1 port 18443\n' > "$PF_TEMP"
@@ -118,4 +190,9 @@ else
   sudo pfctl -f /etc/pf.conf
   sudo pfctl -E 2>/dev/null || true
 fi
+
+mv -f "$STAGED_KEYSTORE" "$KEYSTORE_PATH"
+mv -f "$STAGED_PASSWORD" "$PASSWORD_PATH"
+mv -f "$STAGED_CERTIFICATE" "$CERTIFICATE_PATH"
+mv -f "$STAGED_ROOT_CERTIFICATE" "$ROOT_CERTIFICATE_PATH"
 echo "ローカルHTTPSを設定しました: https://$DOMAIN"

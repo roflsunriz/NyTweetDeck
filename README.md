@@ -27,13 +27,15 @@ NyTweetDeckを終了するには、ランチャーを実行したウィンドウ
 
 ### 端末内だけで`https://ny.tweetdeck.com`を使う
 
-このアドレスは公開サイトではありません。導入スクリプトが実行端末のhostsで`ny.tweetdeck.com`を`127.0.0.1`へ固定し、端末内で生成した証明書を信頼ストアへ登録します。NyTweetDeckもloopbackだけで待ち受けるため、LANやインターネットからは接続できません。既存の<http://127.0.0.1:18080>も継続して使えます。
+このアドレスは公開サイトではありません。導入スクリプトが実行端末のhostsで`ny.tweetdeck.com`を`127.0.0.1`へ固定し、端末内でNyTweetDeck専用ルートCAと、そのCAが署名したサーバー証明書を生成します。専用ルートCAだけをOSの信頼ストアへ登録するため、対応ブラウザでは証明書警告なしで利用できます。NyTweetDeckもloopbackだけで待ち受けるため、LANやインターネットからは接続できません。既存の<http://127.0.0.1:18080>も継続して使えます。
 
-Windowsでは管理者確認を承認して次を実行します。
+Windowsでは専用ルートCAの信頼確認と、hosts更新が必要な場合の管理者確認を承認して次を実行します。
 
 ```powershell
 .\install-local-domain.ps1
 ```
+
+以前の自己署名サーバー証明書を導入済みの場合も、同じコマンドを再実行すると専用CA形式へ置き換わります。Windowsでは証明書を現在のブラウザ利用者へ登録し、管理者権限はhosts更新だけに使用します。
 
 macOSまたはLinuxでは、hostsとOS証明書ストアの更新に`sudo`を使用します。
 
@@ -42,6 +44,8 @@ macOSまたはLinuxでは、hostsとOS証明書ストアの更新に`sudo`を使
 ```
 
 LinuxではJavaへ443番ポートだけを開くcapabilityを設定し、macOSではloopbackの443番をNyTweetDeckの18443番へ転送します。解除する場合は同梱の`uninstall-local-domain.ps1`または`uninstall-local-domain.sh`を使用します。
+
+Firefox 120以降はWindowsとmacOSでOSへ追加したルートCAを既定で利用します。Firefox設定で「インストールしたサードパーティーのルート証明書を自動的に信頼する」を無効にしている場合は、この設定を有効にしてFirefoxを再起動してください。LinuxではディストリビューションがFirefoxへシステムCAを連携していない場合、Firefox側にも専用CAの登録が必要です。
 
 ### ログオン時に自動起動する
 

@@ -51,5 +51,5 @@ BunのHTMLエントリーポイントをBun bundlerへ渡し、`target/classes/s
 20. 通知の`notification_url`からコミュニティノートIDを解決し、`BirdwatchFetchOneNote`で完全なノート本文・出典・対象ポストID、`TweetResultByRestId`で通常ポスト本体を取得する。両者を同じポストカード内へ統合し、定型通知文を詳細として再利用しない。
 21. トレンド絞り込みは取得済みデータへクライアント側で適用し、入力による追加API消費を発生させない。確定語句は重複を除いた直近20件に制限する。
 22. 設定移送は`NyTweetDeckSettings`形式とバージョンを検証し、認証情報・保存アカウント・選択アカウントIDを除外してレイアウトだけをJSON化する。インポートでは現在の選択アカウントを維持する。
-23. ローカルドメインはOSのhostsと信頼ストアだけで`ny.tweetdeck.com`をloopbackへ解決する。HTTPS有効時も追加HTTPコネクタを127.0.0.1へ固定し、APIは接続元IP・Host・Originをすべて検証する。
+23. ローカルドメインはOSのhostsで`ny.tweetdeck.com`をloopbackへ解決し、端末内で生成したNyTweetDeck専用ルートCAだけをOSの信頼ストアへ登録する。HTTPSサーバーはそのCAが署名したホスト名付き証明書を使用する。HTTPS有効時も追加HTTPコネクタを127.0.0.1へ固定し、APIは接続元IP・Host・Originをすべて検証する。
 24. ログオン自動起動は配布場所のJAR絶対パスをWindows Task Scheduler、macOS LaunchAgent、Linux systemd user serviceへ登録し、ブラウザを自動表示せず多重起動を抑止する。

@@ -13,7 +13,9 @@ $plan = & (Join-Path $PSScriptRoot 'install-local-domain.ps1') -DryRun | Convert
 if ($plan.host -ne 'ny.tweetdeck.com' `
         -or $plan.address -ne '127.0.0.1' `
         -or $plan.httpsPort -ne 443 `
-        -or $plan.httpPort -ne 18080) {
+        -or $plan.httpPort -ne 18080 `
+        -or $plan.schemaVersion -ne 2 `
+        -or $plan.rootCertificatePath -notlike '*nytweetdeck-local-ca.cer') {
     throw 'ローカルドメインの導入計画が不正です。'
 }
 $shell = Get-Command sh -ErrorAction SilentlyContinue
@@ -27,32 +29,59 @@ if ($LASTEXITCODE -ne 0) { throw 'install-local-domain.shの構文検証に失�
 if ($LASTEXITCODE -ne 0) { throw 'uninstall-local-domain.shの構文検証に失敗しました。' }
 $linuxPlan = (& $shell.Source $installShell --platform linux --dry-run) -join "`n"
 $macPlan = (& $shell.Source $installShell --platform macos --dry-run) -join "`n"
-if ($linuxPlan -notlike '*httpsPort=443*' -or $linuxPlan -notlike '*ny.tweetdeck.com.p12*') {
+if ($linuxPlan -notlike '*httpsPort=443*' `
+        -or $linuxPlan -notlike '*ny.tweetdeck.com.p12*' `
+        -or $linuxPlan -notlike '*nytweetdeck-local-ca.cer*') {
     throw 'Linux証明書導入計画が不正です。'
 }
-if ($macPlan -notlike '*httpsPort=18443*' -or $macPlan -notlike '*ny.tweetdeck.com.p12*') {
+if ($macPlan -notlike '*httpsPort=18443*' `
+        -or $macPlan -notlike '*ny.tweetdeck.com.p12*' `
+        -or $macPlan -notlike '*nytweetdeck-local-ca.cer*') {
     throw 'macOS証明書導入計画が不正です。'
 }
 $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("nytweetdeck-https-test-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $temporaryDirectory | Out-Null
-$keyStore = Join-Path $temporaryDirectory 'test.p12'
+$caKeyStore = Join-Path $temporaryDirectory 'ca.p12'
+$keyStore = Join-Path $temporaryDirectory 'server.p12'
+$rootCertificate = Join-Path $temporaryDirectory 'nytweetdeck-local-ca.cer'
+$certificateRequest = Join-Path $temporaryDirectory 'ny.tweetdeck.com.csr'
+$serverCertificate = Join-Path $temporaryDirectory 'ny.tweetdeck.com.cer'
 $password = 'NyTweetDeck-test-only'
 $process = $null
 try {
-    $keytoolOutput = & keytool `
-        -genkeypair `
-        -alias nytweetdeck `
-        -keyalg RSA `
-        -keysize 2048 `
-        -storetype PKCS12 `
-        -keystore $keyStore `
-        -storepass $password `
-        -keypass $password `
-        -dname 'CN=ny.tweetdeck.com' `
-        -ext 'SAN=dns:ny.tweetdeck.com,ip:127.0.0.1' `
-        -validity 1 `
-        -noprompt 2>&1
-    if ($LASTEXITCODE -ne 0) { throw 'HTTPS検証用証明書を生成できませんでした。' }
+    & keytool -genkeypair -alias nytweetdeck-local-ca -keyalg RSA -keysize 2048 `
+        -storetype PKCS12 -keystore $caKeyStore -storepass $password -keypass $password `
+        -dname 'CN=NyTweetDeck Local Root CA' -ext 'BC=ca:true,pathlen:0' `
+        -ext 'KU=keyCertSign,cRLSign' -validity 2 -noprompt *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'HTTPS検証用ルートCAを生成できませんでした。' }
+    & keytool -exportcert -rfc -alias nytweetdeck-local-ca -keystore $caKeyStore `
+        -storepass $password -file $rootCertificate *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'HTTPS検証用ルートCAを出力できませんでした。' }
+    & keytool -genkeypair -alias nytweetdeck -keyalg RSA -keysize 2048 `
+        -storetype PKCS12 -keystore $keyStore -storepass $password -keypass $password `
+        -dname 'CN=ny.tweetdeck.com' -ext 'SAN=dns:ny.tweetdeck.com,ip:127.0.0.1' `
+        -ext 'EKU=serverAuth' -ext 'BC=ca:false' -validity 1 -noprompt *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'HTTPS検証用サーバー鍵を生成できませんでした。' }
+    & keytool -certreq -alias nytweetdeck -keystore $keyStore -storepass $password `
+        -file $certificateRequest -ext 'SAN=dns:ny.tweetdeck.com,ip:127.0.0.1' *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'HTTPS検証用署名要求を生成できませんでした。' }
+    & keytool -gencert -rfc -alias nytweetdeck-local-ca -keystore $caKeyStore `
+        -storepass $password -infile $certificateRequest -outfile $serverCertificate `
+        -ext 'SAN=dns:ny.tweetdeck.com,ip:127.0.0.1' -ext 'EKU=serverAuth' `
+        -ext 'KU=digitalSignature,keyEncipherment' -ext 'BC=ca:false' -validity 1 *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'HTTPS検証用サーバー証明書へ署名できませんでした。' }
+    & keytool -importcert -alias nytweetdeck-local-ca -keystore $keyStore `
+        -storepass $password -file $rootCertificate -noprompt *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'HTTPS検証用ルートCAをキーストアへ登録できませんでした。' }
+    & keytool -importcert -alias nytweetdeck -keystore $keyStore -storepass $password `
+        -file $serverCertificate -noprompt *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'HTTPS検証用証明書チェーンを構成できませんでした。' }
+    $chainPem = (& keytool -list -rfc -alias nytweetdeck -keystore $keyStore `
+            -storepass $password 2>&1) -join [Environment]::NewLine
+    if ($LASTEXITCODE -ne 0 `
+            -or ([regex]::Matches($chainPem, '-----BEGIN CERTIFICATE-----')).Count -ne 2) {
+        throw 'HTTPS検証用キーストアにルートCAとサーバー証明書のチェーンがありません。'
+    }
     $arguments = @(
         '-jar', ('"{0}"' -f $resolvedJar),
         '--server.address=127.0.0.1',
@@ -88,25 +117,44 @@ try {
         }
     }
     if (-not $ready) { throw 'HTTP互換コネクタが20秒以内に起動しませんでした。' }
-    $handler = [Net.Http.HttpClientHandler]::new()
-    $handler.ServerCertificateCustomValidationCallback = `
-        [Net.Http.HttpClientHandler]::DangerousAcceptAnyServerCertificateValidator
-    $client = [Net.Http.HttpClient]::new($handler)
-    try {
-        $request = [Net.Http.HttpRequestMessage]::new(
-            [Net.Http.HttpMethod]::Get,
-            'https://127.0.0.1:18443/api/v1/system/status')
-        $request.Headers.Host = 'ny.tweetdeck.com:18443'
-        $response = $client.SendAsync($request).GetAwaiter().GetResult()
-        if ([int]$response.StatusCode -ne 200) {
-            throw "ローカルHTTPS応答が不正です: $([int]$response.StatusCode)"
+    $openssl = Get-Command openssl -CommandType Application -ErrorAction SilentlyContinue
+    if ($PSVersionTable.PSEdition -ne 'Core' -or $IsWindows) {
+        $gitOpenSslCandidates = @(
+            (Join-Path $env:ProgramFiles 'Git\mingw64\bin\openssl.exe')
+        )
+        foreach ($gitCommand in @(Get-Command git.exe -CommandType Application -All `
+                    -ErrorAction SilentlyContinue)) {
+            $gitRoot = Split-Path -Parent (Split-Path -Parent $gitCommand.Source)
+            $gitOpenSslCandidates += Join-Path $gitRoot 'mingw64\bin\openssl.exe'
+        }
+        foreach ($gitOpenSsl in $gitOpenSslCandidates | Select-Object -Unique) {
+            $resolvedGitOpenSsl = Resolve-Path `
+                -LiteralPath $gitOpenSsl `
+                -ErrorAction SilentlyContinue
+            if ($null -ne $resolvedGitOpenSsl) {
+                $openssl = Get-Item -LiteralPath $resolvedGitOpenSsl.Path
+                break
+            }
         }
     }
-    finally {
-        $client.Dispose()
-        $handler.Dispose()
+    if ($null -eq $openssl) { throw '証明書チェーン検証にOpenSSLが必要です。' }
+    $httpRequest = "GET /api/v1/system/status HTTP/1.1`r`n" +
+        "Host: ny.tweetdeck.com:18443`r`nConnection: close`r`n`r`n"
+    $opensslOutput = $httpRequest | & $openssl.FullName s_client `
+        -connect '127.0.0.1:18443' `
+        -servername 'ny.tweetdeck.com' `
+        -verify_hostname 'ny.tweetdeck.com' `
+        -CAfile $rootCertificate `
+        -verify_return_error 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "専用CAを使ったローカルHTTPSの証明書検証に失敗しました: $opensslOutput"
     }
-    Write-Host 'ny.tweetdeck.com用HTTPSと127.0.0.1 HTTP互換コネクタを検証しました。'
+    $httpsResponse = $opensslOutput -join [Environment]::NewLine
+    if ($httpsResponse -notmatch 'Verify return code: 0 \(ok\)' `
+            -or $httpsResponse -notmatch 'HTTP/1\.1 200') {
+        throw '専用CAの証明書チェーン、ホスト名、またはHTTPS応答が不正です。'
+    }
+    Write-Host '専用CAで署名したny.tweetdeck.com用HTTPSとHTTP互換コネクタを検証しました。'
 }
 finally {
     if ($null -ne $process -and -not $process.HasExited) {

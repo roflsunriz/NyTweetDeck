@@ -15,6 +15,7 @@ case "$(uname -s)" in
 esac
 HTTPS_ROOT="$DATA_ROOT/https"
 CERTIFICATE_PATH="$HTTPS_ROOT/$DOMAIN.cer"
+ROOT_CERTIFICATE_PATH="$HTTPS_ROOT/nytweetdeck-local-ca.cer"
 BEGIN_MARKER='# BEGIN NyTweetDeck local domain'
 END_MARKER='# END NyTweetDeck local domain'
 HOSTS_TEMP=$(mktemp)
@@ -27,7 +28,9 @@ sudo cp "$HOSTS_TEMP" /etc/hosts
 rm -f -- "$HOSTS_TEMP"
 
 if [ "$PLATFORM" = linux ]; then
-  sudo rm -f -- /usr/local/share/ca-certificates/nytweetdeck-local.crt
+  sudo rm -f -- \
+    /usr/local/share/ca-certificates/nytweetdeck-local.crt \
+    /usr/local/share/ca-certificates/nytweetdeck-local-ca.crt
   sudo update-ca-certificates
   JAVA_BINARY=$(readlink -f "$(command -v java)")
   CAPABILITY_BACKUP="$HTTPS_ROOT/java-capability-before"
@@ -40,9 +43,15 @@ if [ "$PLATFORM" = linux ]; then
     sudo setcap -r "$JAVA_BINARY" 2>/dev/null || true
   fi
 else
-  if [ -f "$CERTIFICATE_PATH" ]; then
-    FINGERPRINT=$(openssl x509 -in "$CERTIFICATE_PATH" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')
-    sudo security delete-certificate -Z "$FINGERPRINT" /Library/Keychains/System.keychain 2>/dev/null || true
+  TRUSTED_CERTIFICATE_PATH=$ROOT_CERTIFICATE_PATH
+  if [ ! -f "$TRUSTED_CERTIFICATE_PATH" ]; then
+    TRUSTED_CERTIFICATE_PATH=$CERTIFICATE_PATH
+  fi
+  if [ -f "$TRUSTED_CERTIFICATE_PATH" ]; then
+    FINGERPRINT=$(openssl x509 -in "$TRUSTED_CERTIFICATE_PATH" -noout -fingerprint -sha1 \
+      | cut -d= -f2 | tr -d ':')
+    sudo security delete-certificate -Z "$FINGERPRINT" \
+      /Library/Keychains/System.keychain 2>/dev/null || true
   fi
   PF_BEGIN='# BEGIN NyTweetDeck local domain'
   PF_END='# END NyTweetDeck local domain'
