@@ -11,8 +11,8 @@ if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows -and -not $DryRun)
 }
 $domain = 'ny.tweetdeck.com'
 if ($DryRun -and $PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) {
-    $hostsPath = 'C:\Windows\System32\drivers\etc\hosts'
-    $dataRoot = 'C:\Users\User\AppData\Local\NyTweetDeck'
+    $hostsPath = '/etc/hosts'
+    $dataRoot = '/tmp/NyTweetDeck'
 } else {
     $hostsPath = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
     $dataRoot = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)) 'NyTweetDeck'
