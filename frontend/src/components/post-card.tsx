@@ -333,6 +333,7 @@ export function PostCard({
               media.type === "video" || media.type === "animated_gif" ? (
                 <ConfiguredVideo
                   key={media.id}
+                  mediaId={media.id}
                   autoPlay={display.videoAutoplay}
                   loop={display.videoLoop}
                   volume={display.videoVolume}
@@ -464,12 +465,14 @@ export function PostCard({
 }
 
 function ConfiguredVideo({
+  mediaId,
   autoPlay,
   loop,
   volume,
   poster,
   src,
 }: {
+  mediaId: string;
   autoPlay: boolean;
   loop: boolean;
   volume: number;
@@ -477,6 +480,38 @@ function ConfiguredVideo({
   src: string;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [activeSource, setActiveSource] = useState<string | null>(null);
+  const [inPlaybackZone, setInPlaybackZone] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video === null) return;
+    setInPlaybackZone(false);
+    setActiveSource(null);
+    if (typeof globalThis.IntersectionObserver === "undefined") {
+      setActiveSource(src);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const active = entries.some((entry) => entry.target === video && entry.isIntersecting);
+        if (!active) {
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+        }
+        setInPlaybackZone(active);
+        setActiveSource(active ? src : null);
+      },
+      {
+        root: null,
+        rootMargin: "0px 0px -50% 0px",
+        threshold: 0,
+      },
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, [src]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -485,16 +520,37 @@ function ConfiguredVideo({
     video.volume = normalizedVolume;
   }, [volume]);
 
+  const sourceActive = activeSource === src;
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video === null) return;
+    if (!autoPlay || !inPlaybackZone || !sourceActive) {
+      video.pause();
+      return;
+    }
+    void video.play().catch((error: unknown) => {
+      if (
+        !(error instanceof DOMException) ||
+        (error.name !== "AbortError" && error.name !== "NotAllowedError")
+      ) {
+        video.pause();
+      }
+    });
+    return () => video.pause();
+  }, [autoPlay, inPlaybackZone, sourceActive]);
+
   return (
     <video
       ref={videoRef}
+      data-media-id={mediaId}
+      data-viewport-active={inPlaybackZone}
       controls
       muted
-      autoPlay={autoPlay}
+      autoPlay={autoPlay && inPlaybackZone && sourceActive}
       loop={loop}
-      preload="metadata"
+      preload={inPlaybackZone ? "metadata" : "none"}
       poster={poster}
-      src={src}
+      src={sourceActive ? src : undefined}
     />
   );
 }

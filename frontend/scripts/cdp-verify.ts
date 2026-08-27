@@ -449,7 +449,12 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
             likeCount: 0, bookmarkCount: 0, viewCount: 0,
             liked: false, reposted: false, bookmarked: false,
             replyToPostId: null, replyToUsername: null, quotedPost: null,
-            communityNote: null, media: []
+            communityNote: null,
+            media: index === 5 ? [{
+              id: "video-offscreen-qa", type: "video",
+              url: "/api/v1/system/status",
+              previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+            }] : []
           }))],
           nextCursor: null
         }));
@@ -588,7 +593,8 @@ await client.evaluate(`(() => {
   localStorage.setItem("nytweetdeck.layout", JSON.stringify({
     ...layout,
     locale: "ja",
-    columns: [{ id: "qa-home", kind: "home", target: null, label: null }]
+    columns: [{ id: "qa-home", kind: "home", target: null, label: null }],
+    display: { ...layout.display, videoAutoplay: true }
   }));
 })()`);
 await reload();
@@ -610,6 +616,76 @@ if (!quotedOriginalClicked) {
 await waitForCondition(
   'document.querySelector(".quoted-post-text")?.textContent === "Quoted original"',
 );
+await waitForCondition('document.querySelectorAll(".post-media video").length === 2');
+const firstVideoPositioned = await client.evaluate<boolean>(`(() => {
+  const video = document.querySelector('[data-media-id="video-qa"]');
+  if (!(video instanceof HTMLVideoElement)) return false;
+  video.scrollIntoView({ block: "center" });
+  return true;
+})()`);
+if (!firstVideoPositioned) throw new Error("先頭動画を再生帯へ移動できませんでした。");
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("src") !== null',
+);
+const deferredVideoMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
+  const active = document.querySelector('[data-media-id="video-qa"]');
+  const deferred = document.querySelector('[data-media-id="video-offscreen-qa"]');
+  return {
+    activeSource: active?.getAttribute("src"),
+    activeAutoplay: active instanceof HTMLVideoElement ? active.autoplay : null,
+    activeInPlaybackZone: active?.getAttribute("data-viewport-active"),
+    deferredSource: deferred?.getAttribute("src"),
+    deferredAutoplay: deferred instanceof HTMLVideoElement ? deferred.autoplay : null,
+    deferredInPlaybackZone: deferred?.getAttribute("data-viewport-active"),
+    deferredTop: deferred instanceof Element ? deferred.getBoundingClientRect().top : null,
+    playbackZoneBottom: innerHeight / 2
+  };
+})()`);
+if (
+  deferredVideoMetrics.activeSource === null ||
+  deferredVideoMetrics.activeAutoplay !== true ||
+  deferredVideoMetrics.activeInPlaybackZone !== "true" ||
+  deferredVideoMetrics.deferredSource !== null ||
+  deferredVideoMetrics.deferredAutoplay !== false ||
+  deferredVideoMetrics.deferredInPlaybackZone !== "false" ||
+  Number(deferredVideoMetrics.deferredTop) <= Number(deferredVideoMetrics.playbackZoneBottom)
+) {
+  throw new Error(
+    `画面外動画の遅延ロード検証に失敗しました: ${JSON.stringify(deferredVideoMetrics)}`,
+  );
+}
+const deferredVideoPositioned = await client.evaluate<boolean>(`(() => {
+  const video = document.querySelector('[data-media-id="video-offscreen-qa"]');
+  if (!(video instanceof HTMLVideoElement)) return false;
+  video.scrollIntoView({ block: "center" });
+  return true;
+})()`);
+if (!deferredVideoPositioned) throw new Error("遅延動画を再生帯へ移動できませんでした。");
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("src") !== null',
+);
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("data-viewport-active") === "true"',
+);
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("data-viewport-active") === "false"',
+);
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("src") === null',
+);
+const replayVideoPositioned = await client.evaluate<boolean>(`(() => {
+  const video = document.querySelector('[data-media-id="video-qa"]');
+  if (!(video instanceof HTMLVideoElement)) return false;
+  video.scrollIntoView({ block: "center" });
+  return true;
+})()`);
+if (!replayVideoPositioned) throw new Error("先頭動画を再生帯へ戻せませんでした。");
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("data-viewport-active") === "true"',
+);
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("src") === null',
+);
 const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const like = document.querySelector("[data-post-action=like]");
   const repost = document.querySelector("[data-post-action=repost]");
@@ -623,6 +699,8 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
     videoLoop: video instanceof HTMLVideoElement ? video.loop : null,
     videoVolume: video instanceof HTMLVideoElement ? video.volume : null,
     videoMuted: video instanceof HTMLVideoElement ? video.muted : null,
+    videoAutoplay: video instanceof HTMLVideoElement ? video.autoplay : null,
+    videoInPlaybackZone: video?.getAttribute("data-viewport-active"),
     translationRequests: window.__qaTranslationRequests,
     translatedPostCount: new Set(window.__qaTranslationPostIds).size,
     translationMaximumActive: window.__qaTranslationMaximumActive,
@@ -640,6 +718,8 @@ if (
   engagementMetrics.videoLoop !== true ||
   engagementMetrics.videoVolume !== 1 ||
   engagementMetrics.videoMuted !== true ||
+  engagementMetrics.videoAutoplay !== true ||
+  engagementMetrics.videoInPlaybackZone !== "true" ||
   Number(engagementMetrics.translatedPostCount) >= 14 ||
   engagementMetrics.translationMaximumActive !== 2 ||
   engagementMetrics.firstPostTranslationAttempts !== 2 ||
@@ -660,6 +740,7 @@ const engagementScreenshotPath = resolve(
 await Bun.write(engagementScreenshotPath, Buffer.from(engagementScreenshot.data, "base64"));
 results.push({
   view: "engagement-community-note",
+  ...deferredVideoMetrics,
   ...engagementMetrics,
   screenshotPath: engagementScreenshotPath,
 });

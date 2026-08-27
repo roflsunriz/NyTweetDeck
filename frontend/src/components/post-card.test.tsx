@@ -9,6 +9,8 @@ import { PostTranslationProvider } from "./post-translation-context";
 
 const originalFetch = globalThis.fetch;
 const originalIntersectionObserver = globalThis.IntersectionObserver;
+const originalVideoPlay = globalThis.HTMLMediaElement.prototype.play;
+const originalVideoPause = globalThis.HTMLMediaElement.prototype.pause;
 
 beforeEach(() => {
   globalThis.IntersectionObserver = undefined as unknown as typeof IntersectionObserver;
@@ -18,6 +20,8 @@ afterEach(() => {
   cleanup();
   globalThis.fetch = originalFetch;
   globalThis.IntersectionObserver = originalIntersectionObserver;
+  globalThis.HTMLMediaElement.prototype.play = originalVideoPlay;
+  globalThis.HTMLMediaElement.prototype.pause = originalVideoPause;
 });
 
 describe("post actions", () => {
@@ -301,7 +305,12 @@ describe("post actions", () => {
     expect(translationRequests).toBe(0);
   });
 
-  test("honors persistent media preview, autoplay, loop, and volume settings", async () => {
+  test("defers video loading and autoplay to the upper viewport while honoring settings", async () => {
+    const observers = installIntersectionObserverMock();
+    const play = mock(async () => undefined);
+    const pause = mock(() => undefined);
+    globalThis.HTMLMediaElement.prototype.play = play as typeof HTMLMediaElement.prototype.play;
+    globalThis.HTMLMediaElement.prototype.pause = pause as typeof HTMLMediaElement.prototype.pause;
     const mediaPost = {
       ...post(),
       media: [
@@ -313,6 +322,8 @@ describe("post actions", () => {
         },
       ],
     };
+    const videoUrl = mediaPost.media[0]?.url;
+    if (videoUrl === undefined) throw new Error("動画URLがありません。");
     const first = render(
       <PostCard
         post={mediaPost}
@@ -335,10 +346,37 @@ describe("post actions", () => {
       />,
     );
     const video = second.container.querySelector("video");
-    expect(video?.autoplay).toBe(true);
+    if (video === null) throw new Error("動画が表示されませんでした。");
+    const videoObserver = observers.find(
+      (observer) => observer.options.rootMargin === "0px 0px -50% 0px",
+    );
+    if (videoObserver === undefined) throw new Error("動画用の監視が作成されませんでした。");
+    expect(videoObserver.options.root).toBeNull();
+    expect(videoObserver.options.threshold).toBe(0);
+    expect(videoObserver.targets).toEqual([video]);
+    expect(video.getAttribute("src")).toBeNull();
+    expect(video.autoplay).toBe(false);
+    expect(video.preload).toBe("none");
     expect(video?.loop).toBe(true);
     expect(video?.volume).toBe(1);
     expect(video?.muted).toBe(true);
+    expect(play).toHaveBeenCalledTimes(0);
+
+    act(() => videoObserver.notify(video, true));
+    await waitFor(() => expect(video.getAttribute("src")).toBe(videoUrl));
+    expect(video.autoplay).toBe(true);
+    expect(video.preload).toBe("metadata");
+    expect(play).toHaveBeenCalledTimes(1);
+
+    act(() => videoObserver.notify(video, false));
+    await waitFor(() => expect(video.autoplay).toBe(false));
+    expect(video.preload).toBe("none");
+    expect(video.getAttribute("src")).toBeNull();
+    expect(pause).toHaveBeenCalled();
+
+    act(() => videoObserver.notify(video, true));
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    expect(video.getAttribute("src")).toBe(videoUrl);
 
     second.rerender(
       <PostCard
@@ -655,6 +693,59 @@ describe("post actions", () => {
     ).toHaveLength(2);
   });
 });
+
+interface RecordedIntersectionObserver {
+  callback: IntersectionObserverCallback;
+  options: IntersectionObserverInit;
+  targets: Element[];
+  notify(target: Element, isIntersecting: boolean): void;
+}
+
+function installIntersectionObserverMock(): RecordedIntersectionObserver[] {
+  const observers: RecordedIntersectionObserver[] = [];
+  globalThis.IntersectionObserver = class {
+    readonly root: Element | Document | null;
+    readonly rootMargin: string;
+    readonly thresholds: number[];
+    private readonly record: RecordedIntersectionObserver;
+
+    constructor(callback: IntersectionObserverCallback, options: IntersectionObserverInit = {}) {
+      this.root = options.root ?? null;
+      this.rootMargin = options.rootMargin ?? "0px";
+      this.thresholds = Array.isArray(options.threshold)
+        ? [...options.threshold]
+        : [options.threshold ?? 0];
+      this.record = {
+        callback,
+        options,
+        targets: [],
+        notify: (target, isIntersecting) =>
+          callback(
+            [{ target, isIntersecting } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver,
+          ),
+      };
+      observers.push(this.record);
+    }
+
+    disconnect() {
+      this.record.targets.length = 0;
+    }
+
+    observe(target: Element) {
+      this.record.targets.push(target);
+    }
+
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+
+    unobserve(target: Element) {
+      this.record.targets = this.record.targets.filter((item) => item !== target);
+    }
+  } as unknown as typeof IntersectionObserver;
+  return observers;
+}
 
 function post(): TimelinePost {
   return {
