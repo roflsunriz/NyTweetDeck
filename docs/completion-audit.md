@@ -45,7 +45,7 @@
 | リスト追加・削除 | 実装済み・実地未検証 | `list_member_add/remove` MutationとID検証 |
 | 返信、リポスト、引用、いいね、履歴保存 | 実装済み・実地未検証 | Web認証付きMutation、引用`attachment_url`、成功後数字更新テスト |
 | いいね・リポスト済み表示 | 検証済み（モック） | X初期状態と操作成功後のfilledピンク／緑表示テスト |
-| コミュニティノート通知・関連ポスト | 検証済み（実応答形状フィクスチャ） | 入れ子DeepLink、通知詳細、`birdwatch_pivot`カード正規化テスト |
+| コミュニティノート通知・関連ポスト | 実通信・実ブラウザ検証済み | `notification_url`のノートID、`BirdwatchFetchOneNote`の完全本文・出典・対象ID、`TweetResultByRestId`の通常ポストを統合表示 |
 | インプレッション、各数字 | 実装済み・実地検証済み | API数字表示、操作後更新、`tweet_engagement`受信時の対象ポスト差分反映 |
 | 共有、メディアダウンロード | 検証済み（ブラウザAPI境界） | Web Share/clipboardと原寸URLリンク |
 | カードクリックで詳細と返信一覧 | 検証済み（モック） | カード面・Enter・本文、会話GraphQL、返信Composer |

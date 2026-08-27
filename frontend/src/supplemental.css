@@ -451,6 +451,13 @@
   font-size: 0.66rem;
 }
 
+.community-note-card a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .trend-column-content {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -645,24 +652,6 @@ button.deck-feed-item:focus-visible {
   text-align: start;
   background: var(--panel);
   cursor: pointer;
-}
-
-.community-note-detail {
-  display: grid;
-  gap: 14px;
-  padding: 0 20px 20px;
-}
-
-.community-note-detail p {
-  margin: 0;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
-.community-note-detail .notification-avatars img {
-  width: 38px;
-  height: 38px;
 }
 
 .post-action.like-active {

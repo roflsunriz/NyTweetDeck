@@ -189,6 +189,30 @@
       "operationName": "TweetDetail",
       "type": "QUERY"
     },
+    "communityNote": {
+      "key": "birdwatch_note_by_rest_id",
+      "operationId": "J-nT15LBPg0lhSlzQQ2mLg",
+      "operationName": "BirdwatchFetchOneNote",
+      "type": "QUERY",
+      "featureKeys": [
+        "responsive_web_birdwatch_media_notes_enabled",
+        "responsive_web_birdwatch_url_notes_enabled",
+        "responsive_web_grok_community_note_translation_is_enabled",
+        "responsive_web_birdwatch_fast_notes_badge_enabled",
+        "responsive_web_birdwatch_live_note_enabled",
+        "responsive_web_birdwatch_note_internal_insights_enabled",
+        "responsive_web_grok_community_note_auto_translation_is_enabled",
+        "responsive_web_graphql_timeline_navigation_enabled",
+        "profile_label_improvements_pcf_label_in_post_enabled",
+        "responsive_web_profile_redirect_enabled",
+        "rweb_tipjar_consumption_enabled",
+        "verified_phone_label_enabled"
+      ],
+      "fieldToggles": [
+        "withPayments",
+        "withAuxiliaryUserLabels"
+      ]
+    },
     "createPost": {
       "key": "create_tweet",
       "operationId": "WXTdKnLddrQOunD6MhWi3g",

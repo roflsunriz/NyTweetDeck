@@ -56,6 +56,7 @@ interface CommunityNote {
   title: string | null;
   text: string | null;
   footer: string | null;
+  sources?: Array<{ fromIndex: number; toIndex: number; url: string }>;
 }
 
 interface PreTranslatedPost {
@@ -387,7 +388,9 @@ export function PostCard({
         {post.communityNote != null && (
           <aside className="community-note-card" data-testid="community-note-card">
             <strong>{post.communityNote.title || translation.communityNote}</strong>
-            {post.communityNote.text !== null && <p>{post.communityNote.text}</p>}
+            {post.communityNote.text !== null && (
+              <p>{renderCommunityNoteText(post.communityNote)}</p>
+            )}
             {post.communityNote.footer !== null && <small>{post.communityNote.footer}</small>}
           </aside>
         )}
@@ -852,5 +855,42 @@ function Action({
 function compactNumber(value: number): string {
   return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(
     value,
+  );
+}
+
+function renderCommunityNoteText(note: CommunityNote) {
+  const text = note.text ?? "";
+  const sources = [...(note.sources ?? [])]
+    .filter(
+      (source) =>
+        source.fromIndex >= 0 && source.toIndex > source.fromIndex && source.toIndex <= text.length,
+    )
+    .sort((first, second) => first.fromIndex - second.fromIndex);
+  if (sources.length === 0) return text;
+  const content: Array<string | ReturnType<typeof createCommunityNoteLink>> = [];
+  let cursor = 0;
+  for (const source of sources) {
+    if (source.fromIndex < cursor) continue;
+    if (source.fromIndex > cursor) content.push(text.slice(cursor, source.fromIndex));
+    content.push(createCommunityNoteLink(source, text));
+    cursor = source.toIndex;
+  }
+  if (cursor < text.length) content.push(text.slice(cursor));
+  return content;
+}
+
+function createCommunityNoteLink(
+  source: { fromIndex: number; toIndex: number; url: string },
+  text: string,
+) {
+  return (
+    <a
+      key={`${source.fromIndex}:${source.toIndex}:${source.url}`}
+      href={source.url}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {text.slice(source.fromIndex, source.toIndex)}
+    </a>
   );
 }

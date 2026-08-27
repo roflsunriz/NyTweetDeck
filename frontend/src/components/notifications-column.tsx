@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import type { Locale } from "../model/layout";
-import { Modal } from "./modal";
+import { CommunityNoteDetailDialog } from "./community-note-detail-dialog";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import { filterPosts, type PostFilter, PostFilterBar } from "./post-filter";
@@ -13,7 +13,7 @@ interface NotificationItem {
   id: string;
   kind: "like" | "repost" | "reply" | "follow" | "community_note" | "notification";
   text: string;
-  detailText: string;
+  noteId: string | null;
   postId: string | null;
   imageUrls: string[];
 }
@@ -43,7 +43,7 @@ export function NotificationsColumn({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [postFilter, setPostFilter] = useState<PostFilter>("all");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [selectedCommunityNote, setSelectedCommunityNote] = useState<NotificationItem | null>(null);
+  const [selectedCommunityNoteId, setSelectedCommunityNoteId] = useState<string | null>(null);
   const loadingRef = useRef(false);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
@@ -154,7 +154,9 @@ export function NotificationsColumn({
           fallbackText={translation.notifications}
           onOpen={(item) => {
             if (item.kind === "community_note") {
-              setSelectedCommunityNote(item);
+              if (item.noteId !== null) {
+                setSelectedCommunityNoteId(item.noteId);
+              }
             } else if (item.postId !== null) {
               setSelectedPostId(item.postId);
             }
@@ -205,38 +207,17 @@ export function NotificationsColumn({
           onClose={() => setSelectedUserId(null)}
         />
       )}
-      {selectedCommunityNote !== null && (
-        <Modal
-          title={translation.communityNoteDetails}
-          closeLabel={translation.closeDetail}
-          onClose={() => setSelectedCommunityNote(null)}
-        >
-          <div className="community-note-detail">
-            {selectedCommunityNote.imageUrls.length > 0 && (
-              <div className="notification-avatars" aria-hidden="true">
-                {selectedCommunityNote.imageUrls.slice(0, 4).map((imageUrl) => (
-                  <img key={imageUrl} src={imageUrl} alt="" />
-                ))}
-              </div>
-            )}
-            <p>{selectedCommunityNote.detailText || selectedCommunityNote.text}</p>
-            {selectedCommunityNote.postId !== null && (
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => {
-                  const postId = selectedCommunityNote.postId;
-                  if (postId !== null) {
-                    setSelectedPostId(postId);
-                  }
-                  setSelectedCommunityNote(null);
-                }}
-              >
-                {translation.viewRelatedPost}
-              </button>
-            )}
-          </div>
-        </Modal>
+      {selectedCommunityNoteId !== null && (
+        <CommunityNoteDetailDialog
+          noteId={selectedCommunityNoteId}
+          accountId={accountId}
+          locale={locale}
+          translation={translation}
+          display={display}
+          onClose={() => setSelectedCommunityNoteId(null)}
+          onOpenPost={setSelectedPostId}
+          onOpenUser={setSelectedUserId}
+        />
       )}
     </div>
   );
@@ -269,7 +250,7 @@ function NotificationEntry({
       </span>
     </>
   );
-  if (postId === null && notification.kind !== "community_note") {
+  if (postId === null && (notification.kind !== "community_note" || notification.noteId === null)) {
     return (
       <article
         className="deck-feed-item notification-item notification-item-static"

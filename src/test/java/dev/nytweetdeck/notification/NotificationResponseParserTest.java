@@ -36,7 +36,6 @@ class NotificationResponseParserTest {
                 """).get(0);
 
         assertThat(notification.kind()).isEqualTo("like");
-        assertThat(notification.detailText()).isEqualTo("Alice liked your post");
         assertThat(notification.postId()).isEqualTo("123");
         assertThat(notification.imageUrls()).containsExactly("https://pbs.twimg.com/alice.jpg");
     }
@@ -54,7 +53,26 @@ class NotificationResponseParserTest {
 
         assertThat(notification.kind()).isEqualTo("community_note");
         assertThat(notification.text()).isEqualTo("Community Note added");
-        assertThat(notification.detailText()).isEqualTo("Readers added context to this post.");
+        assertThat(notification.noteId()).isNull();
+        assertThat(notification.postId()).isEqualTo("987");
+    }
+
+    @Test
+    void extractsTheActualNoteBodyAndIdsFromCurrentTimelineNotification() {
+        var parser = new NotificationResponseParser(JsonMapper.builder().build());
+
+        var notification = parser.parse("""
+                {"notification":{"id":"community-current","notification_icon":"birdwatch_note",
+                "notification_social_context":{"text":"A Community Note was added"},
+                "notification_url":{"url":"https://twitter.com/i/birdwatch/n/555?src=notification"},
+                "rich_message":{"text":"A Community Note was added to a post you interacted with."},
+                "template":{"additional_context":{"text":"This is the complete note body with a source.",
+                "entities":[{"fromIndex":42,"toIndex":48,"ref":{"type":"TimelineUrl",
+                "url":"https://x.com/alice/status/987"}}]}}}}
+                """).get(0);
+
+        assertThat(notification.kind()).isEqualTo("community_note");
+        assertThat(notification.noteId()).isEqualTo("555");
         assertThat(notification.postId()).isEqualTo("987");
     }
 }

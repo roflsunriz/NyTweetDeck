@@ -36,6 +36,18 @@ class XApiProfileServiceTest {
     }
 
     @Test
+    void includesTheCurrentBirdwatchNoteDetailOperation() {
+        var operation = service.requireOperation("communityNote");
+
+        assertThat(operation.operationName()).isEqualTo("BirdwatchFetchOneNote");
+        assertThat(operation.featureKeys())
+                .contains("responsive_web_birdwatch_media_notes_enabled")
+                .contains("responsive_web_birdwatch_url_notes_enabled");
+        assertThat(operation.fieldToggles())
+                .containsExactly("withPayments", "withAuxiliaryUserLabels");
+    }
+
+    @Test
     void rejectsUnknownOperationPurpose() {
         assertThatThrownBy(() -> service.requireOperation("not-defined"))
                 .isInstanceOf(IllegalArgumentException.class)

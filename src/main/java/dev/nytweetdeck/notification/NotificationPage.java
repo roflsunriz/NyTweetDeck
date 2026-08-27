@@ -17,7 +17,7 @@ public record NotificationPage(
             String id,
             String kind,
             String text,
-            String detailText,
+            String noteId,
             String postId,
             List<String> imageUrls) {
         public Notification {

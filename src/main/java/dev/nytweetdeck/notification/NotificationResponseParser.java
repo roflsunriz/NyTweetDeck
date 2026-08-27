@@ -19,6 +19,8 @@ public class NotificationResponseParser {
             Pattern.compile(
                     "(?:status(?:es)?/|tweet(?:_id|id)[=:]|(?:tweet|post)\\?(?:[^\\s#]*&)?(?:id|tweet_id)=)([0-9]{1,24})",
                     Pattern.CASE_INSENSITIVE);
+    private static final Pattern NOTE_ID_PATTERN = Pattern.compile(
+            "/i/birdwatch/n/([0-9]{1,24})", Pattern.CASE_INSENSITIVE);
 
     private final ObjectMapper objectMapper;
 
@@ -71,7 +73,8 @@ public class NotificationResponseParser {
     }
 
     private static NotificationPage.Notification parseNotification(JsonNode node) {
-        var socialContext = firstObject(node, "socialContext", "social_context");
+        var socialContext = firstObject(
+                node, "socialContext", "social_context", "notification_social_context");
         var general = firstObject(socialContext, "generalContext", "general_context");
         var topic = firstObject(socialContext, "topicContext", "topic_context");
         var contextText = firstNonNull(text(general, "text"), text(topic, "text"));
@@ -83,8 +86,6 @@ public class NotificationResponseParser {
         if (displayText == null) {
             displayText = "";
         }
-        var detailText = firstNonNull(richMessageText, messageText);
-        detailText = firstNonNull(detailText, displayText);
         var images = new ArrayList<String>();
         var imageNodes = general == null ? null : general.get("contextImageUrls");
         if (imageNodes != null && imageNodes.isArray()) {
@@ -100,7 +101,7 @@ public class NotificationResponseParser {
                 text(node, "id"),
                 notificationKind(node),
                 displayText,
-                detailText,
+                findNoteId(node),
                 findPostId(node),
                 images);
     }
@@ -127,7 +128,7 @@ public class NotificationResponseParser {
     }
 
     private static String findPostId(JsonNode node) {
-        var urlNode = object(node, "url");
+        var urlNode = firstObject(node, "url", "notification_url", "notificationUrl");
         var url = firstNonNull(text(urlNode, "expanded_url"), text(urlNode, "expandedUrl"));
         url = firstNonNull(url, text(urlNode, "url"));
         if (url != null) {
@@ -141,6 +142,15 @@ public class NotificationResponseParser {
             return referenced;
         }
         return findTweetId(node);
+    }
+
+    private static String findNoteId(JsonNode node) {
+        var urlNode = firstObject(node, "notification_url", "notificationUrl", "url");
+        var url = firstNonNull(text(urlNode, "expanded_url"), text(urlNode, "expandedUrl"));
+        url = firstNonNull(url, text(urlNode, "url"));
+        if (url == null) return null;
+        var matcher = NOTE_ID_PATTERN.matcher(url);
+        return matcher.find() ? matcher.group(1) : null;
     }
 
     private static String findPostReference(JsonNode node) {
@@ -250,9 +260,12 @@ public class NotificationResponseParser {
         }
     }
 
-    private static JsonNode firstObject(JsonNode node, String first, String second) {
-        var value = object(node, first);
-        return value == null ? object(node, second) : value;
+    private static JsonNode firstObject(JsonNode node, String... fields) {
+        for (var field : fields) {
+            var value = object(node, field);
+            if (value != null) return value;
+        }
+        return null;
     }
 
     private static JsonNode object(JsonNode node, String field) {

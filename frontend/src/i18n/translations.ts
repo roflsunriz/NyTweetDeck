@@ -75,7 +75,7 @@ export interface Translation {
   notifications: string;
   communityNote: string;
   communityNoteDetails: string;
-  viewRelatedPost: string;
+  communityNoteLoadError: string;
   reply: string;
   replyingToPost: string;
   replyingTo: (username: string) => string;
@@ -231,7 +231,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     notifications: "通知",
     communityNote: "コミュニティノート",
     communityNoteDetails: "コミュニティノートの詳細",
-    viewRelatedPost: "関連するポストを表示",
+    communityNoteLoadError: "コミュニティノートと対象ポストを読み込めませんでした。",
     reply: "返信",
     replyingToPost: "返信先のポスト",
     replyingTo: (username) => `返信先: @${username}`,
@@ -430,7 +430,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     notifications: "Notifications",
     communityNote: "Community Note",
     communityNoteDetails: "Community Note details",
-    viewRelatedPost: "View related post",
+    communityNoteLoadError: "Could not load the Community Note and its post.",
     reply: "Reply",
     replyingToPost: "Replying to a post",
     replyingTo: (username) => `Replying to @${username}`,

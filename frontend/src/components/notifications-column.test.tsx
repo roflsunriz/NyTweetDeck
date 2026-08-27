@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
 import { NotificationsColumn } from "./notifications-column";
@@ -40,22 +40,34 @@ describe("notifications column", () => {
     expect(requestedUrl).toContain("language=ja");
   });
 
-  test("opens Community Note details inside NyTweetDeck even without a related post id", async () => {
-    globalThis.fetch = (async () =>
-      Response.json({
+  test("shows the target post and complete Community Note together inside NyTweetDeck", async () => {
+    const requestedUrls: string[] = [];
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.includes("/api/v1/community-notes/555")) {
+        return Response.json({
+          noteId: "555",
+          text: "Context: source",
+          sources: [{ fromIndex: 9, toIndex: 15, url: "https://example.com/source" }],
+          post: timelinePost(),
+        });
+      }
+      return Response.json({
         notifications: [
           {
             id: "community-1",
             kind: "community_note",
             text: "コミュニティノートが追加されました",
-            detailText: "この画像は2024年に撮影されたものです。",
+            noteId: "555",
             postId: null,
             imageUrls: [],
           },
         ],
         posts: [],
         nextCursor: null,
-      })) as unknown as typeof fetch;
+      });
+    }) as unknown as typeof fetch;
     const user = userEvent.setup();
 
     render(<NotificationsColumn accountId="account-1" translation={translate("ja")} />);
@@ -63,31 +75,43 @@ describe("notifications column", () => {
     await user.click(
       await screen.findByRole("button", { name: /コミュニティノートが追加されました/ }),
     );
-    expect(screen.getByRole("heading", { name: "コミュニティノートの詳細" })).toBeDefined();
-    expect(screen.getByText("この画像は2024年に撮影されたものです。")).toBeDefined();
-  });
-
-  test("offers the related post from Community Note details when X supplies a target", async () => {
-    globalThis.fetch = (async () =>
-      Response.json({
-        notifications: [
-          {
-            id: "community-2",
-            kind: "community_note",
-            text: "関連ポストにノートがあります",
-            detailText: "ノートの全文",
-            postId: "987",
-            imageUrls: [],
-          },
-        ],
-        posts: [],
-        nextCursor: null,
-      })) as unknown as typeof fetch;
-    const user = userEvent.setup();
-
-    render(<NotificationsColumn accountId="account-1" translation={translate("ja")} />);
-
-    await user.click(await screen.findByRole("button", { name: /関連ポストにノートがあります/ }));
-    expect(screen.getByRole("button", { name: "関連するポストを表示" })).toBeDefined();
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Target post body")).toBeDefined();
+    expect(within(dialog).getByText(/Context:/)).toBeDefined();
+    const source = within(dialog).getByRole("link", { name: "source" });
+    expect(source.getAttribute("href")).toBe("https://example.com/source");
+    expect(requestedUrls.some((url) => url.includes("accountId=account-1"))).toBe(true);
+    expect(requestedUrls.some((url) => url.includes("language=ja"))).toBe(true);
   });
 });
+
+function timelinePost() {
+  return {
+    id: "987",
+    text: "Target post body",
+    language: "ja",
+    createdAt: "2026-08-27T00:00:00Z",
+    author: {
+      id: "42",
+      username: "alice",
+      displayName: "Alice",
+      avatarUrl: null,
+      verified: false,
+    },
+    repostedBy: null,
+    replyCount: 0,
+    repostCount: 0,
+    quoteCount: 0,
+    likeCount: 0,
+    bookmarkCount: 0,
+    viewCount: 0,
+    liked: false,
+    reposted: false,
+    bookmarked: false,
+    replyToPostId: null,
+    replyToUsername: null,
+    quotedPost: null,
+    communityNote: null,
+    media: [],
+  };
+}

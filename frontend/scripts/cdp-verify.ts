@@ -360,10 +360,26 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
           notifications: [{
             id: "community-qa", kind: "community_note",
             text: "Community Note added",
-            detailText: "Readers added context to this post.",
-            postId: null, imageUrls: []
+            noteId: "555", postId: null, imageUrls: []
           }],
           posts: [], nextCursor: null
+        }));
+      }
+      if (url.pathname === "/api/v1/community-notes/555") {
+        return Promise.resolve(Response.json({
+          noteId: "555",
+          text: "Complete note body with source",
+          sources: [{ fromIndex: 24, toIndex: 30, url: "https://example.com/source" }],
+          post: {
+            id: "987", text: "Target post body", language: "ja",
+            createdAt: "2026-08-27T00:00:00Z",
+            author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
+            repostedBy: null, replyCount: 1, repostCount: 2, quoteCount: 0,
+            likeCount: 3, bookmarkCount: 0, viewCount: 10,
+            liked: false, reposted: false, bookmarked: false,
+            replyToPostId: null, replyToUsername: null, quotedPost: null,
+            communityNote: null, media: []
+          }
         }));
       }
       if (url.pathname.startsWith("/api/v1/live/subscriptions/")) {
@@ -539,12 +555,23 @@ const communityNoteClicked = await client.evaluate<boolean>(`(() => {
 if (!communityNoteClicked) {
   throw new Error("コミュニティノート通知を選択できませんでした。");
 }
-await waitForCondition('document.querySelector("[role=dialog]") !== null');
+await waitForCondition('document.querySelector(".community-note-post-detail .post-card") !== null');
 const communityNoteMetrics = await client.evaluate<Record<string, unknown>>(`({
   title: document.querySelector(".modal-header h2")?.textContent,
-  detail: document.querySelector(".community-note-detail")?.textContent,
+  postText: document.querySelector(".community-note-post-detail .post-text")?.textContent,
+  noteText: document.querySelector(".community-note-post-detail .community-note-card")?.textContent,
+  sourceCount: document.querySelectorAll(".community-note-post-detail .community-note-card a").length,
   documentOverflow: document.documentElement.scrollWidth > innerWidth
 })`);
+if (
+  communityNoteMetrics.postText !== "Target post body" ||
+  !String(communityNoteMetrics.noteText).includes("Complete note body with source") ||
+  communityNoteMetrics.sourceCount !== 1
+) {
+  throw new Error(
+    `コミュニティノート統合詳細の検証に失敗しました: ${JSON.stringify(communityNoteMetrics)}`,
+  );
+}
 const communityNoteScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
   format: "png",
   fromSurface: true,
