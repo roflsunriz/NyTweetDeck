@@ -165,7 +165,20 @@ async function waitForCondition(expression: string, timeoutMilliseconds = 10_000
     }
     await Bun.sleep(40);
   }
-  throw new Error(`DOM状態の待機がタイムアウトしました: ${expression}`);
+  const diagnostics = await client.evaluate<Record<string, unknown>>(`(() => {
+    const stored = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "null");
+    return {
+      columnCount: document.querySelectorAll(".deck-column").length,
+      dialogCount: document.querySelectorAll('[role="dialog"]').length,
+      addColumnButtonCount: document.querySelectorAll('[data-action="add-column"]').length,
+      homeChoiceCount: document.querySelectorAll('[role="dialog"] [data-column-kind="home"]').length,
+      storedColumnCount: Array.isArray(stored?.columns) ? stored.columns.length : null,
+      storedActiveAccount: typeof stored?.activeAccountId === "string" ? "selected" : null,
+    };
+  })()`);
+  throw new Error(
+    `DOM状態の待機がタイムアウトしました: ${expression}; ${JSON.stringify(diagnostics)}`,
+  );
 }
 
 await navigate();
@@ -397,7 +410,7 @@ await client.evaluate(`(() => {
     ...stored,
     version: 6,
     locale: "ja",
-    activeAccountId: "qa-account",
+    activeAccountId: null,
     columns: [{ id: "qa-trends", kind: "trends", target: "", label: null }],
     trendSearchHistory: ["AI"]
   }));
@@ -438,6 +451,7 @@ const trendMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
       : [],
     storedTarget: layout.columns?.[0]?.target,
     storedHistory: layout.trendSearchHistory,
+    activeAccountId: layout.activeAccountId,
     layoutVersion: layout.version,
     visibleTrends: document.querySelectorAll(".trend-item").length,
     documentOverflow: document.documentElement.scrollWidth > innerWidth
@@ -449,6 +463,9 @@ const trendScreenshot = await client.call<{ data: string }>("Page.captureScreens
 });
 if (trendMetrics.layoutVersion !== 7) {
   throw new Error(`レイアウトv6からv7への移行に失敗しました: ${JSON.stringify(trendMetrics)}`);
+}
+if (trendMetrics.activeAccountId !== "qa-account") {
+  throw new Error(`保存済み#1アカウントの自動選択に失敗しました: ${JSON.stringify(trendMetrics)}`);
 }
 const trendScreenshotPath = resolve(import.meta.dir, "../../target/ui-trend-filter-768x1024.png");
 await Bun.write(trendScreenshotPath, Buffer.from(trendScreenshot.data, "base64"));

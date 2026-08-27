@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./app";
 import { createDefaultLayout, layoutStorageKey } from "./model/layout";
@@ -227,6 +227,109 @@ describe("NyTweetDeck shell", () => {
 
     expect(await screen.findByText("表示するポストがありません。")).toBeDefined();
     expect(timelineRequests).toBe(1);
+  });
+
+  test("selects the first saved account and displays persisted columns without interaction", async () => {
+    const timelineAccountIds: string[] = [];
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/accounts")) {
+        return Response.json([
+          { accountId: "account-1", userId: "42", username: "alice", displayName: "Alice" },
+          { accountId: "account-2", userId: "84", username: "bob", displayName: "Bob" },
+        ]);
+      }
+      if (url.includes("/api/v1/timelines/")) {
+        timelineAccountIds.push(
+          new URL(url, "http://localhost").searchParams.get("accountId") ?? "",
+        );
+        return Response.json({ posts: [], nextCursor: null });
+      }
+      return Response.json({ connected: true, topicCount: 0 });
+    }) as typeof fetch;
+    window.localStorage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...createDefaultLayout(),
+        columns: [{ id: "home", kind: "home", target: null, label: null }],
+      }),
+    );
+
+    render(<App />);
+
+    await waitFor(() => expect(timelineAccountIds).toEqual(["account-1"]));
+    expect(screen.getByText("表示するポストがありません。")).toBeDefined();
+    const stored = JSON.parse(String(window.localStorage.getItem(layoutStorageKey))) as {
+      activeAccountId: string | null;
+    };
+    expect(stored.activeAccountId).toBe("account-1");
+    expect(screen.queryByRole("heading", { name: "アカウントを選択" })).toBeNull();
+  });
+
+  test("prefers the previously selected saved account over the first account", async () => {
+    const timelineAccountIds: string[] = [];
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/accounts")) {
+        return Response.json([
+          { accountId: "account-1", userId: "42", username: "alice", displayName: "Alice" },
+          { accountId: "account-2", userId: "84", username: "bob", displayName: "Bob" },
+        ]);
+      }
+      if (url.includes("/api/v1/timelines/")) {
+        timelineAccountIds.push(
+          new URL(url, "http://localhost").searchParams.get("accountId") ?? "",
+        );
+        return Response.json({ posts: [], nextCursor: null });
+      }
+      return Response.json({ connected: true, topicCount: 0 });
+    }) as typeof fetch;
+    window.localStorage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...createDefaultLayout(),
+        activeAccountId: "account-2",
+        columns: [{ id: "home", kind: "home", target: null, label: null }],
+      }),
+    );
+
+    render(<App />);
+
+    await waitFor(() => expect(timelineAccountIds).toEqual(["account-2"]));
+    expect(screen.getByText("表示するポストがありません。")).toBeDefined();
+  });
+
+  test("falls back to the first saved account when the previous account is unavailable", async () => {
+    const timelineAccountIds: string[] = [];
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/accounts")) {
+        return Response.json([
+          { accountId: "account-1", userId: "42", username: "alice", displayName: "Alice" },
+        ]);
+      }
+      if (url.includes("/api/v1/timelines/")) {
+        timelineAccountIds.push(
+          new URL(url, "http://localhost").searchParams.get("accountId") ?? "",
+        );
+        return Response.json({ posts: [], nextCursor: null });
+      }
+      return Response.json({ connected: true, topicCount: 0 });
+    }) as typeof fetch;
+    window.localStorage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...createDefaultLayout(),
+        activeAccountId: "deleted-account",
+        columns: [{ id: "home", kind: "home", target: null, label: null }],
+      }),
+    );
+
+    render(<App />);
+
+    await waitFor(() => expect(timelineAccountIds).toEqual(["account-1"]));
+    expect(screen.getByText("表示するポストがありません。")).toBeDefined();
+    expect(screen.queryByRole("heading", { name: "アカウントを選択" })).toBeNull();
   });
 
   test("reorders navigation and columns through drag and drop and persists the order", async () => {

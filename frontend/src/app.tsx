@@ -21,7 +21,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AddColumnDialog } from "./components/add-column-dialog";
 import { AccountSwitcherDialog } from "./components/account-switcher-dialog";
 import { ComposerDialog } from "./components/composer-dialog";
@@ -92,6 +92,7 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 export function App() {
   const [layout, setLayout] = useState<AppLayout>(() => loadLayout(window.localStorage));
   const [accountIds, setAccountIds] = useState<string[] | null>(null);
+  const initialActiveAccountId = useRef(layout.activeAccountId).current;
   const [dialog, setDialog] = useState<
     "accounts" | "columns" | "composer" | "login" | "menu" | "search" | "settings" | null
   >(null);
@@ -130,22 +131,29 @@ export function App() {
       .then((accounts) => {
         const ids = accounts.map((account) => account.accountId);
         setAccountIds(ids);
-        if (layout.activeAccountId !== null && !ids.includes(layout.activeAccountId)) {
-          setLayout((current) => ({ ...current, activeAccountId: null }));
+        setLayout((current) => {
+          const activeAccountId =
+            current.activeAccountId !== null && ids.includes(current.activeAccountId)
+              ? current.activeAccountId
+              : (ids[0] ?? null);
+          return activeAccountId === current.activeAccountId
+            ? current
+            : { ...current, activeAccountId };
+        });
+        if (ids.length === 0 && initialActiveAccountId !== null) {
           setDialog("accounts");
         }
       })
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           setAccountIds([]);
-          if (layout.activeAccountId !== null) {
-            setLayout((current) => ({ ...current, activeAccountId: null }));
+          if (initialActiveAccountId !== null) {
             setDialog("accounts");
           }
         }
       });
     return () => controller.abort();
-  }, [layout.activeAccountId]);
+  }, [initialActiveAccountId]);
 
   const activeAccountId =
     layout.activeAccountId !== null && accountIds?.includes(layout.activeAccountId) === true
