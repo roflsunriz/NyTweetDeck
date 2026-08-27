@@ -366,6 +366,17 @@
   accent-color: var(--accent);
 }
 
+.video-volume-setting output {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.video-volume-setting input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .post-media-links {
   display: flex;
   flex-wrap: wrap;
@@ -408,6 +419,36 @@
   border-radius: 6px;
   background: var(--surface);
   color: var(--text);
+}
+
+.community-note-card {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+.community-note-card strong {
+  font-size: 0.78rem;
+}
+
+.community-note-card p,
+.community-note-card small {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.community-note-card p {
+  font-size: 0.76rem;
+}
+
+.community-note-card small {
+  color: var(--text-muted);
+  font-size: 0.66rem;
 }
 
 .trend-column-content {
@@ -622,36 +663,6 @@ button.deck-feed-item:focus-visible {
 .community-note-detail .notification-avatars img {
   width: 38px;
   height: 38px;
-}
-
-.community-note-card {
-  display: grid;
-  gap: 5px;
-  margin: 8px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--surface-raised);
-}
-
-.community-note-card strong {
-  font-size: 0.78rem;
-}
-
-.community-note-card p,
-.community-note-card small {
-  margin: 0;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.community-note-card p {
-  font-size: 0.76rem;
-}
-
-.community-note-card small {
-  color: var(--text-muted);
-  font-size: 0.66rem;
 }
 
 .post-action.like-active {

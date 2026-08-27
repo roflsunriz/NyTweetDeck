@@ -70,11 +70,13 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(6);
+    expect(migrated.version).toBe(7);
     expect(migrated.columns[0]?.target).toBeNull();
     expect(migrated.activeAccountId).toBeNull();
     expect(migrated.display.mediaPreview).toBe(true);
-    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(6);
+    expect(migrated.display.videoLoop).toBe(true);
+    expect(migrated.display.videoVolume).toBe(100);
+    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(7);
   });
 
   test("migrates version 2 layout while preserving columns and account", () => {
@@ -93,7 +95,7 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(6);
+    expect(migrated.version).toBe(7);
     expect(migrated.columns).toHaveLength(1);
     expect(migrated.activeAccountId).toBe("account-1");
     expect(migrated.display.accentColor).toBe("blue");
@@ -112,14 +114,19 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(6);
+    expect(migrated.version).toBe(7);
     expect(migrated.columns[0]?.label).toBeNull();
     expect(migrated.display.autoTranslatePosts).toBe(true);
   });
 
   test("migrates version 4 with automatic post translation enabled by default", () => {
     const storage = new MemoryStorage();
-    const { autoTranslatePosts: _removed, ...legacyDisplay } = createDefaultLayout().display;
+    const {
+      autoTranslatePosts: _removed,
+      videoLoop: _removedLoop,
+      videoVolume: _removedVolume,
+      ...legacyDisplay
+    } = createDefaultLayout().display;
     storage.setItem(
       layoutStorageKey,
       JSON.stringify({
@@ -131,28 +138,65 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(6);
+    expect(migrated.version).toBe(7);
     expect(migrated.display.autoTranslatePosts).toBe(true);
+    expect(migrated.display.videoLoop).toBe(true);
+    expect(migrated.display.videoVolume).toBe(100);
   });
 
   test("migrates version 5 while preserving columns and adds trend search history", () => {
     const storage = new MemoryStorage();
     const current = createDefaultLayout();
     const { trendSearchHistory: _removed, ...legacy } = current;
+    const {
+      videoLoop: _removedLoop,
+      videoVolume: _removedVolume,
+      ...legacyDisplay
+    } = current.display;
     storage.setItem(
       layoutStorageKey,
       JSON.stringify({
         ...legacy,
         version: 5,
+        display: legacyDisplay,
         columns: [{ id: "trends", kind: "trends", target: "AI", label: null }],
       }),
     );
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(6);
+    expect(migrated.version).toBe(7);
     expect(migrated.columns[0]?.target).toBe("AI");
     expect(migrated.trendSearchHistory).toEqual([]);
+    expect(migrated.display.videoLoop).toBe(true);
+    expect(migrated.display.videoVolume).toBe(100);
+  });
+
+  test("migrates version 6 while preserving trend history and display settings", () => {
+    const storage = new MemoryStorage();
+    const current = createDefaultLayout();
+    const {
+      videoLoop: _removedLoop,
+      videoVolume: _removedVolume,
+      ...legacyDisplay
+    } = current.display;
+    storage.setItem(
+      layoutStorageKey,
+      JSON.stringify({
+        ...current,
+        version: 6,
+        display: { ...legacyDisplay, videoAutoplay: true },
+        trendSearchHistory: ["AI"],
+      }),
+    );
+
+    const migrated = loadLayout(storage);
+
+    expect(migrated.version).toBe(7);
+    expect(migrated.trendSearchHistory).toEqual(["AI"]);
+    expect(migrated.display.videoAutoplay).toBe(true);
+    expect(migrated.display.videoLoop).toBe(true);
+    expect(migrated.display.videoVolume).toBe(100);
   });
 
   test("remembers unique recent trend searches with a bounded history", () => {

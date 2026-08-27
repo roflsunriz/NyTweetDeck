@@ -134,6 +134,28 @@ export function SettingsDialog({
           checked={display.videoAutoplay}
           onChange={(checked) => onDisplayChange({ ...display, videoAutoplay: checked })}
         />
+        <ToggleSetting
+          id="video-loop"
+          label={translation.videoLoop}
+          checked={display.videoLoop}
+          onChange={(checked) => onDisplayChange({ ...display, videoLoop: checked })}
+        />
+        <label className="video-volume-setting">
+          <span>
+            {translation.videoVolume}: <output>{display.videoVolume}%</output>
+          </span>
+          <input
+            data-testid="setting-video-volume"
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={display.videoVolume}
+            onChange={(event) =>
+              onDisplayChange({ ...display, videoVolume: Number(event.target.value) })
+            }
+          />
+        </label>
       </div>
       <ApiMetadataSettings translation={translation} />
     </Modal>

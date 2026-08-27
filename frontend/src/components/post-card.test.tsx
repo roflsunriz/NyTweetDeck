@@ -187,7 +187,7 @@ describe("post actions", () => {
     expect(openQuotedPost).toHaveBeenCalledWith("249");
   });
 
-  test("honors media preview and video autoplay data settings", () => {
+  test("honors persistent media preview, autoplay, loop, and volume settings", async () => {
     const mediaPost = {
       ...post(),
       media: [
@@ -220,7 +220,39 @@ describe("post actions", () => {
         display={{ ...defaultDisplayPreferences, videoAutoplay: true }}
       />,
     );
-    expect(second.container.querySelector("video")?.autoplay).toBe(true);
+    const video = second.container.querySelector("video");
+    expect(video?.autoplay).toBe(true);
+    expect(video?.loop).toBe(true);
+    expect(video?.volume).toBe(1);
+    expect(video?.muted).toBe(true);
+
+    second.rerender(
+      <PostCard
+        post={mediaPost}
+        accountId="account-1"
+        translation={translate("ja")}
+        display={{
+          ...defaultDisplayPreferences,
+          videoAutoplay: true,
+          videoLoop: false,
+          videoVolume: 35,
+        }}
+      />,
+    );
+    await waitFor(() => expect(second.container.querySelector("video")?.volume).toBe(0.35));
+    expect(second.container.querySelector("video")?.loop).toBe(false);
+    expect(second.container.querySelector("video")?.muted).toBe(true);
+
+    second.rerender(
+      <PostCard
+        post={mediaPost}
+        accountId="account-1"
+        translation={translate("ja")}
+        display={{ ...defaultDisplayPreferences, videoVolume: 0 }}
+      />,
+    );
+    await waitFor(() => expect(second.container.querySelector("video")?.muted).toBe(true));
+    expect(second.container.querySelector("video")?.volume).toBe(0);
   });
 
   test("executes follow from the post menu through the authenticated local API", async () => {

@@ -132,6 +132,8 @@ export interface Translation {
   reduceMotion: string;
   mediaPreview: string;
   videoAutoplay: string;
+  videoLoop: string;
+  videoVolume: string;
   apiMetadata: string;
   apiMetadataDescription: string;
   apiMetadataUpdate: string;
@@ -286,6 +288,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     reduceMotion: "動きを減らす",
     mediaPreview: "画像と動画のプレビューを表示",
     videoAutoplay: "動画を自動再生",
+    videoLoop: "動画をループ再生",
+    videoVolume: "動画の音量",
     apiMetadata: "X Web API定義",
     apiMetadataDescription:
       "queryIdとFeature定義はX公式Webから定期的に自動更新されます。失敗時は直前の検証済み定義を維持します。",
@@ -483,6 +487,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     reduceMotion: "Reduce motion",
     mediaPreview: "Show image and video previews",
     videoAutoplay: "Autoplay videos",
+    videoLoop: "Loop videos",
+    videoVolume: "Video volume",
     apiMetadata: "X Web API metadata",
     apiMetadataDescription:
       "Query IDs and feature definitions update periodically from X's official web assets. The last verified definitions remain active if an update fails.",

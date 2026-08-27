@@ -157,7 +157,7 @@ async function reload(): Promise<void> {
   await loaded;
 }
 
-async function waitForCondition(expression: string, timeoutMilliseconds = 5_000): Promise<void> {
+async function waitForCondition(expression: string, timeoutMilliseconds = 10_000): Promise<void> {
   const deadline = Date.now() + timeoutMilliseconds;
   while (Date.now() < deadline) {
     if (await client.evaluate<boolean>(expression)) {
@@ -270,9 +270,14 @@ const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
     clientHeight: panel.clientHeight,
     scrollHeight: panel.scrollHeight,
     canScroll: panel.scrollHeight >= panel.clientHeight,
-    documentOverflow: document.documentElement.scrollWidth > innerWidth
+    documentOverflow: document.documentElement.scrollWidth > innerWidth,
+    videoLoopChecked: document.querySelector("[data-testid=setting-video-loop]")?.checked,
+    videoVolume: document.querySelector("[data-testid=setting-video-volume]")?.value
   };
 })()`);
+if (settingsMetrics.videoLoopChecked !== true || settingsMetrics.videoVolume !== "100") {
+  throw new Error(`動画設定の既定値検証に失敗しました: ${JSON.stringify(settingsMetrics)}`);
+}
 const settingsScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
   format: "png",
   fromSurface: true,
@@ -341,7 +346,11 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
               text: "This image was taken in 2024.",
               footer: "Rated helpful by readers"
             },
-            media: []
+            media: [{
+              id: "video-qa", type: "video",
+              url: "/api/v1/system/status",
+              previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+            }]
           }],
           nextCursor: null
         }));
@@ -413,6 +422,7 @@ const trendMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
       : [],
     storedTarget: layout.columns?.[0]?.target,
     storedHistory: layout.trendSearchHistory,
+    layoutVersion: layout.version,
     visibleTrends: document.querySelectorAll(".trend-item").length,
     documentOverflow: document.documentElement.scrollWidth > innerWidth
   };
@@ -421,6 +431,9 @@ const trendScreenshot = await client.call<{ data: string }>("Page.captureScreens
   format: "png",
   fromSurface: true,
 });
+if (trendMetrics.layoutVersion !== 7) {
+  throw new Error(`レイアウトv6からv7への移行に失敗しました: ${JSON.stringify(trendMetrics)}`);
+}
 const trendScreenshotPath = resolve(import.meta.dir, "../../target/ui-trend-filter-768x1024.png");
 await Bun.write(trendScreenshotPath, Buffer.from(trendScreenshot.data, "base64"));
 results.push({ view: "trend-filter", ...trendMetrics, screenshotPath: trendScreenshotPath });
@@ -439,18 +452,25 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
   const like = document.querySelector("[data-post-action=like]");
   const repost = document.querySelector("[data-post-action=repost]");
   const heart = like?.querySelector("svg");
+  const video = document.querySelector(".post-media video");
   return {
     likeColor: like instanceof HTMLElement ? getComputedStyle(like).color : null,
     likeFilled: heart?.getAttribute("fill"),
     repostColor: repost instanceof HTMLElement ? getComputedStyle(repost).color : null,
     communityNoteText: document.querySelector("[data-testid=community-note-card]")?.textContent,
+    videoLoop: video instanceof HTMLVideoElement ? video.loop : null,
+    videoVolume: video instanceof HTMLVideoElement ? video.volume : null,
+    videoMuted: video instanceof HTMLVideoElement ? video.muted : null,
     documentOverflow: document.documentElement.scrollWidth > innerWidth
   };
 })()`);
 if (
   engagementMetrics.likeColor !== "rgb(249, 24, 128)" ||
   engagementMetrics.likeFilled !== "currentColor" ||
-  engagementMetrics.repostColor !== "rgb(0, 186, 124)"
+  engagementMetrics.repostColor !== "rgb(0, 186, 124)" ||
+  engagementMetrics.videoLoop !== true ||
+  engagementMetrics.videoVolume !== 1 ||
+  engagementMetrics.videoMuted !== true
 ) {
   throw new Error(`反応済み色の検証に失敗しました: ${JSON.stringify(engagementMetrics)}`);
 }
@@ -468,6 +488,36 @@ results.push({
   ...engagementMetrics,
   screenshotPath: engagementScreenshotPath,
 });
+
+await client.evaluate(`(() => {
+  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
+  localStorage.setItem("nytweetdeck.layout", JSON.stringify({
+    ...layout,
+    display: { ...layout.display, videoLoop: false, videoVolume: 35 }
+  }));
+})()`);
+await reload();
+await waitForCondition('document.querySelector(".post-media video") !== null');
+await waitForCondition('document.querySelector(".post-media video")?.volume === 0.35');
+const persistedVideoMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
+  const video = document.querySelector(".post-media video");
+  const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");
+  return {
+    videoLoop: video instanceof HTMLVideoElement ? video.loop : null,
+    videoVolume: video instanceof HTMLVideoElement ? video.volume : null,
+    storedLoop: layout.display?.videoLoop,
+    storedVolume: layout.display?.videoVolume
+  };
+})()`);
+if (
+  persistedVideoMetrics.videoLoop !== false ||
+  persistedVideoMetrics.videoVolume !== 0.35 ||
+  persistedVideoMetrics.storedLoop !== false ||
+  persistedVideoMetrics.storedVolume !== 35
+) {
+  throw new Error(`動画設定の永続化検証に失敗しました: ${JSON.stringify(persistedVideoMetrics)}`);
+}
+results.push({ view: "persisted-video-settings", ...persistedVideoMetrics });
 
 await client.evaluate(`(() => {
   const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");

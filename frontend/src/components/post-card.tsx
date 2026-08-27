@@ -10,7 +10,7 @@ import {
   Settings,
   Share2,
 } from "lucide-react";
-import { type KeyboardEvent, type MouseEvent, useEffect, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import {
@@ -395,12 +395,11 @@ export function PostCard({
           <div className="post-media">
             {post.media.map((media) =>
               media.type === "video" || media.type === "animated_gif" ? (
-                <video
+                <ConfiguredVideo
                   key={media.id}
-                  controls
-                  muted
                   autoPlay={display.videoAutoplay}
-                  preload="metadata"
+                  loop={display.videoLoop}
+                  volume={display.videoVolume}
                   poster={media.previewUrl}
                   src={media.url}
                 />
@@ -523,6 +522,42 @@ export function PostCard({
         />
       )}
     </>
+  );
+}
+
+function ConfiguredVideo({
+  autoPlay,
+  loop,
+  volume,
+  poster,
+  src,
+}: {
+  autoPlay: boolean;
+  loop: boolean;
+  volume: number;
+  poster: string;
+  src: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video === null) return;
+    const normalizedVolume = Math.min(100, Math.max(0, volume)) / 100;
+    video.volume = normalizedVolume;
+  }, [volume]);
+
+  return (
+    <video
+      ref={videoRef}
+      controls
+      muted
+      autoPlay={autoPlay}
+      loop={loop}
+      preload="metadata"
+      poster={poster}
+      src={src}
+    />
   );
 }
 

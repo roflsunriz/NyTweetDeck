@@ -68,20 +68,31 @@ describe("NyTweetDeck shell", () => {
     expect((screen.getByTestId("setting-auto-translate-posts") as HTMLInputElement).checked).toBe(
       true,
     );
+    expect((screen.getByTestId("setting-video-loop") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId("setting-video-volume") as HTMLInputElement).value).toBe("100");
     await user.click(screen.getByTestId("setting-auto-translate-posts"));
     await user.click(screen.getByTestId("setting-reduce-motion"));
+    await user.click(screen.getByTestId("setting-video-loop"));
+    fireEvent.change(screen.getByTestId("setting-video-volume"), { target: { value: "35" } });
     expect(document.documentElement.dataset.fontSize).toBe("large");
     expect(document.documentElement.dataset.accent).toBe("purple");
     expect(document.documentElement.dataset.density).toBe("compact");
     expect(document.documentElement.dataset.reduceMotion).toBe("true");
     const stored = JSON.parse(String(window.localStorage.getItem("nytweetdeck.layout"))) as {
       version: number;
-      display: { accentColor: string; reduceMotion: boolean };
+      display: {
+        accentColor: string;
+        reduceMotion: boolean;
+        videoLoop: boolean;
+        videoVolume: number;
+      };
     };
-    expect(stored.version).toBe(6);
+    expect(stored.version).toBe(7);
     expect(stored.display.accentColor).toBe("purple");
     expect(stored.display.reduceMotion).toBe(true);
     expect((stored.display as { autoTranslatePosts?: boolean }).autoTranslatePosts).toBe(false);
+    expect(stored.display.videoLoop).toBe(false);
+    expect(stored.display.videoVolume).toBe(35);
   });
 
   test("opens direct messages and trends from the default menu", async () => {
