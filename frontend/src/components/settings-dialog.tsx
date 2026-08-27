@@ -157,8 +157,68 @@ export function SettingsDialog({
           />
         </label>
       </div>
+      <TranslationHealthSettings translation={translation} />
       <ApiMetadataSettings translation={translation} />
     </Modal>
+  );
+}
+
+interface TranslationHealth {
+  upstreamRequests: number;
+  upstreamSuccesses: number;
+  upstreamSuccessRate: number | null;
+  recentSuccessRate: number | null;
+  deferredRequests: number;
+  rateLimitedResponses: number;
+  rateLimit: number | null;
+  rateLimitRemaining: number | null;
+}
+
+function TranslationHealthSettings({ translation }: { translation: Translation }) {
+  const [health, setHealth] = useState<TranslationHealth | null>(null);
+  const [requestFailed, setRequestFailed] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/v1/system/translation-health", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return (await response.json()) as TranslationHealth;
+      })
+      .then(setHealth)
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setRequestFailed(true);
+        }
+      });
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <section className="metadata-settings" data-testid="translation-health">
+      <h3>{translation.translationHealth}</h3>
+      <p>{translation.translationHealthDescription}</p>
+      {requestFailed ? (
+        <p className="inline-warning">{translation.translationHealthUnavailable}</p>
+      ) : health !== null && health.upstreamRequests > 0 ? (
+        <>
+          <p className="setup-success">
+            {translation.translationHealthSummary(
+              health.upstreamSuccessRate ?? 0,
+              health.upstreamSuccesses,
+              health.upstreamRequests,
+            )}
+          </p>
+          {health.rateLimit !== null && health.rateLimitRemaining !== null && (
+            <small>
+              {translation.translationRateLimitSummary(health.rateLimitRemaining, health.rateLimit)}
+            </small>
+          )}
+        </>
+      ) : (
+        <p>{translation.translationHealthNoRequests}</p>
+      )}
+    </section>
   );
 }
 

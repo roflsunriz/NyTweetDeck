@@ -49,10 +49,29 @@ describe("NyTweetDeck shell", () => {
   });
 
   test("changes language and theme from settings", async () => {
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/accounts")) return Response.json([]);
+      if (url.endsWith("/api/v1/system/translation-health")) {
+        return Response.json({
+          upstreamRequests: 20,
+          upstreamSuccesses: 19,
+          upstreamSuccessRate: 95,
+          recentSuccessRate: 95,
+          deferredRequests: 1,
+          rateLimitedResponses: 0,
+          rateLimit: 187,
+          rateLimitRemaining: 153,
+        });
+      }
+      return Response.json(null);
+    }) as typeof fetch;
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "設定" }));
+    expect(await screen.findByText("通信成功率 95%（成功 19 / 通信 20）")).toBeDefined();
+    expect(screen.getByText("X翻訳の残り利用枠 153 / 187")).toBeDefined();
     await user.selectOptions(screen.getByTestId("setting-language"), "en");
 
     expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();

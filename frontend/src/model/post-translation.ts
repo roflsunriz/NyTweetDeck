@@ -13,7 +13,11 @@ const unavailableLanguages = new Set(["und", "zxx", "qme", "qam", "art"]);
 const requests = new Map<string, Promise<PostTranslationResult>>();
 const queue: Array<() => void> = [];
 let activeRequests = 0;
-const maxConcurrentRequests = 4;
+const maxConcurrentRequests = 2;
+const maximumAttempts = 4;
+const translationRequestTimeoutMilliseconds = 45_000;
+const maximumRateLimitWaitMilliseconds = 60 * 60 * 1_000;
+const retryDelaysMilliseconds = [750, 2_000, 5_000] as const;
 
 export function shouldTranslatePost(sourceLanguage: string | null, locale: Locale): boolean {
   const source = normalizeBaseLanguage(sourceLanguage);
@@ -36,29 +40,23 @@ export function loadPostTranslation({
   sourceLanguage,
   targetLanguage,
   force = false,
+  onRetryScheduled,
 }: {
   accountId: string;
   postId: string;
   sourceLanguage: string;
   targetLanguage: Locale;
   force?: boolean;
+  onRetryScheduled?: (delaySeconds: number) => void;
 }): Promise<PostTranslationResult> {
   const key = `${accountId}:${postId}:${targetLanguage}`;
   if (force) requests.delete(key);
   const existing = requests.get(key);
   if (existing !== undefined) return existing;
   const params = new URLSearchParams({ accountId, sourceLanguage, targetLanguage });
-  const request = schedule(() =>
-    fetchWithTimeout(`/api/v1/posts/${encodeURIComponent(postId)}/translation?${params}`).then(
-      async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result: unknown = await response.json();
-        if (!isPostTranslationResult(result)) {
-          throw new Error("Invalid X translation response");
-        }
-        return result;
-      },
-    ),
+  const request = requestWithRetry(
+    `/api/v1/posts/${encodeURIComponent(postId)}/translation?${params}`,
+    onRetryScheduled,
   ).catch((error: unknown) => {
     requests.delete(key);
     throw error;
@@ -69,6 +67,61 @@ export function loadPostTranslation({
     if (oldest !== undefined && oldest !== key) requests.delete(oldest);
   }
   return request;
+}
+
+async function requestWithRetry(
+  uri: string,
+  onRetryScheduled?: (delaySeconds: number) => void,
+): Promise<PostTranslationResult> {
+  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+    let response: Response;
+    try {
+      response = await schedule(() =>
+        fetchWithTimeout(uri, {}, translationRequestTimeoutMilliseconds),
+      );
+    } catch (error) {
+      if (attempt >= maximumAttempts - 1) throw error;
+      await waitBeforeRetry(retryDelaysMilliseconds[attempt] ?? 5_000, onRetryScheduled);
+      continue;
+    }
+    if (response.ok) {
+      const result: unknown = await response.json();
+      if (!isPostTranslationResult(result)) {
+        throw new Error("Invalid X translation response");
+      }
+      return result;
+    }
+    if (!isRetryableStatus(response.status) || attempt >= maximumAttempts - 1) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const delay =
+      response.status === 429
+        ? retryAfterMilliseconds(response)
+        : (retryDelaysMilliseconds[attempt] ?? 5_000);
+    await waitBeforeRetry(delay, onRetryScheduled);
+  }
+  throw new Error("X translation retries exhausted");
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function retryAfterMilliseconds(response: Response): number {
+  const seconds = Number(response.headers.get("Retry-After"));
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return retryDelaysMilliseconds[0];
+  }
+  return Math.min(maximumRateLimitWaitMilliseconds, Math.ceil(seconds * 1_000));
+}
+
+async function waitBeforeRetry(
+  delayMilliseconds: number,
+  onRetryScheduled?: (delaySeconds: number) => void,
+): Promise<void> {
+  onRetryScheduled?.(Math.max(1, Math.ceil(delayMilliseconds / 1_000)));
+  await new Promise<void>((resolve) => globalThis.setTimeout(resolve, delayMilliseconds));
+  onRetryScheduled?.(0);
 }
 
 function isPostTranslationResult(value: unknown): value is PostTranslationResult {

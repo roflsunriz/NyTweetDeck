@@ -109,8 +109,13 @@ export function PostCard({
   const [fetchedTranslationProvider, setFetchedTranslationProvider] = useState<string | null>(null);
   const [translationLoading, setTranslationLoading] = useState(false);
   const [translationError, setTranslationError] = useState(false);
+  const [translationRetrySeconds, setTranslationRetrySeconds] = useState(0);
+  const [translationInViewport, setTranslationInViewport] = useState(
+    () => typeof globalThis.IntersectionObserver === "undefined",
+  );
   const [showOriginal, setShowOriginal] = useState(false);
   const [translationAttempt, setTranslationAttempt] = useState(0);
+  const cardRef = useRef<HTMLElement | null>(null);
   const { locale, autoTranslatePosts, setAutoTranslatePosts } = usePostTranslationSettings();
   const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
   const postUrl = `https://x.com/${post.author.username}/status/${post.id}`;
@@ -139,9 +144,34 @@ export function PostCard({
   useEffect(() => setBookmarkCount(post.bookmarkCount), [post.bookmarkCount]);
 
   useEffect(() => {
-    if (!autoTranslatePosts || !translationNeeded) {
+    const target = cardRef.current;
+    if (
+      target === null ||
+      target.dataset.postId !== post.id ||
+      typeof globalThis.IntersectionObserver === "undefined"
+    ) {
+      setTranslationInViewport(true);
+      return;
+    }
+    setTranslationInViewport(false);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setTranslationInViewport(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [post.id]);
+
+  useEffect(() => {
+    if (!autoTranslatePosts || !translationNeeded || !translationInViewport) {
       setTranslationLoading(false);
       setTranslationError(false);
+      setTranslationRetrySeconds(0);
       setShowOriginal(false);
       return;
     }
@@ -150,12 +180,14 @@ export function PostCard({
       setFetchedTranslationProvider(null);
       setTranslationLoading(false);
       setTranslationError(false);
+      setTranslationRetrySeconds(0);
       setShowOriginal(false);
       return;
     }
     if (post.language === null) {
       setTranslationLoading(false);
       setTranslationError(false);
+      setTranslationRetrySeconds(0);
       setShowOriginal(false);
       return;
     }
@@ -164,6 +196,7 @@ export function PostCard({
     setFetchedTranslationProvider(null);
     setTranslationLoading(true);
     setTranslationError(false);
+    setTranslationRetrySeconds(0);
     setShowOriginal(false);
     void loadPostTranslation({
       accountId,
@@ -171,14 +204,21 @@ export function PostCard({
       sourceLanguage: post.language,
       targetLanguage: locale,
       force: translationAttempt > 0,
+      onRetryScheduled: (delaySeconds) => {
+        if (active) setTranslationRetrySeconds(delaySeconds);
+      },
     })
       .then((result) => {
         if (!active) return;
         setFetchedTranslatedText(result.text);
         setFetchedTranslationProvider(result.provider);
+        setTranslationRetrySeconds(0);
       })
       .catch(() => {
-        if (active) setTranslationError(true);
+        if (active) {
+          setTranslationRetrySeconds(0);
+          setTranslationError(true);
+        }
       })
       .finally(() => {
         if (active) setTranslationLoading(false);
@@ -194,6 +234,7 @@ export function PostCard({
     post.language,
     preTranslated,
     translationAttempt,
+    translationInViewport,
     translationNeeded,
   ]);
 
@@ -262,6 +303,7 @@ export function PostCard({
   return (
     <>
       <article
+        ref={cardRef}
         className="post-card"
         data-post-id={post.id}
         aria-label={onOpen === undefined ? undefined : translation.postDetail}
@@ -366,7 +408,13 @@ export function PostCard({
         )}
         {autoTranslatePosts && translationNeeded && (
           <div className="post-translation-status" aria-live="polite">
-            {translationLoading && <span>{translation.translationLoading}</span>}
+            {translationLoading && (
+              <span>
+                {translationRetrySeconds > 0
+                  ? translation.translationRetryScheduled(translationRetrySeconds)
+                  : translation.translationLoading}
+              </span>
+            )}
             {translationError && (
               <>
                 <span className="post-translation-error">{translation.translationFailed}</span>

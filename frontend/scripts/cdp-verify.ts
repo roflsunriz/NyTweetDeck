@@ -284,11 +284,16 @@ const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
     scrollHeight: panel.scrollHeight,
     canScroll: panel.scrollHeight >= panel.clientHeight,
     documentOverflow: document.documentElement.scrollWidth > innerWidth,
+    translationHealthFound: document.querySelector("[data-testid=translation-health]") !== null,
     videoLoopChecked: document.querySelector("[data-testid=setting-video-loop]")?.checked,
     videoVolume: document.querySelector("[data-testid=setting-video-volume]")?.value
   };
 })()`);
-if (settingsMetrics.videoLoopChecked !== true || settingsMetrics.videoVolume !== "100") {
+if (
+  settingsMetrics.videoLoopChecked !== true ||
+  settingsMetrics.videoVolume !== "100" ||
+  settingsMetrics.translationHealthFound !== true
+) {
   throw new Error(`動画設定の既定値検証に失敗しました: ${JSON.stringify(settingsMetrics)}`);
 }
 const settingsScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
@@ -327,6 +332,11 @@ results.push({ view: "settings-rtl", ...rtlMetrics, screenshotPath: rtlScreensho
 await client.call("Page.addScriptToEvaluateOnNewDocument", {
   source: `(() => {
     const originalFetch = window.fetch.bind(window);
+    window.__qaTranslationRequests = 0;
+    window.__qaTranslationActive = 0;
+    window.__qaTranslationMaximumActive = 0;
+    window.__qaTranslationPostIds = [];
+    window.__qaTranslationAttempts = {};
     window.fetch = (input, init) => {
       const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const url = new URL(raw, location.href);
@@ -347,7 +357,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
       if (url.pathname === "/api/v1/timelines/homeForYou") {
         return Promise.resolve(Response.json({
           posts: [{
-            id: "100", text: "Initial engagement state", language: "ja",
+            id: "100", text: "Initial engagement state", language: "en",
             createdAt: "2026-08-27T00:00:00Z",
             author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
             repostedBy: null, replyCount: 1, repostCount: 2, quoteCount: 0,
@@ -364,9 +374,44 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
               url: "/api/v1/system/status",
               previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
             }]
-          }],
+          }, ...Array.from({ length: 12 }, (_, index) => ({
+            id: "fresh-" + index, text: "Fresh original " + index, language: "en",
+            createdAt: "2026-08-27T00:00:00Z",
+            author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
+            repostedBy: null, replyCount: 0, repostCount: 0, quoteCount: 0,
+            likeCount: 0, bookmarkCount: 0, viewCount: 0,
+            liked: false, reposted: false, bookmarked: false,
+            replyToPostId: null, replyToUsername: null, quotedPost: null,
+            communityNote: null, media: []
+          }))],
           nextCursor: null
         }));
+      }
+      if (
+        url.pathname.startsWith("/api/v1/posts/") &&
+        url.pathname.endsWith("/translation")
+      ) {
+        const postId = decodeURIComponent(url.pathname.split("/")[4] ?? "unknown");
+        window.__qaTranslationRequests += 1;
+        window.__qaTranslationActive += 1;
+        window.__qaTranslationMaximumActive = Math.max(
+          window.__qaTranslationMaximumActive,
+          window.__qaTranslationActive
+        );
+        window.__qaTranslationPostIds.push(postId);
+        const attempt = (window.__qaTranslationAttempts[postId] ?? 0) + 1;
+        window.__qaTranslationAttempts[postId] = attempt;
+        return new Promise(resolve => setTimeout(() => {
+          window.__qaTranslationActive -= 1;
+          if (postId === "100" && attempt === 1) {
+            resolve(new Response(null, { status: 429, headers: { "Retry-After": "0" } }));
+            return;
+          }
+          resolve(Response.json({
+            postId, sourceLanguage: "en", targetLanguage: "ja",
+            text: "translated-" + postId, provider: "X"
+          }));
+        }, 40));
       }
       if (url.pathname === "/api/v1/notifications") {
         return Promise.resolve(Response.json({
@@ -481,6 +526,8 @@ await client.evaluate(`(() => {
 })()`);
 await reload();
 await waitForCondition('document.querySelector("[data-post-action=like]") !== null');
+await waitForCondition('document.querySelector(".post-text")?.textContent === "translated-100"');
+await waitForCondition("window.__qaTranslationActive === 0");
 const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const like = document.querySelector("[data-post-action=like]");
   const repost = document.querySelector("[data-post-action=repost]");
@@ -494,6 +541,10 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
     videoLoop: video instanceof HTMLVideoElement ? video.loop : null,
     videoVolume: video instanceof HTMLVideoElement ? video.volume : null,
     videoMuted: video instanceof HTMLVideoElement ? video.muted : null,
+    translationRequests: window.__qaTranslationRequests,
+    translatedPostCount: new Set(window.__qaTranslationPostIds).size,
+    translationMaximumActive: window.__qaTranslationMaximumActive,
+    firstPostTranslationAttempts: window.__qaTranslationAttempts["100"] ?? 0,
     documentOverflow: document.documentElement.scrollWidth > innerWidth
   };
 })()`);
@@ -503,7 +554,10 @@ if (
   engagementMetrics.repostColor !== "rgb(0, 186, 124)" ||
   engagementMetrics.videoLoop !== true ||
   engagementMetrics.videoVolume !== 1 ||
-  engagementMetrics.videoMuted !== true
+  engagementMetrics.videoMuted !== true ||
+  Number(engagementMetrics.translatedPostCount) >= 13 ||
+  engagementMetrics.translationMaximumActive !== 2 ||
+  engagementMetrics.firstPostTranslationAttempts !== 2
 ) {
   throw new Error(`反応済み色の検証に失敗しました: ${JSON.stringify(engagementMetrics)}`);
 }

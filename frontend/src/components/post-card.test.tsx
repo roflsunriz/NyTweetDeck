@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { translate } from "../i18n/translations";
@@ -8,10 +8,16 @@ import { PostCard, type TimelinePost } from "./post-card";
 import { PostTranslationProvider } from "./post-translation-context";
 
 const originalFetch = globalThis.fetch;
+const originalIntersectionObserver = globalThis.IntersectionObserver;
+
+beforeEach(() => {
+  globalThis.IntersectionObserver = undefined as unknown as typeof IntersectionObserver;
+});
 
 afterEach(() => {
   cleanup();
   globalThis.fetch = originalFetch;
+  globalThis.IntersectionObserver = originalIntersectionObserver;
 });
 
 describe("post actions", () => {
@@ -428,6 +434,61 @@ describe("post actions", () => {
     expect(screen.getByText("Fresh original")).toBeDefined();
   });
 
+  test("defers real-time translation until a post approaches the viewport", async () => {
+    let callback: IntersectionObserverCallback | null = null;
+    let requests = 0;
+    globalThis.IntersectionObserver = class {
+      readonly root = null;
+      readonly rootMargin = "600px 0px";
+      readonly thresholds = [0];
+
+      constructor(observerCallback: IntersectionObserverCallback) {
+        callback = observerCallback;
+      }
+
+      disconnect() {}
+      observe() {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
+      unobserve() {}
+    } as unknown as typeof IntersectionObserver;
+    globalThis.fetch = (async () => {
+      requests += 1;
+      return Response.json({
+        postId: "viewport-post",
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+        text: "表示範囲で翻訳",
+        provider: "X",
+      });
+    }) as unknown as typeof fetch;
+
+    render(
+      <PostTranslationProvider
+        value={{ locale: "ja", autoTranslatePosts: true, setAutoTranslatePosts: () => undefined }}
+      >
+        <PostCard
+          post={{ ...post(), id: "viewport-post", language: "en", text: "Offscreen original" }}
+          accountId="account-1"
+          translation={translate("ja")}
+        />
+      </PostTranslationProvider>,
+    );
+
+    expect(requests).toBe(0);
+    if (callback === null) throw new Error("IntersectionObserverが作成されませんでした。");
+    act(() => {
+      callback?.(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+    });
+
+    expect(await screen.findByText("表示範囲で翻訳")).toBeDefined();
+    expect(requests).toBe(1);
+  });
+
   test("applies the gear setting to every post and retries a failed translation", async () => {
     const attempts = new Map<string, number>();
     globalThis.fetch = (async (input) => {
@@ -435,7 +496,7 @@ describe("post actions", () => {
       const postId = url.includes("/911/") ? "911" : "910";
       const count = (attempts.get(postId) ?? 0) + 1;
       attempts.set(postId, count);
-      if (postId === "910" && count === 1) return new Response(null, { status: 502 });
+      if (postId === "910" && count === 1) return new Response(null, { status: 400 });
       return Response.json({
         postId,
         sourceLanguage: "en",

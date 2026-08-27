@@ -96,6 +96,7 @@ export interface Translation {
   showOriginal: string;
   showTranslation: string;
   translationLoading: string;
+  translationRetryScheduled: (seconds: number) => string;
   translationFailed: string;
   translatedBy: (provider: string) => string;
   postMenu: string;
@@ -140,6 +141,12 @@ export interface Translation {
   apiMetadataCurrent: string;
   apiMetadataFallback: string;
   apiMetadataFailed: string;
+  translationHealth: string;
+  translationHealthDescription: string;
+  translationHealthNoRequests: string;
+  translationHealthUnavailable: string;
+  translationHealthSummary: (rate: number, successful: number, total: number) => string;
+  translationRateLimitSummary: (remaining: number, limit: number) => string;
   saving: string;
   accounts: string;
   noAccounts: string;
@@ -251,7 +258,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     disableAutoTranslation: "すべてのカラムで自動翻訳をオフにする",
     showOriginal: "原文を表示",
     showTranslation: "翻訳を表示",
-    translationLoading: "翻訳中…",
+    translationLoading: "表示範囲のポストをXで翻訳中…",
+    translationRetryScheduled: (seconds) => `X翻訳を再試行します（約${seconds}秒後）`,
     translationFailed: "翻訳できませんでした。原文を表示しています。",
     translatedBy: (provider) => `${provider}による自動翻訳`,
     postMenu: "ポストメニュー",
@@ -297,6 +305,15 @@ const translations: Partial<Record<Locale, Translation>> = {
     apiMetadataCurrent: "X公式Webの最新定義を使用中です。",
     apiMetadataFallback: "同梱された検証済み定義を使用中です。",
     apiMetadataFailed: "更新できませんでした。直前の検証済み定義を維持しています。",
+    translationHealth: "X自動翻訳の稼働状況",
+    translationHealthDescription:
+      "画面に近いポストだけを翻訳し、レート制限時は解除後に自動再試行します。値はNyTweetDeck起動後の集計です。",
+    translationHealthNoRequests: "この起動中には、まだリアルタイム翻訳通信がありません。",
+    translationHealthUnavailable:
+      "翻訳の稼働状況を取得できませんでした。設定画面を開き直してください。",
+    translationHealthSummary: (rate, successful, total) =>
+      `通信成功率 ${rate}%（成功 ${successful} / 通信 ${total}）`,
+    translationRateLimitSummary: (remaining, limit) => `X翻訳の残り利用枠 ${remaining} / ${limit}`,
     saving: "保存中…",
     accounts: "保存済みアカウント",
     noAccounts: "保存済みアカウントはありません。",
@@ -450,7 +467,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     disableAutoTranslation: "Turn off automatic translation for every column",
     showOriginal: "Show original",
     showTranslation: "Show translation",
-    translationLoading: "Translating…",
+    translationLoading: "Translating nearby posts with X…",
+    translationRetryScheduled: (seconds) => `Retrying X translation in about ${seconds}s`,
     translationFailed: "Translation failed. Showing the original post.",
     translatedBy: (provider) => `Automatically translated by ${provider}`,
     postMenu: "Post menu",
@@ -496,6 +514,16 @@ const translations: Partial<Record<Locale, Translation>> = {
     apiMetadataCurrent: "Using the latest definitions from X's official web assets.",
     apiMetadataFallback: "Using the bundled verified definitions.",
     apiMetadataFailed: "Update failed. The last verified definitions remain active.",
+    translationHealth: "X automatic translation status",
+    translationHealthDescription:
+      "Only nearby posts are translated. Rate-limited requests retry automatically after the limit resets. Values cover this NyTweetDeck session.",
+    translationHealthNoRequests: "No real-time translation requests have run in this session yet.",
+    translationHealthUnavailable:
+      "Translation status could not be loaded. Close and reopen Settings to retry.",
+    translationHealthSummary: (rate, successful, total) =>
+      `Request success rate ${rate}% (${successful} successful / ${total} requests)`,
+    translationRateLimitSummary: (remaining, limit) =>
+      `X translation allowance remaining: ${remaining} / ${limit}`,
     saving: "Saving…",
     accounts: "Saved accounts",
     noAccounts: "No saved accounts yet.",

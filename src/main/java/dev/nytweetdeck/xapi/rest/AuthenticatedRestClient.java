@@ -9,10 +9,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -120,12 +122,14 @@ public class AuthenticatedRestClient {
     private RestResult send(HttpRequest request, String endpointName) {
         try {
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            var rateLimit = rateLimitInfo(response.headers());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new XApiHttpException(
                         "REST " + endpointName + "に失敗しました。HTTP " + response.statusCode(),
-                        response.statusCode());
+                        response.statusCode(),
+                        retryAfterSeconds(response.headers(), rateLimit));
             }
-            return new RestResult(endpointName, response.body());
+            return new RestResult(endpointName, response.body(), rateLimit);
         } catch (IOException exception) {
             throw new XApiHttpException("REST " + endpointName + "の通信に失敗しました。", exception);
         } catch (InterruptedException exception) {
@@ -149,13 +153,69 @@ public class AuthenticatedRestClient {
         return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
-    public record RestResult(String endpointName, String rawJson) {
+    private static RateLimitInfo rateLimitInfo(HttpHeaders headers) {
+        return new RateLimitInfo(
+                parseInteger(headers.firstValue("x-rate-limit-limit").orElse(null)),
+                parseInteger(headers.firstValue("x-rate-limit-remaining").orElse(null)),
+                parseInstant(headers.firstValue("x-rate-limit-reset").orElse(null)));
+    }
+
+    private static Long retryAfterSeconds(HttpHeaders headers, RateLimitInfo rateLimit) {
+        var retryAfter = parseLong(headers.firstValue("retry-after").orElse(null));
+        if (retryAfter != null) {
+            return Math.max(0, retryAfter);
+        }
+        if (rateLimit.resetAt() == null) {
+            return null;
+        }
+        return Math.max(0, Duration.between(Instant.now(), rateLimit.resetAt()).toSeconds() + 1);
+    }
+
+    private static Integer parseInteger(String value) {
+        var parsed = parseLong(value);
+        return parsed == null || parsed < 0 || parsed > Integer.MAX_VALUE ? null : parsed.intValue();
+    }
+
+    private static Long parseLong(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static Instant parseInstant(String value) {
+        var epochSeconds = parseLong(value);
+        if (epochSeconds == null || epochSeconds < 0) {
+            return null;
+        }
+        try {
+            return Instant.ofEpochSecond(epochSeconds);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    public record RestResult(String endpointName, String rawJson, RateLimitInfo rateLimit) {
+
+        public RestResult(String endpointName, String rawJson) {
+            this(endpointName, rawJson, new RateLimitInfo(null, null, null));
+        }
 
         @Override
         public String toString() {
-            return "RestResult[endpointName=" + endpointName + ", rawJson=<redacted>]";
+            return "RestResult[endpointName="
+                    + endpointName
+                    + ", rawJson=<redacted>, rateLimit="
+                    + rateLimit
+                    + "]";
         }
     }
+
+    public record RateLimitInfo(Integer limit, Integer remaining, Instant resetAt) {}
 
     public record Parameter(String name, String value) {}
 }

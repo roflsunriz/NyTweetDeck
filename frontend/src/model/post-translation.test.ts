@@ -45,4 +45,87 @@ describe("post translation language matching", () => {
     expect(translationTargetsLocale("ja-JP", "ja")).toBe(true);
     expect(translationTargetsLocale("en", "ja")).toBe(false);
   });
+
+  test("automatically retries a rate-limited X translation after Retry-After", async () => {
+    let calls = 0;
+    const retryDelays: number[] = [];
+    globalThis.fetch = (async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(null, { status: 429, headers: { "Retry-After": "0" } });
+      }
+      return Response.json({
+        postId: "rate-limited-post",
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+        text: "再試行後の翻訳",
+        provider: "X",
+      });
+    }) as unknown as typeof fetch;
+
+    const result = await loadPostTranslation({
+      accountId: "account-rate-limit",
+      postId: "rate-limited-post",
+      sourceLanguage: "en",
+      targetLanguage: "ja",
+      onRetryScheduled: (seconds) => retryDelays.push(seconds),
+    });
+
+    expect(result.text).toBe("再試行後の翻訳");
+    expect(calls).toBe(2);
+    expect(retryDelays).toEqual([1, 0]);
+  });
+
+  test("limits fresh X translations to two concurrent requests", async () => {
+    let active = 0;
+    let maximumActive = 0;
+    let calls = 0;
+    const releases: Array<() => void> = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      calls += 1;
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      const postId = /\/posts\/([^/]+)\/translation/.exec(String(input))?.[1] ?? "unknown";
+      return new Promise<Response>((resolve) => {
+        releases.push(() => {
+          active -= 1;
+          resolve(
+            Response.json({
+              postId,
+              sourceLanguage: "en",
+              targetLanguage: "ja",
+              text: `translation-${postId}`,
+              provider: "X",
+            }),
+          );
+        });
+      });
+    }) as unknown as typeof fetch;
+
+    const pending = ["concurrency-a", "concurrency-b", "concurrency-c"].map((postId) =>
+      loadPostTranslation({
+        accountId: "account-concurrency",
+        postId,
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+      }),
+    );
+
+    await waitUntil(() => releases.length === 2);
+    expect(calls).toBe(2);
+    expect(maximumActive).toBe(2);
+    releases.shift()?.();
+    await waitUntil(() => calls === 3);
+    expect(maximumActive).toBe(2);
+    for (const release of releases.splice(0)) release();
+    await Promise.all(pending);
+  });
 });
+
+async function waitUntil(condition: () => boolean): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  while (!condition()) {
+    if (Date.now() >= deadline) throw new Error("条件待機がタイムアウトしました。");
+    await Bun.sleep(1);
+  }
+}

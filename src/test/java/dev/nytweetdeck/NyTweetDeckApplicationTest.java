@@ -94,4 +94,22 @@ class NyTweetDeckApplicationTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).isEqualTo("[]");
     }
+
+    @Test
+    void servesCredentialFreeTranslationReliabilityMetrics() throws Exception {
+        var request = HttpRequest.newBuilder(URI.create(
+                        "http://127.0.0.1:" + port + "/api/v1/system/translation-health"))
+                .GET()
+                .build();
+
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body())
+                .contains("\"upstreamRequests\":0")
+                .contains("\"rateLimitedResponses\":0")
+                .doesNotContainIgnoringCase("accountId")
+                .doesNotContainIgnoringCase("postId")
+                .doesNotContainIgnoringCase("token");
+    }
 }
