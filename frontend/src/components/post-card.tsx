@@ -40,6 +40,8 @@ export interface TimelinePost {
   liked: boolean;
   reposted: boolean;
   bookmarked: boolean;
+  replyToPostId: string | null;
+  replyToUsername: string | null;
   quotedPost: EmbeddedPost | null;
   media: Array<{ id: string; type: string; url: string; previewUrl: string }>;
 }
@@ -150,11 +152,25 @@ export function PostCard({
         { method: "POST" },
       );
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let detail: string | null = null;
+        try {
+          const problem = (await response.json()) as { detail?: unknown };
+          if (typeof problem.detail === "string" && problem.detail.length > 0) {
+            detail = problem.detail;
+          }
+        } catch {
+          // Use the localized fallback when the response has no problem body.
+        }
+        throw new Error(detail ?? `HTTP ${response.status}`);
       }
       onSuccess();
-    } catch {
-      setActionError(translation.timelineLoadError);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "";
+      setActionError(
+        detail.length > 0 && !detail.startsWith("HTTP ")
+          ? `${translation.postActionFailed} ${detail}`
+          : translation.postActionFailed,
+      );
     } finally {
       setBusyAction(null);
     }
@@ -269,6 +285,24 @@ export function PostCard({
             onHide={() => setHidden(true)}
           />
         </header>
+        {post.replyToPostId !== null && (
+          <button
+            className="reply-context"
+            type="button"
+            disabled={onOpenQuotedPost === undefined}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenQuotedPost?.(post.replyToPostId ?? "");
+            }}
+          >
+            <MessageCircle aria-hidden="true" size={13} />
+            <span>
+              {post.replyToUsername === null
+                ? translation.replyingToPost
+                : translation.replyingTo(post.replyToUsername)}
+            </span>
+          </button>
+        )}
         {onOpen === undefined ? (
           <p className="post-text">{renderPostText(visibleText)}</p>
         ) : (
@@ -335,6 +369,7 @@ export function PostCard({
         )}
         <footer className="post-actions">
           <Action
+            actionId="reply"
             icon={MessageCircle}
             label={translation.reply}
             count={post.replyCount}
@@ -355,6 +390,7 @@ export function PostCard({
             onQuote={() => setQuoting(true)}
           />
           <Action
+            actionId="like"
             icon={Heart}
             label={translation.like}
             count={likeCount}
@@ -367,8 +403,15 @@ export function PostCard({
               })
             }
           />
-          <Action disabled icon={BarChart3} label={translation.views} count={post.viewCount} />
           <Action
+            actionId="views"
+            disabled
+            icon={BarChart3}
+            label={translation.views}
+            count={post.viewCount}
+          />
+          <Action
+            actionId="bookmark"
             icon={Bookmark}
             label={translation.bookmark}
             count={bookmarkCount}
@@ -496,6 +539,7 @@ function RepostMenu({
     <details className="repost-menu">
       <summary
         className={`post-action${active ? " active" : ""}${disabled ? " disabled" : ""}`}
+        data-post-action="repost"
         aria-label={label}
         aria-disabled={disabled}
       >
@@ -503,7 +547,12 @@ function RepostMenu({
         <span>{compactNumber(count)}</span>
       </summary>
       <div>
-        <button type="button" disabled={disabled} onClick={(event) => closeAndRun(event, onRepost)}>
+        <button
+          type="button"
+          data-post-action="repost-confirm"
+          disabled={disabled}
+          onClick={(event) => closeAndRun(event, onRepost)}
+        >
           <Repeat2 aria-hidden="true" size={16} />
           {label}
         </button>
@@ -668,6 +717,7 @@ function PostMenu({
 }
 
 interface ActionProps {
+  actionId: string;
   icon: typeof MessageCircle;
   label: string;
   count: number;
@@ -677,6 +727,7 @@ interface ActionProps {
 }
 
 function Action({
+  actionId,
   icon: Icon,
   label,
   count,
@@ -688,6 +739,7 @@ function Action({
     <button
       type="button"
       className={`post-action${active ? " active" : ""}`}
+      data-post-action={actionId}
       aria-label={label}
       disabled={disabled}
       onClick={onClick}

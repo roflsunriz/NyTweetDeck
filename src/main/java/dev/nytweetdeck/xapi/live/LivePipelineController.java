@@ -25,7 +25,10 @@ public class LivePipelineController {
     public LivePipelineSubscriptionService.SubscriptionStatus update(
             @PathVariable String subscriberId, @RequestBody SubscriptionRequest request) {
         return subscriptionService.update(
-                request.accountId(), subscriberId, request.postIds(), request.directMessages());
+                request.accountId(),
+                subscriberId,
+                request.postIds(),
+                Boolean.TRUE.equals(request.directMessages()));
     }
 
     @DeleteMapping("/{subscriberId}")
@@ -36,9 +39,10 @@ public class LivePipelineController {
     }
 
     public record SubscriptionRequest(
-            String accountId, List<String> postIds, boolean directMessages) {
+            String accountId, List<String> postIds, Boolean directMessages) {
         public SubscriptionRequest {
             postIds = postIds == null ? List.of() : List.copyOf(postIds);
+            directMessages = Boolean.TRUE.equals(directMessages);
         }
     }
 }

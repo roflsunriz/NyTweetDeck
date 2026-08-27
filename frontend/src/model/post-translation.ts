@@ -1,4 +1,5 @@
 import type { Locale } from "./layout";
+import { fetchWithTimeout } from "./fetch-with-timeout";
 
 export interface PostTranslationResult {
   postId: string;
@@ -41,7 +42,7 @@ export function loadPostTranslation({
   if (existing !== undefined) return existing;
   const params = new URLSearchParams({ accountId, sourceLanguage, targetLanguage });
   const request = schedule(() =>
-    fetch(`/api/v1/posts/${encodeURIComponent(postId)}/translation?${params}`).then(
+    fetchWithTimeout(`/api/v1/posts/${encodeURIComponent(postId)}/translation?${params}`).then(
       async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result: unknown = await response.json();
@@ -79,7 +80,8 @@ function schedule<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     queue.push(() => {
       activeRequests += 1;
-      void operation()
+      void Promise.resolve()
+        .then(operation)
         .then(resolve, reject)
         .finally(() => {
           activeRequests -= 1;

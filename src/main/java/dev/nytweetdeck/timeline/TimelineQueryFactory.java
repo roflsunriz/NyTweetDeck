@@ -15,20 +15,20 @@ public class TimelineQueryFactory {
         }
         return switch (kind) {
             case "homeForYou" -> {
-                variables.put("includePromotedContent", true);
+                variables.put("includePromotedContent", false);
                 variables.put("requestContext", "launch");
                 variables.put("withCommunity", true);
                 yield new Query("homeForYou", variables);
             }
             case "homeFollowing" -> {
                 variables.put("enableRanking", false);
-                variables.put("includePromotedContent", true);
+                variables.put("includePromotedContent", false);
                 variables.put("requestContext", "launch");
                 yield new Query("homeFollowing", variables);
             }
             case "userPosts" -> {
                 variables.put("userId", requireTarget(target, kind));
-                variables.put("includePromotedContent", true);
+                variables.put("includePromotedContent", false);
                 variables.put("withQuickPromoteEligibilityTweetFields", false);
                 variables.put("withVoice", true);
                 yield new Query("userPosts", variables);

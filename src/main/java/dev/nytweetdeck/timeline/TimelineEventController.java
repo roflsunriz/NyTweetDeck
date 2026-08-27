@@ -13,6 +13,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/v1/events")
 public class TimelineEventController {
 
+    private static final long EMITTER_TIMEOUT_MILLISECONDS = 120_000L;
+
     private final TimelineEventBus eventBus;
 
     public TimelineEventController(TimelineEventBus eventBus) {
@@ -21,13 +23,18 @@ public class TimelineEventController {
 
     @GetMapping(path = "/timeline", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter timeline(@RequestParam String accountId) throws IOException {
-        var emitter = new SseEmitter(0L);
+        var emitter = new SseEmitter(EMITTER_TIMEOUT_MILLISECONDS);
         var subscription = new AtomicReference<AutoCloseable>();
         subscription.set(eventBus.subscribe(accountId, event -> send(emitter, event, subscription)));
         emitter.onCompletion(() -> close(subscription));
         emitter.onTimeout(() -> close(subscription));
         emitter.onError(ignored -> close(subscription));
-        emitter.send(SseEmitter.event().name("connected").data("ready"));
+        try {
+            emitter.send(SseEmitter.event().name("connected").data("ready"));
+        } catch (IOException exception) {
+            close(subscription);
+            throw exception;
+        }
         return emitter;
     }
 
@@ -42,7 +49,11 @@ public class TimelineEventController {
                     .data(event));
         } catch (IOException | IllegalStateException exception) {
             close(subscription);
-            emitter.completeWithError(exception);
+            try {
+                emitter.completeWithError(exception);
+            } catch (IllegalStateException ignored) {
+                // The servlet container may already have completed a disconnected Firefox request.
+            }
         }
     }
 

@@ -45,6 +45,10 @@
 
 ### Fixed
 
+- Vault解除直後の複数カラム取得を安定させるため、タイムライン・トレンド・X翻訳のブラウザー通信を共通15秒上限へ統一し、Live Pipelineの欠落フラグを`false`へ正規化するとともに、切断済みFirefox SSEを有限時間で安全に破棄するよう修正した。
+- X Web版と操作結果を一致させるため、いいね・リポスト・ブックマークのMutationを現行`x.com/i/api/graphql`へ統一し、POST bodyの`queryId`と、現行Webアセットから動的生成する`x-client-transaction-id`を付与した。404または誤った制限応答では署名材料を1回だけ再取得し、失敗時はポスト欄に秘匿済みの理由を表示するよう修正した。
+- 返信ポストを通常ポストと区別できるよう、親ポストIDと返信先@ユーザー名を正規化し、アプリ内の親ポスト詳細へ移動できる返信文脈をカードへ追加した。
+- 広告ポストを表示しないため、全タイムライン要求の`includePromotedContent`を`false`へ統一し、promoted metadataを持つ応答サブツリーも正規化前に除外するよう修正した。
 - リスト候補を現行`TimelineTwitterList.list`／`id_str`構造から復元し、`ListSearchTimeline`へ廃止済み`querySource`を送らず現行の`rawQuery`＋`count=20`へ揃えることで、自分・おすすめ・検索結果が空になる問題を修正した。
 - Firefoxでトレンド取得がサーバー到達前にstallして「読み込み中」のまま残る場合に備え、ブラウザー側通信を15秒で中断し、エラー表示から再試行できるよう修正した。
 - 現行`ExplorePage`の`TimelineTrend.trend_url`／`trend_metadata`へパーサーを更新し、不要な旧`url`互換を削除するとともに、通信成功時も全トレンドを破棄して「トレンドなし」になる問題を修正した。

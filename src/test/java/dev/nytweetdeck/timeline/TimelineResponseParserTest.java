@@ -44,6 +44,7 @@ class TimelineResponseParserTest {
         assertThat(detailed.media().get(1).url()).isEqualTo("https://video.twimg.com/high.mp4");
         assertThat(page.posts()).extracting(TimelinePage.Post::id).doesNotContain("99");
         assertThat(page.posts().get(0).replyToPostId()).isEqualTo("100");
+        assertThat(page.posts().get(0).replyToUsername()).isEqualTo("parent_user");
     }
 
     @Test
@@ -64,6 +65,27 @@ class TimelineResponseParserTest {
         assertThat(post.author().displayName()).isEqualTo("Alice");
         assertThat(post.author().avatarUrl()).endsWith("alice.jpg");
         assertThat(post.author().verified()).isTrue();
+    }
+
+    @Test
+    void excludesPromotedTimelineEntries() {
+        var body = """
+                {"entries":[
+                  {"entryId":"promoted-tweet-1","content":{"promotedMetadata":{"advertiser_id":"1"},
+                    "itemContent":{"tweet_results":{"result":{"__typename":"Tweet","rest_id":"300",
+                      "legacy":{"full_text":"sponsored","created_at":"2018-10-10T20:19:24Z"}}}}}},
+                  {"entryId":"tweet-301","content":{"itemContent":{"tweet_results":{"result":{
+                    "__typename":"Tweet","rest_id":"301",
+                    "legacy":{"full_text":"organic","created_at":"2018-10-10T20:19:24Z"}}}}}}
+                ]}
+                """;
+
+        var page = parser.parse(body);
+
+        assertThat(page.posts()).singleElement().satisfies(post -> {
+            assertThat(post.id()).isEqualTo("301");
+            assertThat(post.text()).isEqualTo("organic");
+        });
     }
 
     @Test

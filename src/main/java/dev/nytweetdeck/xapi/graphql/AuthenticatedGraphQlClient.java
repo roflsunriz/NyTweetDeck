@@ -3,6 +3,7 @@ package dev.nytweetdeck.xapi.graphql;
 import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.http.WebSessionRequestHeaders;
+import dev.nytweetdeck.xapi.http.XClientTransactionIdService;
 import dev.nytweetdeck.xapi.profile.XApiProfile;
 import dev.nytweetdeck.xapi.profile.XApiProfile.OperationType;
 import dev.nytweetdeck.xapi.profile.XApiProfileService;
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -40,38 +42,57 @@ public class AuthenticatedGraphQlClient {
     private final ObjectMapper objectMapper;
     private final XApiProfileService profileService;
     private final AccountVaultSessionManager vaultSessionManager;
+    private final XClientTransactionIdService transactionIdService;
+
+    @Autowired
+    public AuthenticatedGraphQlClient(
+            HttpClient httpClient,
+            ObjectMapper objectMapper,
+            XApiProfileService profileService,
+            AccountVaultSessionManager vaultSessionManager,
+            XClientTransactionIdService transactionIdService) {
+        this.httpClient = httpClient;
+        this.objectMapper = objectMapper;
+        this.profileService = profileService;
+        this.vaultSessionManager = vaultSessionManager;
+        this.transactionIdService = transactionIdService;
+    }
 
     public AuthenticatedGraphQlClient(
             HttpClient httpClient,
             ObjectMapper objectMapper,
             XApiProfileService profileService,
             AccountVaultSessionManager vaultSessionManager) {
-        this.httpClient = httpClient;
-        this.objectMapper = objectMapper;
-        this.profileService = profileService;
-        this.vaultSessionManager = vaultSessionManager;
+        this(httpClient, objectMapper, profileService, vaultSessionManager, null);
     }
 
     public GraphQlResult execute(
             String accountId, String purpose, Map<String, Object> variables) {
-        var prepared = prepareRequest(accountId, purpose, variables);
-        try {
-            var response = httpClient.send(
-                    prepared.request(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new XApiHttpException(
-                        "GraphQL " + purpose + "に失敗しました。HTTP " + response.statusCode(),
-                        response.statusCode());
+        for (int attempt = 0; attempt < 2; attempt++) {
+            var prepared = prepareRequest(accountId, purpose, variables);
+            try {
+                var response = httpClient.send(
+                        prepared.request(), HttpResponse.BodyHandlers.ofString());
+                if (shouldRefreshTransaction(prepared, response, attempt)) {
+                    transactionIdService.invalidate();
+                    continue;
+                }
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    throw new XApiHttpException(
+                            "GraphQL " + purpose + "に失敗しました。HTTP " + response.statusCode(),
+                            response.statusCode());
+                }
+                rejectGraphQlErrors(response.body(), purpose);
+                return new GraphQlResult(
+                        purpose, prepared.operation().operationName(), response.body());
+            } catch (IOException exception) {
+                throw new XApiHttpException("GraphQL " + purpose + "の通信に失敗しました。", exception);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new XApiHttpException("GraphQL " + purpose + "が中断されました。", exception);
             }
-            rejectGraphQlErrors(response.body(), purpose);
-            return new GraphQlResult(
-                    purpose, prepared.operation().operationName(), response.body());
-        } catch (IOException exception) {
-            throw new XApiHttpException("GraphQL " + purpose + "の通信に失敗しました。", exception);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new XApiHttpException("GraphQL " + purpose + "が中断されました。", exception);
         }
+        throw new XApiHttpException("GraphQL " + purpose + "のWeb署名を更新できませんでした。", 502);
     }
 
     PreparedRequest prepareRequest(
@@ -90,7 +111,13 @@ public class AuthenticatedGraphQlClient {
         String body = null;
         URI requestUri;
         if (operation.type() == OperationType.MUTATION) {
-            body = writeJson(Map.of("variables", variables, "features", features));
+            var payload = new LinkedHashMap<String, Object>();
+            payload.put("variables", variables);
+            payload.put("queryId", operation.operationId());
+            if (!operation.featureKeys().isEmpty()) {
+                payload.put("features", features);
+            }
+            body = writeJson(payload);
             requestUri = operationUri;
         } else if (POST_QUERY_PURPOSES.contains(purpose)) {
             body = postQueryBody(variables, features, fieldToggles);
@@ -113,7 +140,43 @@ public class AuthenticatedGraphQlClient {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body));
         }
+        if (operation.type() == OperationType.MUTATION) {
+            if (transactionIdService == null) {
+                throw new IllegalStateException("X Web署名サービスが接続されていません。");
+            }
+            requestBuilder.header(
+                    "X-Client-Transaction-Id",
+                    transactionIdService.generate("POST", requestUri));
+        }
         return new PreparedRequest(requestBuilder.build(), operation);
+    }
+
+    private boolean shouldRefreshTransaction(
+            PreparedRequest prepared,
+            HttpResponse<String> response,
+            int attempt) {
+        return attempt == 0
+                && transactionIdService != null
+                && prepared.operation().type() == OperationType.MUTATION
+                && (response.statusCode() == 404 || hasGraphQlErrorCode(response.body(), 344));
+    }
+
+    private boolean hasGraphQlErrorCode(String body, int expectedCode) {
+        try {
+            var errors = objectMapper.readTree(body).get("errors");
+            if (errors == null || !errors.isArray()) {
+                return false;
+            }
+            for (var error : errors) {
+                var code = error.get("code");
+                if (code != null && code.canConvertToInt() && code.asInt() == expectedCode) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (JacksonException exception) {
+            return false;
+        }
     }
 
     private void rejectGraphQlErrors(String body, String purpose) {

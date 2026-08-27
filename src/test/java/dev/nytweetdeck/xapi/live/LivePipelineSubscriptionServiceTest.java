@@ -13,6 +13,14 @@ import tools.jackson.databind.json.JsonMapper;
 class LivePipelineSubscriptionServiceTest {
 
     @Test
+    void defaultsMissingDirectMessageFlagToFalse() {
+        var request = new LivePipelineController.SubscriptionRequest("account-1", null, null);
+
+        assertThat(request.postIds()).isEmpty();
+        assertThat(request.directMessages()).isFalse();
+    }
+
+    @Test
     void mergesColumnTopicsAndForwardsEventsToTheAccountBus() throws Exception {
         var connector = new FakeConnector();
         var eventBus = new TimelineEventBus();

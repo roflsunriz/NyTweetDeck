@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import type { ColumnConfig } from "../model/layout";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
+import { fetchWithTimeout } from "../model/fetch-with-timeout";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import { filterPosts, type PostFilter, PostFilterBar } from "./post-filter";
@@ -17,6 +18,7 @@ interface TimelineColumnProps {
   accountId: string | null;
   translation: Translation;
   display?: DisplayPreferences;
+  requestTimeoutMilliseconds?: number;
 }
 
 export function TimelineColumn({
@@ -24,6 +26,7 @@ export function TimelineColumn({
   accountId,
   translation,
   display = defaultDisplayPreferences,
+  requestTimeoutMilliseconds = 15_000,
 }: TimelineColumnProps) {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -57,7 +60,11 @@ export function TimelineColumn({
           params.set("cursor", nextCursor);
         }
         const kind = timelineKind(column.kind);
-        const response = await fetch(`/api/v1/timelines/${kind}?${params}`);
+        const response = await fetchWithTimeout(
+          `/api/v1/timelines/${kind}?${params}`,
+          {},
+          requestTimeoutMilliseconds,
+        );
         if (!response.ok) {
           throw new TimelineHttpError(response.status, await readProblemDetail(response));
         }
@@ -89,7 +96,13 @@ export function TimelineColumn({
         setLoading(false);
       }
     },
-    [accountId, column.kind, column.target, translation.timelineLoadError],
+    [
+      accountId,
+      column.kind,
+      column.target,
+      requestTimeoutMilliseconds,
+      translation.timelineLoadError,
+    ],
   );
 
   useEffect(() => {
@@ -135,7 +148,11 @@ export function TimelineColumn({
     void fetch(`/api/v1/live/subscriptions/${encodeURIComponent(subscriberId)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accountId, postIds: posts.slice(0, 100).map((post) => post.id) }),
+      body: JSON.stringify({
+        accountId,
+        postIds: posts.slice(0, 100).map((post) => post.id),
+        directMessages: false,
+      }),
       signal: controller.signal,
     })
       .then((response) => {

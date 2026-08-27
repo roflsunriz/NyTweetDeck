@@ -71,6 +71,8 @@ export interface Translation {
   notificationLoadError: string;
   notifications: string;
   reply: string;
+  replyingToPost: string;
+  replyingTo: (username: string) => string;
   repost: string;
   repostedBy: (name: string) => string;
   quote: string;
@@ -106,6 +108,7 @@ export interface Translation {
   confirmBlock: string;
   userActionCompleted: string;
   userActionFailed: string;
+  postActionFailed: string;
   composeTitle: string;
   postPlaceholder: string;
   publishPost: string;
@@ -228,6 +231,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     notificationLoadError: "通知を読み込めませんでした。",
     notifications: "通知",
     reply: "返信",
+    replyingToPost: "返信先のポスト",
+    replyingTo: (username) => `返信先: @${username}`,
     repost: "リポスト",
     repostedBy: (name) => `${name}さんがリポスト`,
     quote: "引用",
@@ -263,6 +268,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     confirmBlock: "このユーザーをブロックしますか？",
     userActionCompleted: "完了",
     userActionFailed: "ユーザー操作に失敗しました。",
+    postActionFailed: "ポスト操作に失敗しました。",
     composeTitle: "ポストを作成",
     postPlaceholder: "いまどうしてる？",
     publishPost: "ポストする",
@@ -430,6 +436,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     notificationLoadError: "Could not load notifications.",
     notifications: "Notifications",
     reply: "Reply",
+    replyingToPost: "Replying to a post",
+    replyingTo: (username) => `Replying to @${username}`,
     repost: "Repost",
     repostedBy: (name) => `${name} reposted`,
     quote: "Quote",
@@ -465,6 +473,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     confirmBlock: "Block this user?",
     userActionCompleted: "Done",
     userActionFailed: "The user action failed.",
+    postActionFailed: "The post action failed.",
     composeTitle: "Compose post",
     postPlaceholder: "What is happening?",
     publishPost: "Post",

@@ -9,6 +9,7 @@ import dev.nytweetdeck.account.vault.AccountSecrets;
 import dev.nytweetdeck.account.vault.AccountVaultSessionManager;
 import dev.nytweetdeck.account.vault.EncryptedAccountVault;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
+import dev.nytweetdeck.xapi.http.XClientTransactionIdService;
 import dev.nytweetdeck.xapi.profile.XApiProfile;
 import dev.nytweetdeck.xapi.profile.XApiProfile.OperationType;
 import dev.nytweetdeck.xapi.profile.XApiProfileService;
@@ -26,6 +27,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -127,15 +129,79 @@ class AuthenticatedGraphQlClientTest {
         assertThat(payload.get("fieldToggles").get("withArticlePlainText").asBoolean()).isFalse();
     }
 
+    @Test
+    void includesTheResolvedQueryIdInMutationPayloads() throws Exception {
+        var client = createClient("bookmark", "CreateBookmark", OperationType.MUTATION);
+
+        var request = client
+                .prepareRequest("account-1", "bookmark", Map.of("tweet_id", "123"))
+                .request();
+        var payload = JsonMapper.builder().build().readTree(readBody(request));
+
+        assertThat(request.method()).isEqualTo("POST");
+        assertThat(request.headers().firstValue("X-Client-Transaction-Id"))
+                .contains("test-transaction-id");
+        assertThat(payload.get("queryId").asString()).isEqualTo("op-id");
+        assertThat(payload.get("variables").get("tweet_id").asString()).isEqualTo("123");
+        assertThat(payload.get("features")).isNull();
+    }
+
+    @Test
+    void refreshesTheWebTransactionMaterialOnceWhenXMisreportsMutationCode344()
+            throws Exception {
+        var requests = new AtomicInteger();
+        server.createContext("/graphql/op-id/CreateRetweet", exchange -> {
+            if (requests.incrementAndGet() == 1) {
+                respond(exchange, 200, "{\"errors\":[{\"code\":344}]}");
+            } else {
+                respond(exchange, 200, "{\"data\":{\"create_retweet\":{}}}");
+            }
+        });
+        var transactions = new RecordingTransactionService();
+        var client = createClient(
+                "repost", "CreateRetweet", OperationType.MUTATION, transactions);
+
+        var result = client.execute("account-1", "repost", Map.of("tweet_id", "123"));
+
+        assertThat(result.rawJson()).contains("create_retweet");
+        assertThat(requests).hasValue(2);
+        assertThat(transactions.invalidations).hasValue(1);
+        assertThat(transactions.generations).hasValue(2);
+    }
+
     private AuthenticatedGraphQlClient createClient() throws Exception {
         return createClient("homeForYou", "HomeTimeline");
     }
 
     private AuthenticatedGraphQlClient createClient(String purpose, String operationName)
             throws Exception {
+        return createClient(purpose, operationName, OperationType.QUERY);
+    }
+
+    private AuthenticatedGraphQlClient createClient(
+            String purpose, String operationName, OperationType operationType)
+            throws Exception {
+        return createClient(
+                purpose,
+                operationName,
+                operationType,
+                new XClientTransactionIdService(null) {
+                    @Override
+                    public String generate(String method, URI requestUri) {
+                        return "test-transaction-id";
+                    }
+                });
+    }
+
+    private AuthenticatedGraphQlClient createClient(
+            String purpose,
+            String operationName,
+            OperationType operationType,
+            XClientTransactionIdService transactionIdService)
+            throws Exception {
         var jsonMapper = JsonMapper.builder().build();
         var operation = new XApiProfile.GraphQlOperation(
-                purpose, "op-id", operationName, OperationType.QUERY);
+                purpose, "op-id", operationName, operationType);
         var profile = new XApiProfile(
                 "x-web",
                 "current",
@@ -175,7 +241,8 @@ class AuthenticatedGraphQlClientTest {
                 HttpClient.newHttpClient(),
                 jsonMapper,
                 profileService,
-                vaultSession);
+                vaultSession,
+                transactionIdService);
     }
 
     private static Map<String, String> parseQuery(String rawQuery) {
@@ -224,6 +291,26 @@ class AuthenticatedGraphQlClientTest {
 
         CompletableFuture<String> body() {
             return body;
+        }
+    }
+
+    private static final class RecordingTransactionService
+            extends XClientTransactionIdService {
+        private final AtomicInteger generations = new AtomicInteger();
+        private final AtomicInteger invalidations = new AtomicInteger();
+
+        private RecordingTransactionService() {
+            super(null);
+        }
+
+        @Override
+        public String generate(String method, URI requestUri) {
+            return "test-transaction-id-" + generations.incrementAndGet();
+        }
+
+        @Override
+        public synchronized void invalidate() {
+            invalidations.incrementAndGet();
         }
     }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
+import { fetchWithTimeout } from "../model/fetch-with-timeout";
 
 interface Trend {
   name: string;
@@ -41,19 +42,16 @@ export function TrendsColumn({
       loadingRef.current = true;
       setLoading(true);
       setError(false);
-      const controller = new AbortController();
-      const timeout = window.setTimeout(
-        () => controller.abort(new DOMException("Trend request timed out", "TimeoutError")),
-        Math.max(1, requestTimeoutMilliseconds),
-      );
       try {
         const params = new URLSearchParams({ accountId });
         if (nextCursor !== undefined) {
           params.set("cursor", nextCursor);
         }
-        const response = await fetch(`/api/v1/trends?${params}`, {
-          signal: controller.signal,
-        });
+        const response = await fetchWithTimeout(
+          `/api/v1/trends?${params}`,
+          {},
+          requestTimeoutMilliseconds,
+        );
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -70,7 +68,6 @@ export function TrendsColumn({
       } catch {
         setError(true);
       } finally {
-        window.clearTimeout(timeout);
         loadingRef.current = false;
         setLoading(false);
       }

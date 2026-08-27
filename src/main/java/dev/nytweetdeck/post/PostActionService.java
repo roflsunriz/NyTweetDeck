@@ -31,7 +31,8 @@ public class PostActionService {
         return switch (action) {
             case "like" -> new ActionRequest("like", Map.of("tweet_id", postId));
             case "unlike" -> new ActionRequest("unlike", Map.of("tweet_id", postId));
-            case "repost" -> new ActionRequest("repost", Map.of("tweet_id", postId));
+            case "repost" -> new ActionRequest(
+                    "repost", Map.of("tweet_id", postId, "dark_request", false));
             case "undoRepost" ->
                 new ActionRequest("undoRepost", Map.of("source_tweet_id", postId));
             case "bookmark" -> new ActionRequest("bookmark", Map.of("tweet_id", postId));

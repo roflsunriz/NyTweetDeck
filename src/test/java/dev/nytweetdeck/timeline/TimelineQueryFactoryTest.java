@@ -14,7 +14,7 @@ class TimelineQueryFactoryTest {
         assertThat(factory.create("homeForYou", null, "cursor").variables())
                 .containsEntry("cursor", "cursor")
                 .containsEntry("count", 20)
-                .containsEntry("includePromotedContent", true)
+                .containsEntry("includePromotedContent", false)
                 .containsEntry("withCommunity", true)
                 .doesNotContainKey("latestControlAvailable");
         assertThat(factory.create("homeFollowing", null, null).variables())

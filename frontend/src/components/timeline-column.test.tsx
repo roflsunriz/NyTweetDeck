@@ -109,6 +109,45 @@ describe("timeline column", () => {
     expect(await screen.findByText(/GraphQL searchに失敗しました。HTTP 400/)).toBeDefined();
   });
 
+  test("leaves loading after a stalled request and retries the timeline", async () => {
+    let calls = 0;
+    globalThis.fetch = (async (
+      input: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1],
+    ) => {
+      if (!String(input).includes("/api/v1/timelines/")) {
+        return Response.json({});
+      }
+      calls += 1;
+      if (calls === 1) {
+        return await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+            { once: true },
+          );
+        });
+      }
+      return Response.json({ posts: [post("2", "recovered")], nextCursor: null });
+    }) as unknown as typeof fetch;
+    const user = userEvent.setup();
+    const column: ColumnConfig = { id: "home-timeout", kind: "home", target: null, label: null };
+    render(
+      <TimelineColumn
+        column={column}
+        accountId="account-1"
+        translation={translate("ja")}
+        requestTimeoutMilliseconds={5}
+      />,
+    );
+
+    expect(await screen.findByText("タイムラインを読み込めませんでした。")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+
+    expect(await screen.findByText("recovered")).toBeDefined();
+    expect(calls).toBe(2);
+  });
+
   test("loads the next page automatically when the end sentinel becomes visible", async () => {
     let triggerIntersection: (() => void) | undefined;
     globalThis.IntersectionObserver = class {

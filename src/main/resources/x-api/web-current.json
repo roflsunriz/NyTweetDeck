@@ -3,7 +3,7 @@
   "versionName": "current",
   "versionCode": 0,
   "restBaseUri": "https://api.twitter.com",
-  "graphqlBaseUri": "https://api.x.com/graphql",
+  "graphqlBaseUri": "https://x.com/i/api/graphql",
   "standardHeaders": {
     "X-Twitter-Client": "TwitterWebClient",
     "X-Twitter-Client-Version": "current",

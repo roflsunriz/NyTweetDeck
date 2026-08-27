@@ -36,14 +36,18 @@ describe("post actions", () => {
   });
 
   test("keeps state when mutation fails", async () => {
-    globalThis.fetch = (async () => new Response(null, { status: 502 })) as unknown as typeof fetch;
+    globalThis.fetch = (async () =>
+      Response.json(
+        { detail: "X Web署名情報を取得できませんでした。" },
+        { status: 502 },
+      )) as unknown as typeof fetch;
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
     const bookmarkButton = screen.getByRole("button", { name: "履歴に保存" });
     await user.click(bookmarkButton);
 
-    await screen.findByText("タイムラインを読み込めませんでした。");
+    await screen.findByText("ポスト操作に失敗しました。 X Web署名情報を取得できませんでした。");
     expect(bookmarkButton.textContent).toBe("4");
   });
 
@@ -249,6 +253,25 @@ describe("post actions", () => {
     expect(openUser).toHaveBeenCalledWith("42");
   });
 
+  test("shows reply context and opens the parent post inside NyTweetDeck", async () => {
+    let openedPostId = "";
+    const user = userEvent.setup();
+    render(
+      <PostCard
+        post={{ ...post(), replyToPostId: "99", replyToUsername: "parent" }}
+        accountId="account-1"
+        translation={translate("ja")}
+        onOpenQuotedPost={(postId) => {
+          openedPostId = postId;
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "返信先: @parent" }));
+
+    expect(openedPostId).toBe("99");
+  });
+
   test("automatically translates a foreign-language post and toggles original and global state", async () => {
     globalThis.fetch = (async (input) => {
       if (String(input).includes("/translation?")) {
@@ -370,6 +393,8 @@ function post(): TimelinePost {
     liked: false,
     reposted: false,
     bookmarked: false,
+    replyToPostId: null,
+    replyToUsername: null,
     quotedPost: null,
     media: [],
   };

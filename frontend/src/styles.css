@@ -661,6 +661,32 @@ select:focus-visible {
   cursor: default;
 }
 
+.reply-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 45px);
+  margin: 7px 0 0;
+  margin-inline-start: 45px;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 0.74rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.reply-context span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-context:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .post-card > header img,
 .avatar-placeholder {
   width: 36px;

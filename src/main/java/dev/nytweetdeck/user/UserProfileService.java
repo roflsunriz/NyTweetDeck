@@ -98,24 +98,24 @@ public class UserProfileService {
         switch (tab) {
             case "all" -> {
                 purpose = "userPosts";
-                variables.put("includePromotedContent", true);
+                variables.put("includePromotedContent", false);
                 variables.put("withQuickPromoteEligibilityTweetFields", false);
                 variables.put("withVoice", true);
             }
             case "posts" -> {
                 purpose = "userOriginals";
-                variables.put("includePromotedContent", true);
+                variables.put("includePromotedContent", false);
                 variables.put("withQuickPromoteEligibilityTweetFields", false);
                 variables.put("withVoice", true);
             }
             case "highlights" -> {
                 purpose = "userHighlights";
-                variables.put("includePromotedContent", true);
+                variables.put("includePromotedContent", false);
                 variables.put("withVoice", true);
             }
             case "replies" -> {
                 purpose = "userReplies";
-                variables.put("includePromotedContent", true);
+                variables.put("includePromotedContent", false);
                 variables.put("withCommunity", true);
                 variables.put("withVoice", true);
             }

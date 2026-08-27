@@ -62,6 +62,10 @@ public class TimelineResponseParser {
             return;
         }
 
+        if (isPromoted(node)) {
+            return;
+        }
+
         findCursor(node, cursor);
         var tweetNode = unwrapTweet(node);
         if (isTweet(tweetNode)) {
@@ -132,10 +136,20 @@ public class TimelineResponseParser {
                 bool(legacy, "retweeted"),
                 bool(legacy, "bookmarked"),
                 text(legacy, "in_reply_to_status_id_str"),
+                text(legacy, "in_reply_to_screen_name"),
                 firstNonNull(text(legacy, "quoted_status_id_str"),
                         quotedPost == null ? null : quotedPost.id()),
                 quotedPost,
                 parseMedia(legacy.get("extended_entities")));
+    }
+
+    private static boolean isPromoted(JsonNode node) {
+        var entryId = firstNonNull(text(node, "entryId"), text(node, "entry_id"));
+        return (entryId != null && entryId.toLowerCase(Locale.ROOT).startsWith("promoted"))
+                || node.get("promotedMetadata") != null
+                || node.get("promoted_metadata") != null
+                || node.get("promotedContent") != null
+                || node.get("promoted_content") != null;
     }
 
     private static boolean hasAuthorIdentity(Author author) {

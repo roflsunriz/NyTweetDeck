@@ -39,7 +39,7 @@ public class PostService {
         conversationVariables.put("focalTweetId", postId);
         conversationVariables.put("isReaderMode", false);
         conversationVariables.put("rankingMode", "Relevance");
-        conversationVariables.put("includePromotedContent", true);
+        conversationVariables.put("includePromotedContent", false);
         conversationVariables.put("withCommunity", true);
         conversationVariables.put("withQuickPromoteEligibilityTweetFields", false);
         conversationVariables.put("withBirdwatchNotes", true);

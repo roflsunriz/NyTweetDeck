@@ -25,6 +25,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             boolean reposted,
             boolean bookmarked,
             String replyToPostId,
+            String replyToUsername,
             String quotedPostId,
             EmbeddedPost quotedPost,
             List<Media> media) {

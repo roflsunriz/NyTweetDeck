@@ -19,6 +19,8 @@ public final class WebSessionRequestHeaders {
         builder.header("X-Twitter-Active-User", "yes");
         builder.header("X-Twitter-Client-Language", language);
         builder.header("Accept-Language", language);
+        builder.header("Origin", "https://x.com");
+        builder.header("Referer", "https://x.com/");
         builder.header("User-Agent", WebBearerTokenProvider.BROWSER_USER_AGENT);
         builder.header("Accept", "application/json");
     }

@@ -32,7 +32,7 @@ class XApiProfileServiceTest {
 
         assertThat(operation.key()).isEqualTo("home_timeline");
         assertThat(operation.resolveAgainst(service.profile().graphqlBaseUri()).toString())
-                .isEqualTo("https://api.x.com/graphql/wp06oo3fRGU4P1sK8rECqQ/HomeTimeline");
+                .isEqualTo("https://x.com/i/api/graphql/wp06oo3fRGU4P1sK8rECqQ/HomeTimeline");
     }
 
     @Test

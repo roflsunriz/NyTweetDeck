@@ -14,7 +14,9 @@ class PostActionServiceTest {
         assertThat(service.createRequest("123", "like").variables())
                 .containsEntry("tweet_id", "123");
         assertThat(service.createRequest("123", "unlike").purpose()).isEqualTo("unlike");
-        assertThat(service.createRequest("123", "repost").purpose()).isEqualTo("repost");
+        assertThat(service.createRequest("123", "repost").variables())
+                .containsEntry("tweet_id", "123")
+                .containsEntry("dark_request", false);
         assertThat(service.createRequest("123", "undoRepost").variables())
                 .containsEntry("source_tweet_id", "123");
         assertThat(service.createRequest("123", "bookmark").purpose()).isEqualTo("bookmark");

@@ -34,6 +34,7 @@ import { SettingsDialog } from "./components/settings-dialog";
 import { TimelineColumn } from "./components/timeline-column";
 import { TrendsColumn } from "./components/trends-column";
 import { translate } from "./i18n/translations";
+import { fetchWithTimeout } from "./model/fetch-with-timeout";
 import {
   type AppLayout,
   type ColumnKind,
@@ -120,7 +121,7 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/v1/accounts/vault/status", { signal: controller.signal })
+    void fetchWithTimeout("/api/v1/accounts/vault/status", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return (await response.json()) as { unlocked: boolean };
