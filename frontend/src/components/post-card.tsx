@@ -120,6 +120,16 @@ export function PostCard({
   const visibleText =
     autoTranslatePosts && translatedText !== null && !showOriginal ? translatedText : post.text;
 
+  useEffect(() => setLiked(post.liked), [post.liked]);
+  useEffect(() => setReposted(post.reposted), [post.reposted]);
+  useEffect(() => setBookmarked(post.bookmarked), [post.bookmarked]);
+  useEffect(() => setLikeCount(post.likeCount), [post.likeCount]);
+  useEffect(
+    () => setRepostCount(post.repostCount + post.quoteCount),
+    [post.quoteCount, post.repostCount],
+  );
+  useEffect(() => setBookmarkCount(post.bookmarkCount), [post.bookmarkCount]);
+
   useEffect(() => {
     if (!autoTranslatePosts || !translationNeeded) {
       setTranslationLoading(false);

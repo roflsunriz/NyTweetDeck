@@ -111,6 +111,20 @@ public class LivePipelineSubscriptionService {
 
     private void onEvent(String accountId, String body) {
         var event = eventParser.parse(body);
+        if ("tweet_engagement".equals(event.type())) {
+            var payload = event.payload();
+            timelineEventBus.publishEngagement(
+                    accountId,
+                    event.entityId(),
+                    new TimelineEventBus.EngagementCounts(
+                            count(payload, "reply_count"),
+                            count(payload, "retweet_count"),
+                            count(payload, "quote_count"),
+                            count(payload, "favorite_count"),
+                            count(payload, "bookmark_count"),
+                            count(payload, "view_count")));
+            return;
+        }
         timelineEventBus.publish(accountId, "live:" + event.type(), event.entityId());
     }
 
@@ -143,6 +157,25 @@ public class LivePipelineSubscriptionService {
     private static void close(LivePipelineConnector.Connection connection) {
         if (connection != null) {
             connection.close();
+        }
+    }
+
+    private static Long count(tools.jackson.databind.JsonNode payload, String field) {
+        var value = payload == null ? null : payload.get(field);
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (value.isIntegralNumber()) {
+            return value.asLong();
+        }
+        var text = value.asString(null);
+        if (text == null || !text.matches("[0-9]{1,20}")) {
+            return null;
+        }
+        try {
+            return Long.parseLong(text);
+        } catch (NumberFormatException exception) {
+            return null;
         }
     }
 

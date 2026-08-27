@@ -23,7 +23,38 @@ public class TimelineEventBus {
 
     public void publish(String accountId, String reason, String postId) {
         validateAccountId(accountId);
-        var event = new TimelineEvent(UUID.randomUUID().toString(), reason, postId, Instant.now());
+        var event = new TimelineEvent(
+                UUID.randomUUID().toString(),
+                reason,
+                postId,
+                Instant.now(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+        notifyListeners(accountId, event);
+    }
+
+    public void publishEngagement(
+            String accountId, String postId, EngagementCounts counts) {
+        validateAccountId(accountId);
+        var event = new TimelineEvent(
+                UUID.randomUUID().toString(),
+                "live:tweet_engagement",
+                postId,
+                Instant.now(),
+                counts.replyCount(),
+                counts.repostCount(),
+                counts.quoteCount(),
+                counts.likeCount(),
+                counts.bookmarkCount(),
+                counts.viewCount());
+        notifyListeners(accountId, event);
+    }
+
+    private void notifyListeners(String accountId, TimelineEvent event) {
         for (var listener : listeners.getOrDefault(accountId, new CopyOnWriteArrayList<>())) {
             listener.accept(event);
         }
@@ -46,5 +77,23 @@ public class TimelineEventBus {
         }
     }
 
-    public record TimelineEvent(String id, String reason, String postId, Instant occurredAt) {}
+    public record EngagementCounts(
+            Long replyCount,
+            Long repostCount,
+            Long quoteCount,
+            Long likeCount,
+            Long bookmarkCount,
+            Long viewCount) {}
+
+    public record TimelineEvent(
+            String id,
+            String reason,
+            String postId,
+            Instant occurredAt,
+            Long replyCount,
+            Long repostCount,
+            Long quoteCount,
+            Long likeCount,
+            Long bookmarkCount,
+            Long viewCount) {}
 }

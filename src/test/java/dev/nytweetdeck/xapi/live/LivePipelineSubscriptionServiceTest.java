@@ -46,6 +46,8 @@ class LivePipelineSubscriptionServiceTest {
         assertThat(received).singleElement().satisfies(event -> {
             assertThat(event.reason()).isEqualTo("live:tweet_engagement");
             assertThat(event.postId()).isEqualTo("2");
+            assertThat(event.likeCount()).isEqualTo(9);
+            assertThat(event.repostCount()).isNull();
         });
 
         service.remove("account-1", "column-a");

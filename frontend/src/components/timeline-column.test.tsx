@@ -183,7 +183,7 @@ describe("timeline column", () => {
     await screen.findByText("automatic");
   });
 
-  test("shows a reconnect warning for pipeline errors and refreshes on engagement", async () => {
+  test("updates engagement in place and refreshes only for timeline membership changes", async () => {
     let eventSource: FakeEventSource | undefined;
     globalThis.EventSource = class extends FakeEventSource {
       constructor(_url: string | URL) {
@@ -205,10 +205,63 @@ describe("timeline column", () => {
 
     eventSource?.emit("timeline-update", { reason: "live:error" });
     expect(await screen.findByText(/リアルタイム更新へ接続できません/)).toBeDefined();
-    eventSource?.emit("timeline-update", { reason: "live:tweet_engagement" });
+    eventSource?.emit("timeline-update", { reason: "like", postId: "1" });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "いいね" }).classList.contains("active")).toBe(
+        true,
+      ),
+    );
+    expect(timelineLoads).toBe(1);
+
+    eventSource?.emit("timeline-update", {
+      reason: "live:tweet_engagement",
+      postId: "1",
+      likeCount: 9,
+      repostCount: 7,
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "いいね" }).textContent).toBe("9"),
+    );
+    await waitFor(() => expect(screen.queryByText(/リアルタイム更新へ接続できません/)).toBeNull());
+    expect(timelineLoads).toBe(1);
+
+    eventSource?.emit("timeline-update", { reason: "unlike", postId: "1" });
+    eventSource?.emit("timeline-update", { reason: "live:dm_update" });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "いいね" }).classList.contains("active")).toBe(
+        false,
+      ),
+    );
+    expect(timelineLoads).toBe(1);
+
+    eventSource?.emit("timeline-update", { reason: "create", postId: "2" });
+    await waitFor(() => expect(timelineLoads).toBe(2));
+  });
+
+  test("refreshes bookmarks only in the history column", async () => {
+    let eventSource: FakeEventSource | undefined;
+    globalThis.EventSource = class extends FakeEventSource {
+      constructor(_url: string | URL) {
+        super();
+        eventSource = this;
+      }
+    } as unknown as typeof EventSource;
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (String(input).includes("/api/v1/timelines/")) {
+        timelineLoads += 1;
+        return Response.json({ posts: [post("1", "saved")], nextCursor: null });
+      }
+      return Response.json({ connected: true, topicCount: 1 });
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "history", kind: "history", target: null, label: null };
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+    await screen.findByText("saved");
+
+    eventSource?.emit("timeline-update", { reason: "bookmark", postId: "1" });
 
     await waitFor(() => expect(timelineLoads).toBe(2));
-    await waitFor(() => expect(screen.queryByText(/リアルタイム更新へ接続できません/)).toBeNull());
   });
 
   test("filters loaded posts by text, image, and video without another request", async () => {

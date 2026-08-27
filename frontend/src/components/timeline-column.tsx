@@ -13,6 +13,17 @@ interface TimelinePage {
   nextCursor: string | null;
 }
 
+interface TimelineUpdate {
+  reason?: string;
+  postId?: string | null;
+  replyCount?: number | null;
+  repostCount?: number | null;
+  quoteCount?: number | null;
+  likeCount?: number | null;
+  bookmarkCount?: number | null;
+  viewCount?: number | null;
+}
+
 interface TimelineColumnProps {
   column: ColumnConfig;
   accountId: string | null;
@@ -121,26 +132,49 @@ export function TimelineColumn({
     const params = new URLSearchParams({ accountId });
     const source = new EventSource(`/api/v1/events/timeline?${params}`);
     const handleUpdate = (event: MessageEvent<string>) => {
+      let update: TimelineUpdate;
       try {
-        const update = JSON.parse(event.data) as { reason?: string };
-        if (update.reason === "live:error") {
-          setLiveError(true);
-          return;
-        }
-        if (update.reason?.startsWith("live:") === true) {
-          setLiveError(false);
-        }
+        update = JSON.parse(event.data) as TimelineUpdate;
       } catch {
-        // Unknown local event data still requests a safe refresh.
+        return;
       }
-      void load();
+      if (update.reason === "live:error") {
+        setLiveError(true);
+        return;
+      }
+      if (update.reason?.startsWith("live:") === true) {
+        setLiveError(false);
+        if (update.reason === "live:tweet_engagement" && update.postId != null) {
+          setPosts((current) =>
+            current.map((post) =>
+              post.id === update.postId ? applyEngagementUpdate(post, update) : post,
+            ),
+          );
+        }
+        return;
+      }
+      const action = update.reason;
+      if (update.postId != null && isPostAction(action)) {
+        setPosts((current) =>
+          current.map((post) =>
+            post.id === update.postId ? applyPostAction(post, action) : post,
+          ),
+        );
+      }
+      if (update.reason === "bookmark" || update.reason === "removeBookmark") {
+        if (column.kind === "history") void load();
+        return;
+      }
+      if (update.reason === "create" || update.reason === "reply" || update.reason === "quote") {
+        void load();
+      }
     };
     source.addEventListener("timeline-update", handleUpdate);
     return () => {
       source.removeEventListener("timeline-update", handleUpdate);
       source.close();
     };
-  }, [accountId, load]);
+  }, [accountId, column.kind, load]);
 
   useEffect(() => {
     if (accountId === null || posts.length === 0) {
@@ -322,6 +356,60 @@ function timelineKind(kind: ColumnConfig["kind"]): string {
     case "messages":
       throw new Error("メッセージは専用カラムで表示します。");
   }
+}
+
+function applyEngagementUpdate(post: TimelinePost, update: TimelineUpdate): TimelinePost {
+  return {
+    ...post,
+    replyCount: validCount(update.replyCount) ?? post.replyCount,
+    repostCount: validCount(update.repostCount) ?? post.repostCount,
+    quoteCount: validCount(update.quoteCount) ?? post.quoteCount,
+    likeCount: validCount(update.likeCount) ?? post.likeCount,
+    bookmarkCount: validCount(update.bookmarkCount) ?? post.bookmarkCount,
+    viewCount: validCount(update.viewCount) ?? post.viewCount,
+  };
+}
+
+function isPostAction(reason: string | undefined): reason is PostActionReason {
+  return (
+    reason === "like" ||
+    reason === "unlike" ||
+    reason === "repost" ||
+    reason === "undoRepost" ||
+    reason === "bookmark" ||
+    reason === "removeBookmark"
+  );
+}
+
+type PostActionReason = "like" | "unlike" | "repost" | "undoRepost" | "bookmark" | "removeBookmark";
+
+function applyPostAction(post: TimelinePost, action: PostActionReason): TimelinePost {
+  switch (action) {
+    case "like":
+      return post.liked ? post : { ...post, liked: true, likeCount: post.likeCount + 1 };
+    case "unlike":
+      return post.liked
+        ? { ...post, liked: false, likeCount: Math.max(0, post.likeCount - 1) }
+        : post;
+    case "repost":
+      return post.reposted ? post : { ...post, reposted: true, repostCount: post.repostCount + 1 };
+    case "undoRepost":
+      return post.reposted
+        ? { ...post, reposted: false, repostCount: Math.max(0, post.repostCount - 1) }
+        : post;
+    case "bookmark":
+      return post.bookmarked
+        ? post
+        : { ...post, bookmarked: true, bookmarkCount: post.bookmarkCount + 1 };
+    case "removeBookmark":
+      return post.bookmarked
+        ? { ...post, bookmarked: false, bookmarkCount: Math.max(0, post.bookmarkCount - 1) }
+        : post;
+  }
+}
+
+function validCount(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function ColumnMessage({ title, body }: { title: string; body?: string }) {
