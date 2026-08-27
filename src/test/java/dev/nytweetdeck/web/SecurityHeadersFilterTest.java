@@ -47,6 +47,19 @@ class SecurityHeadersFilterTest {
         var cliChain = new MockFilterChain();
         filter.doFilter(cli, new MockHttpServletResponse(), cliChain);
         assertThat(cliChain.getRequest()).isNotNull();
+
+        var localDomain = request("ny.tweetdeck.com", 443);
+        localDomain.addHeader("Origin", "https://ny.tweetdeck.com");
+        localDomain.addHeader("Sec-Fetch-Site", "same-origin");
+        var localDomainChain = new MockFilterChain();
+        filter.doFilter(localDomain, new MockHttpServletResponse(), localDomainChain);
+        assertThat(localDomainChain.getRequest()).isNotNull();
+
+        var insecureLocalDomain = request("ny.tweetdeck.com", 80);
+        insecureLocalDomain.addHeader("Origin", "http://ny.tweetdeck.com");
+        var insecureResponse = new MockHttpServletResponse();
+        filter.doFilter(insecureLocalDomain, insecureResponse, new MockFilterChain());
+        assertThat(insecureResponse.getStatus()).isEqualTo(403);
     }
 
     private static MockHttpServletRequest request(String host, int port) {

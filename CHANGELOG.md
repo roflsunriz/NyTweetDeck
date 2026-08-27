@@ -6,8 +6,13 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-27
+
 ### Added
 
+- 別端末や別ブラウザへ画面構成を安全に移せるよう、認証情報と選択アカウントを除外したバージョン付きJSONで、メニュー・カラム・表示設定・検索履歴をインポート／エクスポートする設定導線と自動検証を追加した。
+- OSログオン後に操作なしで利用開始できるよう、Windows Task Scheduler、macOS LaunchAgent、Linux systemd user serviceの登録・解除スクリプトとdry-run検証を追加した。
+- 公開ネットワークへ露出せず覚えやすいURLを使えるよう、端末内のhosts・ローカル証明書・loopback限定HTTPSを設定／解除するWindows・macOS・Linuxスクリプトと、`https://ny.tweetdeck.com`と既存HTTPを併存させるコネクタを追加した。
 - JDKメーカー固有の差を継続検出できるように、Temurin、Zulu、Liberica、Microsoft、Corretto、Semeru、Oracle、Dragonwell、SapMachine、GraalVM、GraalVM Community、JetBrains Runtime、Tencent KonaをJava 17・21・25で検証する固定CI行列を追加した。
 - JavaアプリからローカルWeb UIを利用できる最初の製品経路を成立させるため、Spring BootサーバーとBun bundler製Reactフロントエンドを追加した。
 - OldTweetDeck型UIの基礎として、左メニュー、空のデッキ、カラム追加・削除、横スクロール可能な無制限カラム表示を追加した。

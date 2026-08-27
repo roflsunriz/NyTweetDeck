@@ -18,7 +18,7 @@
     <description>ローカルで動作するカラム型Xクライアント</description>
 
     <properties>
-        <revision>0.2.0-SNAPSHOT</revision>
+        <revision>1.0.0-SNAPSHOT</revision>
         <java.version>17</java.version>
         <maven.compiler.release>17</maven.compiler.release>
     </properties>

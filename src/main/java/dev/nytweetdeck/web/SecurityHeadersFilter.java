@@ -2,6 +2,7 @@ package dev.nytweetdeck.web;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.InetAddress;
 import java.util.Locale;
 
 import jakarta.servlet.FilterChain;
@@ -13,6 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class SecurityHeadersFilter extends OncePerRequestFilter {
+
+    private static final String LOCAL_DOMAIN = "ny.tweetdeck.com";
 
     @Override
     protected void doFilterInternal(
@@ -38,7 +41,7 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     }
 
     private static boolean isTrustedLocalRequest(HttpServletRequest request) {
-        if (!isLoopbackHost(request.getServerName())) {
+        if (!isTrustedHost(request.getServerName()) || !isLoopbackAddress(request.getRemoteAddr())) {
             return false;
         }
         var fetchSite = request.getHeader("Sec-Fetch-Site");
@@ -58,10 +61,31 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
             if (originPort == -1) {
                 originPort = "https".equalsIgnoreCase(originUri.getScheme()) ? 443 : 80;
             }
-            return "http".equalsIgnoreCase(originUri.getScheme())
-                    && isLoopbackHost(originUri.getHost())
+            var originHost = originUri.getHost();
+            var trustedScheme = isLoopbackHost(originHost)
+                    ? "http".equalsIgnoreCase(originUri.getScheme())
+                            || "https".equalsIgnoreCase(originUri.getScheme())
+                    : LOCAL_DOMAIN.equalsIgnoreCase(originHost)
+                            && "https".equalsIgnoreCase(originUri.getScheme());
+            return trustedScheme
+                    && isTrustedHost(originHost)
                     && originPort == expectedPort;
         } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private static boolean isTrustedHost(String host) {
+        return isLoopbackHost(host) || (host != null && LOCAL_DOMAIN.equalsIgnoreCase(host));
+    }
+
+    private static boolean isLoopbackAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+        try {
+            return InetAddress.getByName(address).isLoopbackAddress();
+        } catch (RuntimeException | java.net.UnknownHostException exception) {
             return false;
         }
     }

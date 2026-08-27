@@ -62,6 +62,7 @@
 | ライト・ダーク・システム | 検証済み | 設定操作とシステム変更listener |
 | Web版X相当の表示設定 | 検証済み | 文字サイズ、色、密度、動き、メディアプレビュー、自動再生、既定ONの動画ループ、永続音量、v1〜v6移行 |
 | Xネイティブ自動翻訳の安定性 | 実通信・自動検証済み | X公式Web資産と同一Strato経路、実新着20件の基準通信20/20成功、表示付近への遅延、最大2並列、`Retry-After`対応4回再試行、5%予備枠、同一要求結合、成功率・残量診断 |
+| 設定インポート・エクスポート | 実ブラウザ検証済み | バージョン付きJSON、全スキーマ検証、認証情報とアカウントIDの除外、メニュー・カラム・表示・履歴の復元と再読込 |
 
 ## 配布・自動検証
 
@@ -70,6 +71,8 @@
 | CI | 検証済み | Bun検証、Maven検証、OSV、パッケージ済みJARのChrome検証、13 JDKディストリビューション×Java 17・21・25行列（[CI #33013623718](https://github.com/roflsunriz/NyTweetDeck/actions/runs/33013623718)、40/40ジョブ成功） |
 | リリースワークフロー | 構成済み・公開未実行 | `v*`タグ、ZIP、SHA-256、GitHub Release作成 |
 | Windows/macOS/Linuxランチャー | ローカル構文・JAR起動検証済み | 3ランチャーを配布ZIPへ同梱 |
+| Windows/macOS/Linuxログオン自動起動 | 定義・dry-run検証済み、Windows実登録済み | Task Scheduler、LaunchAgent、systemd userの登録・解除スクリプト、CI/Releaseゲート |
+| `https://ny.tweetdeck.com`ローカル接続 | HTTPS実起動検証済み・Windows実登録は管理者権限待ち | 3OS証明書生成・信頼登録・hosts設定、loopback限定443/18443、HTTP 18080併存、解除スクリプト |
 | 公開リリース | 未実行 | 実データ経路の許可済み検証後にタグ・push・Releaseを行う |
 
 ## 完了を阻む外部確認

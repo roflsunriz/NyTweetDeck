@@ -461,9 +461,11 @@ export function App() {
             locale={layout.locale}
             theme={layout.theme}
             display={layout.display}
+            layout={layout}
             onLocaleChange={setLocale}
             onThemeChange={setTheme}
             onDisplayChange={setDisplay}
+            onLayoutImport={setLayout}
             onClose={() => setDialog(null)}
           />
         )}

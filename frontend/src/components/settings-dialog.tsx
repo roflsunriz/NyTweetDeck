@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import type {
   AccentColor,
+  AppLayout,
   Density,
   DisplayPreferences,
   FontSize,
@@ -9,6 +10,7 @@ import type {
   Theme,
 } from "../model/layout";
 import { supportedLocales } from "../model/layout";
+import { exportLayoutSettings, importLayoutSettings } from "../model/layout-transfer";
 import { Modal } from "./modal";
 
 interface SettingsDialogProps {
@@ -16,9 +18,11 @@ interface SettingsDialogProps {
   locale: Locale;
   theme: Theme;
   display: DisplayPreferences;
+  layout: AppLayout;
   onLocaleChange: (locale: Locale) => void;
   onThemeChange: (theme: Theme) => void;
   onDisplayChange: (display: DisplayPreferences) => void;
+  onLayoutImport: (layout: AppLayout) => void;
   onClose: () => void;
 }
 
@@ -27,9 +31,11 @@ export function SettingsDialog({
   locale,
   theme,
   display,
+  layout,
   onLocaleChange,
   onThemeChange,
   onDisplayChange,
+  onLayoutImport,
   onClose,
 }: SettingsDialogProps) {
   return (
@@ -157,9 +163,85 @@ export function SettingsDialog({
           />
         </label>
       </div>
+      <LayoutTransferSettings layout={layout} translation={translation} onImport={onLayoutImport} />
       <TranslationHealthSettings translation={translation} />
       <ApiMetadataSettings translation={translation} />
     </Modal>
+  );
+}
+
+const maximumSettingsFileBytes = 256 * 1_024;
+
+function LayoutTransferSettings({
+  layout,
+  translation,
+  onImport,
+}: {
+  layout: AppLayout;
+  translation: Translation;
+  onImport: (layout: AppLayout) => void;
+}) {
+  const [status, setStatus] = useState<"imported" | "failed" | null>(null);
+
+  const exportSettings = () => {
+    const blob = new Blob([exportLayoutSettings(layout)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `NyTweetDeck-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importSettings = async (file: File | undefined) => {
+    if (file === undefined) return;
+    setStatus(null);
+    try {
+      if (file.size > maximumSettingsFileBytes) throw new Error("settings file too large");
+      onImport(importLayoutSettings(await file.text(), layout));
+      setStatus("imported");
+    } catch {
+      setStatus("failed");
+    }
+  };
+
+  return (
+    <section className="metadata-settings" data-testid="layout-transfer-settings">
+      <h3>{translation.settingsTransfer}</h3>
+      <p>{translation.settingsTransferDescription}</p>
+      <div className="settings-transfer-actions">
+        <button
+          className="secondary-button"
+          data-testid="export-settings"
+          type="button"
+          onClick={exportSettings}
+        >
+          {translation.exportSettings}
+        </button>
+        <label className="secondary-button settings-import-button">
+          {translation.importSettings}
+          <input
+            data-testid="import-settings"
+            type="file"
+            accept="application/json,.json"
+            onChange={(event) => {
+              void importSettings(event.target.files?.[0]);
+              event.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+      {status === "imported" && (
+        <p className="setup-success" data-testid="settings-import-status">
+          {translation.settingsImported}
+        </p>
+      )}
+      {status === "failed" && (
+        <p className="inline-warning" data-testid="settings-import-status">
+          {translation.settingsImportFailed}
+        </p>
+      )}
+    </section>
   );
 }
 

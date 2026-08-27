@@ -141,6 +141,12 @@ export interface Translation {
   apiMetadataCurrent: string;
   apiMetadataFallback: string;
   apiMetadataFailed: string;
+  settingsTransfer: string;
+  settingsTransferDescription: string;
+  exportSettings: string;
+  importSettings: string;
+  settingsImported: string;
+  settingsImportFailed: string;
   translationHealth: string;
   translationHealthDescription: string;
   translationHealthNoRequests: string;
@@ -305,6 +311,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     apiMetadataCurrent: "X公式Webの最新定義を使用中です。",
     apiMetadataFallback: "同梱された検証済み定義を使用中です。",
     apiMetadataFailed: "更新できませんでした。直前の検証済み定義を維持しています。",
+    settingsTransfer: "設定のインポート・エクスポート",
+    settingsTransferDescription:
+      "メニュー、カラム、表示設定、検索履歴をJSONで移動します。アカウント情報や認証情報は含みません。",
+    exportSettings: "設定をエクスポート",
+    importSettings: "設定をインポート",
+    settingsImported: "設定を読み込み、自動保存しました。",
+    settingsImportFailed: "設定を読み込めませんでした。有効なNyTweetDeck設定JSONを選んでください。",
     translationHealth: "X自動翻訳の稼働状況",
     translationHealthDescription:
       "画面に近いポストだけを翻訳し、レート制限時は解除後に自動再試行します。値はNyTweetDeck起動後の集計です。",
@@ -514,6 +527,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     apiMetadataCurrent: "Using the latest definitions from X's official web assets.",
     apiMetadataFallback: "Using the bundled verified definitions.",
     apiMetadataFailed: "Update failed. The last verified definitions remain active.",
+    settingsTransfer: "Import or export settings",
+    settingsTransferDescription:
+      "Move menus, columns, display preferences, and search history as JSON. Account and credential data are never included.",
+    exportSettings: "Export settings",
+    importSettings: "Import settings",
+    settingsImported: "Settings imported and saved automatically.",
+    settingsImportFailed: "Import failed. Select a valid NyTweetDeck settings JSON file.",
     translationHealth: "X automatic translation status",
     translationHealthDescription:
       "Only nearby posts are translated. Rate-limited requests retry automatically after the limit resets. Values cover this NyTweetDeck session.",

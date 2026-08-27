@@ -25,6 +25,40 @@ Windowsでは`run-nytweetdeck.cmd`を実行します。macOSまたはLinuxでは
 
 NyTweetDeckを終了するには、ランチャーを実行したウィンドウで `Ctrl+C` を押すか、そのウィンドウを閉じます。
 
+### 端末内だけで`https://ny.tweetdeck.com`を使う
+
+このアドレスは公開サイトではありません。導入スクリプトが実行端末のhostsで`ny.tweetdeck.com`を`127.0.0.1`へ固定し、端末内で生成した証明書を信頼ストアへ登録します。NyTweetDeckもloopbackだけで待ち受けるため、LANやインターネットからは接続できません。既存の<http://127.0.0.1:18080>も継続して使えます。
+
+Windowsでは管理者確認を承認して次を実行します。
+
+```powershell
+.\install-local-domain.ps1
+```
+
+macOSまたはLinuxでは、hostsとOS証明書ストアの更新に`sudo`を使用します。
+
+```sh
+./install-local-domain.sh
+```
+
+LinuxではJavaへ443番ポートだけを開くcapabilityを設定し、macOSではloopbackの443番をNyTweetDeckの18443番へ転送します。解除する場合は同梱の`uninstall-local-domain.ps1`または`uninstall-local-domain.sh`を使用します。
+
+### ログオン時に自動起動する
+
+Windowsでは次を実行すると、現在のユーザーのTask Schedulerへ登録されます。
+
+```powershell
+.\install-autostart.ps1
+```
+
+macOSではLaunchAgent、Linuxではsystemd user serviceへ登録します。
+
+```sh
+./install-autostart.sh --start
+```
+
+解除する場合は`uninstall-autostart.ps1`または`uninstall-autostart.sh`を使用します。自動起動ではブラウザを勝手に開かず、アクセス時までバックグラウンドで待機します。
+
 ### 3. Xアカウントへログインする
 
 1. 左メニュー下部のアカウント切り替えアイコンを押します。
@@ -98,8 +132,11 @@ NyTweetDeckを終了するには、ランチャーを実行したウィンドウ
 - 動画のループ再生（既定ON）
 - 動画の音量（0〜100%、ミュート解除時に適用）
 - X自動翻訳の通信成功率と残り利用枠
+- 設定JSONのインポート・エクスポート
 
 表示設定（動画のループ再生と音量を含む）、メニュー、カラム配置、各トレンドカラムの検索ワード、直近20件のトレンド検索履歴はブラウザの`localStorage`へ自動保存されます。XのCookie、トークン、アカウント情報は`localStorage`には保存しません。
+
+設定JSONにはメニュー、カラム、表示設定、トレンド検索履歴だけを含めます。XのCookie、トークン、保存済みアカウント、選択中アカウントIDは出力されません。インポート時はファイル形式と全設定値を検証し、現在選択中のアカウントを維持したまま反映します。
 
 動画は従来どおり初期ミュートで表示します。動画コントロールでミュートを解除した場合、保存済みの音量が使われます。
 
@@ -123,7 +160,7 @@ X Web APIのqueryIdとFeature定義は起動後と6時間ごとにも自動更�
 
 ### 起動時にポート使用中のエラーが出る
 
-NyTweetDeckは既定で`127.0.0.1:18080`だけを使用します。すでに起動しているNyTweetDeckや同じポートを使うアプリを終了してから、もう一度ランチャーを実行してください。インターネットやLANへ公開する用途は想定していません。
+NyTweetDeckは既定で`127.0.0.1:18080`だけを使用します。ローカルドメイン導入時は`127.0.0.1:443`（macOSは内部18443番）も使用します。すでに起動しているNyTweetDeckや同じポートを使うアプリを終了してから、もう一度ランチャーを実行してください。インターネットやLANへ公開する用途は想定していません。
 
 ## ソースから起動する
 

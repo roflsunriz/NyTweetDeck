@@ -2,7 +2,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-JAR_PATH="$SCRIPT_DIR/NyTweetDeck.jar"
+JAR_PATH="${NYTWEETDECK_JAR_PATH:-$SCRIPT_DIR/NyTweetDeck.jar}"
 
 if [ ! -f "$JAR_PATH" ]; then
   echo "NyTweetDeck.jarが見つかりません: $JAR_PATH" >&2
@@ -23,7 +23,33 @@ if [ "$JAVA_MAJOR" -lt 17 ]; then
   exit 1
 fi
 
-java -jar "$JAR_PATH" &
+case "$(uname -s)" in
+  Darwin)
+    DATA_ROOT="$HOME/Library/Application Support/NyTweetDeck"
+    HTTPS_PORT=18443
+    ;;
+  *)
+    DATA_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/NyTweetDeck"
+    HTTPS_PORT=443
+    ;;
+esac
+KEYSTORE_PATH="$DATA_ROOT/https/ny.tweetdeck.com.p12"
+PASSWORD_PATH="$DATA_ROOT/https/keystore-password"
+set -- -jar "$JAR_PATH"
+ACCESS_URL=http://127.0.0.1:18080
+if [ -f "$KEYSTORE_PATH" ] && [ -f "$PASSWORD_PATH" ]; then
+  KEYSTORE_PASSWORD=$(sed -n '1p' "$PASSWORD_PATH")
+  set -- "$@" \
+    "--server.port=$HTTPS_PORT" \
+    '--server.ssl.enabled=true' \
+    "--server.ssl.key-store=$KEYSTORE_PATH" \
+    "--server.ssl.key-store-password=$KEYSTORE_PASSWORD" \
+    '--server.ssl.key-store-type=PKCS12' \
+    '--nytweetdeck.http.port=18080'
+  ACCESS_URL=https://ny.tweetdeck.com
+fi
+
+java "$@" &
 APP_PID=$!
 cleanup() {
   kill "$APP_PID" 2>/dev/null || true
@@ -52,9 +78,9 @@ fi
 if [ "${NYTWEETDECK_NO_BROWSER:-0}" = "1" ]; then
   :
 elif command -v xdg-open >/dev/null 2>&1; then
-  xdg-open http://127.0.0.1:18080 >/dev/null 2>&1 || true
+  xdg-open "$ACCESS_URL" >/dev/null 2>&1 || true
 elif command -v open >/dev/null 2>&1; then
-  open http://127.0.0.1:18080
+  open "$ACCESS_URL"
 else
   echo "ブラウザで http://127.0.0.1:18080 を開いてください。"
 fi

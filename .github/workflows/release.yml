@@ -62,6 +62,14 @@ jobs:
       - name: Verify packaged browser UI
         run: bash ./scripts/verify-ui.sh "target/nytweetdeck-${RELEASE_VERSION}.jar"
 
+      - name: Verify autostart installers
+        shell: pwsh
+        run: ./scripts/verify-autostart.ps1 "target/nytweetdeck-${RELEASE_VERSION}.jar"
+
+      - name: Verify local HTTPS domain
+        shell: pwsh
+        run: ./scripts/verify-local-domain.ps1 "target/nytweetdeck-${RELEASE_VERSION}.jar"
+
       - name: Audit Maven dependencies
         shell: pwsh
         run: ./scripts/audit-maven.ps1
@@ -72,12 +80,42 @@ jobs:
           mkdir -p dist/NyTweetDeck
           cp "target/nytweetdeck-${RELEASE_VERSION}.jar" dist/NyTweetDeck/NyTweetDeck.jar
           cp scripts/run-nytweetdeck.ps1 scripts/run-nytweetdeck.cmd scripts/run-nytweetdeck.sh dist/NyTweetDeck/
+          cp scripts/install-autostart.ps1 scripts/uninstall-autostart.ps1 dist/NyTweetDeck/
+          cp scripts/install-autostart.sh scripts/uninstall-autostart.sh dist/NyTweetDeck/
+          cp scripts/install-local-domain.ps1 scripts/uninstall-local-domain.ps1 dist/NyTweetDeck/
+          cp scripts/install-local-domain.sh scripts/uninstall-local-domain.sh dist/NyTweetDeck/
           cp README.md CHANGELOG.md how-to-update.md dist/NyTweetDeck/
           cp -r docs dist/NyTweetDeck/
-          chmod +x dist/NyTweetDeck/run-nytweetdeck.sh
+          chmod +x dist/NyTweetDeck/run-nytweetdeck.sh dist/NyTweetDeck/install-autostart.sh dist/NyTweetDeck/uninstall-autostart.sh
+          chmod +x dist/NyTweetDeck/install-local-domain.sh dist/NyTweetDeck/uninstall-local-domain.sh
           cd dist
           zip -r "NyTweetDeck-${GITHUB_REF_NAME}.zip" NyTweetDeck
           sha256sum "NyTweetDeck-${GITHUB_REF_NAME}.zip" > "NyTweetDeck-${GITHUB_REF_NAME}.zip.sha256"
+
+      - name: Verify release archive
+        shell: bash
+        run: |
+          archive="dist/NyTweetDeck-${GITHUB_REF_NAME}.zip"
+          (cd dist && sha256sum -c "NyTweetDeck-${GITHUB_REF_NAME}.zip.sha256")
+          for required in \
+            NyTweetDeck/NyTweetDeck.jar \
+            NyTweetDeck/run-nytweetdeck.ps1 \
+            NyTweetDeck/run-nytweetdeck.cmd \
+            NyTweetDeck/run-nytweetdeck.sh \
+            NyTweetDeck/install-autostart.ps1 \
+            NyTweetDeck/install-autostart.sh \
+            NyTweetDeck/uninstall-autostart.ps1 \
+            NyTweetDeck/uninstall-autostart.sh \
+            NyTweetDeck/install-local-domain.ps1 \
+            NyTweetDeck/install-local-domain.sh \
+            NyTweetDeck/uninstall-local-domain.ps1 \
+            NyTweetDeck/uninstall-local-domain.sh \
+            NyTweetDeck/README.md \
+            NyTweetDeck/CHANGELOG.md; do
+            unzip -Z1 "$archive" | grep -Fx "$required"
+          done
+          unzip -p "$archive" NyTweetDeck/NyTweetDeck.jar > target/release-archive.jar
+          cmp "target/nytweetdeck-${RELEASE_VERSION}.jar" target/release-archive.jar
 
       - name: Publish GitHub release
         env:

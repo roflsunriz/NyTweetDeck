@@ -274,6 +274,63 @@ if (!settingsClicked) {
 }
 await waitForCondition("document.querySelector('[role=\"dialog\"]') !== null");
 await waitForCondition('document.querySelector("[data-testid=refresh-api-metadata]") !== null');
+const exportClicked = await client.evaluate<boolean>(`(() => {
+  window.__qaExportedSettingsBlob = null;
+  window.__qaExportedSettingsName = null;
+  URL.createObjectURL = blob => {
+    window.__qaExportedSettingsBlob = blob;
+    return "blob:nytweetdeck-settings";
+  };
+  URL.revokeObjectURL = () => {};
+  const originalClick = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function() {
+    window.__qaExportedSettingsName = this.download;
+  };
+  const button = document.querySelector("[data-testid=export-settings]");
+  if (!(button instanceof HTMLButtonElement)) return false;
+  button.click();
+  HTMLAnchorElement.prototype.click = originalClick;
+  return true;
+})()`);
+if (!exportClicked) throw new Error("設定をエクスポートできませんでした。");
+await waitForCondition("window.__qaExportedSettingsBlob instanceof Blob");
+const exportedSettings = await client.evaluate<string>("window.__qaExportedSettingsBlob.text()");
+const exportedSettingsName = await client.evaluate<string>("window.__qaExportedSettingsName");
+const exportedDocument = JSON.parse(exportedSettings) as {
+  format?: unknown;
+  version?: unknown;
+  layout?: { activeAccountId?: unknown; navItems?: unknown };
+};
+if (
+  exportedDocument.format !== "NyTweetDeckSettings" ||
+  exportedDocument.version !== 1 ||
+  exportedDocument.layout?.activeAccountId !== null ||
+  !exportedSettingsName.startsWith("NyTweetDeck-settings-")
+) {
+  throw new Error(`設定エクスポートが不正です: ${exportedSettingsName}`);
+}
+exportedDocument.layout = {
+  ...exportedDocument.layout,
+  activeAccountId: null,
+  navItems: ["home", "trends"],
+};
+const importPayload = JSON.stringify(exportedDocument);
+const importDispatched = await client.evaluate<boolean>(`(() => {
+  const input = document.querySelector("[data-testid=import-settings]");
+  if (!(input instanceof HTMLInputElement)) return false;
+  const transfer = new DataTransfer();
+  transfer.items.add(new File([${JSON.stringify(importPayload)}], "settings.json", {
+    type: "application/json"
+  }));
+  input.files = transfer.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+})()`);
+if (!importDispatched) throw new Error("設定インポートを開始できませんでした。");
+await waitForCondition('document.querySelector("[data-testid=settings-import-status]") !== null');
+await waitForCondition(
+  'JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}").navItems?.join(",") === "home,trends"',
+);
 const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const panel = document.querySelector(".modal-panel");
   if (!(panel instanceof HTMLElement)) return { found: false };
@@ -285,6 +342,8 @@ const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
     canScroll: panel.scrollHeight >= panel.clientHeight,
     documentOverflow: document.documentElement.scrollWidth > innerWidth,
     translationHealthFound: document.querySelector("[data-testid=translation-health]") !== null,
+    settingsTransferFound: document.querySelector("[data-testid=layout-transfer-settings]") !== null,
+    importedNavigation: JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}").navItems,
     videoLoopChecked: document.querySelector("[data-testid=setting-video-loop]")?.checked,
     videoVolume: document.querySelector("[data-testid=setting-video-volume]")?.value
   };
@@ -292,7 +351,9 @@ const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
 if (
   settingsMetrics.videoLoopChecked !== true ||
   settingsMetrics.videoVolume !== "100" ||
-  settingsMetrics.translationHealthFound !== true
+  settingsMetrics.translationHealthFound !== true ||
+  settingsMetrics.settingsTransferFound !== true ||
+  JSON.stringify(settingsMetrics.importedNavigation) !== JSON.stringify(["home", "trends"])
 ) {
   throw new Error(`動画設定の既定値検証に失敗しました: ${JSON.stringify(settingsMetrics)}`);
 }

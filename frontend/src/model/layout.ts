@@ -248,7 +248,7 @@ export function rememberTrendSearch(history: readonly string[], query: string): 
   ].slice(0, trendSearchHistoryLimit);
 }
 
-function isAppLayout(value: unknown): value is AppLayout {
+export function isAppLayout(value: unknown): value is AppLayout {
   if (!isRecord(value) || value.version !== layoutVersion) {
     return false;
   }

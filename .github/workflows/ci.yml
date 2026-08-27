@@ -50,6 +50,14 @@ jobs:
       - name: Verify packaged browser UI
         run: bash ./scripts/verify-ui.sh
 
+      - name: Verify autostart installers
+        shell: pwsh
+        run: ./scripts/verify-autostart.ps1
+
+      - name: Verify local HTTPS domain
+        shell: pwsh
+        run: ./scripts/verify-local-domain.ps1
+
       - name: Audit Maven dependencies
         shell: pwsh
         run: ./scripts/audit-maven.ps1

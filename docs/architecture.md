@@ -20,6 +20,7 @@ Javaソースと配布JARは`--release 17`で生成し、LTSのJDK 17・21・25�
 - `src/main/java/dev/nytweetdeck/system/`: アプリケーション状態など、X通信に依存しないAPIを担当します。
 - `src/main/java/dev/nytweetdeck/xapi/`: X公式Webログイン、Web Cookie認証、GraphQL/REST通信を担当します。公開BearerはX公式Web資産から動的に解決します。
 - `src/main/java/dev/nytweetdeck/account/`: 複数アカウント資格情報の自動読込、原子的保存、スキーマ検証、バックアップ復旧を担当します。
+- `src/main/java/dev/nytweetdeck/web/`: loopback Host・Origin・接続元検証に加え、ローカルHTTPS有効時の443番と既存18080番の併存を担当します。
 - WebセッションはOS標準のユーザー別アプリケーションデータ領域へ保存し、起動時に自動読込します。保存先はJARや作業ディレクトリから独立し、旧`.local/accounts.json`候補は更新時刻が最も新しい有効データを初回起動時に移行します。手動の作成・解除・ロック状態は持たず、POSIX環境では所有者だけが読み書きできる権限へ設定します。
 
 ## フロントエンドのビルド
@@ -49,6 +50,9 @@ BunのHTMLエントリーポイントをBun bundlerへ渡し、`target/classes/s
 19. リポスト応答は外側作者を`repostedBy`へ分離し、元ポストをカード本体として正規化する。引用元は作者・本文・言語・日時・メディア・X事前翻訳を持つ埋め込みポストへ正規化し、Web準拠カードからアプリ内詳細へ接続する。引用本文も通常本文と共通の翻訳Hookを使い、事前翻訳がない場合だけ表示範囲・レート制御付きStrato翻訳へ接続する。
 20. 通知の`notification_url`からコミュニティノートIDを解決し、`BirdwatchFetchOneNote`で完全なノート本文・出典・対象ポストID、`TweetResultByRestId`で通常ポスト本体を取得する。両者を同じポストカード内へ統合し、定型通知文を詳細として再利用しない。
 21. トレンド絞り込みは取得済みデータへクライアント側で適用し、入力による追加API消費を発生させない。確定語句は重複を除いた直近20件に制限する。
+22. 設定移送は`NyTweetDeckSettings`形式とバージョンを検証し、認証情報・保存アカウント・選択アカウントIDを除外してレイアウトだけをJSON化する。インポートでは現在の選択アカウントを維持する。
+23. ローカルドメインはOSのhostsと信頼ストアだけで`ny.tweetdeck.com`をloopbackへ解決する。HTTPS有効時も追加HTTPコネクタを127.0.0.1へ固定し、APIは接続元IP・Host・Originをすべて検証する。
+24. ログオン自動起動は配布場所のJAR絶対パスをWindows Task Scheduler、macOS LaunchAgent、Linux systemd user serviceへ登録し、ブラウザを自動表示せず多重起動を抑止する。
 
 ## 次の接続点
 

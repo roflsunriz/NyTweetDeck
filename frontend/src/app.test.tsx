@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import userEvent from "@testing-library/user-event";
 import { App } from "./app";
 import { createDefaultLayout, layoutStorageKey } from "./model/layout";
+import { exportLayoutSettings } from "./model/layout-transfer";
 
 const originalFetch = globalThis.fetch;
 const originalOpen = window.open;
@@ -111,6 +112,52 @@ describe("NyTweetDeck shell", () => {
     expect(stored.display.reduceMotion).toBe(true);
     expect((stored.display as { autoTranslatePosts?: boolean }).autoTranslatePosts).toBe(false);
     expect(stored.display.videoLoop).toBe(false);
+    expect(stored.display.videoVolume).toBe(35);
+  });
+
+  test("imports menu columns and display settings while preserving the selected account", async () => {
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/accounts")) {
+        return Response.json([
+          { accountId: "account-1", userId: "42", username: "alice", displayName: "Alice" },
+        ]);
+      }
+      if (url.includes("/api/v1/timelines/")) {
+        return Response.json({ posts: [], nextCursor: null });
+      }
+      return Response.json(null);
+    }) as typeof fetch;
+    window.localStorage.setItem(
+      layoutStorageKey,
+      JSON.stringify({ ...createDefaultLayout(), activeAccountId: "account-1" }),
+    );
+    const imported = {
+      ...createDefaultLayout(),
+      navItems: ["home", "trends"] as Array<"home" | "trends">,
+      columns: [{ id: "imported-home", kind: "home" as const, target: null, label: null }],
+      theme: "light" as const,
+      display: { ...createDefaultLayout().display, videoVolume: 35 },
+    };
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "設定" }));
+    const file = new File([exportLayoutSettings(imported)], "settings.json", {
+      type: "application/json",
+    });
+    fireEvent.change(screen.getByTestId("import-settings"), { target: { files: [file] } });
+
+    expect(await screen.findByText("設定を読み込み、自動保存しました。")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "おすすめ" })).toBeDefined();
+    expect(document.documentElement.dataset.theme).toBe("light");
+    const stored = JSON.parse(String(window.localStorage.getItem(layoutStorageKey))) as {
+      activeAccountId: string | null;
+      navItems: string[];
+      display: { videoVolume: number };
+    };
+    expect(stored.activeAccountId).toBe("account-1");
+    expect(stored.navItems).toEqual(["home", "trends"]);
     expect(stored.display.videoVolume).toBe(35);
   });
 
