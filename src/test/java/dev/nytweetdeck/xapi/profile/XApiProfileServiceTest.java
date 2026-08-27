@@ -24,6 +24,11 @@ class XApiProfileServiceTest {
                 .containsEntry("X-Twitter-API-Version", "5");
         assertThat(profile.standardHeaders().keySet())
                 .noneMatch(name -> name.equalsIgnoreCase("Authorization"));
+        assertThat(profile.restEndpoints())
+                .containsEntry("livePipelineEvents", "/live_pipeline/events")
+                .containsEntry(
+                        "livePipelineUpdateSubscriptions",
+                        "/1.1/live_pipeline/update_subscriptions");
     }
 
     @Test

@@ -24,6 +24,9 @@ public class LivePipelineEventParser {
             if (topic == null || payload == null || !payload.isObject()) {
                 throw new IllegalArgumentException("Live Pipelineイベントにtopicまたはpayloadがありません。");
             }
+            if ("/system/config".equals(topic) && payload.has("config")) {
+                return new PipelineEvent(topic, "system_config", null, payload);
+            }
             for (Map.Entry<String, JsonNode> property : payload.properties()) {
                 var type = property.getKey();
                 if (type.equals("tweet_engagement")

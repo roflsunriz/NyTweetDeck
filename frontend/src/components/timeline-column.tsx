@@ -31,7 +31,12 @@ interface TimelineColumnProps {
   display?: DisplayPreferences;
   locale?: Locale;
   requestTimeoutMilliseconds?: number;
+  refreshMinimumMilliseconds?: number;
+  refreshMaximumMilliseconds?: number;
+  refreshGlobalGapMilliseconds?: number;
 }
+
+let nextTimelineRefreshSlot = 0;
 
 export function TimelineColumn({
   column,
@@ -40,6 +45,9 @@ export function TimelineColumn({
   display = defaultDisplayPreferences,
   locale = "ja",
   requestTimeoutMilliseconds = 15_000,
+  refreshMinimumMilliseconds = 60_000,
+  refreshMaximumMilliseconds = 300_000,
+  refreshGlobalGapMilliseconds = 15_000,
 }: TimelineColumnProps) {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -50,15 +58,16 @@ export function TimelineColumn({
   const [postFilter, setPostFilter] = useState<PostFilter>("all");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const loadingRef = useRef(false);
+  const latestPostIdRef = useRef<string | null>(null);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
 
   const load = useCallback(
     async (nextCursor?: string) => {
       if (accountId === null) {
-        return;
+        return "skipped" as const;
       }
       if (loadingRef.current) {
-        return;
+        return "skipped" as const;
       }
       loadingRef.current = true;
       setLoading(true);
@@ -81,6 +90,11 @@ export function TimelineColumn({
           throw new TimelineHttpError(response.status, await readProblemDetail(response));
         }
         const page = (await response.json()) as TimelinePage;
+        const previousLatestPostId = latestPostIdRef.current;
+        const latestPostId = page.posts[0]?.id ?? null;
+        if (nextCursor === undefined) {
+          latestPostIdRef.current = latestPostId;
+        }
         setPosts((current) =>
           nextCursor === undefined
             ? page.posts
@@ -90,6 +104,9 @@ export function TimelineColumn({
               ],
         );
         setCursor(page.nextCursor);
+        return previousLatestPostId !== null && latestPostId !== previousLatestPostId
+          ? ("changed" as const)
+          : ("unchanged" as const);
       } catch (loadError) {
         const detail = loadError instanceof TimelineHttpError ? loadError.detail : null;
         setError(
@@ -97,6 +114,7 @@ export function TimelineColumn({
             ? translation.timelineLoadError
             : `${translation.timelineLoadError} ${detail}`,
         );
+        return "failed" as const;
       } finally {
         loadingRef.current = false;
         setLoading(false);
@@ -115,8 +133,68 @@ export function TimelineColumn({
   useEffect(() => {
     setPosts([]);
     setCursor(null);
+    latestPostIdRef.current = null;
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (accountId === null) {
+      return;
+    }
+    let stopped = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let refreshDelay = refreshMinimumMilliseconds;
+    const maximumDelay = Math.max(refreshMinimumMilliseconds, refreshMaximumMilliseconds);
+
+    const schedule = (requestedDelay: number) => {
+      if (stopped) {
+        return;
+      }
+      timeout = setTimeout(
+        () => {
+          const slotDelay = reserveTimelineRefreshDelay(refreshGlobalGapMilliseconds);
+          timeout = setTimeout(() => void refresh(), slotDelay);
+        },
+        Math.max(0, requestedDelay),
+      );
+    };
+    const refresh = async () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+      const result = await load();
+      if (result === "changed") {
+        refreshDelay = refreshMinimumMilliseconds;
+      } else if (result === "unchanged" || result === "failed") {
+        refreshDelay = Math.min(maximumDelay, Math.max(1, refreshDelay * 2));
+      }
+      schedule(refreshDelay);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "hidden") {
+        if (timeout !== undefined) {
+          clearTimeout(timeout);
+        }
+        schedule(0);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    schedule(refreshDelay);
+    return () => {
+      stopped = true;
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    accountId,
+    load,
+    refreshGlobalGapMilliseconds,
+    refreshMaximumMilliseconds,
+    refreshMinimumMilliseconds,
+  ]);
 
   useEffect(() => {
     if (accountId === null || typeof EventSource === "undefined") {
@@ -167,8 +245,13 @@ export function TimelineColumn({
     };
   }, [accountId, column.kind, load]);
 
+  const livePostIds = posts
+    .slice(0, 100)
+    .map((post) => post.id)
+    .join(",");
+
   useEffect(() => {
-    if (accountId === null || posts.length === 0) {
+    if (accountId === null || livePostIds.length === 0) {
       return;
     }
     const controller = new AbortController();
@@ -178,7 +261,7 @@ export function TimelineColumn({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         accountId,
-        postIds: posts.slice(0, 100).map((post) => post.id),
+        postIds: livePostIds.split(","),
         directMessages: false,
       }),
       signal: controller.signal,
@@ -197,13 +280,22 @@ export function TimelineColumn({
       });
     return () => {
       controller.abort();
+    };
+  }, [accountId, column.id, livePostIds]);
+
+  useEffect(() => {
+    if (accountId === null) {
+      return;
+    }
+    const subscriberId = `timeline:${column.id}`;
+    return () => {
       const params = new URLSearchParams({ accountId });
       void fetch(`/api/v1/live/subscriptions/${encodeURIComponent(subscriberId)}?${params}`, {
         method: "DELETE",
         keepalive: true,
       });
     };
-  }, [accountId, column.id, posts]);
+  }, [accountId, column.id]);
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -393,6 +485,13 @@ function applyPostAction(post: TimelinePost, action: PostActionReason): Timeline
 
 function validCount(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function reserveTimelineRefreshDelay(globalGap: number): number {
+  const now = Date.now();
+  const reservedAt = Math.max(now, nextTimelineRefreshSlot);
+  nextTimelineRefreshSlot = reservedAt + Math.max(0, globalGap);
+  return Math.max(0, reservedAt - now);
 }
 
 function ColumnMessage({ title, body }: { title: string; body?: string }) {

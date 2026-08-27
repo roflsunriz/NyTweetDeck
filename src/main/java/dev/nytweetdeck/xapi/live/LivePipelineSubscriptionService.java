@@ -8,8 +8,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.springframework.stereotype.Service;
 import jakarta.annotation.PreDestroy;
+import org.springframework.stereotype.Service;
 
 @Service
 public class LivePipelineSubscriptionService {
@@ -110,6 +110,11 @@ public class LivePipelineSubscriptionService {
 
     private void onEvent(String accountId, String body) {
         var event = eventParser.parse(body);
+        recordEvent(accountId);
+        if ("system_config".equals(event.type())) {
+            timelineEventBus.publish(accountId, "live:connected", null);
+            return;
+        }
         if ("tweet_engagement".equals(event.type())) {
             var payload = event.payload();
             timelineEventBus.publishEngagement(
@@ -125,6 +130,16 @@ public class LivePipelineSubscriptionService {
             return;
         }
         timelineEventBus.publish(accountId, "live:" + event.type(), event.entityId());
+    }
+
+    private void recordEvent(String accountId) {
+        synchronized (this) {
+            var state = accounts.get(accountId);
+            if (state != null) {
+                state.lastError = null;
+                state.lastEventAt = Instant.now();
+            }
+        }
     }
 
     private void recordError(String accountId, Throwable error) {

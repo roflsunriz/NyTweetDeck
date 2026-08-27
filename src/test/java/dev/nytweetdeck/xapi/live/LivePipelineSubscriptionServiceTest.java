@@ -40,6 +40,13 @@ class LivePipelineSubscriptionServiceTest {
         assertThat(connector.opens.get(0).closed()).isTrue();
 
         connector.opens.get(connector.opens.size() - 1).eventConsumer().accept("""
+                {"topic":"/system/config","payload":{"config":{"session_id":"session-1"}}}
+                """);
+        assertThat(received).singleElement().satisfies(event ->
+                assertThat(event.reason()).isEqualTo("live:connected"));
+        received.clear();
+
+        connector.opens.get(connector.opens.size() - 1).eventConsumer().accept("""
                 {"topic":"/tweet_engagement/2","payload":{"tweet_engagement":{"favorite_count":"9"}}}
                 """);
         assertThat(received).singleElement().satisfies(event -> {

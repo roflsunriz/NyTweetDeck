@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
 import type { ColumnConfig } from "../model/layout";
@@ -151,7 +151,7 @@ describe("timeline column", () => {
     render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
     await screen.findByText("first");
     await waitFor(() => expect(triggerIntersection).toBeDefined());
-    triggerIntersection?.();
+    act(() => triggerIntersection?.());
 
     await screen.findByText("automatic");
   });
@@ -176,9 +176,9 @@ describe("timeline column", () => {
     render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
     await screen.findByText("live post");
 
-    eventSource?.emit("timeline-update", { reason: "live:error" });
+    act(() => eventSource?.emit("timeline-update", { reason: "live:error" }));
     expect(await screen.findByText(/リアルタイム更新へ接続できません/)).toBeDefined();
-    eventSource?.emit("timeline-update", { reason: "like", postId: "1" });
+    act(() => eventSource?.emit("timeline-update", { reason: "like", postId: "1" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "いいね" }).classList.contains("active")).toBe(
         true,
@@ -186,12 +186,14 @@ describe("timeline column", () => {
     );
     expect(timelineLoads).toBe(1);
 
-    eventSource?.emit("timeline-update", {
-      reason: "live:tweet_engagement",
-      postId: "1",
-      likeCount: 9,
-      repostCount: 7,
-    });
+    act(() =>
+      eventSource?.emit("timeline-update", {
+        reason: "live:tweet_engagement",
+        postId: "1",
+        likeCount: 9,
+        repostCount: 7,
+      }),
+    );
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "いいね" }).textContent).toBe("9"),
@@ -199,8 +201,10 @@ describe("timeline column", () => {
     await waitFor(() => expect(screen.queryByText(/リアルタイム更新へ接続できません/)).toBeNull());
     expect(timelineLoads).toBe(1);
 
-    eventSource?.emit("timeline-update", { reason: "unlike", postId: "1" });
-    eventSource?.emit("timeline-update", { reason: "live:dm_update" });
+    act(() => {
+      eventSource?.emit("timeline-update", { reason: "unlike", postId: "1" });
+      eventSource?.emit("timeline-update", { reason: "live:dm_update" });
+    });
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "いいね" }).classList.contains("active")).toBe(
         false,
@@ -208,8 +212,85 @@ describe("timeline column", () => {
     );
     expect(timelineLoads).toBe(1);
 
-    eventSource?.emit("timeline-update", { reason: "create", postId: "2" });
+    act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "2" }));
     await waitFor(() => expect(timelineLoads).toBe(2));
+  });
+
+  test("keeps the live subscription while engagement-only state changes", async () => {
+    let eventSource: FakeEventSource | undefined;
+    globalThis.EventSource = class extends FakeEventSource {
+      constructor(_url: string | URL) {
+        super();
+        eventSource = this;
+      }
+    } as unknown as typeof EventSource;
+    const subscriptionMethods: string[] = [];
+    globalThis.fetch = (async (input, init) => {
+      const url = String(input);
+      if (url.includes("/api/v1/timelines/")) {
+        return Response.json({ posts: [post("1", "stable subscription")], nextCursor: null });
+      }
+      if (url.includes("/api/v1/live/subscriptions/")) {
+        subscriptionMethods.push(init?.method ?? "GET");
+      }
+      return Response.json({ connected: true, topicCount: 1 });
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "home", kind: "home", target: null, label: null };
+    const rendered = render(
+      <TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />,
+    );
+    await screen.findByText("stable subscription");
+    await waitFor(() => expect(subscriptionMethods).toEqual(["PUT"]));
+
+    act(() =>
+      eventSource?.emit("timeline-update", {
+        reason: "live:tweet_engagement",
+        postId: "1",
+        likeCount: 8,
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "いいね" }).textContent).toBe("8"),
+    );
+    expect(subscriptionMethods).toEqual(["PUT"]);
+
+    rendered.unmount();
+    await waitFor(() => expect(subscriptionMethods).toEqual(["PUT", "DELETE"]));
+  });
+
+  test("refreshes visible timelines conservatively when X has no new-post push topic", async () => {
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (String(input).includes("/api/v1/timelines/")) {
+        timelineLoads += 1;
+        return Response.json({
+          posts: [
+            timelineLoads === 1
+              ? post("1", "initial timeline")
+              : post("2", "externally published post"),
+          ],
+          nextCursor: null,
+        });
+      }
+      return Response.json({ connected: true, topicCount: 1 });
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "home", kind: "home", target: null, label: null };
+
+    render(
+      <TimelineColumn
+        column={column}
+        accountId="account-1"
+        translation={translate("ja")}
+        refreshMinimumMilliseconds={5}
+        refreshMaximumMilliseconds={10}
+        refreshGlobalGapMilliseconds={0}
+      />,
+    );
+
+    await screen.findByText("initial timeline");
+    await screen.findByText("externally published post");
+    expect(timelineLoads).toBeGreaterThanOrEqual(2);
   });
 
   test("refreshes bookmarks only in the history column", async () => {
@@ -232,7 +313,7 @@ describe("timeline column", () => {
     render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
     await screen.findByText("saved");
 
-    eventSource?.emit("timeline-update", { reason: "bookmark", postId: "1" });
+    act(() => eventSource?.emit("timeline-update", { reason: "bookmark", postId: "1" }));
 
     await waitFor(() => expect(timelineLoads).toBe(2));
   });
