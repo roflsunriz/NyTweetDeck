@@ -1,4 +1,4 @@
-param([string]$JarPath = "")
+﻿param([string]$JarPath = "")
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -15,7 +15,9 @@ if ($plan.host -ne 'ny.tweetdeck.com' `
         -or $plan.httpsPort -ne 443 `
         -or $plan.httpPort -ne 18080 `
         -or $plan.schemaVersion -ne 2 `
-        -or $plan.rootCertificatePath -notlike '*nytweetdeck-local-ca.cer') {
+        -or $plan.rootCertificatePath -notlike '*nytweetdeck-local-ca.cer' `
+        -or -not $plan.restartsRegisteredTask `
+        -or -not $plan.requiresInteractiveUser) {
     throw 'ローカルドメインの導入計画が不正です。'
 }
 $shell = Get-Command sh -ErrorAction SilentlyContinue

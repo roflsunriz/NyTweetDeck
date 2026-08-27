@@ -8,98 +8,97 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptRoot 'windows-runtime.ps1')
+
 if ([string]::IsNullOrWhiteSpace($JarPath)) {
     $JarPath = Join-Path $scriptRoot 'NyTweetDeck.jar'
 }
-$resolvedJarPath = [IO.Path]::GetFullPath($JarPath)
-if (-not (Test-Path -LiteralPath $resolvedJarPath)) {
-    throw "NyTweetDeck.jarが見つかりません: $resolvedJarPath"
+$resolvedJarPath = if (Test-Path -LiteralPath $JarPath) {
+    (Resolve-Path -LiteralPath $JarPath).Path
+} else {
+    [IO.Path]::GetFullPath($JarPath)
 }
-$javaCommand = Get-Command java -ErrorAction SilentlyContinue
-if ($null -eq $javaCommand) {
-    throw 'Java 17、21、25のいずれかをインストールしてから再実行してください。'
-}
-$versionProbeInfo = [System.Diagnostics.ProcessStartInfo]::new()
-$versionProbeInfo.FileName = $javaCommand.Source
-$versionProbeInfo.Arguments = '-version'
-$versionProbeInfo.UseShellExecute = $false
-$versionProbeInfo.RedirectStandardError = $true
-$versionProbeInfo.RedirectStandardOutput = $true
-$versionProbe = [System.Diagnostics.Process]::Start($versionProbeInfo)
-$javaVersionOutput = $versionProbe.StandardError.ReadToEnd() + $versionProbe.StandardOutput.ReadToEnd()
-$versionProbe.WaitForExit()
-$javaVersionLine = ($javaVersionOutput -split "`r?`n")[0]
-if ($versionProbe.ExitCode -ne 0 -or $javaVersionLine -notmatch 'version "(?:1\.)?([0-9]+)') {
-    throw 'Javaのバージョンを確認できませんでした。'
-}
-$javaMajor = [int]$Matches[1]
-if ($javaMajor -lt 17) {
-    throw "Java 17以上が必要です。現在のメジャーバージョン: $javaMajor"
-}
+$javaProcess = $null
+$httpsEnabled = $false
 
-$javaArguments = @('-jar', ('"{0}"' -f $resolvedJarPath))
-$accessUrl = 'http://127.0.0.1:18080'
-$localData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-$domainConfigPath = Join-Path $localData 'NyTweetDeck\local-domain.json'
-if (Test-Path -LiteralPath $domainConfigPath) {
-    $domainConfig = Get-Content -Raw -LiteralPath $domainConfigPath | ConvertFrom-Json
-    if ($domainConfig.schemaVersion -eq 1) {
-        Write-Warning (
-            'ローカルHTTPS証明書が旧形式です。警告の出ない専用CA形式へ更新するには、' +
-            'install-local-domain.ps1を再実行してください。今回はHTTPで起動します。')
-    }
-    elseif ($domainConfig.schemaVersion -ne 2 `
-            -or $domainConfig.host -ne 'ny.tweetdeck.com' `
-            -or $domainConfig.httpsPort -ne 443 `
-            -or $domainConfig.httpPort -ne 18080 `
-            -or -not (Test-Path -LiteralPath $domainConfig.keyStorePath) `
-            -or -not (Test-Path -LiteralPath $domainConfig.rootCertificatePath) `
-            -or [string]::IsNullOrWhiteSpace([string]$domainConfig.rootThumbprint) `
-            -or [string]::IsNullOrWhiteSpace([string]$domainConfig.keyStorePassword)) {
-        throw "ローカルドメイン設定が不正です: $domainConfigPath"
-    }
-    elseif (-not (Test-Path -LiteralPath (
-                'Cert:\CurrentUser\Root\' + [string]$domainConfig.rootThumbprint))) {
-        Write-Warning (
-            'NyTweetDeck専用ルートCAが現在のユーザーの信頼ストアにありません。' +
-            'install-local-domain.ps1を再実行してください。今回はHTTPで起動します。')
-    }
-    else {
-        $javaArguments += @(
-            '--server.port=443',
-            '--server.ssl.enabled=true',
-            ('--server.ssl.key-store="{0}"' -f $domainConfig.keyStorePath),
-            ('--server.ssl.key-store-password={0}' -f $domainConfig.keyStorePassword),
-            '--server.ssl.key-store-type=PKCS12',
-            '--nytweetdeck.http.port=18080'
-        )
-        $accessUrl = 'https://ny.tweetdeck.com'
-    }
-}
-$process = Start-Process `
-    -FilePath 'java' `
-    -ArgumentList ($javaArguments -join ' ') `
-    -PassThru `
-    -NoNewWindow
 try {
-    $ready = $false
-    for ($attempt = 0; $attempt -lt 60; $attempt += 1) {
-        if ($process.HasExited) {
-            throw "NyTweetDeckが起動前に終了しました。終了コード: $($process.ExitCode)"
-        }
-        try {
-            $response = Invoke-WebRequest -Uri 'http://127.0.0.1:18080/api/v1/system/status' -UseBasicParsing -TimeoutSec 1
-            if ($response.StatusCode -eq 200) {
-                $ready = $true
-                break
-            }
-        }
-        catch {
-            Start-Sleep -Milliseconds 500
-        }
+    if (-not (Test-Path -LiteralPath $resolvedJarPath)) {
+        throw "NyTweetDeck.jarが見つかりません: $resolvedJarPath"
     }
-    if (-not $ready) {
-        throw 'NyTweetDeckの起動が30秒以内に完了しませんでした。'
+    $javaCommands = @(Get-Command java -CommandType Application -ErrorAction SilentlyContinue)
+    if ($javaCommands.Count -eq 0) {
+        throw 'Java 17、21、25のいずれかをインストールしてから再実行してください。'
+    }
+    $javaCommand = $javaCommands[0]
+    $versionProbeInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $versionProbeInfo.FileName = $javaCommand.Source
+    $versionProbeInfo.Arguments = '-version'
+    $versionProbeInfo.UseShellExecute = $false
+    $versionProbeInfo.RedirectStandardError = $true
+    $versionProbeInfo.RedirectStandardOutput = $true
+    $versionProbeInfo.CreateNoWindow = $true
+    $versionProbe = [System.Diagnostics.Process]::Start($versionProbeInfo)
+    $javaVersionOutput = $versionProbe.StandardError.ReadToEnd() +
+        $versionProbe.StandardOutput.ReadToEnd()
+    $versionProbe.WaitForExit()
+    $javaVersionLine = ($javaVersionOutput -split "`r?`n")[0]
+    if ($versionProbe.ExitCode -ne 0 -or $javaVersionLine -notmatch 'version "(?:1\.)?([0-9]+)') {
+        throw 'Javaのバージョンを確認できませんでした。'
+    }
+    $javaMajor = [int]$Matches[1]
+    if ($javaMajor -lt 17) {
+        throw "Java 17以上が必要です。現在のメジャーバージョン: $javaMajor"
+    }
+
+    $domainConfig = Get-NyTweetDeckDomainConfig
+    if ($null -ne $domainConfig) {
+        Repair-NyTweetDeckRootCertificate -Config $domainConfig
+        $httpsEnabled = $true
+    }
+    Write-NyTweetDeckRuntimeState `
+        -Status starting `
+        -JarPath $resolvedJarPath `
+        -HttpsEnabled $httpsEnabled
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $javaCommand.Source
+    $startInfo.Arguments = '-jar "' + $resolvedJarPath.Replace('"', '\"') + '"'
+    $startInfo.WorkingDirectory = Split-Path -Parent $resolvedJarPath
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = [bool]$NoBrowser
+    if ($httpsEnabled) {
+        $startInfo.EnvironmentVariables['SERVER_PORT'] = '443'
+        $startInfo.EnvironmentVariables['SERVER_SSL_ENABLED'] = 'true'
+        $startInfo.EnvironmentVariables['SERVER_SSL_KEY_STORE'] = [string]$domainConfig.keyStorePath
+        $startInfo.EnvironmentVariables['SERVER_SSL_KEY_STORE_PASSWORD'] = `
+            [string]$domainConfig.keyStorePassword
+        $startInfo.EnvironmentVariables['SERVER_SSL_KEY_STORE_TYPE'] = 'PKCS12'
+        $startInfo.EnvironmentVariables['NYTWEETDECK_HTTP_PORT'] = '18080'
+    }
+    $javaProcess = [System.Diagnostics.Process]::Start($startInfo)
+    if ($null -eq $javaProcess) {
+        throw 'NyTweetDeckのJavaプロセスを開始できませんでした。'
+    }
+    Write-NyTweetDeckRuntimeState `
+        -Status starting `
+        -JarPath $resolvedJarPath `
+        -HttpsEnabled $httpsEnabled `
+        -ProcessId $javaProcess.Id
+
+    Wait-NyTweetDeckReady -RequireHttps $httpsEnabled -TimeoutSeconds 60
+    if ($javaProcess.HasExited) {
+        throw "NyTweetDeckが準備完了直前に終了しました。終了コード: $($javaProcess.ExitCode)"
+    }
+    Write-NyTweetDeckRuntimeState `
+        -Status ready `
+        -JarPath $resolvedJarPath `
+        -HttpsEnabled $httpsEnabled `
+        -ProcessId $javaProcess.Id
+
+    $accessUrl = if ($httpsEnabled) {
+        'https://ny.tweetdeck.com'
+    } else {
+        'http://127.0.0.1:18080'
     }
     if (-not $NoBrowser) {
         Start-Process $accessUrl
@@ -107,10 +106,27 @@ try {
     if ($ExitAfterReady) {
         return
     }
-    Wait-Process -Id $process.Id
+    $javaProcess.WaitForExit()
+    if ($javaProcess.ExitCode -ne 0) {
+        throw "NyTweetDeckが異常終了しました。終了コード: $($javaProcess.ExitCode)"
+    }
+}
+catch {
+    $message = $_.Exception.Message
+    Write-NyTweetDeckRuntimeState `
+        -Status error `
+        -JarPath $resolvedJarPath `
+        -HttpsEnabled $httpsEnabled `
+        -ProcessId $(if ($null -eq $javaProcess) { 0 } else { $javaProcess.Id }) `
+        -Message $message
+    throw
 }
 finally {
-    if (-not $process.HasExited) {
-        Stop-Process -Id $process.Id
+    if ($null -ne $javaProcess -and $ExitAfterReady -and -not $javaProcess.HasExited) {
+        $javaProcess.Kill()
+        $javaProcess.WaitForExit()
+    }
+    if ($null -ne $javaProcess) {
+        $javaProcess.Dispose()
     }
 }

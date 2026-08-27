@@ -54,6 +54,10 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-autostart.ps1
 
+      - name: Verify integrated installers
+        shell: pwsh
+        run: ./scripts/verify-installation.ps1
+
       - name: Verify local HTTPS domain
         shell: pwsh
         run: ./scripts/verify-local-domain.ps1

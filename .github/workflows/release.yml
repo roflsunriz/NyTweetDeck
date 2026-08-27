@@ -85,6 +85,10 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-autostart.ps1 "target/nytweetdeck-$env:RELEASE_VERSION.jar"
 
+      - name: Verify integrated installers
+        shell: pwsh
+        run: ./scripts/verify-installation.ps1 "target/nytweetdeck-$env:RELEASE_VERSION.jar"
+
       - name: Verify local HTTPS domain
         shell: pwsh
         run: ./scripts/verify-local-domain.ps1 "target/nytweetdeck-$env:RELEASE_VERSION.jar"
@@ -103,10 +107,14 @@ jobs:
           cp scripts/install-autostart.sh scripts/uninstall-autostart.sh dist/NyTweetDeck/
           cp scripts/install-local-domain.ps1 scripts/uninstall-local-domain.ps1 dist/NyTweetDeck/
           cp scripts/install-local-domain.sh scripts/uninstall-local-domain.sh dist/NyTweetDeck/
+          cp scripts/install-nytweetdeck.ps1 scripts/uninstall-nytweetdeck.ps1 dist/NyTweetDeck/
+          cp scripts/install-nytweetdeck.sh scripts/uninstall-nytweetdeck.sh dist/NyTweetDeck/
+          cp scripts/windows-runtime.ps1 dist/NyTweetDeck/
           cp README.md CHANGELOG.md how-to-update.md dist/NyTweetDeck/
           cp -r docs dist/NyTweetDeck/
           chmod +x dist/NyTweetDeck/run-nytweetdeck.sh dist/NyTweetDeck/install-autostart.sh dist/NyTweetDeck/uninstall-autostart.sh
           chmod +x dist/NyTweetDeck/install-local-domain.sh dist/NyTweetDeck/uninstall-local-domain.sh
+          chmod +x dist/NyTweetDeck/install-nytweetdeck.sh dist/NyTweetDeck/uninstall-nytweetdeck.sh
           cd dist
           zip -r "NyTweetDeck-${RELEASE_TAG}.zip" NyTweetDeck
           sha256sum "NyTweetDeck-${RELEASE_TAG}.zip" > "NyTweetDeck-${RELEASE_TAG}.zip.sha256"
@@ -129,6 +137,11 @@ jobs:
             NyTweetDeck/install-local-domain.sh \
             NyTweetDeck/uninstall-local-domain.ps1 \
             NyTweetDeck/uninstall-local-domain.sh \
+            NyTweetDeck/install-nytweetdeck.ps1 \
+            NyTweetDeck/install-nytweetdeck.sh \
+            NyTweetDeck/uninstall-nytweetdeck.ps1 \
+            NyTweetDeck/uninstall-nytweetdeck.sh \
+            NyTweetDeck/windows-runtime.ps1 \
             NyTweetDeck/README.md \
             NyTweetDeck/CHANGELOG.md; do
             unzip -Z1 "$archive" | grep -Fx "$required"

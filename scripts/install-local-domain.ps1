@@ -1,10 +1,14 @@
-param(
+﻿param(
     [switch]$DryRun,
-    [switch]$ElevatedHosts
+    [switch]$ElevatedHosts,
+    [switch]$SkipRegisteredTaskRestart
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptRoot 'windows-runtime.ps1')
 
 $isWindowsHost = $PSVersionTable.PSEdition -ne 'Core' -or $IsWindows
 if (-not $isWindowsHost -and -not $DryRun) {
@@ -35,21 +39,6 @@ function Test-ManagedHostsEntry {
         '127\.0\.0\.1[ \t]+' + [regex]::Escape($domain) + '[ \t]*\r?\n' +
         [regex]::Escape($endMarker) + '[ \t]*\r?$'
     return $hostsContent -match $expectedBlock
-}
-
-function Remove-CurrentUserRootCertificate {
-    param(
-        [Parameter(Mandatory)][string]$Thumbprint,
-        [switch]$IgnoreFailure
-    )
-
-    if (-not (Test-Path -LiteralPath "Cert:\CurrentUser\Root\$Thumbprint")) {
-        return
-    }
-    & certutil.exe -user -delstore Root $Thumbprint *> $null
-    if ($LASTEXITCODE -ne 0 -and -not $IgnoreFailure) {
-        throw "現在のユーザーの信頼済みルートから証明書を削除できませんでした: $Thumbprint"
-    }
 }
 
 if ($DryRun -and -not $isWindowsHost) {
@@ -89,10 +78,25 @@ $plan = [ordered]@{
     certificateStore = 'Cert:\CurrentUser\Root'
     configPath = $configPath
     schemaVersion = 2
+    restartsRegisteredTask = -not $SkipRegisteredTaskRestart
+    requiresInteractiveUser = $true
 }
 if ($DryRun) {
     $plan | ConvertTo-Json -Depth 3
     return
+}
+
+$interactiveUser = $null
+try {
+    $interactiveUser = (Get-CimInstance Win32_ComputerSystem).UserName
+}
+catch {
+    $interactiveUser = $null
+}
+$currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+if ([string]::IsNullOrWhiteSpace($interactiveUser) `
+        -or -not $interactiveUser.Equals($currentUser, [StringComparison]::OrdinalIgnoreCase)) {
+    throw '専用CAはブラウザを利用するログオン中ユーザーとしてインストールしてください。別ユーザーや非対話実行では設定しません。'
 }
 
 New-Item -ItemType Directory -Path $httpsRoot -Force | Out-Null
@@ -138,10 +142,11 @@ try {
         -FilePath $stagedRootCertificatePath `
         -Type CERT `
         -Force | Out-Null
-    & certutil.exe -user -f -addstore Root $stagedRootCertificatePath *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw '現在のユーザーの信頼済みルートへ専用CAを登録できませんでした。'
+    $pendingRootConfig = [pscustomobject]@{
+        rootCertificatePath = $stagedRootCertificatePath
+        rootThumbprint = $rootCertificate.Thumbprint
     }
+    Repair-NyTweetDeckRootCertificate -Config $pendingRootConfig
     $rootTrusted = Test-Path -LiteralPath "Cert:\CurrentUser\Root\$($rootCertificate.Thumbprint)"
     if (-not $rootTrusted) {
         throw '現在のユーザーの信頼済みルートへ専用CAを登録できませんでした。'
@@ -237,14 +242,14 @@ try {
                     -LiteralPath "Cert:\CurrentUser\My\$thumbprint" `
                     -Force `
                     -ErrorAction SilentlyContinue
-                Remove-CurrentUserRootCertificate -Thumbprint $thumbprint
+                Remove-NyTweetDeckRootCertificate -Thumbprint $thumbprint
             }
         }
     }
 }
 catch {
     if ($rootTrusted -and $null -ne $rootCertificate) {
-        Remove-CurrentUserRootCertificate `
+        Remove-NyTweetDeckRootCertificate `
             -Thumbprint $rootCertificate.Thumbprint `
             -IgnoreFailure
     }
@@ -268,4 +273,28 @@ finally {
     }
 }
 
-Write-Host "ローカルHTTPSを設定しました: https://$domain"
+$runtimeVerified = $false
+if (-not $SkipRegisteredTaskRestart) {
+    $registeredTask = Get-ScheduledTask `
+        -TaskName $script:NyTweetDeckTaskName `
+        -ErrorAction SilentlyContinue
+    if ($null -ne $registeredTask) {
+        $registeredJarPath = Get-NyTweetDeckTaskJarPath
+        if ([string]::IsNullOrWhiteSpace($registeredJarPath)) {
+            throw '既存のNyTweetDeck自動起動タスクからJARパスを確認できませんでした。'
+        }
+        Stop-NyTweetDeckRunningInstance -ExpectedJarPaths @($registeredJarPath)
+        Start-ScheduledTask -TaskName $script:NyTweetDeckTaskName
+        Wait-NyTweetDeckReady -RequireHttps $true -TimeoutSeconds 60
+        $runtimeVerified = $true
+    }
+}
+if (-not (Test-NyTweetDeckRootCertificate -Config $config)) {
+    throw 'ローカルHTTPS設定後に専用CAの信頼状態を確認できませんでした。'
+}
+if ($runtimeVerified) {
+    Write-Host "ローカルHTTPSを設定し、現在ユーザーの信頼と応答を確認しました: https://$domain"
+} else {
+    Write-Host "ローカルHTTPSを設定し、現在ユーザーの信頼を確認しました: https://$domain"
+    Write-Host '次回のNyTweetDeck起動時からHTTPSが有効になります。'
+}

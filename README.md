@@ -11,25 +11,31 @@ NyTweetDeckは、ブラウザで使うローカル動作のカラム型Xクラ�
 - Java 17、21、25のいずれか
 - Google Chrome（Xへのログイン時だけ使用）
 
-ZIPを展開し、`NyTweetDeck.jar`とランチャーを同じフォルダーに置いたまま使用してください。
+ZIPを展開してください。統合インストーラーがJARとランチャーをOSのユーザー別アプリ領域へ配置するため、インストール後は展開フォルダーを移動しても自動起動へ影響しません。
 
-### 2. NyTweetDeckを起動する
+### 2. NyTweetDeckをインストールして起動する
 
-Windowsでは`run-nytweetdeck.cmd`を実行します。macOSまたはLinuxでは、展開したフォルダーで次を実行します。
+Windowsでは専用ルートCAの信頼確認とhosts更新の管理者確認を承認し、次を実行します。
 
-```sh
-./run-nytweetdeck.sh
+```powershell
+.\install-nytweetdeck.ps1
 ```
 
-起動が完了するとブラウザが自動的に開きます。開かない場合は、ブラウザで <http://127.0.0.1:18080> を開いてください。
+macOSまたはLinuxでは、展開したフォルダーで次を実行します。hosts、証明書ストア、443番ポートの設定に`sudo`を使用します。
 
-NyTweetDeckを終了するには、ランチャーを実行したウィンドウで `Ctrl+C` を押すか、そのウィンドウを閉じます。
+```sh
+./install-nytweetdeck.sh
+```
+
+統合インストーラーは、本体を安定したアプリ領域へ配置し、専用CAとhosts、自動起動を設定して既存プロセスを更新後のJARで再起動します。`https://ny.tweetdeck.com`と<http://127.0.0.1:18080>がともに応答することを確認できた場合だけ成功します。
+
+自動起動やローカルHTTPSを使わず一時的に起動する場合だけ、Windowsでは`run-nytweetdeck.cmd`、macOSまたはLinuxでは`./run-nytweetdeck.sh`を使用します。
 
 ### 端末内だけで`https://ny.tweetdeck.com`を使う
 
 このアドレスは公開サイトではありません。導入スクリプトが実行端末のhostsで`ny.tweetdeck.com`を`127.0.0.1`へ固定し、端末内でNyTweetDeck専用ルートCAと、そのCAが署名したサーバー証明書を生成します。専用ルートCAだけをOSの信頼ストアへ登録するため、対応ブラウザでは証明書警告なしで利用できます。NyTweetDeckもloopbackだけで待ち受けるため、LANやインターネットからは接続できません。既存の<http://127.0.0.1:18080>も継続して使えます。
 
-Windowsでは専用ルートCAの信頼確認と、hosts更新が必要な場合の管理者確認を承認して次を実行します。
+通常は統合インストーラーがここまで自動で行います。ローカルHTTPS設定だけを再生成する場合は、Windowsで次を実行します。登録済みの自動起動タスクがあれば再起動してHTTPS応答まで確認します。
 
 ```powershell
 .\install-local-domain.ps1
@@ -37,7 +43,7 @@ Windowsでは専用ルートCAの信頼確認と、hosts更新が必要な場合
 
 以前の自己署名サーバー証明書を導入済みの場合も、同じコマンドを再実行すると専用CA形式へ置き換わります。Windowsでは証明書を現在のブラウザ利用者へ登録し、管理者権限はhosts更新だけに使用します。
 
-macOSまたはLinuxでは、hostsとOS証明書ストアの更新に`sudo`を使用します。
+macOSまたはLinuxでローカルHTTPS設定だけを再生成する場合は次を実行します。
 
 ```sh
 ./install-local-domain.sh
@@ -49,10 +55,10 @@ Firefox 120以降はWindowsとmacOSでOSへ追加したルートCAを既定で�
 
 ### ログオン時に自動起動する
 
-Windowsでは次を実行すると、現在のユーザーのTask Schedulerへ登録されます。
+通常は統合インストーラーが登録します。Windowsで自動起動だけを再登録する場合は次を実行します。現在実行中の旧JARを安全に停止し、登録したJARで再起動して準備完了まで確認します。
 
 ```powershell
-.\install-autostart.ps1
+.\install-autostart.ps1 -StartNow
 ```
 
 macOSではLaunchAgent、Linuxではsystemd user serviceへ登録します。
@@ -61,7 +67,7 @@ macOSではLaunchAgent、Linuxではsystemd user serviceへ登録します。
 ./install-autostart.sh --start
 ```
 
-解除する場合は`uninstall-autostart.ps1`または`uninstall-autostart.sh`を使用します。自動起動ではブラウザを勝手に開かず、アクセス時までバックグラウンドで待機します。
+NyTweetDeck本体、自動起動、ローカルHTTPS設定をまとめて解除する場合は、Windowsで`.\uninstall-nytweetdeck.ps1`、macOSまたはLinuxで`./uninstall-nytweetdeck.sh`を使用します。展開フォルダーを削除済みでも、Windowsは`%LOCALAPPDATA%\NyTweetDeck\app\uninstall-nytweetdeck.ps1`、macOS/Linuxはユーザー別データ領域の`NyTweetDeck/app/uninstall-nytweetdeck.sh`から解除できます。自動起動だけを解除する場合は`uninstall-autostart.ps1`または`uninstall-autostart.sh`を使用します。自動起動ではブラウザを勝手に開かず、アクセス時までバックグラウンドで待機します。
 
 ### 3. Xアカウントへログインする
 

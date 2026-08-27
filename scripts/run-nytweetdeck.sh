@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
+DOMAIN=ny.tweetdeck.com
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 JAR_PATH="${NYTWEETDECK_JAR_PATH:-$SCRIPT_DIR/NyTweetDeck.jar}"
 
@@ -36,24 +37,45 @@ esac
 KEYSTORE_PATH="$DATA_ROOT/https/ny.tweetdeck.com.p12"
 PASSWORD_PATH="$DATA_ROOT/https/keystore-password"
 ROOT_CERTIFICATE_PATH="$DATA_ROOT/https/nytweetdeck-local-ca.cer"
+CERTIFICATE_PATH="$DATA_ROOT/https/ny.tweetdeck.com.cer"
 set -- -jar "$JAR_PATH"
 ACCESS_URL=http://127.0.0.1:18080
+HTTPS_CONFIGURED=0
 if [ -f "$KEYSTORE_PATH" ] && [ -f "$PASSWORD_PATH" ] \
-    && [ -f "$ROOT_CERTIFICATE_PATH" ]; then
+    && [ -f "$ROOT_CERTIFICATE_PATH" ] && [ -f "$CERTIFICATE_PATH" ]; then
+  if [ "$(uname -s)" = Darwin ]; then
+    if ! security verify-cert -c "$CERTIFICATE_PATH" -p ssl -s "$DOMAIN" -q; then
+      echo 'macOSキーチェーンでNyTweetDeck専用CAを信頼できません。install-nytweetdeck.shを再実行してください。' >&2
+      exit 1
+    fi
+  else
+    if ! command -v openssl >/dev/null 2>&1 \
+        || ! openssl verify -CApath /etc/ssl/certs -verify_hostname "$DOMAIN" \
+          "$CERTIFICATE_PATH" >/dev/null 2>&1; then
+      echo 'Linuxのシステム信頼ストアでNyTweetDeck専用CAを確認できません。install-nytweetdeck.shを再実行してください。' >&2
+      exit 1
+    fi
+  fi
   KEYSTORE_PASSWORD=$(sed -n '1p' "$PASSWORD_PATH")
-  set -- "$@" \
-    "--server.port=$HTTPS_PORT" \
-    '--server.ssl.enabled=true' \
-    "--server.ssl.key-store=$KEYSTORE_PATH" \
-    "--server.ssl.key-store-password=$KEYSTORE_PASSWORD" \
-    '--server.ssl.key-store-type=PKCS12' \
-    '--nytweetdeck.http.port=18080'
+  HTTPS_CONFIGURED=1
   ACCESS_URL=https://ny.tweetdeck.com
-elif [ -f "$KEYSTORE_PATH" ] || [ -f "$PASSWORD_PATH" ]; then
-  echo 'ローカルHTTPS証明書が旧形式です。警告の出ない専用CA形式へ更新するには、install-local-domain.shを再実行してください。今回はHTTPで起動します。' >&2
+elif [ -f "$KEYSTORE_PATH" ] || [ -f "$PASSWORD_PATH" ] \
+    || [ -f "$ROOT_CERTIFICATE_PATH" ] || [ -f "$CERTIFICATE_PATH" ]; then
+  echo 'ローカルHTTPS設定が不完全です。install-nytweetdeck.shを再実行してください。' >&2
+  exit 1
 fi
 
-java "$@" &
+if [ "$HTTPS_CONFIGURED" -eq 1 ]; then
+  SERVER_PORT="$HTTPS_PORT" \
+  SERVER_SSL_ENABLED=true \
+  SERVER_SSL_KEY_STORE="$KEYSTORE_PATH" \
+  SERVER_SSL_KEY_STORE_PASSWORD="$KEYSTORE_PASSWORD" \
+  SERVER_SSL_KEY_STORE_TYPE=PKCS12 \
+  NYTWEETDECK_HTTP_PORT=18080 \
+    java "$@" &
+else
+  java "$@" &
+fi
 APP_PID=$!
 cleanup() {
   kill "$APP_PID" 2>/dev/null || true
@@ -76,6 +98,12 @@ while [ "$ATTEMPT" -lt 60 ]; do
 done
 if [ "$READY" -ne 1 ]; then
   echo "NyTweetDeckの起動が30秒以内に完了しませんでした。" >&2
+  exit 1
+fi
+if [ "$HTTPS_CONFIGURED" -eq 1 ] \
+    && ! curl --fail --silent --max-time 3 "https://$DOMAIN/api/v1/system/status" \
+      >/dev/null 2>&1; then
+  echo 'NyTweetDeckのHTTPS応答または専用CAの信頼確認に失敗しました。' >&2
   exit 1
 fi
 

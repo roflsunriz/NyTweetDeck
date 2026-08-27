@@ -52,4 +52,5 @@ BunのHTMLエントリーポイントをBun bundlerへ渡し、`target/classes/s
 21. トレンド絞り込みは取得済みデータへクライアント側で適用し、入力による追加API消費を発生させない。確定語句は重複を除いた直近20件に制限する。
 22. 設定移送は`NyTweetDeckSettings`形式とバージョンを検証し、認証情報・保存アカウント・選択アカウントIDを除外してレイアウトだけをJSON化する。インポートでは現在の選択アカウントを維持する。
 23. ローカルドメインはOSのhostsで`ny.tweetdeck.com`をloopbackへ解決し、端末内で生成したNyTweetDeck専用ルートCAだけをOSの信頼ストアへ登録する。HTTPSサーバーはそのCAが署名したホスト名付き証明書を使用する。HTTPS有効時も追加HTTPコネクタを127.0.0.1へ固定し、APIは接続元IP・Host・Originをすべて検証する。
-24. ログオン自動起動は配布場所のJAR絶対パスをWindows Task Scheduler、macOS LaunchAgent、Linux systemd user serviceへ登録し、ブラウザを自動表示せず多重起動を抑止する。
+24. ログオン自動起動は統合インストーラーがユーザー別アプリ領域へ配置したJARとランチャーをWindows Task Scheduler、macOS LaunchAgent、Linux systemd user serviceへ登録し、ブラウザを自動表示せず多重起動を抑止する。
+25. 統合インストーラーはJARとランチャーをOSのユーザー別アプリ領域に安定配置し、専用CA・hosts・自動起動を設定した後、旧プロセスを安全に更新してHTTP/HTTPSの実応答まで確認する。Windowsランチャーは設定済みCAが欠落した場合、設定内のthumbprintとCA制約を検証してCurrentUserへ自己修復し、修復不能時はHTTPへ隠れてフォールバックせず永続化した起動エラーとして失敗する。

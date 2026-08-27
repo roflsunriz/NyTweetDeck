@@ -195,4 +195,40 @@ mv -f "$STAGED_KEYSTORE" "$KEYSTORE_PATH"
 mv -f "$STAGED_PASSWORD" "$PASSWORD_PATH"
 mv -f "$STAGED_CERTIFICATE" "$CERTIFICATE_PATH"
 mv -f "$STAGED_ROOT_CERTIFICATE" "$ROOT_CERTIFICATE_PATH"
-echo "ローカルHTTPSを設定しました: https://$DOMAIN"
+RUNTIME_VERIFIED=0
+if [ "${NYTWEETDECK_SKIP_REGISTERED_RESTART:-0}" != 1 ]; then
+  REGISTERED=0
+  if [ "$PLATFORM" = linux ] && command -v systemctl >/dev/null 2>&1 \
+      && systemctl --user is-enabled nytweetdeck.service >/dev/null 2>&1; then
+    systemctl --user restart nytweetdeck.service
+    REGISTERED=1
+  elif [ "$PLATFORM" = macos ] \
+      && launchctl print "gui/$(id -u)/dev.nytweetdeck" >/dev/null 2>&1; then
+    launchctl kickstart -k "gui/$(id -u)/dev.nytweetdeck"
+    REGISTERED=1
+  fi
+  if [ "$REGISTERED" -eq 1 ]; then
+    READY=0
+    ATTEMPT=0
+    while [ "$ATTEMPT" -lt 120 ]; do
+      if curl --fail --silent --max-time 2 \
+          "https://$DOMAIN/api/v1/system/status" >/dev/null 2>&1; then
+        READY=1
+        break
+      fi
+      ATTEMPT=$((ATTEMPT + 1))
+      sleep 0.5
+    done
+    if [ "$READY" -ne 1 ]; then
+      echo '登録済みNyTweetDeckの再起動後HTTPS確認に失敗しました。' >&2
+      exit 1
+    fi
+    RUNTIME_VERIFIED=1
+  fi
+fi
+if [ "$RUNTIME_VERIFIED" -eq 1 ]; then
+  echo "ローカルHTTPSを設定し、再起動後の応答を確認しました: https://$DOMAIN"
+else
+  echo "ローカルHTTPSを設定しました: https://$DOMAIN"
+  echo '次回のNyTweetDeck起動時からHTTPSが有効になります。'
+fi

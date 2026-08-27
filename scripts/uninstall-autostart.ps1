@@ -1,10 +1,14 @@
-param([switch]$StopRunning)
+﻿param([switch]$StopRunning)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptRoot 'windows-runtime.ps1')
+
 if ($StopRunning) {
-    Stop-ScheduledTask -TaskName 'NyTweetDeck' -ErrorAction SilentlyContinue
+    $registeredJar = Get-NyTweetDeckTaskJarPath
+    Stop-NyTweetDeckRunningInstance -ExpectedJarPaths @($registeredJar)
 }
 if (Get-ScheduledTask -TaskName 'NyTweetDeck' -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName 'NyTweetDeck' -Confirm:$false

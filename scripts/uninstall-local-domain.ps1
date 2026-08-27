@@ -1,12 +1,32 @@
-param([switch]$ElevatedHosts)
+﻿param([switch]$ElevatedHosts)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptRoot 'windows-runtime.ps1')
 
 $domain = 'ny.tweetdeck.com'
 $beginMarker = '# BEGIN NyTweetDeck local domain'
 $endMarker = '# END NyTweetDeck local domain'
 $hostsPath = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
+
+if (-not $ElevatedHosts) {
+    $interactiveUser = $null
+    try {
+        $interactiveUser = (Get-CimInstance Win32_ComputerSystem).UserName
+    }
+    catch {
+        $interactiveUser = $null
+    }
+    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    if ([string]::IsNullOrWhiteSpace($interactiveUser) `
+            -or -not $interactiveUser.Equals(
+                $currentUser,
+                [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'ローカルHTTPSはブラウザを利用するログオン中ユーザーとして解除してください。'
+    }
+}
 
 function Remove-ManagedHostsEntry {
     param([Parameter(Mandatory)][string]$HostsPath)
@@ -16,18 +36,6 @@ function Remove-ManagedHostsEntry {
         [regex]::Escape($endMarker) + '\r?\n?'
     $updatedHosts = [regex]::Replace($hostsContent, $managedPattern, '')
     Set-Content -LiteralPath $HostsPath -Value $updatedHosts -Encoding ascii
-}
-
-function Remove-CurrentUserRootCertificate {
-    param([Parameter(Mandatory)][string]$Thumbprint)
-
-    if (-not (Test-Path -LiteralPath "Cert:\CurrentUser\Root\$Thumbprint")) {
-        return
-    }
-    & certutil.exe -user -delstore Root $Thumbprint *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "現在のユーザーの信頼済みルートから証明書を削除できませんでした: $Thumbprint"
-    }
 }
 
 if ($ElevatedHosts) {
@@ -84,7 +92,7 @@ if (Test-Path -LiteralPath $configPath) {
                 -LiteralPath "Cert:\CurrentUser\My\$thumbprint" `
                 -Force `
                 -ErrorAction SilentlyContinue
-            Remove-CurrentUserRootCertificate -Thumbprint $thumbprint
+            Remove-NyTweetDeckRootCertificate -Thumbprint $thumbprint
         }
     }
     Remove-Item -LiteralPath $configPath -Force

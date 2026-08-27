@@ -1,4 +1,4 @@
-param([string]$JarPath = "")
+﻿param([string]$JarPath = "")
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -14,11 +14,14 @@ $windowsDefinition = & (Join-Path $repositoryRoot 'scripts\install-autostart.ps1
     -JarPath $resolvedJar `
     -LauncherPath $launcher `
     -UserId 'TEST\NyTweetDeck' `
+    -StartNow `
     -DryRun | ConvertFrom-Json
 if ($windowsDefinition.taskName -ne 'NyTweetDeck' `
         -or $windowsDefinition.trigger -ne 'AtLogOn' `
         -or $windowsDefinition.arguments -notlike '*-NoBrowser*' `
-        -or $windowsDefinition.arguments -notlike "*$resolvedJar*") {
+        -or $windowsDefinition.arguments -notlike "*$resolvedJar*" `
+        -or -not $windowsDefinition.startNow `
+        -or -not $windowsDefinition.verifiesReadiness) {
     throw 'Windowsログオンタスク定義が不正です。'
 }
 
@@ -62,5 +65,10 @@ if ($macDefinition -notlike '*dev.nytweetdeck.plist*' `
         -or $macDefinition -notlike '*<key>RunAtLoad</key><true/>*' `
         -or $macDefinition -notlike '*NYTWEETDECK_NO_BROWSER*') {
     throw 'macOS LaunchAgent定義が不正です。'
+}
+$autostartSource = Get-Content -Raw -LiteralPath $installShell
+if ($autostartSource -notlike '*systemctl --user restart*' `
+        -or $autostartSource -notlike '*https://ny.tweetdeck.com/api/v1/system/status*') {
+    throw 'macOS/Linux自動起動の再起動・HTTPS確認経路が不正です。'
 }
 Write-Host 'Windows Task Scheduler、macOS LaunchAgent、Linux systemd userの自動起動定義を検証しました。'

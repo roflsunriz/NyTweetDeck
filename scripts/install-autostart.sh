@@ -21,7 +21,7 @@ if [ -z "$PLATFORM" ]; then
   esac
 fi
 JAR_PATH=${NYTWEETDECK_JAR_PATH:-$SCRIPT_DIR/NyTweetDeck.jar}
-LAUNCHER_PATH="$SCRIPT_DIR/run-nytweetdeck.sh"
+LAUNCHER_PATH=${NYTWEETDECK_LAUNCHER_PATH:-$SCRIPT_DIR/run-nytweetdeck.sh}
 if [ ! -f "$JAR_PATH" ]; then
   echo "NyTweetDeck.jarが見つかりません: $JAR_PATH" >&2
   exit 1
@@ -93,9 +93,36 @@ if [ "$PLATFORM" = macos ]; then
 elif command -v systemctl >/dev/null 2>&1; then
   systemctl --user daemon-reload
   systemctl --user enable nytweetdeck.service
-  if [ "$START_NOW" -eq 1 ]; then systemctl --user start nytweetdeck.service; fi
+  if [ "$START_NOW" -eq 1 ]; then systemctl --user restart nytweetdeck.service; fi
 else
   echo 'systemdユーザーサービスを利用できません。生成済みunitを手動で有効化してください。' >&2
   exit 1
+fi
+if [ "$START_NOW" -eq 1 ]; then
+  READY=0
+  ATTEMPT=0
+  while [ "$ATTEMPT" -lt 120 ]; do
+    if curl --fail --silent --max-time 2 \
+        http://127.0.0.1:18080/api/v1/system/status >/dev/null 2>&1; then
+      READY=1
+      break
+    fi
+    ATTEMPT=$((ATTEMPT + 1))
+    sleep 0.5
+  done
+  if [ "$READY" -ne 1 ]; then
+    echo '自動起動したNyTweetDeckが60秒以内に準備できませんでした。' >&2
+    exit 1
+  fi
+  case "$PLATFORM" in
+    macos) DATA_ROOT="$HOME/Library/Application Support/NyTweetDeck" ;;
+    linux) DATA_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/NyTweetDeck" ;;
+  esac
+  if [ -f "$DATA_ROOT/https/ny.tweetdeck.com.p12" ] \
+      && ! curl --fail --silent --max-time 3 \
+        https://ny.tweetdeck.com/api/v1/system/status >/dev/null 2>&1; then
+    echo '自動起動したNyTweetDeckのHTTPS確認に失敗しました。' >&2
+    exit 1
+  fi
 fi
 echo "NyTweetDeckのログオン自動起動を登録しました: $DESTINATION"
