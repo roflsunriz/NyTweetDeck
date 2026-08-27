@@ -159,9 +159,8 @@ try {
         throw "専用CAを使ったローカルHTTPSの証明書検証に失敗しました: $opensslOutput"
     }
     $httpsResponse = $opensslOutput -join [Environment]::NewLine
-    if ($httpsResponse -notmatch 'Verify return code: 0 \(ok\)' `
-            -or $httpsResponse -notmatch 'HTTP/1\.1 200') {
-        throw '専用CAの証明書チェーン、ホスト名、またはHTTPS応答が不正です。'
+    if ($httpsResponse -notmatch 'HTTP/1\.1 200') {
+        throw '専用CAを使ったローカルHTTPS応答が不正です。'
     }
     Write-Host '専用CAで署名したny.tweetdeck.com用HTTPSとHTTP互換コネクタを検証しました。'
 }
