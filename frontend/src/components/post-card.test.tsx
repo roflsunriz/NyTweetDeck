@@ -317,6 +317,44 @@ describe("post actions", () => {
     ).toBeDefined();
   });
 
+  test("renders X pretranslation immediately without requesting the translation endpoint", async () => {
+    let requests = 0;
+    globalThis.fetch = (async () => {
+      requests += 1;
+      return new Response(null, { status: 500 });
+    }) as unknown as typeof fetch;
+    const user = userEvent.setup();
+
+    render(
+      <PostTranslationProvider
+        value={{ locale: "ja", autoTranslatePosts: true, setAutoTranslatePosts: () => undefined }}
+      >
+        <PostCard
+          post={{
+            ...post(),
+            id: "920",
+            language: "en",
+            text: "Fresh original",
+            preTranslated: {
+              text: "事前に翻訳された本文",
+              sourceLanguage: "en",
+              targetLanguage: "ja",
+              provider: "Grok",
+            },
+          }}
+          accountId="account-1"
+          translation={translate("ja")}
+        />
+      </PostTranslationProvider>,
+    );
+
+    expect(screen.getByText("事前に翻訳された本文")).toBeDefined();
+    expect(screen.getByText("Grokによる自動翻訳")).toBeDefined();
+    expect(requests).toBe(0);
+    await user.click(screen.getByRole("button", { name: "原文を表示" }));
+    expect(screen.getByText("Fresh original")).toBeDefined();
+  });
+
   test("applies the gear setting to every post and retries a failed translation", async () => {
     const attempts = new Map<string, number>();
     globalThis.fetch = (async (input) => {

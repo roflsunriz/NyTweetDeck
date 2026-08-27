@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
-import type { ColumnConfig } from "../model/layout";
+import type { ColumnConfig, Locale } from "../model/layout";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { fetchWithTimeout } from "../model/fetch-with-timeout";
 import { PostCard, type TimelinePost } from "./post-card";
@@ -18,6 +18,7 @@ interface TimelineColumnProps {
   accountId: string | null;
   translation: Translation;
   display?: DisplayPreferences;
+  locale?: Locale;
   requestTimeoutMilliseconds?: number;
 }
 
@@ -26,6 +27,7 @@ export function TimelineColumn({
   accountId,
   translation,
   display = defaultDisplayPreferences,
+  locale = "ja",
   requestTimeoutMilliseconds = 15_000,
 }: TimelineColumnProps) {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
@@ -52,7 +54,7 @@ export function TimelineColumn({
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({ accountId });
+        const params = new URLSearchParams({ accountId, language: locale });
         if (column.target !== null) {
           params.set("target", column.target);
         }
@@ -100,6 +102,7 @@ export function TimelineColumn({
       accountId,
       column.kind,
       column.target,
+      locale,
       requestTimeoutMilliseconds,
       translation.timelineLoadError,
     ],

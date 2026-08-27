@@ -23,6 +23,13 @@ export function shouldTranslatePost(sourceLanguage: string | null, locale: Local
   );
 }
 
+export function translationTargetsLocale(
+  targetLanguage: string | null | undefined,
+  locale: Locale,
+): boolean {
+  return normalizeBaseLanguage(targetLanguage ?? null) === normalizeBaseLanguage(locale);
+}
+
 export function loadPostTranslation({
   accountId,
   postId,

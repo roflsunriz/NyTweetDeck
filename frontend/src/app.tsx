@@ -368,6 +368,7 @@ export function App() {
                         accountId={activeAccountId}
                         translation={translation}
                         display={layout.display}
+                        locale={layout.locale}
                       />
                     ) : column.kind === "trends" ? (
                       <TrendsColumn
@@ -381,6 +382,7 @@ export function App() {
                         accountId={activeAccountId}
                         translation={translation}
                         display={layout.display}
+                        locale={layout.locale}
                       />
                     )}
                   </article>

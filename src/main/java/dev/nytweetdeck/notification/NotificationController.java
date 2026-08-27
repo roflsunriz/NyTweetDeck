@@ -28,14 +28,15 @@ public class NotificationController {
     @GetMapping
     public NotificationPage notifications(
             @RequestParam String accountId,
-            @RequestParam(required = false) String cursor) {
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "ja") String language) {
         var variables = new LinkedHashMap<String, Object>();
         variables.put("timeline_type", "All");
         variables.put("count", 20);
         if (cursor != null && !cursor.isBlank()) {
             variables.put("cursor", cursor);
         }
-        var result = graphQlClient.execute(accountId, "notifications", variables);
+        var result = graphQlClient.execute(accountId, "notifications", variables, language);
         var timeline = timelineParser.parse(result.rawJson());
         return new NotificationPage(
                 notificationParser.parse(result.rawJson()),

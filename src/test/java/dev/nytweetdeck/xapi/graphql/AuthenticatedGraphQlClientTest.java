@@ -130,6 +130,22 @@ class AuthenticatedGraphQlClientTest {
     }
 
     @Test
+    void sendsTheNyTweetDeckUiLanguageToXWeb() throws Exception {
+        var client = createClient();
+
+        var request = client.prepareRequest(
+                        "account-1", "homeForYou", Map.of("count", 20), "fr-CA")
+                .request();
+
+        assertThat(request.headers().firstValue("X-Twitter-Client-Language"))
+                .contains("fr-ca");
+        assertThatThrownBy(() -> client.prepareRequest(
+                        "account-1", "homeForYou", Map.of(), "ja\r\nInjected: yes"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("表示言語");
+    }
+
+    @Test
     void includesTheResolvedQueryIdInMutationPayloads() throws Exception {
         var client = createClient("bookmark", "CreateBookmark", OperationType.MUTATION);
 

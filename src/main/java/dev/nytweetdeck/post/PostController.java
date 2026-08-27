@@ -38,8 +38,9 @@ public class PostController {
     public PostService.PostDetail detail(
             @PathVariable String postId,
             @RequestParam String accountId,
-            @RequestParam(required = false) String cursor) {
-        return postService.detail(accountId, postId, cursor);
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "ja") String language) {
+        return postService.detail(accountId, postId, cursor, language);
     }
 
     @PostMapping

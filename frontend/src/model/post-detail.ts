@@ -1,4 +1,5 @@
 import type { TimelinePost } from "../components/post-card";
+import type { Locale } from "./layout";
 
 export interface PostDetail {
   post: TimelinePost;
@@ -8,12 +9,16 @@ export interface PostDetail {
 
 const inFlight = new Map<string, Promise<PostDetail>>();
 
-export function loadPostDetail(accountId: string, postId: string): Promise<PostDetail> {
-  const key = `${accountId}:${postId}`;
+export function loadPostDetail(
+  accountId: string,
+  postId: string,
+  language: Locale = "ja",
+): Promise<PostDetail> {
+  const key = `${accountId}:${postId}:${language}`;
   const existing = inFlight.get(key);
   if (existing !== undefined) return existing;
   const request = fetch(
-    `/api/v1/posts/${encodeURIComponent(postId)}?accountId=${encodeURIComponent(accountId)}`,
+    `/api/v1/posts/${encodeURIComponent(postId)}?accountId=${encodeURIComponent(accountId)}&language=${encodeURIComponent(language)}`,
   )
     .then(async (response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);

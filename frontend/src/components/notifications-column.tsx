@@ -2,6 +2,7 @@ import { Bell, Heart, MessageCircle, Repeat2, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
+import type { Locale } from "../model/layout";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import { filterPosts, type PostFilter, PostFilterBar } from "./post-filter";
@@ -25,10 +26,12 @@ export function NotificationsColumn({
   accountId,
   translation,
   display = defaultDisplayPreferences,
+  locale = "ja",
 }: {
   accountId: string | null;
   translation: Translation;
   display?: DisplayPreferences;
+  locale?: Locale;
 }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [posts, setPosts] = useState<TimelinePost[]>([]);
@@ -50,7 +53,7 @@ export function NotificationsColumn({
       setLoading(true);
       setError(false);
       try {
-        const params = new URLSearchParams({ accountId });
+        const params = new URLSearchParams({ accountId, language: locale });
         if (nextCursor !== undefined) {
           params.set("cursor", nextCursor);
         }
@@ -85,7 +88,7 @@ export function NotificationsColumn({
         setLoading(false);
       }
     },
-    [accountId],
+    [accountId, locale],
   );
 
   useEffect(() => {

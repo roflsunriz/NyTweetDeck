@@ -16,8 +16,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
@@ -27,6 +29,8 @@ import tools.jackson.databind.ObjectMapper;
 public class AuthenticatedGraphQlClient {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final Pattern LANGUAGE_PATTERN =
+            Pattern.compile("[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*");
     private static final Set<String> POST_QUERY_PURPOSES = Set.of("search");
     private static final Map<String, Boolean> DEFAULT_FIELD_TOGGLES = Map.of(
             "withPayments", false,
@@ -68,8 +72,16 @@ public class AuthenticatedGraphQlClient {
 
     public GraphQlResult execute(
             String accountId, String purpose, Map<String, Object> variables) {
+        return execute(accountId, purpose, variables, "ja");
+    }
+
+    public GraphQlResult execute(
+            String accountId,
+            String purpose,
+            Map<String, Object> variables,
+            String language) {
         for (int attempt = 0; attempt < 2; attempt++) {
-            var prepared = prepareRequest(accountId, purpose, variables);
+            var prepared = prepareRequest(accountId, purpose, variables, language);
             try {
                 var response = httpClient.send(
                         prepared.request(), HttpResponse.BodyHandlers.ofString());
@@ -97,6 +109,14 @@ public class AuthenticatedGraphQlClient {
 
     PreparedRequest prepareRequest(
             String accountId, String purpose, Map<String, Object> variables) {
+        return prepareRequest(accountId, purpose, variables, "ja");
+    }
+
+    PreparedRequest prepareRequest(
+            String accountId,
+            String purpose,
+            Map<String, Object> variables,
+            String language) {
         var profile = profileService.profile();
         var operation = profileService.requireOperation(purpose);
         var features = profileService.selectFeatures(operation);
@@ -132,7 +152,7 @@ public class AuthenticatedGraphQlClient {
         }
 
         var requestBuilder = HttpRequest.newBuilder(requestUri).timeout(REQUEST_TIMEOUT);
-        WebSessionRequestHeaders.apply(requestBuilder, account, "ja");
+        WebSessionRequestHeaders.apply(requestBuilder, account, normalizeLanguage(language));
         if (body == null) {
             requestBuilder.GET();
         } else {
@@ -227,6 +247,14 @@ public class AuthenticatedGraphQlClient {
 
     private static String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private static String normalizeLanguage(String language) {
+        var normalized = language == null ? "" : language.strip().replace('_', '-');
+        if (!LANGUAGE_PATTERN.matcher(normalized).matches()) {
+            throw new IllegalArgumentException("表示言語の形式が不正です。");
+        }
+        return normalized.toLowerCase(Locale.ROOT);
     }
 
     public record GraphQlResult(String purpose, String operationName, String rawJson) {

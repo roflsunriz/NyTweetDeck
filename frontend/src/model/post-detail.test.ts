@@ -10,8 +10,10 @@ afterEach(() => {
 describe("post detail requests", () => {
   test("shares only an in-flight request for the same account and post", async () => {
     let requests = 0;
-    globalThis.fetch = (async () => {
+    const urls: string[] = [];
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
       requests += 1;
+      urls.push(String(input));
       await Promise.resolve();
       return Response.json({ post: null, replies: [], nextCursor: null });
     }) as unknown as typeof fetch;
@@ -24,5 +26,9 @@ describe("post detail requests", () => {
     expect(requests).toBe(1);
     await loadPostDetail("account-1", "249");
     expect(requests).toBe(2);
+    await loadPostDetail("account-1", "249", "fr");
+    expect(requests).toBe(3);
+    expect(urls[0]).toContain("language=ja");
+    expect(urls[2]).toContain("language=fr");
   });
 });

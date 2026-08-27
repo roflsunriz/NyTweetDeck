@@ -13,8 +13,10 @@ afterEach(() => {
 
 describe("internal user profile", () => {
   test("shows profile details, switches tabs, and filters media", async () => {
+    const urls: string[] = [];
     globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
+      urls.push(url);
       if (!url.includes("/timeline")) {
         return Response.json({
           id: "42",
@@ -66,6 +68,9 @@ describe("internal user profile", () => {
     await user.click(screen.getByRole("button", { name: "画像" }));
     expect(screen.getByText("photo")).toBeDefined();
     expect(screen.queryByText("video")).toBeNull();
+    const userUrls = urls.filter((url) => url.includes("/api/v1/users/"));
+    expect(userUrls.length).toBeGreaterThan(0);
+    expect(userUrls.every((url) => url.includes("language=ja"))).toBe(true);
   });
 });
 

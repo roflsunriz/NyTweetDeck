@@ -13,7 +13,11 @@ import {
 import { type KeyboardEvent, type MouseEvent, useEffect, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
-import { loadPostTranslation, shouldTranslatePost } from "../model/post-translation";
+import {
+  loadPostTranslation,
+  shouldTranslatePost,
+  translationTargetsLocale,
+} from "../model/post-translation";
 import { useRelativeTime } from "../model/relative-time";
 import { ComposerDialog } from "./composer-dialog";
 import { usePostTranslationSettings } from "./post-translation-context";
@@ -43,7 +47,15 @@ export interface TimelinePost {
   replyToPostId: string | null;
   replyToUsername: string | null;
   quotedPost: EmbeddedPost | null;
+  preTranslated?: PreTranslatedPost | null;
   media: Array<{ id: string; type: string; url: string; previewUrl: string }>;
+}
+
+interface PreTranslatedPost {
+  text: string;
+  sourceLanguage: string | null;
+  targetLanguage: string;
+  provider: "Grok";
 }
 
 interface EmbeddedPost {
@@ -85,8 +97,8 @@ export function PostCard({
   const [replying, setReplying] = useState(false);
   const [quoting, setQuoting] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [translatedText, setTranslatedText] = useState<string | null>(null);
-  const [translationProvider, setTranslationProvider] = useState<string | null>(null);
+  const [fetchedTranslatedText, setFetchedTranslatedText] = useState<string | null>(null);
+  const [fetchedTranslationProvider, setFetchedTranslationProvider] = useState<string | null>(null);
   const [translationLoading, setTranslationLoading] = useState(false);
   const [translationError, setTranslationError] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -94,21 +106,44 @@ export function PostCard({
   const { locale, autoTranslatePosts, setAutoTranslatePosts } = usePostTranslationSettings();
   const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
   const postUrl = `https://x.com/${post.author.username}/status/${post.id}`;
+  const preTranslated =
+    post.preTranslated !== undefined &&
+    post.preTranslated !== null &&
+    translationTargetsLocale(post.preTranslated.targetLanguage, locale)
+      ? post.preTranslated
+      : null;
   const translationNeeded =
-    post.text.trim().length > 0 && shouldTranslatePost(post.language, locale);
+    post.text.trim().length > 0 &&
+    (preTranslated !== null || shouldTranslatePost(post.language, locale));
+  const translatedText = preTranslated?.text ?? fetchedTranslatedText;
+  const translationProvider = preTranslated?.provider ?? fetchedTranslationProvider;
   const visibleText =
     autoTranslatePosts && translatedText !== null && !showOriginal ? translatedText : post.text;
 
   useEffect(() => {
-    if (!autoTranslatePosts || !translationNeeded || post.language === null) {
+    if (!autoTranslatePosts || !translationNeeded) {
+      setTranslationLoading(false);
+      setTranslationError(false);
+      setShowOriginal(false);
+      return;
+    }
+    if (preTranslated !== null) {
+      setFetchedTranslatedText(null);
+      setFetchedTranslationProvider(null);
+      setTranslationLoading(false);
+      setTranslationError(false);
+      setShowOriginal(false);
+      return;
+    }
+    if (post.language === null) {
       setTranslationLoading(false);
       setTranslationError(false);
       setShowOriginal(false);
       return;
     }
     let active = true;
-    setTranslatedText(null);
-    setTranslationProvider(null);
+    setFetchedTranslatedText(null);
+    setFetchedTranslationProvider(null);
     setTranslationLoading(true);
     setTranslationError(false);
     setShowOriginal(false);
@@ -121,8 +156,8 @@ export function PostCard({
     })
       .then((result) => {
         if (!active) return;
-        setTranslatedText(result.text);
-        setTranslationProvider(result.provider);
+        setFetchedTranslatedText(result.text);
+        setFetchedTranslationProvider(result.provider);
       })
       .catch(() => {
         if (active) setTranslationError(true);
@@ -139,6 +174,7 @@ export function PostCard({
     locale,
     post.id,
     post.language,
+    preTranslated,
     translationAttempt,
     translationNeeded,
   ]);

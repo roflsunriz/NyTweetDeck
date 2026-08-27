@@ -12,8 +12,10 @@ afterEach(() => {
 
 describe("notifications column", () => {
   test("renders non-post follow events from the web notification response", async () => {
-    globalThis.fetch = (async () =>
-      Response.json({
+    let requestedUrl = "";
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+      requestedUrl = String(input);
+      return Response.json({
         notifications: [
           {
             id: "follow-1",
@@ -25,7 +27,8 @@ describe("notifications column", () => {
         ],
         posts: [],
         nextCursor: null,
-      })) as unknown as typeof fetch;
+      });
+    }) as unknown as typeof fetch;
 
     render(<NotificationsColumn accountId="account-1" translation={translate("ja")} />);
 
@@ -33,5 +36,6 @@ describe("notifications column", () => {
     expect(notification.textContent).toContain("Alice followed you");
     expect(notification.classList.contains("deck-feed-item")).toBe(true);
     expect(notification.getAttribute("data-notification-kind")).toBe("follow");
+    expect(requestedUrl).toContain("language=ja");
   });
 });

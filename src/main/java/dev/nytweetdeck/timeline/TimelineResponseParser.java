@@ -4,6 +4,7 @@ import dev.nytweetdeck.timeline.TimelinePage.Author;
 import dev.nytweetdeck.timeline.TimelinePage.EmbeddedPost;
 import dev.nytweetdeck.timeline.TimelinePage.Media;
 import dev.nytweetdeck.timeline.TimelinePage.Post;
+import dev.nytweetdeck.timeline.TimelinePage.Translation;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -69,7 +70,7 @@ public class TimelineResponseParser {
         findCursor(node, cursor);
         var tweetNode = unwrapTweet(node);
         if (isTweet(tweetNode)) {
-            var post = parsePost(tweetNode);
+            var post = parsePost(tweetNode, node);
             posts.putIfAbsent(post.id(), post);
             return;
         }
@@ -107,7 +108,7 @@ public class TimelineResponseParser {
                 && (text(node, "rest_id") != null || text(legacy, "id_str") != null);
     }
 
-    private static Post parsePost(JsonNode node) {
+    private static Post parsePost(JsonNode node, JsonNode responseNode) {
         var retweetedTweet = findReferencedTweet(
                 node, "retweeted_status_result", "retweetRefResult");
         var content = retweetedTweet == null ? node : retweetedTweet;
@@ -140,6 +141,7 @@ public class TimelineResponseParser {
                 firstNonNull(text(legacy, "quoted_status_id_str"),
                         quotedPost == null ? null : quotedPost.id()),
                 quotedPost,
+                parsePreTranslated(content, responseNode),
                 parseMedia(legacy.get("extended_entities")));
     }
 
@@ -196,6 +198,39 @@ public class TimelineResponseParser {
                 parseCreatedAt(text(legacy, "created_at")),
                 parseAuthor(node),
                 parseMedia(legacy.get("extended_entities")));
+    }
+
+    private static Translation parsePreTranslated(JsonNode tweet, JsonNode responseNode) {
+        var availability = translationAvailability(tweet);
+        if (availability == null && responseNode != tweet) {
+            availability = translationAvailability(responseNode);
+            if (availability == null && responseNode != null) {
+                availability = translationAvailability(responseNode.get("result"));
+            }
+        }
+        if (availability == null
+                || !availability.isObject()
+                || !bool(availability, "is_available")) {
+            return null;
+        }
+        var data = availability.get("data");
+        var translation = text(data, "translation");
+        var targetLanguage = text(data, "destination_language");
+        if (translation == null || translation.isBlank() || targetLanguage == null) {
+            return null;
+        }
+        return new Translation(
+                translation,
+                text(data, "source_language"),
+                targetLanguage,
+                "Grok");
+    }
+
+    private static JsonNode translationAvailability(JsonNode node) {
+        var availability = node == null
+                ? null
+                : node.get("grok_translated_post_with_availability");
+        return availability != null && availability.isObject() ? availability : null;
     }
 
     private static Author parseAuthor(JsonNode tweet) {

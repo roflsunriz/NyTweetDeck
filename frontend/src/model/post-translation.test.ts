@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { loadPostTranslation, shouldTranslatePost } from "./post-translation";
+import {
+  loadPostTranslation,
+  shouldTranslatePost,
+  translationTargetsLocale,
+} from "./post-translation";
 
 const originalFetch = globalThis.fetch;
 
@@ -35,5 +39,10 @@ describe("post translation language matching", () => {
         targetLanguage: "ja",
       }),
     ).rejects.toThrow("Invalid X translation response");
+  });
+
+  test("uses a pretranslation only for the active UI base language", () => {
+    expect(translationTargetsLocale("ja-JP", "ja")).toBe(true);
+    expect(translationTargetsLocale("en", "ja")).toBe(false);
   });
 });

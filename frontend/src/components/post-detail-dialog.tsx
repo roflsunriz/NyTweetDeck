@@ -5,6 +5,7 @@ import { loadPostDetail, type PostDetail } from "../model/post-detail";
 import { ComposerDialog } from "./composer-dialog";
 import { Modal } from "./modal";
 import { PostCard } from "./post-card";
+import { usePostTranslationSettings } from "./post-translation-context";
 
 interface PostDetailDialogProps {
   postId: string;
@@ -28,12 +29,13 @@ export function PostDetailDialog({
   const [detail, setDetail] = useState<PostDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
+  const { locale } = usePostTranslationSettings();
 
   useEffect(() => {
     let active = true;
     setDetail(null);
     setError(null);
-    void loadPostDetail(accountId, postId)
+    void loadPostDetail(accountId, postId, locale)
       .then((value) => {
         if (active) setDetail(value);
       })
@@ -43,7 +45,7 @@ export function PostDetailDialog({
     return () => {
       active = false;
     };
-  }, [accountId, postId, translation.timelineLoadError]);
+  }, [accountId, locale, postId, translation.timelineLoadError]);
 
   return (
     <>

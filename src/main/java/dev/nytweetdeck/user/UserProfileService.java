@@ -30,9 +30,13 @@ public class UserProfileService {
     }
 
     public UserProfilePage profile(String accountId, String userId) {
+        return profile(accountId, userId, "ja");
+    }
+
+    public UserProfilePage profile(String accountId, String userId, String language) {
         validateId(userId);
         var profileResult = graphQlClient.execute(
-                accountId, "userByRestId", Map.of("userId", userId));
+                accountId, "userByRestId", Map.of("userId", userId), language);
         var mutualResult = graphQlClient.execute(
                 accountId,
                 "followersYouKnow",
@@ -40,7 +44,8 @@ public class UserProfileService {
                         "userId", userId,
                         "count", 20,
                         "includePromotedContent", false,
-                        "withGrokTranslatedBio", false));
+                        "withGrokTranslatedBio", false),
+                language);
         try {
             var user = findUser(objectMapper.readTree(profileResult.rawJson()), userId);
             if (user == null) {
@@ -87,6 +92,15 @@ public class UserProfileService {
 
     public TimelinePage timeline(
             String accountId, String userId, String tab, String cursor) {
+        return timeline(accountId, userId, tab, cursor, "ja");
+    }
+
+    public TimelinePage timeline(
+            String accountId,
+            String userId,
+            String tab,
+            String cursor,
+            String language) {
         validateId(userId);
         var variables = new LinkedHashMap<String, Object>();
         variables.put("userId", userId);
@@ -128,7 +142,8 @@ public class UserProfileService {
             }
             default -> throw new IllegalArgumentException("未対応のプロフィールタブです。");
         }
-        return timelineParser.parse(graphQlClient.execute(accountId, purpose, variables).rawJson());
+        return timelineParser.parse(
+                graphQlClient.execute(accountId, purpose, variables, language).rawJson());
     }
 
     private static ArrayList<RelatedUser> parseUsers(JsonNode root, String excludedUserId) {

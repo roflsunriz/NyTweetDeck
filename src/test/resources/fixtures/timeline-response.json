@@ -33,6 +33,15 @@
                               }
                             },
                             "views": {"count": "1234"},
+                            "grok_translated_post_with_availability": {
+                              "is_available": true,
+                              "data": {
+                                "translation": "Pretranslated post #NyTweetDeck",
+                                "source_language": "ja",
+                                "destination_language": "en",
+                                "localized_source_language": "Japanese"
+                              }
+                            },
                             "legacy": {
                               "id_str": "100",
                               "full_text": "最初のポスト #NyTweetDeck",

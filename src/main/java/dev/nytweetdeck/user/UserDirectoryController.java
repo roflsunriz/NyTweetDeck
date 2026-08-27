@@ -27,8 +27,9 @@ public class UserDirectoryController {
     @GetMapping("/{userId}")
     public UserProfilePage profile(
             @org.springframework.web.bind.annotation.PathVariable String userId,
-            @RequestParam String accountId) {
-        return profileService.profile(accountId, userId);
+            @RequestParam String accountId,
+            @RequestParam(defaultValue = "ja") String language) {
+        return profileService.profile(accountId, userId, language);
     }
 
     @GetMapping("/{userId}/timeline")
@@ -36,7 +37,8 @@ public class UserDirectoryController {
             @org.springframework.web.bind.annotation.PathVariable String userId,
             @RequestParam String accountId,
             @RequestParam(defaultValue = "all") String tab,
-            @RequestParam(required = false) String cursor) {
-        return profileService.timeline(accountId, userId, tab, cursor);
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "ja") String language) {
+        return profileService.timeline(accountId, userId, tab, cursor, language);
     }
 }

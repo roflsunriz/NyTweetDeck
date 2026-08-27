@@ -4,6 +4,7 @@ import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { Modal } from "./modal";
 import { PostCard, type TimelinePost } from "./post-card";
+import { usePostTranslationSettings } from "./post-translation-context";
 import { PostDetailDialog } from "./post-detail-dialog";
 import { filterPosts, type PostFilter } from "./post-filter";
 
@@ -61,10 +62,11 @@ export function UserProfileDialog({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const { locale } = usePostTranslationSettings();
 
   const loadTimeline = useCallback(
     async (nextCursor?: string) => {
-      const params = new URLSearchParams({ accountId, tab });
+      const params = new URLSearchParams({ accountId, tab, language: locale });
       if (nextCursor !== undefined) params.set("cursor", nextCursor);
       const response = await fetch(
         `/api/v1/users/${encodeURIComponent(userId)}/timeline?${params}`,
@@ -81,7 +83,7 @@ export function UserProfileDialog({
       );
       setCursor(page.nextCursor);
     },
-    [accountId, tab, userId],
+    [accountId, locale, tab, userId],
   );
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export function UserProfileDialog({
     setLoading(true);
     setError(false);
     const profileRequest = fetch(
-      `/api/v1/users/${encodeURIComponent(userId)}?accountId=${encodeURIComponent(accountId)}`,
+      `/api/v1/users/${encodeURIComponent(userId)}?accountId=${encodeURIComponent(accountId)}&language=${encodeURIComponent(locale)}`,
       { signal: controller.signal },
     ).then(async (response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -101,7 +103,7 @@ export function UserProfileDialog({
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [accountId, loadTimeline, userId]);
+  }, [accountId, loadTimeline, locale, userId]);
 
   const visiblePosts =
     tab === "media" && mediaFilter !== "all" ? filterPosts(posts, mediaFilter) : posts;

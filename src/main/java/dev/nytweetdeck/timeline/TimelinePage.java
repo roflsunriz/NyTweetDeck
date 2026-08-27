@@ -28,6 +28,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             String replyToUsername,
             String quotedPostId,
             EmbeddedPost quotedPost,
+            Translation preTranslated,
             List<Media> media) {
 
         public Post {
@@ -50,6 +51,12 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             media = List.copyOf(media);
         }
     }
+
+    public record Translation(
+            String text,
+            String sourceLanguage,
+            String targetLanguage,
+            String provider) {}
 
     public record Media(String id, String type, String url, String previewUrl) {}
 }

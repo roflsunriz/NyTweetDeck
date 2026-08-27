@@ -71,6 +71,15 @@ class UserProfileServiceTest {
                 }
                 return new GraphQlResult(operationPurpose, operationPurpose, "{\"data\":{}}");
             }
+
+            @Override
+            public GraphQlResult execute(
+                    String accountId,
+                    String operationPurpose,
+                    Map<String, Object> variables,
+                    String language) {
+                return execute(accountId, operationPurpose, variables);
+            }
         };
     }
 }

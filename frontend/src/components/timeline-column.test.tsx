@@ -41,6 +41,7 @@ describe("timeline column", () => {
     expect(screen.getAllByRole("article")).toHaveLength(2);
     const timelineUrls = urls.filter((url) => url.includes("/api/v1/timelines/"));
     expect(timelineUrls[0]).toContain("/api/v1/timelines/homeForYou?accountId=account-1");
+    expect(timelineUrls[0]).toContain("language=ja");
     expect(timelineUrls[1]).toContain("cursor=next");
     expect(urls.some((url) => url.includes("/api/v1/live/subscriptions/"))).toBe(true);
   });

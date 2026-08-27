@@ -37,6 +37,11 @@ class TimelineResponseParserTest {
         assertThat(detailed.viewCount()).isEqualTo(1234);
         assertThat(detailed.liked()).isTrue();
         assertThat(detailed.bookmarked()).isTrue();
+        assertThat(detailed.preTranslated()).isNotNull();
+        assertThat(detailed.preTranslated().text()).isEqualTo("Pretranslated post #NyTweetDeck");
+        assertThat(detailed.preTranslated().sourceLanguage()).isEqualTo("ja");
+        assertThat(detailed.preTranslated().targetLanguage()).isEqualTo("en");
+        assertThat(detailed.preTranslated().provider()).isEqualTo("Grok");
         assertThat(detailed.quotedPostId()).isEqualTo("99");
         assertThat(detailed.quotedPost()).isNotNull();
         assertThat(detailed.quotedPost().text()).isEqualTo("引用元");
@@ -65,6 +70,24 @@ class TimelineResponseParserTest {
         assertThat(post.author().displayName()).isEqualTo("Alice");
         assertThat(post.author().avatarUrl()).endsWith("alice.jpg");
         assertThat(post.author().verified()).isTrue();
+    }
+
+    @Test
+    void readsPretranslationFromVisibilityResultWrapper() {
+        var body = """
+                {"result":{"__typename":"TweetWithVisibilityResults",
+                "grok_translated_post_with_availability":{"is_available":true,"data":{
+                  "translation":"ラッパーの事前翻訳","source_language":"en",
+                  "destination_language":"ja"}},"tweet":{"__typename":"Tweet","rest_id":"204",
+                  "legacy":{"full_text":"wrapper original","lang":"en",
+                  "created_at":"2018-10-10T20:19:24Z"}}}}
+                """;
+
+        var post = parser.parse(body).posts().get(0);
+
+        assertThat(post.preTranslated()).isNotNull();
+        assertThat(post.preTranslated().text()).isEqualTo("ラッパーの事前翻訳");
+        assertThat(post.preTranslated().targetLanguage()).isEqualTo("ja");
     }
 
     @Test

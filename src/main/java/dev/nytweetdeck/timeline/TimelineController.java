@@ -29,9 +29,11 @@ public class TimelineController {
             @PathVariable String kind,
             @RequestParam String accountId,
             @RequestParam(required = false) String target,
-            @RequestParam(required = false) String cursor) {
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "ja") String language) {
         var query = queryFactory.create(kind, target, cursor);
-        var result = graphQlClient.execute(accountId, query.purpose(), query.variables());
+        var result = graphQlClient.execute(
+                accountId, query.purpose(), query.variables(), language);
         return responseParser.parse(result.rawJson());
     }
 }

@@ -26,13 +26,19 @@ public class PostService {
     }
 
     public PostDetail detail(String accountId, String postId, String cursor) {
+        return detail(accountId, postId, cursor, "ja");
+    }
+
+    public PostDetail detail(
+            String accountId, String postId, String cursor, String language) {
         validatePostId(postId);
         var detailVariables = new LinkedHashMap<String, Object>();
         detailVariables.put("tweetId", postId);
         detailVariables.put("withCommunity", false);
         detailVariables.put("includePromotedContent", false);
         detailVariables.put("withVoice", false);
-        var postResult = graphQlClient.execute(accountId, "postDetail", detailVariables);
+        var postResult = graphQlClient.execute(
+                accountId, "postDetail", detailVariables, language);
         var postPage = responseParser.parse(postResult.rawJson());
 
         var conversationVariables = new LinkedHashMap<String, Object>();
@@ -47,8 +53,8 @@ public class PostService {
         if (cursor != null && !cursor.isBlank()) {
             conversationVariables.put("cursor", cursor);
         }
-        var conversationResult =
-                graphQlClient.execute(accountId, "conversation", conversationVariables);
+        var conversationResult = graphQlClient.execute(
+                accountId, "conversation", conversationVariables, language);
         var conversationPage = responseParser.parse(conversationResult.rawJson());
         var focal = postPage.posts().stream()
                 .filter(post -> post.id().equals(postId))
