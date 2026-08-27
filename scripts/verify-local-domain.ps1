@@ -117,7 +117,8 @@ try {
         }
     }
     if (-not $ready) { throw 'HTTP互換コネクタが20秒以内に起動しませんでした。' }
-    $openssl = Get-Command openssl -CommandType Application -ErrorAction SilentlyContinue
+    $opensslCommand = Get-Command openssl -CommandType Application -ErrorAction SilentlyContinue
+    $opensslPath = if ($null -eq $opensslCommand) { $null } else { $opensslCommand.Source }
     if ($PSVersionTable.PSEdition -ne 'Core' -or $IsWindows) {
         $gitOpenSslCandidates = @(
             (Join-Path $env:ProgramFiles 'Git\mingw64\bin\openssl.exe')
@@ -132,15 +133,17 @@ try {
                 -LiteralPath $gitOpenSsl `
                 -ErrorAction SilentlyContinue
             if ($null -ne $resolvedGitOpenSsl) {
-                $openssl = Get-Item -LiteralPath $resolvedGitOpenSsl.Path
+                $opensslPath = $resolvedGitOpenSsl.Path
                 break
             }
         }
     }
-    if ($null -eq $openssl) { throw '証明書チェーン検証にOpenSSLが必要です。' }
+    if ([string]::IsNullOrWhiteSpace($opensslPath)) {
+        throw '証明書チェーン検証にOpenSSLが必要です。'
+    }
     $httpRequest = "GET /api/v1/system/status HTTP/1.1`r`n" +
         "Host: ny.tweetdeck.com:18443`r`nConnection: close`r`n`r`n"
-    $opensslOutput = $httpRequest | & $openssl.FullName s_client `
+    $opensslOutput = $httpRequest | & $opensslPath s_client `
         -connect '127.0.0.1:18443' `
         -servername 'ny.tweetdeck.com' `
         -verify_hostname 'ny.tweetdeck.com' `
