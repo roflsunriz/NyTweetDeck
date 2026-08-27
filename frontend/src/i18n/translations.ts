@@ -89,6 +89,17 @@ export interface Translation {
   share: string;
   downloadMedia: string;
   viewMedia: string;
+  fullSizeImage: string;
+  closeImage: string;
+  zoomIn: string;
+  zoomOut: string;
+  resetImageView: string;
+  imageViewerHelp: string;
+  xArticle: string;
+  openArticle: string;
+  closeArticle: string;
+  openOnX: string;
+  articleLoadError: string;
   askGrok: string;
   autoTranslatePosts: string;
   enableAutoTranslation: string;
@@ -258,6 +269,17 @@ const translations: Partial<Record<Locale, Translation>> = {
     share: "共有",
     downloadMedia: "メディアをダウンロード",
     viewMedia: "メディアを表示",
+    fullSizeImage: "画像をフルサイズで表示",
+    closeImage: "画像を閉じる",
+    zoomIn: "拡大",
+    zoomOut: "縮小",
+    resetImageView: "表示位置と倍率をリセット",
+    imageViewerHelp: "ドラッグで移動、スクロールで拡大・縮小、Escでポスト詳細に戻ります。",
+    xArticle: "Xの記事",
+    openArticle: "記事を読む",
+    closeArticle: "記事を閉じる",
+    openOnX: "Xで記事を開く",
+    articleLoadError: "記事の全文を読み込めませんでした。",
     askGrok: "Grokに聞く",
     autoTranslatePosts: "表示言語と異なるポストを自動翻訳",
     enableAutoTranslation: "すべてのカラムで自動翻訳をオンにする",
@@ -474,6 +496,17 @@ const translations: Partial<Record<Locale, Translation>> = {
     share: "Share",
     downloadMedia: "Download media",
     viewMedia: "View media",
+    fullSizeImage: "View full-size image",
+    closeImage: "Close image",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    resetImageView: "Reset image position and zoom",
+    imageViewerHelp: "Drag to pan, scroll to zoom, and press Escape to return to post details.",
+    xArticle: "X Article",
+    openArticle: "Read article",
+    closeArticle: "Close article",
+    openOnX: "Open article on X",
+    articleLoadError: "Could not load the full article.",
     askGrok: "Ask Grok",
     autoTranslatePosts: "Automatically translate posts that use another language",
     enableAutoTranslation: "Turn on automatic translation for every column",

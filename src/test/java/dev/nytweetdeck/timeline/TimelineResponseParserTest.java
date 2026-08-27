@@ -250,4 +250,52 @@ class TimelineResponseParserTest {
         assertThat(post.communityNote().text()).isEqualTo("This image was taken in 2024.");
         assertThat(post.communityNote().footer()).isEqualTo("Rated helpful by readers");
     }
+
+    @Test
+    void omitsMediaRedirectUrlsFromPostAndPretranslatedText() {
+        var body = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"600",
+                "legacy":{"full_text":"画像付きポスト https://t.co/media123","lang":"ja",
+                "created_at":"2019-01-02T00:00:00Z","extended_entities":{"media":[{
+                "id_str":"photo-600","type":"photo","url":"https://t.co/media123",
+                "media_url_https":"https://pbs.twimg.com/media/photo600.jpg"}]}},
+                "grok_translated_post_with_availability":{"is_available":true,"data":{
+                "translation":"Post with image https://t.co/media123","source_language":"ja",
+                "destination_language":"en"}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().get(0);
+
+        assertThat(post.text()).isEqualTo("画像付きポスト");
+        assertThat(post.preTranslated().text()).isEqualTo("Post with image");
+        assertThat(post.media()).singleElement().satisfies(media ->
+                assertThat(media.url()).isEqualTo("https://pbs.twimg.com/media/photo600.jpg"));
+    }
+
+    @Test
+    void normalizesAnXArticleAndOmitsItsRedirectUrl() {
+        var body = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"700",
+                "legacy":{"full_text":"https://t.co/article700","lang":"ja",
+                "created_at":"2019-01-02T00:00:00Z","entities":{"urls":[{
+                "url":"https://t.co/article700",
+                "expanded_url":"https://x.com/i/article/701"}]}},"article":{"article_results":{
+                "result":{"rest_id":"701","title":"NyTweetDeckの記事",
+                "preview_text":"記事の概要です。","plain_text":"最初の段落。\\n\\n全文の続き。",
+                "cover_media":{"media_info":{"original_img_url":
+                "https://pbs.twimg.com/media/article-cover.jpg"}}}}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().get(0);
+
+        assertThat(post.text()).isEmpty();
+        assertThat(post.article()).isNotNull();
+        assertThat(post.article().id()).isEqualTo("701");
+        assertThat(post.article().title()).isEqualTo("NyTweetDeckの記事");
+        assertThat(post.article().previewText()).isEqualTo("記事の概要です。");
+        assertThat(post.article().body()).isEqualTo("最初の段落。\n\n全文の続き。");
+        assertThat(post.article().coverImageUrl())
+                .isEqualTo("https://pbs.twimg.com/media/article-cover.jpg");
+        assertThat(post.article().url()).isEqualTo("https://x.com/i/article/701");
+    }
 }

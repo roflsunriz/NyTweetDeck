@@ -5,6 +5,7 @@ import { loadPostDetail, type PostDetail } from "../model/post-detail";
 import { ComposerDialog } from "./composer-dialog";
 import { Modal } from "./modal";
 import { PostCard } from "./post-card";
+import { ImageViewer } from "./image-viewer";
 import { usePostTranslationSettings } from "./post-translation-context";
 
 interface PostDetailDialogProps {
@@ -29,6 +30,7 @@ export function PostDetailDialog({
   const [detail, setDetail] = useState<PostDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const { locale } = usePostTranslationSettings();
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export function PostDetailDialog({
                 display={display}
                 onOpenQuotedPost={onOpenPost}
                 onOpenUser={onOpenUser}
+                onOpenImage={(media) => setImageUrl(media.url)}
               />
               <button
                 className="primary-button detail-reply-button"
@@ -85,6 +88,7 @@ export function PostDetailDialog({
                     display={display}
                     onOpenQuotedPost={onOpenPost}
                     onOpenUser={onOpenUser}
+                    onOpenImage={(media) => setImageUrl(media.url)}
                   />
                 ))
               )}
@@ -100,6 +104,9 @@ export function PostDetailDialog({
           onClose={() => setReplying(false)}
           onPublished={onClose}
         />
+      )}
+      {imageUrl !== null && (
+        <ImageViewer src={imageUrl} translation={translation} onClose={() => setImageUrl(null)} />
       )}
     </>
   );

@@ -418,7 +418,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
       if (url.pathname === "/api/v1/timelines/homeForYou") {
         return Promise.resolve(Response.json({
           posts: [{
-            id: "100", text: "Initial engagement state", language: "en",
+            id: "100", text: "Initial engagement state https://t.co/article100", language: "en",
             createdAt: "2026-08-27T00:00:00Z",
             author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
             repostedBy: null, replyCount: 1, repostCount: 2, quoteCount: 0,
@@ -436,7 +436,18 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
               text: "This image was taken in 2024.",
               footer: "Rated helpful by readers"
             },
+            article: {
+              id: "article-100", title: "NyTweetDeck browser article",
+              previewText: "A preview of the first lines shown inside the post card.",
+              body: "First article paragraph.\\n\\nSecond paragraph with the complete article body.",
+              coverImageUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+              url: "https://x.com/i/article/article-100"
+            },
             media: [{
+              id: "photo-qa", type: "photo",
+              url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+              previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+            }, {
               id: "video-qa", type: "video",
               url: "/api/v1/system/status",
               previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
@@ -457,6 +468,33 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
             }] : []
           }))],
           nextCursor: null
+        }));
+      }
+      if (url.pathname === "/api/v1/posts/100") {
+        return Promise.resolve(Response.json({
+          post: {
+            id: "100", text: "Initial engagement state", language: "en",
+            createdAt: "2026-08-27T00:00:00Z",
+            author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
+            repostedBy: null, replyCount: 1, repostCount: 2, quoteCount: 0,
+            likeCount: 3, bookmarkCount: 0, viewCount: 10,
+            liked: true, reposted: true, bookmarked: false,
+            replyToPostId: null, replyToUsername: null, quotedPost: null,
+            communityNote: null,
+            article: {
+              id: "article-100", title: "NyTweetDeck browser article",
+              previewText: "A preview of the first lines shown inside the post card.",
+              body: "First article paragraph.\\n\\nSecond paragraph with the complete article body.",
+              coverImageUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+              url: "https://x.com/i/article/article-100"
+            },
+            media: [{
+              id: "photo-qa", type: "photo",
+              url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+              previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+            }]
+          },
+          replies: [], nextCursor: null
         }));
       }
       if (
@@ -744,6 +782,91 @@ results.push({
   ...engagementMetrics,
   screenshotPath: engagementScreenshotPath,
 });
+
+const articleOpened = await client.evaluate<boolean>(`(() => {
+  const article = document.querySelector(".x-article-card");
+  if (!(article instanceof HTMLButtonElement)) return false;
+  article.scrollIntoView({ block: "center" });
+  article.click();
+  return true;
+})()`);
+if (!articleOpened) throw new Error("X記事カードを開けませんでした。");
+await waitForCondition(
+  'document.querySelector(".article-reader-body")?.textContent?.includes("complete article body") === true',
+);
+const articleMetrics = await client.evaluate<Record<string, unknown>>(`({
+  title: document.querySelector(".article-reader h2")?.textContent,
+  body: document.querySelector(".article-reader-body")?.textContent,
+  coverFound: document.querySelector(".article-reader-cover") !== null,
+  documentOverflow: document.documentElement.scrollWidth > innerWidth
+})`);
+const articleScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const articleScreenshotPath = resolve(
+  import.meta.dir,
+  "../../target/ui-article-reader-768x1024.png",
+);
+await Bun.write(articleScreenshotPath, Buffer.from(articleScreenshot.data, "base64"));
+await client.evaluate(
+  'document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
+);
+await waitForCondition('document.querySelector(".article-reader") === null');
+results.push({ view: "article-reader", ...articleMetrics, screenshotPath: articleScreenshotPath });
+
+const postDetailOpened = await client.evaluate<boolean>(`(() => {
+  const post = document.querySelector('[data-post-id="100"] .post-open-button');
+  if (!(post instanceof HTMLButtonElement)) return false;
+  post.click();
+  return true;
+})()`);
+if (!postDetailOpened) throw new Error("画像付きポスト詳細を開けませんでした。");
+await waitForCondition('document.querySelector(".post-detail-content .post-image-open") !== null');
+const imageOpened = await client.evaluate<boolean>(`(() => {
+  const image = document.querySelector(".post-detail-content .post-image-open");
+  if (!(image instanceof HTMLButtonElement)) return false;
+  image.click();
+  return true;
+})()`);
+if (!imageOpened) throw new Error("フルサイズ画像を開けませんでした。");
+await waitForCondition('document.querySelector(".image-viewer-viewport") !== null');
+const imageMoved = await client.evaluate<boolean>(`(() => {
+  const viewport = document.querySelector(".image-viewer-viewport");
+  if (!(viewport instanceof HTMLElement)) return false;
+  viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: -240, clientX: 200, clientY: 300, bubbles: true }));
+  viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, button: 0, clientX: 100, clientY: 100, bubbles: true }));
+  viewport.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 150, clientY: 135, bubbles: true }));
+  viewport.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1, clientX: 150, clientY: 135, bubbles: true }));
+  return true;
+})()`);
+if (!imageMoved) throw new Error("画像の拡大・移動操作を実行できませんでした。");
+await waitForCondition(
+  'Number(document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom")) > 1',
+);
+const imageViewerMetrics = await client.evaluate<Record<string, unknown>>(`({
+  zoom: document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom"),
+  transform: document.querySelector(".image-viewer-viewport img")?.style.transform,
+  detailBehindViewer: document.querySelector(".post-detail-content") !== null,
+  documentOverflow: document.documentElement.scrollWidth > innerWidth
+})`);
+const imageScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const imageScreenshotPath = resolve(import.meta.dir, "../../target/ui-image-viewer-768x1024.png");
+await Bun.write(imageScreenshotPath, Buffer.from(imageScreenshot.data, "base64"));
+await client.evaluate(
+  'document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
+);
+await waitForCondition(
+  'document.querySelector(".image-viewer") === null && document.querySelector(".post-detail-content") !== null',
+);
+await client.evaluate(
+  'document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
+);
+await waitForCondition('document.querySelector(".post-detail-content") === null');
+results.push({ view: "image-viewer", ...imageViewerMetrics, screenshotPath: imageScreenshotPath });
 
 await client.evaluate(`(() => {
   const layout = JSON.parse(localStorage.getItem("nytweetdeck.layout") ?? "{}");

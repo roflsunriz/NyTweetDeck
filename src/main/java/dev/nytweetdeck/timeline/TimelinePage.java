@@ -30,6 +30,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             EmbeddedPost quotedPost,
             CommunityNote communityNote,
             Translation preTranslated,
+            Article article,
             List<Media> media) {
 
         public Post {
@@ -47,6 +48,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             String createdAt,
             Author author,
             Translation preTranslated,
+            Article article,
             List<Media> media) {
 
         public EmbeddedPost {
@@ -61,6 +63,14 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             String sourceLanguage,
             String targetLanguage,
             String provider) {}
+
+    public record Article(
+            String id,
+            String title,
+            String previewText,
+            String body,
+            String coverImageUrl,
+            String url) {}
 
     public record Media(String id, String type, String url, String previewUrl) {}
 }

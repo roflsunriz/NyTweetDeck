@@ -1,6 +1,7 @@
 package dev.nytweetdeck.timeline;
 
 import dev.nytweetdeck.timeline.TimelinePage.Author;
+import dev.nytweetdeck.timeline.TimelinePage.Article;
 import dev.nytweetdeck.timeline.TimelinePage.CommunityNote;
 import dev.nytweetdeck.timeline.TimelinePage.EmbeddedPost;
 import dev.nytweetdeck.timeline.TimelinePage.Media;
@@ -121,9 +122,14 @@ public class TimelineResponseParser {
         var quotedTweet = findReferencedTweet(
                 content, "quoted_status_result", "quotedRefResult");
         var quotedPost = parseEmbeddedPost(quotedTweet);
+        var article = parseArticle(content);
+        var media = parseMedia(legacy.get("extended_entities"));
+        var omittedUrls = omittedRedirectUrls(legacy, media, article != null);
+        var preTranslated = omitRedirectUrls(
+                parsePreTranslated(content, responseNode), omittedUrls);
         return new Post(
                 id,
-                text(legacy, "full_text"),
+                omitRedirectUrls(text(legacy, "full_text"), omittedUrls),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 author,
@@ -143,8 +149,9 @@ public class TimelineResponseParser {
                         quotedPost == null ? null : quotedPost.id()),
                 quotedPost,
                 parseCommunityNote(content, responseNode),
-                parsePreTranslated(content, responseNode),
-                parseMedia(legacy.get("extended_entities")));
+                preTranslated,
+                article,
+                media);
     }
 
     private static boolean isPromoted(JsonNode node) {
@@ -193,14 +200,127 @@ public class TimelineResponseParser {
             return null;
         }
         var legacy = node.get("legacy");
+        var article = parseArticle(node);
+        var media = parseMedia(legacy.get("extended_entities"));
+        var omittedUrls = omittedRedirectUrls(legacy, media, article != null);
         return new EmbeddedPost(
                 firstNonNull(text(node, "rest_id"), text(legacy, "id_str")),
-                text(legacy, "full_text"),
+                omitRedirectUrls(text(legacy, "full_text"), omittedUrls),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 parseAuthor(node),
-                parsePreTranslated(node, node),
-                parseMedia(legacy.get("extended_entities")));
+                omitRedirectUrls(parsePreTranslated(node, node), omittedUrls),
+                article,
+                media);
+    }
+
+    private static Article parseArticle(JsonNode tweet) {
+        var article = object(tweet, "article");
+        var results = object(article, "article_results");
+        var result = object(results, "result");
+        if (result == null) {
+            return null;
+        }
+        var id = firstNonBlank(text(result, "rest_id"), text(result, "id"));
+        var title = firstNonBlank(text(result, "title"));
+        if (id == null || title == null) {
+            return null;
+        }
+        var body = firstNonBlank(text(result, "plain_text"), articleText(result.get("content_state")));
+        var preview = firstNonBlank(text(result, "preview_text"), summarizeArticle(body));
+        var coverMedia = object(result, "cover_media");
+        var mediaInfo = object(coverMedia, "media_info");
+        var coverImage = firstNonBlank(
+                text(mediaInfo, "original_img_url"),
+                text(mediaInfo, "originalImgUrl"),
+                text(coverMedia, "media_url_https"));
+        return new Article(
+                id,
+                title,
+                preview,
+                body,
+                coverImage,
+                "https://x.com/i/article/" + id);
+    }
+
+    private static String articleText(JsonNode contentState) {
+        var blocks = contentState == null ? null : contentState.get("blocks");
+        if (blocks == null || !blocks.isArray()) {
+            return null;
+        }
+        var paragraphs = new ArrayList<String>();
+        for (var block : blocks) {
+            var paragraph = text(block, "text");
+            if (paragraph != null && !paragraph.isBlank()) {
+                paragraphs.add(paragraph.strip());
+            }
+        }
+        return paragraphs.isEmpty() ? null : String.join("\n\n", paragraphs);
+    }
+
+    private static String summarizeArticle(String body) {
+        if (body == null) {
+            return null;
+        }
+        var normalized = body.replaceAll("\\s+", " ").strip();
+        return normalized.length() <= 280 ? normalized : normalized.substring(0, 277) + "…";
+    }
+
+    private static List<String> omittedRedirectUrls(
+            JsonNode legacy, List<Media> media, boolean hasArticle) {
+        var urls = new ArrayList<String>();
+        if (!media.isEmpty()) {
+            collectEntityUrls(legacy == null ? null : legacy.path("extended_entities").get("media"), urls, false);
+            collectEntityUrls(legacy == null ? null : legacy.path("entities").get("media"), urls, false);
+        }
+        if (hasArticle) {
+            collectEntityUrls(legacy == null ? null : legacy.path("entities").get("urls"), urls, true);
+        }
+        return urls;
+    }
+
+    private static void collectEntityUrls(
+            JsonNode entities, List<String> urls, boolean articleOnly) {
+        if (entities == null || !entities.isArray()) {
+            return;
+        }
+        for (var entity : entities) {
+            var expanded = firstNonNull(text(entity, "expanded_url"), text(entity, "expandedUrl"));
+            if (articleOnly && (expanded == null || !expanded.matches("https?://(?:x|twitter)\\.com/i/article/.*"))) {
+                continue;
+            }
+            var url = text(entity, "url");
+            if (url != null && !url.isBlank()) {
+                urls.add(url);
+            }
+        }
+    }
+
+    private static String omitRedirectUrls(String value, List<String> omittedUrls) {
+        if (value == null || omittedUrls.isEmpty()) {
+            return value;
+        }
+        var normalized = value;
+        for (var url : omittedUrls) {
+            normalized = normalized.replace(url, "");
+        }
+        return normalized
+                .replaceAll("[ \\t]+(?=\\R|$)", "")
+                .replaceAll("(?m)^[ \\t]+", "")
+                .replaceAll("\\R{3,}", "\n\n")
+                .strip();
+    }
+
+    private static Translation omitRedirectUrls(
+            Translation translation, List<String> omittedUrls) {
+        if (translation == null) {
+            return null;
+        }
+        return new Translation(
+                omitRedirectUrls(translation.text(), omittedUrls),
+                translation.sourceLanguage(),
+                translation.targetLanguage(),
+                translation.provider());
     }
 
     private static CommunityNote parseCommunityNote(JsonNode tweet, JsonNode responseNode) {

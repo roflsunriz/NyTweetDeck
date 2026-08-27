@@ -128,6 +128,21 @@ class AuthenticatedGraphQlClientTest {
     }
 
     @Test
+    void requestsFullArticleFieldsOnlyForPostDetails() throws Exception {
+        var client = createClient("postDetail", "TweetResultByRestId");
+
+        var request = client
+                .prepareRequest("account-1", "postDetail", Map.of("tweetId", "700"))
+                .request();
+        var query = parseQuery(request.uri().getRawQuery());
+        var toggles = JsonMapper.builder().build().readTree(query.get("fieldToggles"));
+
+        assertThat(toggles.get("withArticleRichContentState").asBoolean()).isTrue();
+        assertThat(toggles.get("withArticlePlainText").asBoolean()).isTrue();
+        assertThat(toggles.get("withArticleSummaryText").asBoolean()).isTrue();
+    }
+
+    @Test
     void sendsTheNyTweetDeckUiLanguageToXWeb() throws Exception {
         var client = createClient();
 

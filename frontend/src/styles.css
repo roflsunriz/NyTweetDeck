@@ -766,24 +766,6 @@ select:focus-visible {
   color: color-mix(in srgb, var(--text) 85%, var(--accent));
 }
 
-.post-media {
-  display: grid;
-  gap: 4px;
-  margin: 8px 0;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.post-card .post-media img,
-.post-card .post-media video {
-  display: block;
-  width: 100%;
-  max-height: 360px;
-  background: #000;
-  object-fit: contain;
-}
-
 .quoted-post-card {
   display: grid;
   gap: 7px;

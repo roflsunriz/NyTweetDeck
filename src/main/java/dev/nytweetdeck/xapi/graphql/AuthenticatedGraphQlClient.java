@@ -37,7 +37,7 @@ public class AuthenticatedGraphQlClient {
             "withAuxiliaryUserLabels", false,
             "withArticleRichContentState", false,
             "withArticlePlainText", false,
-            "withArticleSummaryText", false,
+            "withArticleSummaryText", true,
             "withArticleVoiceOver", false,
             "withGrokAnalyze", false,
             "withDisallowedReplyControls", false);
@@ -123,11 +123,7 @@ public class AuthenticatedGraphQlClient {
         var account = accountStore.requireAccount(accountId);
         var operationUri = operation.resolveAgainst(profile.graphqlBaseUri());
 
-        var fieldToggles = operation.fieldToggles().isEmpty()
-                ? DEFAULT_FIELD_TOGGLES
-                : operation.fieldToggles().stream()
-                        .collect(java.util.stream.Collectors.toUnmodifiableMap(
-                                key -> key, key -> false));
+        var fieldToggles = selectFieldToggles(purpose, operation);
         String body = null;
         URI requestUri;
         if (operation.type() == OperationType.MUTATION) {
@@ -169,6 +165,24 @@ public class AuthenticatedGraphQlClient {
                     transactionIdService.generate("POST", requestUri));
         }
         return new PreparedRequest(requestBuilder.build(), operation);
+    }
+
+    private static Map<String, Boolean> selectFieldToggles(
+            String purpose, XApiProfile.GraphQlOperation operation) {
+        var keys = operation.fieldToggles().isEmpty()
+                ? DEFAULT_FIELD_TOGGLES.keySet()
+                : Set.copyOf(operation.fieldToggles());
+        var includeFullArticle = "postDetail".equals(purpose) || "conversation".equals(purpose);
+        var toggles = new LinkedHashMap<String, Boolean>();
+        for (var key : keys) {
+            var value = switch (key) {
+                case "withArticleRichContentState", "withArticlePlainText" -> includeFullArticle;
+                case "withArticleSummaryText" -> true;
+                default -> DEFAULT_FIELD_TOGGLES.getOrDefault(key, false);
+            };
+            toggles.put(key, value);
+        }
+        return Map.copyOf(toggles);
     }
 
     private boolean shouldRefreshTransaction(

@@ -129,6 +129,39 @@ describe("post actions", () => {
     expect(screen.getByRole("heading", { name: "引用" })).toBeDefined();
   });
 
+  test("hides a trailing media redirect and opens an X Article inside NyTweetDeck", async () => {
+    const user = userEvent.setup();
+    render(
+      <PostCard
+        post={{
+          ...post(),
+          text: "記事を公開しました https://t.co/article700",
+          article: {
+            id: "701",
+            title: "NyTweetDeckの記事",
+            previewText: "概要の最初の数行です。",
+            body: "最初の段落。\n\n全文の続き。",
+            coverImageUrl: "https://pbs.twimg.com/media/article-cover.jpg",
+            url: "https://x.com/i/article/701",
+          },
+        }}
+        accountId="account-1"
+        translation={translate("ja")}
+      />,
+    );
+
+    expect(screen.getByText("記事を公開しました")).toBeDefined();
+    expect(screen.queryByText(/t\.co/)).toBeNull();
+    expect(screen.getByText("概要の最初の数行です。")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "記事を読む: NyTweetDeckの記事" }));
+
+    expect(screen.getByRole("dialog", { name: "NyTweetDeckの記事" })).toBeDefined();
+    expect(screen.getByText(/全文の続き/)).toBeDefined();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "NyTweetDeckの記事" })).toBeNull();
+    expect(screen.getByText("記事を公開しました")).toBeDefined();
+  });
+
   test("shows only subtle reposter context and renders a web-style quoted post card", async () => {
     const openUser = mock(() => undefined);
     const openQuotedPost = mock(() => undefined);

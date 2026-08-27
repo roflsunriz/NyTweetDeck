@@ -15,6 +15,7 @@ import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { useRelativeTime } from "../model/relative-time";
 import { ComposerDialog } from "./composer-dialog";
+import { ArticleCard } from "./article-card";
 import { usePostTranslationSettings } from "./post-translation-context";
 import {
   type PostTranslationView,
@@ -49,7 +50,17 @@ export interface TimelinePost {
   quotedPost: EmbeddedPost | null;
   preTranslated?: PreTranslatedPost | null;
   communityNote?: CommunityNote | null;
+  article?: TimelineArticle | null;
   media: Array<{ id: string; type: string; url: string; previewUrl: string }>;
+}
+
+export interface TimelineArticle {
+  id: string;
+  title: string;
+  previewText: string | null;
+  body: string | null;
+  coverImageUrl: string | null;
+  url: string;
 }
 
 interface CommunityNote {
@@ -66,6 +77,7 @@ interface EmbeddedPost {
   createdAt: string | null;
   author: TimelinePost["author"];
   preTranslated?: PreTranslatedPost | null;
+  article?: TimelineArticle | null;
   media: TimelinePost["media"];
 }
 
@@ -76,6 +88,7 @@ interface PostCardProps {
   onOpen?: () => void;
   onOpenUser?: (userId: string) => void;
   onOpenQuotedPost?: (postId: string) => void;
+  onOpenImage?: (media: TimelinePost["media"][number]) => void;
   display?: DisplayPreferences;
 }
 
@@ -86,6 +99,7 @@ export function PostCard({
   onOpen,
   onOpenUser,
   onOpenQuotedPost,
+  onOpenImage,
   display = defaultDisplayPreferences,
 }: PostCardProps) {
   const [liked, setLiked] = useState(post.liked);
@@ -114,6 +128,10 @@ export function PostCard({
     preTranslated: post.preTranslated,
     active: translationInViewport,
   });
+  const visibleText = omitTrailingRedirectLink(
+    postTranslation.visibleText,
+    post.media.length > 0 || post.article != null,
+  );
 
   useEffect(() => setLiked(post.liked), [post.liked]);
   useEffect(() => setReposted(post.reposted), [post.reposted]);
@@ -311,10 +329,10 @@ export function PostCard({
           </button>
         )}
         {onOpen === undefined ? (
-          <p className="post-text">{renderPostText(postTranslation.visibleText)}</p>
+          <p className="post-text">{renderPostText(visibleText)}</p>
         ) : (
           <button className="post-open-button post-text" type="button" onClick={onOpen}>
-            {renderPostText(postTranslation.visibleText)}
+            {renderPostText(visibleText)}
           </button>
         )}
         <PostTranslationStatus state={postTranslation} translation={translation} />
@@ -340,8 +358,18 @@ export function PostCard({
                   poster={media.previewUrl}
                   src={media.url}
                 />
-              ) : (
+              ) : onOpenImage === undefined ? (
                 <img key={media.id} loading="lazy" src={media.url} alt="" />
+              ) : (
+                <button
+                  className="post-image-open"
+                  key={media.id}
+                  type="button"
+                  aria-label={translation.fullSizeImage}
+                  onClick={() => onOpenImage(media)}
+                >
+                  <img loading="lazy" src={media.url} alt="" />
+                </button>
               ),
             )}
           </div>
@@ -354,6 +382,14 @@ export function PostCard({
               </a>
             ))}
           </div>
+        )}
+        {post.article != null && (
+          <ArticleCard
+            article={post.article}
+            postId={post.id}
+            accountId={accountId}
+            translation={translation}
+          />
         )}
         {post.quotedPost != null && (
           <QuotedPostCard
@@ -621,6 +657,10 @@ function QuotedPostCard({
     preTranslated: post.preTranslated,
     active: translationActive,
   });
+  const visibleText = omitTrailingRedirectLink(
+    postTranslation.visibleText,
+    post.media.length > 0 || post.article != null,
+  );
   return (
     <article className="quoted-post-card">
       <button
@@ -646,7 +686,9 @@ function QuotedPostCard({
             </time>
           )}
         </span>
-        <span className="quoted-post-text">{renderPostText(postTranslation.visibleText)}</span>
+        {visibleText.length > 0 && (
+          <span className="quoted-post-text">{renderPostText(visibleText)}</span>
+        )}
         {display.mediaPreview && post.media.length > 0 && (
           <span className="quoted-post-media">
             {post.media.map((media) => (
@@ -656,6 +698,14 @@ function QuotedPostCard({
         )}
       </button>
       <PostTranslationStatus state={postTranslation} translation={translation} compact />
+      {post.article != null && (
+        <ArticleCard
+          article={post.article}
+          postId={post.id}
+          accountId={accountId}
+          translation={translation}
+        />
+      )}
     </article>
   );
 }
@@ -724,6 +774,10 @@ function renderPostText(text: string) {
       segment
     );
   });
+}
+
+function omitTrailingRedirectLink(text: string, enabled: boolean): string {
+  return enabled ? text.replace(/(?:\s*https:\/\/t\.co\/[A-Za-z0-9]+)+\s*$/u, "").trimEnd() : text;
 }
 
 function PostMenu({
