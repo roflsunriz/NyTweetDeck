@@ -74,7 +74,7 @@ chrome_pid=$!
 
 cdp_ready=false
 cdp_port=""
-for _ in {1..40}; do
+for _ in {1..120}; do
   if ! kill -0 "$chrome_pid" 2>/dev/null; then
     echo "Chromeがデバッグ接続の準備前に終了しました。" >&2
     cat target/ui-chrome.log >&2 || true
@@ -91,7 +91,7 @@ for _ in {1..40}; do
   sleep 0.25
 done
 if [[ "$cdp_ready" != true ]]; then
-  echo "Chromeのデバッグ接続が10秒以内に準備できませんでした。" >&2
+  echo "Chromeのデバッグ接続が30秒以内に準備できませんでした。" >&2
   cat target/ui-chrome.log >&2 || true
   exit 1
 fi
