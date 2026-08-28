@@ -127,7 +127,7 @@ describe("NyTweetDeck shell", () => {
     expect(document.documentElement.dataset.density).toBe("compact");
     expect(document.documentElement.dataset.reduceMotion).toBe("true");
     await waitFor(() => expect(sharedSnapshot?.layout.display.videoVolume).toBe(35));
-    expect(sharedSnapshot?.layout.version).toBe(7);
+    expect(sharedSnapshot?.layout.version).toBe(8);
     expect(sharedSnapshot?.layout.display.accentColor).toBe("purple");
     expect(sharedSnapshot?.layout.display.reduceMotion).toBe(true);
     expect(sharedSnapshot?.layout.display.autoTranslatePosts).toBe(false);

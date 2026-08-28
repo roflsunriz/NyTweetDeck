@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -27,6 +28,8 @@ public class TimelineResponseParser {
 
     private static final DateTimeFormatter X_DATE_FORMAT =
             DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss Z yyyy", Locale.ENGLISH);
+    private static final Set<String> CONVERSATION_SECTIONS =
+            Set.of("HighQuality", "LowQuality", "AbusiveQuality");
 
     private final ObjectMapper objectMapper;
 
@@ -35,29 +38,43 @@ public class TimelineResponseParser {
     }
 
     public TimelinePage parse(String body) {
+        return parse(body, true);
+    }
+
+    public TimelinePage parseInResponseOrder(String body) {
+        return parse(body, false);
+    }
+
+    private TimelinePage parse(String body, boolean sortChronologically) {
         try {
             var root = objectMapper.readTree(body);
             var posts = new LinkedHashMap<String, Post>();
             var cursor = new String[1];
-            visit(root, posts, cursor);
+            visit(root, posts, cursor, null);
             var sortedPosts = new ArrayList<>(posts.values());
-            sortedPosts.sort(Comparator.comparing(
-                            TimelineResponseParser::sortableTime,
-                            Comparator.nullsLast(Comparator.reverseOrder()))
-                    .thenComparing(Post::id, Comparator.reverseOrder()));
+            if (sortChronologically) {
+                sortedPosts.sort(Comparator.comparing(
+                                TimelineResponseParser::sortableTime,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(Post::id, Comparator.reverseOrder()));
+            }
             return new TimelinePage(sortedPosts, cursor[0]);
         } catch (JacksonException | IllegalArgumentException exception) {
             throw new XApiHttpException("タイムライン応答を解析できません。", exception);
         }
     }
 
-    private void visit(JsonNode node, Map<String, Post> posts, String[] cursor) {
+    private void visit(
+            JsonNode node,
+            Map<String, Post> posts,
+            String[] cursor,
+            String inheritedConversationSection) {
         if (node == null || node.isNull()) {
             return;
         }
         if (node.isArray()) {
             for (JsonNode child : node) {
-                visit(child, posts, cursor);
+                visit(child, posts, cursor, inheritedConversationSection);
             }
             return;
         }
@@ -69,15 +86,17 @@ public class TimelineResponseParser {
             return;
         }
 
+        var conversationSection = firstNonBlank(
+                conversationSection(node), inheritedConversationSection);
         findCursor(node, cursor);
         var tweetNode = unwrapTweet(node);
         if (isTweet(tweetNode)) {
-            var post = parsePost(tweetNode, node);
+            var post = parsePost(tweetNode, node, conversationSection);
             posts.putIfAbsent(post.id(), post);
             return;
         }
         for (Map.Entry<String, JsonNode> property : node.properties()) {
-            visit(property.getValue(), posts, cursor);
+            visit(property.getValue(), posts, cursor, conversationSection);
         }
     }
 
@@ -110,7 +129,8 @@ public class TimelineResponseParser {
                 && (text(node, "rest_id") != null || text(legacy, "id_str") != null);
     }
 
-    private static Post parsePost(JsonNode node, JsonNode responseNode) {
+    private static Post parsePost(
+            JsonNode node, JsonNode responseNode, String conversationSection) {
         var retweetedTweet = findReferencedTweet(
                 node, "retweeted_status_result", "retweetRefResult");
         var content = retweetedTweet == null ? node : retweetedTweet;
@@ -134,6 +154,7 @@ public class TimelineResponseParser {
                 parseCreatedAt(text(legacy, "created_at")),
                 author,
                 repostedBy,
+                conversationSection,
                 number(legacy, "reply_count"),
                 number(legacy, "retweet_count"),
                 number(legacy, "quote_count"),
@@ -152,6 +173,14 @@ public class TimelineResponseParser {
                 preTranslated,
                 article,
                 media);
+    }
+
+    private static String conversationSection(JsonNode node) {
+        var clientEventInfo = object(node, "clientEventInfo");
+        var details = object(clientEventInfo, "details");
+        var conversationDetails = object(details, "conversationDetails");
+        var section = text(conversationDetails, "conversationSection");
+        return section != null && CONVERSATION_SECTIONS.contains(section) ? section : null;
     }
 
     private static boolean isPromoted(JsonNode node) {

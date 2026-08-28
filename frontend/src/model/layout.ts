@@ -1,5 +1,5 @@
 export const layoutStorageKey = "nytweetdeck.layout";
-export const layoutVersion = 7 as const;
+export const layoutVersion = 8 as const;
 export const trendSearchHistoryLimit = 20;
 
 export const columnKinds = [
@@ -56,6 +56,8 @@ export type Theme = "system" | "light" | "dark";
 export type FontSize = "small" | "default" | "large";
 export type AccentColor = "blue" | "yellow" | "pink" | "purple" | "orange" | "green";
 export type Density = "comfortable" | "compact";
+export const replySorts = ["relevance", "recency", "likes"] as const;
+export type ReplySort = (typeof replySorts)[number];
 
 export interface DisplayPreferences {
   fontSize: FontSize;
@@ -95,6 +97,7 @@ export interface AppLayout {
   locale: Locale;
   theme: Theme;
   activeAccountId: string | null;
+  replySort: ReplySort;
   display: DisplayPreferences;
   trendSearchHistory: string[];
 }
@@ -113,6 +116,7 @@ export function createDefaultLayout(): AppLayout {
     locale: "ja",
     theme: "system",
     activeAccountId: null,
+    replySort: "relevance",
     display: { ...defaultDisplayPreferences },
     trendSearchHistory: [],
   };
@@ -129,6 +133,15 @@ export function loadLayout(storage: StorageLike): AppLayout {
     if (isAppLayout(candidate)) {
       return candidate;
     }
+    if (isLegacyLayoutV7(candidate)) {
+      const migrated: AppLayout = {
+        ...candidate,
+        version: layoutVersion,
+        replySort: "relevance",
+      };
+      saveLayout(storage, migrated);
+      return migrated;
+    }
     if (isLegacyLayoutV1(candidate)) {
       const migrated: AppLayout = {
         version: layoutVersion,
@@ -137,6 +150,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
         locale: candidate.locale,
         theme: candidate.theme,
         activeAccountId: null,
+        replySort: "relevance",
         display: { ...defaultDisplayPreferences },
         trendSearchHistory: [],
       };
@@ -148,6 +162,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
         ...candidate,
         version: layoutVersion,
         columns: candidate.columns.map((column) => ({ ...column, label: null })),
+        replySort: "relevance",
         display: { ...defaultDisplayPreferences },
         trendSearchHistory: [],
       };
@@ -159,6 +174,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
         ...candidate,
         version: layoutVersion,
         columns: candidate.columns.map((column) => ({ ...column, label: null })),
+        replySort: "relevance",
         display: {
           ...candidate.display,
           autoTranslatePosts: true,
@@ -174,6 +190,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
+        replySort: "relevance",
         display: {
           ...candidate.display,
           autoTranslatePosts: true,
@@ -189,6 +206,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
+        replySort: "relevance",
         display: { ...candidate.display, videoLoop: true, videoVolume: 100 },
         trendSearchHistory: [],
       };
@@ -199,6 +217,7 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
+        replySort: "relevance",
         display: { ...candidate.display, videoLoop: true, videoVolume: 100 },
       };
       saveLayout(storage, migrated);
@@ -256,6 +275,7 @@ export function isAppLayout(value: unknown): value is AppLayout {
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
     !isNullableString(value.activeAccountId, 200) ||
+    !isReplySort(value.replySort) ||
     !isDisplayPreferences(value.display) ||
     !isTrendSearchHistory(value.trendSearchHistory)
   ) {
@@ -270,9 +290,26 @@ export function isAppLayout(value: unknown): value is AppLayout {
   return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
 }
 
+function isLegacyLayoutV7(value: unknown): value is Omit<AppLayout, "version" | "replySort"> & {
+  version: 7;
+} {
+  if (!isRecord(value) || value.version !== 7) return false;
+  if (
+    !isLocale(value.locale) ||
+    !isTheme(value.theme) ||
+    !isNullableString(value.activeAccountId, 200) ||
+    !isDisplayPreferences(value.display) ||
+    !isTrendSearchHistory(value.trendSearchHistory)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) return false;
+  return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
+}
+
 function isLegacyLayoutV5(value: unknown): value is Omit<
   AppLayout,
-  "version" | "trendSearchHistory" | "display"
+  "version" | "trendSearchHistory" | "display" | "replySort"
 > & {
   version: 5;
   display: LegacyDisplayPreferencesV5;
@@ -294,7 +331,10 @@ function isLegacyLayoutV5(value: unknown): value is Omit<
   return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
 }
 
-function isLegacyLayoutV6(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
+function isLegacyLayoutV6(value: unknown): value is Omit<
+  AppLayout,
+  "version" | "display" | "replySort"
+> & {
   version: 6;
   display: LegacyDisplayPreferencesV5;
 } {
@@ -318,7 +358,7 @@ function isLegacyLayoutV6(value: unknown): value is Omit<AppLayout, "version" | 
 
 function isLegacyLayoutV3(value: unknown): value is Omit<
   AppLayout,
-  "version" | "columns" | "display" | "trendSearchHistory"
+  "version" | "columns" | "display" | "trendSearchHistory" | "replySort"
 > & {
   version: 3;
   columns: Array<Omit<ColumnConfig, "label">>;
@@ -343,7 +383,7 @@ function isLegacyLayoutV3(value: unknown): value is Omit<
 
 function isLegacyLayoutV4(value: unknown): value is Omit<
   AppLayout,
-  "version" | "display" | "trendSearchHistory"
+  "version" | "display" | "trendSearchHistory" | "replySort"
 > & {
   version: 4;
   display: LegacyDisplayPreferencesV3;
@@ -367,7 +407,7 @@ function isLegacyLayoutV4(value: unknown): value is Omit<
 
 function isLegacyLayoutV2(value: unknown): value is Omit<
   AppLayout,
-  "version" | "display" | "trendSearchHistory"
+  "version" | "display" | "trendSearchHistory" | "replySort"
 > & {
   version: 2;
 } {
@@ -412,7 +452,7 @@ function isLegacyTargetedColumn(value: unknown): value is Omit<ColumnConfig, "la
 
 function isLegacyLayoutV1(value: unknown): value is Omit<
   AppLayout,
-  "version" | "activeAccountId" | "display" | "trendSearchHistory"
+  "version" | "activeAccountId" | "display" | "trendSearchHistory" | "replySort"
 > & {
   version: 1;
   columns: Array<Omit<ColumnConfig, "target" | "label">>;
@@ -457,6 +497,10 @@ function isLocale(value: unknown): value is Locale {
 
 function isTheme(value: unknown): value is Theme {
   return value === "system" || value === "light" || value === "dark";
+}
+
+function isReplySort(value: unknown): value is ReplySort {
+  return typeof value === "string" && replySorts.includes(value as ReplySort);
 }
 
 function isDisplayPreferences(value: unknown): value is DisplayPreferences {

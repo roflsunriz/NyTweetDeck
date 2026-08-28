@@ -5,6 +5,7 @@ export interface TimelinePost {
   createdAt: string | null;
   author: TimelineAuthor;
   repostedBy: TimelineAuthor | null;
+  conversationSection?: ConversationSection | null;
   replyCount: number;
   repostCount: number;
   quoteCount: number;
@@ -22,6 +23,8 @@ export interface TimelinePost {
   article?: TimelineArticle | null;
   media: TimelineMedia[];
 }
+
+export type ConversationSection = "HighQuality" | "LowQuality" | "AbusiveQuality";
 
 export interface TimelinePage {
   posts: TimelinePost[];

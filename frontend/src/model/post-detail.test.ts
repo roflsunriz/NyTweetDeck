@@ -28,7 +28,11 @@ describe("post detail requests", () => {
     expect(requests).toBe(2);
     await loadPostDetail("account-1", "249", "fr");
     expect(requests).toBe(3);
+    await loadPostDetail("account-1", "249", "fr", "likes");
+    expect(requests).toBe(4);
     expect(urls[0]).toContain("language=ja");
+    expect(urls[0]).toContain("replySort=relevance");
     expect(urls[2]).toContain("language=fr");
+    expect(urls[3]).toContain("replySort=likes");
   });
 });

@@ -9,6 +9,7 @@ public record LayoutSettings(
         String locale,
         String theme,
         String activeAccountId,
+        String replySort,
         Display display,
         List<String> trendSearchHistory) {
 

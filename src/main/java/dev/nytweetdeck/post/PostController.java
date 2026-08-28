@@ -39,8 +39,9 @@ public class PostController {
             @PathVariable String postId,
             @RequestParam String accountId,
             @RequestParam(required = false) String cursor,
-            @RequestParam(defaultValue = "ja") String language) {
-        return postService.detail(accountId, postId, cursor, language);
+            @RequestParam(defaultValue = "ja") String language,
+            @RequestParam(defaultValue = "relevance") String replySort) {
+        return postService.detail(accountId, postId, cursor, language, replySort);
     }
 
     @PostMapping

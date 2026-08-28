@@ -6,6 +6,7 @@ import dev.nytweetdeck.timeline.TimelineResponseParser;
 import dev.nytweetdeck.xapi.graphql.AuthenticatedGraphQlClient;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 
@@ -26,11 +27,20 @@ public class PostService {
     }
 
     public PostDetail detail(String accountId, String postId, String cursor) {
-        return detail(accountId, postId, cursor, "ja");
+        return detail(accountId, postId, cursor, "ja", "relevance");
     }
 
     public PostDetail detail(
             String accountId, String postId, String cursor, String language) {
+        return detail(accountId, postId, cursor, language, "relevance");
+    }
+
+    public PostDetail detail(
+            String accountId,
+            String postId,
+            String cursor,
+            String language,
+            String replySort) {
         validatePostId(postId);
         var detailVariables = new LinkedHashMap<String, Object>();
         detailVariables.put("tweetId", postId);
@@ -44,7 +54,7 @@ public class PostService {
         var conversationVariables = new LinkedHashMap<String, Object>();
         conversationVariables.put("focalTweetId", postId);
         conversationVariables.put("isReaderMode", false);
-        conversationVariables.put("rankingMode", "Relevance");
+        conversationVariables.put("rankingMode", rankingMode(replySort));
         conversationVariables.put("includePromotedContent", false);
         conversationVariables.put("withCommunity", true);
         conversationVariables.put("withQuickPromoteEligibilityTweetFields", false);
@@ -55,7 +65,7 @@ public class PostService {
         }
         var conversationResult = graphQlClient.execute(
                 accountId, "conversation", conversationVariables, language);
-        var conversationPage = responseParser.parse(conversationResult.rawJson());
+        var conversationPage = responseParser.parseInResponseOrder(conversationResult.rawJson());
         var focal = postPage.posts().stream()
                 .filter(post -> post.id().equals(postId))
                 .findFirst()
@@ -67,6 +77,18 @@ public class PostService {
                 .filter(post -> !post.id().equals(postId))
                 .toList();
         return new PostDetail(focal, replies, conversationPage.nextCursor());
+    }
+
+    static String rankingMode(String replySort) {
+        var normalized = replySort == null
+                ? "relevance"
+                : replySort.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "relevance" -> "Relevance";
+            case "recency" -> "Recency";
+            case "likes" -> "Likes";
+            default -> throw new IllegalArgumentException("返信の並び順が不正です。");
+        };
     }
 
     public TimelinePage.Post create(

@@ -7,7 +7,8 @@ import java.util.Set;
 
 final class LayoutSettingsValidator {
 
-    private static final int CURRENT_LAYOUT_VERSION = 7;
+    private static final int CURRENT_LAYOUT_VERSION = 8;
+    private static final int LEGACY_LAYOUT_VERSION = 7;
     private static final int MAX_HISTORY = 20;
     private static final Set<String> COLUMN_KINDS = Set.of(
             "home", "following", "search", "notifications", "history", "user", "list",
@@ -23,7 +24,8 @@ final class LayoutSettingsValidator {
 
     static LayoutSettings validateAndCopy(LayoutSettings settings) {
         if (settings == null || settings.version() == null
-                || settings.version() != CURRENT_LAYOUT_VERSION) {
+                || (settings.version() != CURRENT_LAYOUT_VERSION
+                        && settings.version() != LEGACY_LAYOUT_VERSION)) {
             throw new IllegalArgumentException("未対応のレイアウト設定版です。");
         }
         var columns = validateColumns(settings.columns());
@@ -35,15 +37,23 @@ final class LayoutSettingsValidator {
             throw new IllegalArgumentException("テーマが不正です。");
         }
         validateNullableText(settings.activeAccountId(), 200, "選択アカウント");
+        var replySort = settings.version() == LEGACY_LAYOUT_VERSION
+                ? "relevance"
+                : settings.replySort();
+        if (replySort == null
+                || !Set.of("relevance", "recency", "likes").contains(replySort)) {
+            throw new IllegalArgumentException("返信の並び順が不正です。");
+        }
         var display = validateDisplay(settings.display());
         var history = validateHistory(settings.trendSearchHistory());
         return new LayoutSettings(
-                settings.version(),
+                CURRENT_LAYOUT_VERSION,
                 columns,
                 navItems,
                 settings.locale(),
                 settings.theme(),
                 settings.activeAccountId(),
+                replySort,
                 display,
                 history);
     }

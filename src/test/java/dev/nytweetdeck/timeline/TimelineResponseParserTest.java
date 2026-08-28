@@ -283,6 +283,35 @@ class TimelineResponseParserTest {
     }
 
     @Test
+    void preservesNativeReplyOrderAndConversationQualityClassification() {
+        var body = """
+                {"data":{"threaded_conversation_with_injections_v2":{"instructions":[{
+                "type":"TimelineAddEntries","entries":[{"entryId":"conversationthread-1",
+                "content":{"entryType":"TimelineTimelineModule","displayType":
+                "VerticalConversation","clientEventInfo":{"details":{"conversationDetails":{
+                "conversationSection":"LowQuality"}}},"items":[{"entryId":"reply-1",
+                "item":{"itemContent":{"tweet_results":{"result":{"__typename":"Tweet",
+                "rest_id":"701","legacy":{"full_text":"first native reply",
+                "created_at":"2019-01-01T00:00:00Z"}}}},"clientEventInfo":{"details":{
+                "conversationDetails":{"conversationSection":"LowQuality"}}}}}]}},
+                {"entryId":"conversationthread-2","content":{"entryType":
+                "TimelineTimelineModule","displayType":"VerticalConversation",
+                "clientEventInfo":{"details":{"conversationDetails":{"conversationSection":
+                "HighQuality"}}},"items":[{"entryId":"reply-2","item":{"itemContent":{
+                "tweet_results":{"result":{"__typename":"Tweet","rest_id":"702","legacy":{
+                "full_text":"second native reply","created_at":"2020-01-01T00:00:00Z"}}}}}}]}}
+                ]}]}}}
+                """;
+
+        var page = parser.parseInResponseOrder(body);
+
+        assertThat(page.posts()).extracting(TimelinePage.Post::id)
+                .containsExactly("701", "702");
+        assertThat(page.posts().get(0).conversationSection()).isEqualTo("LowQuality");
+        assertThat(page.posts().get(1).conversationSection()).isEqualTo("HighQuality");
+    }
+
+    @Test
     void preservesInitialEngagementStateAndCommunityNoteDetails() {
         var body = """
                 {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"500",

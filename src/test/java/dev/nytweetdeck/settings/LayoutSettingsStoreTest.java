@@ -53,11 +53,57 @@ class LayoutSettingsStoreTest {
                                 "ja",
                                 "dark",
                                 null,
+                                "relevance",
                                 display(),
                                 List.of())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("レイアウト設定版");
         assertThat(store.current()).contains(first.snapshot());
+    }
+
+    @Test
+    void migratesVersionSevenToTheDefaultReplyOrder() {
+        var current = layout("dark", null);
+        var legacy = new LayoutSettings(
+                7,
+                current.columns(),
+                current.navItems(),
+                current.locale(),
+                current.theme(),
+                current.activeAccountId(),
+                null,
+                current.display(),
+                current.trendSearchHistory());
+
+        var migrated = LayoutSettingsValidator.validateAndCopy(legacy);
+
+        assertThat(migrated.version()).isEqualTo(8);
+        assertThat(migrated.replySort()).isEqualTo("relevance");
+    }
+
+    @Test
+    void loadsAStoredVersionSevenLayoutWithoutLosingExistingSettings() throws Exception {
+        var path = temporaryDirectory.resolve("settings.json");
+        Files.writeString(path, """
+                {"schemaVersion":1,"revision":4,"layout":{"version":7,
+                "columns":[{"id":"home-1","kind":"home","target":null,"label":null}],
+                "navItems":["compose","home"],"locale":"ja","theme":"dark",
+                "activeAccountId":"account-1","display":{"fontSize":"default",
+                "accentColor":"purple","density":"comfortable","reduceMotion":false,
+                "mediaPreview":true,"videoAutoplay":false,"videoLoop":true,
+                "videoVolume":100,"autoTranslatePosts":true},"trendSearchHistory":["AI"]}}
+                """);
+
+        var loaded = new LayoutSettingsStore(JsonMapper.builder().build(), path);
+
+        assertThat(loaded.current()).hasValueSatisfying(snapshot -> {
+            assertThat(snapshot.revision()).isEqualTo(4);
+            assertThat(snapshot.layout().version()).isEqualTo(8);
+            assertThat(snapshot.layout().replySort()).isEqualTo("relevance");
+            assertThat(snapshot.layout().activeAccountId()).isEqualTo("account-1");
+            assertThat(snapshot.layout().display().accentColor()).isEqualTo("purple");
+            assertThat(snapshot.layout().trendSearchHistory()).containsExactly("AI");
+        });
     }
 
     @Test
@@ -151,12 +197,13 @@ class LayoutSettingsStoreTest {
 
     static LayoutSettings layout(String theme, String activeAccountId) {
         return new LayoutSettings(
-                7,
+                8,
                 List.of(new LayoutSettings.Column("home-1", "home", null, null)),
                 List.of("compose", "home"),
                 "ja",
                 theme,
                 activeAccountId,
+                "relevance",
                 display(),
                 List.of("NyTweetDeck"));
     }

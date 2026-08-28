@@ -1,6 +1,11 @@
+import { ChevronDown, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Translation } from "../i18n/translations";
-import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
+import {
+  defaultDisplayPreferences,
+  type DisplayPreferences,
+  type ReplySort,
+} from "../model/layout";
 import { loadPostDetail, type PostDetail } from "../model/post-detail";
 import { ComposerDialog } from "./composer-dialog";
 import { Modal } from "./modal";
@@ -31,13 +36,15 @@ export function PostDetailDialog({
   const [error, setError] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const { locale } = usePostTranslationSettings();
+  const [showPossibleSpam, setShowPossibleSpam] = useState(false);
+  const { locale, replySort, setReplySort } = usePostTranslationSettings();
 
   useEffect(() => {
     let active = true;
     setDetail(null);
     setError(null);
-    void loadPostDetail(accountId, postId, locale)
+    setShowPossibleSpam(false);
+    void loadPostDetail(accountId, postId, locale, replySort)
       .then((value) => {
         if (active) setDetail(value);
       })
@@ -47,7 +54,10 @@ export function PostDetailDialog({
     return () => {
       active = false;
     };
-  }, [accountId, locale, postId, translation.timelineLoadError]);
+  }, [accountId, locale, postId, replySort, translation.timelineLoadError]);
+
+  const regularReplies = detail?.replies.filter((reply) => !isPossibleSpam(reply)) ?? [];
+  const possibleSpamReplies = detail?.replies.filter(isPossibleSpam) ?? [];
 
   return (
     <>
@@ -75,22 +85,73 @@ export function PostDetailDialog({
               >
                 {translation.reply}
               </button>
-              <h3>{translation.replies}</h3>
+              <div className="detail-replies-header">
+                <h3>{translation.replies}</h3>
+                <label className="reply-sort-control">
+                  <span>{translation.replySort}</span>
+                  <select
+                    data-testid="reply-sort"
+                    value={replySort}
+                    onChange={(event) => setReplySort(event.target.value as ReplySort)}
+                  >
+                    <option value="relevance">{translation.replySortRelevance}</option>
+                    <option value="recency">{translation.replySortRecency}</option>
+                    <option value="likes">{translation.replySortLikes}</option>
+                  </select>
+                </label>
+              </div>
               {detail.replies.length === 0 ? (
                 <p>{translation.noPosts}</p>
               ) : (
-                detail.replies.map((reply) => (
-                  <PostCard
-                    key={reply.id}
-                    post={reply}
-                    accountId={accountId}
-                    translation={translation}
-                    display={display}
-                    onOpenQuotedPost={onOpenPost}
-                    onOpenUser={onOpenUser}
-                    onOpenImage={(media) => setImageUrl(media.url)}
-                  />
-                ))
+                <>
+                  {regularReplies.map((reply) => (
+                    <PostCard
+                      key={reply.id}
+                      post={reply}
+                      accountId={accountId}
+                      translation={translation}
+                      display={display}
+                      onOpenQuotedPost={onOpenPost}
+                      onOpenUser={onOpenUser}
+                      onOpenImage={(media) => setImageUrl(media.url)}
+                    />
+                  ))}
+                  {possibleSpamReplies.length > 0 && (
+                    <section className="possible-spam-replies">
+                      <button
+                        className="possible-spam-toggle"
+                        type="button"
+                        aria-expanded={showPossibleSpam}
+                        aria-label={translation.togglePossibleSpamReplies(
+                          showPossibleSpam,
+                          possibleSpamReplies.length,
+                        )}
+                        onClick={() => setShowPossibleSpam((current) => !current)}
+                      >
+                        <ShieldAlert aria-hidden="true" size={17} />
+                        <span>{translation.possibleSpamReplies(possibleSpamReplies.length)}</span>
+                        <ChevronDown
+                          aria-hidden="true"
+                          className={showPossibleSpam ? "expanded" : undefined}
+                          size={17}
+                        />
+                      </button>
+                      {showPossibleSpam &&
+                        possibleSpamReplies.map((reply) => (
+                          <PostCard
+                            key={reply.id}
+                            post={reply}
+                            accountId={accountId}
+                            translation={translation}
+                            display={display}
+                            onOpenQuotedPost={onOpenPost}
+                            onOpenUser={onOpenUser}
+                            onOpenImage={(media) => setImageUrl(media.url)}
+                          />
+                        ))}
+                    </section>
+                  )}
+                </>
               )}
             </>
           )}
@@ -109,5 +170,11 @@ export function PostDetailDialog({
         <ImageViewer src={imageUrl} translation={translation} onClose={() => setImageUrl(null)} />
       )}
     </>
+  );
+}
+
+function isPossibleSpam(reply: PostDetail["replies"][number]): boolean {
+  return (
+    reply.conversationSection === "LowQuality" || reply.conversationSection === "AbusiveQuality"
   );
 }

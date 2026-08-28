@@ -1,5 +1,5 @@
 import type { TimelinePost } from "../components/post-card";
-import type { Locale } from "./layout";
+import type { Locale, ReplySort } from "./layout";
 
 export interface PostDetail {
   post: TimelinePost;
@@ -13,12 +13,13 @@ export function loadPostDetail(
   accountId: string,
   postId: string,
   language: Locale = "ja",
+  replySort: ReplySort = "relevance",
 ): Promise<PostDetail> {
-  const key = `${accountId}:${postId}:${language}`;
+  const key = `${accountId}:${postId}:${language}:${replySort}`;
   const existing = inFlight.get(key);
   if (existing !== undefined) return existing;
   const request = fetch(
-    `/api/v1/posts/${encodeURIComponent(postId)}?accountId=${encodeURIComponent(accountId)}&language=${encodeURIComponent(language)}`,
+    `/api/v1/posts/${encodeURIComponent(postId)}?accountId=${encodeURIComponent(accountId)}&language=${encodeURIComponent(language)}&replySort=${encodeURIComponent(replySort)}`,
   )
     .then(async (response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);

@@ -12,6 +12,7 @@ describe("layout settings transfer", () => {
     const source: AppLayout = {
       ...createDefaultLayout(),
       activeAccountId: "account-secret-id",
+      replySort: "likes",
       navItems: ["home", "search"],
       columns: [
         { id: "home", kind: "home" as const, target: null, label: null },
@@ -34,6 +35,7 @@ describe("layout settings transfer", () => {
     expect(imported.activeAccountId).toBe("current-account");
     expect(imported.navItems).toEqual(["home", "search"]);
     expect(imported.columns).toEqual(source.columns);
+    expect(imported.replySort).toBe("likes");
     expect(imported.display.videoVolume).toBe(35);
     expect(imported.trendSearchHistory).toEqual(["AI"]);
   });

@@ -137,6 +137,12 @@ export interface Translation {
   postFailed: string;
   postDetail: string;
   replies: string;
+  replySort: string;
+  replySortRelevance: string;
+  replySortRecency: string;
+  replySortLikes: string;
+  possibleSpamReplies: (count: number) => string;
+  togglePossibleSpamReplies: (expanded: boolean, count: number) => string;
   closeDetail: string;
   language: string;
   theme: string;
@@ -323,6 +329,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     postFailed: "ポストを送信できませんでした。",
     postDetail: "ポストの詳細",
     replies: "返信",
+    replySort: "返信の並び順",
+    replySortRelevance: "関連度",
+    replySortRecency: "最新",
+    replySortLikes: "いいね",
+    possibleSpamReplies: (count) => `スパムの可能性のあるリプライ (${count})`,
+    togglePossibleSpamReplies: (expanded, count) =>
+      `${count}件のスパムの可能性のあるリプライを${expanded ? "折り畳む" : "表示"}`,
     closeDetail: "詳細を閉じる",
     language: "表示言語",
     theme: "テーマ",
@@ -559,6 +572,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     postFailed: "Could not publish the post.",
     postDetail: "Post details",
     replies: "Replies",
+    replySort: "Reply order",
+    replySortRelevance: "Relevance",
+    replySortRecency: "Latest",
+    replySortLikes: "Likes",
+    possibleSpamReplies: (count) => `Possible spam replies (${count})`,
+    togglePossibleSpamReplies: (expanded, count) =>
+      `${expanded ? "Collapse" : "Show"} ${count} possible spam replies`,
     closeDetail: "Close details",
     language: "Language",
     theme: "Theme",

@@ -276,6 +276,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     window.__qaTimelineRequests = 0;
     window.__qaTimelineCursors = [];
     window.__qaTimelineVersion = 0;
+    window.__qaReplySortRequests = [];
     window.__qaHoldTimeline = false;
     window.__qaResolveTimeline = null;
     window.__qaPostActionRequests = [];
@@ -408,6 +409,8 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
         return Promise.resolve(response);
       }
       if (url.pathname === "/api/v1/posts/100") {
+        const replySort = url.searchParams.get("replySort") ?? "relevance";
+        window.__qaReplySortRequests.push(replySort);
         return Promise.resolve(Response.json({
           post: {
             id: "100", text: "Initial engagement state", language: "en",
@@ -431,7 +434,31 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
               previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
             }]
           },
-          replies: [], nextCursor: null
+          replies: [{
+            id: "reply-regular", text: replySort + " regular reply", language: "ja",
+            createdAt: "2026-08-28T00:00:00Z",
+            author: { id: "51", username: "regular", displayName: "Regular", avatarUrl: null, verified: false },
+            repostedBy: null, conversationSection: "HighQuality",
+            replyCount: 0, repostCount: 0, quoteCount: 0, likeCount: 2,
+            bookmarkCount: 0, viewCount: 4, liked: false, reposted: false, bookmarked: false,
+            replyToPostId: "100", replyToUsername: "qa", quotedPost: null, media: []
+          }, {
+            id: "reply-low", text: "low quality reply", language: "ja",
+            createdAt: "2026-08-28T00:00:00Z",
+            author: { id: "52", username: "low", displayName: "Low", avatarUrl: null, verified: false },
+            repostedBy: null, conversationSection: "LowQuality",
+            replyCount: 0, repostCount: 0, quoteCount: 0, likeCount: 0,
+            bookmarkCount: 0, viewCount: 1, liked: false, reposted: false, bookmarked: false,
+            replyToPostId: "100", replyToUsername: "qa", quotedPost: null, media: []
+          }, {
+            id: "reply-abusive", text: "abusive quality reply", language: "ja",
+            createdAt: "2026-08-28T00:00:00Z",
+            author: { id: "53", username: "abusive", displayName: "Abusive", avatarUrl: null, verified: false },
+            repostedBy: null, conversationSection: "AbusiveQuality",
+            replyCount: 0, repostCount: 0, quoteCount: 0, likeCount: 0,
+            bookmarkCount: 0, viewCount: 1, liked: false, reposted: false, bookmarked: false,
+            replyToPostId: "100", replyToUsername: "qa", quotedPost: null, media: []
+          }], nextCursor: null
         }));
       }
       if (url.pathname.startsWith("/api/v1/posts/100/actions/")) {
@@ -561,7 +588,7 @@ const trendScreenshot = await client.call<{ data: string }>("Page.captureScreens
   format: "png",
   fromSurface: true,
 });
-if (trendMetrics.layoutVersion !== 7) throw new Error("共有レイアウト版が不正です。");
+if (trendMetrics.layoutVersion !== 8) throw new Error("共有レイアウト版が不正です。");
 if (trendMetrics.activeAccountId !== "qa-account") {
   throw new Error(`保存済み#1アカウントの自動選択に失敗しました: ${JSON.stringify(trendMetrics)}`);
 }
@@ -1002,6 +1029,80 @@ const postDetailOpened = await client.evaluate<boolean>(`(() => {
 })()`);
 if (!postDetailOpened) throw new Error("画像付きポスト詳細を開けませんでした。");
 await waitForCondition('document.querySelector(".post-detail-content .post-image-open") !== null');
+await waitForCondition(`
+  document.querySelector('[data-testid="reply-sort"]')?.value === "relevance" &&
+  document.querySelector(".post-detail-content")?.textContent?.includes("relevance regular reply") === true &&
+  document.querySelector(".post-detail-content")?.textContent?.includes("low quality reply") === false &&
+  document.querySelector(".possible-spam-toggle")?.getAttribute("aria-expanded") === "false"
+`);
+const likesReplySortSelected = await client.evaluate<boolean>(`(() => {
+  const select = document.querySelector('[data-testid="reply-sort"]');
+  if (!(select instanceof HTMLSelectElement)) return false;
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+  setter?.call(select, "likes");
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+})()`);
+if (!likesReplySortSelected) throw new Error("返信をいいね順へ変更できませんでした。");
+await waitForCondition(`
+  window.__qaReplySortRequests.at(-1) === "likes" &&
+  document.querySelector(".post-detail-content")?.textContent?.includes("likes regular reply") === true &&
+  document.querySelector(".post-detail-content")?.textContent?.includes("low quality reply") === false &&
+  document.querySelector(".possible-spam-toggle")?.getAttribute("aria-expanded") === "false"
+`);
+await waitForCondition(
+  '(async () => (await (await fetch("/api/v1/settings/layout")).json()).layout.replySort === "likes")()',
+);
+const possibleSpamExpanded = await client.evaluate<boolean>(`(() => {
+  const button = document.querySelector(".possible-spam-toggle");
+  if (!(button instanceof HTMLButtonElement)) return false;
+  button.click();
+  return true;
+})()`);
+if (!possibleSpamExpanded) throw new Error("スパムの可能性のある返信を展開できませんでした。");
+await waitForCondition(`
+  document.querySelector(".possible-spam-toggle")?.getAttribute("aria-expanded") === "true" &&
+  document.querySelector(".post-detail-content")?.textContent?.includes("low quality reply") === true &&
+  document.querySelector(".post-detail-content")?.textContent?.includes("abusive quality reply") === true
+`);
+const replyControlsPositioned = await client.evaluate<boolean>(`(() => {
+  const header = document.querySelector(".detail-replies-header");
+  if (!(header instanceof HTMLElement)) return false;
+  header.scrollIntoView({ block: "start" });
+  return true;
+})()`);
+if (!replyControlsPositioned) throw new Error("返信並び替えUIを表示範囲へ移動できませんでした。");
+const replySortingMetrics = await client.evaluate<Record<string, unknown>>(`({
+  replySort: document.querySelector('[data-testid="reply-sort"]')?.value,
+  requestModes: window.__qaReplySortRequests,
+  possibleSpamExpanded: document.querySelector(".possible-spam-toggle")?.getAttribute("aria-expanded"),
+  possibleSpamReplyCount: document.querySelectorAll(".possible-spam-replies .post-card").length,
+  documentOverflow: document.documentElement.scrollWidth > innerWidth
+})`);
+if (
+  replySortingMetrics.replySort !== "likes" ||
+  replySortingMetrics.possibleSpamExpanded !== "true" ||
+  replySortingMetrics.possibleSpamReplyCount !== 2 ||
+  replySortingMetrics.documentOverflow !== false
+) {
+  throw new Error(
+    `返信並び替え・スパム折り畳み検証に失敗しました: ${JSON.stringify(replySortingMetrics)}`,
+  );
+}
+const replySortingScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const replySortingScreenshotPath = resolve(
+  import.meta.dir,
+  "../../target/ui-reply-sorting-spam-768x1024.png",
+);
+await Bun.write(replySortingScreenshotPath, Buffer.from(replySortingScreenshot.data, "base64"));
+results.push({
+  view: "reply-sorting-spam",
+  ...replySortingMetrics,
+  screenshotPath: replySortingScreenshotPath,
+});
 const imageOpened = await client.evaluate<boolean>(`(() => {
   const image = document.querySelector(".post-detail-content .post-image-open");
   if (!(image instanceof HTMLButtonElement)) return false;
@@ -1064,14 +1165,19 @@ const persistedVideoMetrics = await client.evaluate<Record<string, unknown>>(`((
     videoVolume: video instanceof HTMLVideoElement ? video.volume : null
   };
 })()`);
-const storedVideoLayout = await readSharedLayout<{ display?: Record<string, unknown> }>(client);
+const storedVideoLayout = await readSharedLayout<{
+  display?: Record<string, unknown>;
+  replySort?: unknown;
+}>(client);
 persistedVideoMetrics.storedLoop = storedVideoLayout.display?.videoLoop;
 persistedVideoMetrics.storedVolume = storedVideoLayout.display?.videoVolume;
+persistedVideoMetrics.storedReplySort = storedVideoLayout.replySort;
 if (
   persistedVideoMetrics.videoLoop !== false ||
   persistedVideoMetrics.videoVolume !== 0.35 ||
   persistedVideoMetrics.storedLoop !== false ||
-  persistedVideoMetrics.storedVolume !== 35
+  persistedVideoMetrics.storedVolume !== 35 ||
+  persistedVideoMetrics.storedReplySort !== "likes"
 ) {
   throw new Error(`動画設定の永続化検証に失敗しました: ${JSON.stringify(persistedVideoMetrics)}`);
 }

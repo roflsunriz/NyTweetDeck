@@ -246,6 +246,8 @@ function AppContent() {
       ...current,
       display: { ...current.display, autoTranslatePosts },
     }));
+  const setReplySort = (replySort: AppLayout["replySort"]) =>
+    setLayout((current) => ({ ...current, replySort }));
   const setNavigationItems = (navItems: NavItemId[]) =>
     setLayout((current) => ({ ...current, navItems }));
   const setActiveAccount = (activeAccountId: string) => {
@@ -347,6 +349,8 @@ function AppContent() {
         locale: layout.locale,
         autoTranslatePosts: layout.display.autoTranslatePosts,
         setAutoTranslatePosts,
+        replySort: layout.replySort,
+        setReplySort,
       }}
     >
       <div className="app-shell">

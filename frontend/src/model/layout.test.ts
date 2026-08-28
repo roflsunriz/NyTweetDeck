@@ -70,13 +70,13 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(7);
+    expect(migrated.version).toBe(8);
     expect(migrated.columns[0]?.target).toBeNull();
     expect(migrated.activeAccountId).toBeNull();
     expect(migrated.display.mediaPreview).toBe(true);
     expect(migrated.display.videoLoop).toBe(true);
     expect(migrated.display.videoVolume).toBe(100);
-    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(7);
+    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).version).toBe(8);
   });
 
   test("migrates version 2 layout while preserving columns and account", () => {
@@ -95,7 +95,7 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(7);
+    expect(migrated.version).toBe(8);
     expect(migrated.columns).toHaveLength(1);
     expect(migrated.activeAccountId).toBe("account-1");
     expect(migrated.display.accentColor).toBe("blue");
@@ -114,7 +114,7 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(7);
+    expect(migrated.version).toBe(8);
     expect(migrated.columns[0]?.label).toBeNull();
     expect(migrated.display.autoTranslatePosts).toBe(true);
   });
@@ -138,7 +138,7 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(7);
+    expect(migrated.version).toBe(8);
     expect(migrated.display.autoTranslatePosts).toBe(true);
     expect(migrated.display.videoLoop).toBe(true);
     expect(migrated.display.videoVolume).toBe(100);
@@ -165,7 +165,7 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(7);
+    expect(migrated.version).toBe(8);
     expect(migrated.columns[0]?.target).toBe("AI");
     expect(migrated.trendSearchHistory).toEqual([]);
     expect(migrated.display.videoLoop).toBe(true);
@@ -192,11 +192,23 @@ describe("layout storage", () => {
 
     const migrated = loadLayout(storage);
 
-    expect(migrated.version).toBe(7);
+    expect(migrated.version).toBe(8);
     expect(migrated.trendSearchHistory).toEqual(["AI"]);
     expect(migrated.display.videoAutoplay).toBe(true);
     expect(migrated.display.videoLoop).toBe(true);
     expect(migrated.display.videoVolume).toBe(100);
+  });
+
+  test("migrates version 7 with relevance as the remembered reply order", () => {
+    const storage = new MemoryStorage();
+    const { replySort: _removed, ...legacy } = createDefaultLayout();
+    storage.setItem(layoutStorageKey, JSON.stringify({ ...legacy, version: 7 }));
+
+    const migrated = loadLayout(storage);
+
+    expect(migrated.version).toBe(8);
+    expect(migrated.replySort).toBe("relevance");
+    expect(JSON.parse(String(storage.getItem(layoutStorageKey))).replySort).toBe("relevance");
   });
 
   test("remembers unique recent trend searches with a bounded history", () => {
