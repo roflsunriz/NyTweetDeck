@@ -65,25 +65,34 @@ public class LayoutSettingsStore {
     }
 
     private Snapshot loadWithRecovery() {
-        if (!Files.isRegularFile(storePath)) {
-            return null;
-        }
-        try {
-            return load(storePath);
-        } catch (LayoutSettingsStoreException primaryFailure) {
-            var backup = backupPath();
-            if (!Files.isRegularFile(backup)) {
-                throw primaryFailure;
-            }
-            var recovered = load(backup);
+        var primaryExists = Files.isRegularFile(storePath);
+        if (primaryExists) {
             try {
-                Files.copy(backup, storePath, StandardCopyOption.REPLACE_EXISTING);
-                restrictToOwner(storePath);
-            } catch (IOException exception) {
-                throw new LayoutSettingsStoreException("共有設定を復旧できません。", exception);
+                return load(storePath);
+            } catch (LayoutSettingsStoreException exception) {
+                LOGGER.warn("共有設定が破損しているためバックアップからの復旧を試みます。");
             }
-            return recovered;
         }
+
+        var backup = backupPath();
+        if (Files.isRegularFile(backup)) {
+            Snapshot recovered;
+            try {
+                recovered = load(backup);
+            } catch (LayoutSettingsStoreException exception) {
+                LOGGER.warn("共有設定のバックアップが破損しているため初期状態から再生成します。");
+                return null;
+            }
+            restore(backup);
+            LOGGER.warn(
+                    primaryExists
+                            ? "破損した共有設定をバックアップから復旧しました。"
+                            : "欠落した共有設定をバックアップから復旧しました。");
+            return recovered;
+        } else if (primaryExists) {
+            LOGGER.warn("共有設定のバックアップがないため初期状態から再生成します。");
+        }
+        return null;
     }
 
     private Snapshot load(Path path) {
@@ -107,16 +116,17 @@ public class LayoutSettingsStore {
             if (parent != null) {
                 Files.createDirectories(parent);
             }
-            if (Files.isRegularFile(storePath)) {
-                Files.copy(storePath, backupPath(), StandardCopyOption.REPLACE_EXISTING);
-                restrictToOwner(backupPath());
-            }
+            var hasValidBackup = backupValidStore();
             var temporary = storePath.resolveSibling(storePath.getFileName() + ".tmp");
             objectMapper.writeValue(
                     temporary.toFile(),
                     new StoreDocument(
                             CURRENT_SCHEMA_VERSION, snapshot.revision(), snapshot.layout()));
             restrictToOwner(temporary);
+            if (!hasValidBackup) {
+                Files.copy(temporary, backupPath(), StandardCopyOption.REPLACE_EXISTING);
+                restrictToOwner(backupPath());
+            }
             try {
                 Files.move(
                         temporary,
@@ -129,6 +139,41 @@ public class LayoutSettingsStore {
             restrictToOwner(storePath);
         } catch (IOException exception) {
             throw new LayoutSettingsStoreException("共有設定を書き込めません。", exception);
+        }
+    }
+
+    private boolean backupValidStore() throws IOException {
+        if (!Files.isRegularFile(storePath)) {
+            return false;
+        }
+        try {
+            load(storePath);
+        } catch (LayoutSettingsStoreException exception) {
+            LOGGER.warn("破損した共有設定でバックアップを上書きせず、新しい設定へ置き換えます。");
+            return false;
+        }
+        Files.copy(storePath, backupPath(), StandardCopyOption.REPLACE_EXISTING);
+        restrictToOwner(backupPath());
+        return true;
+    }
+
+    private void restore(Path backup) {
+        var temporary = storePath.resolveSibling(storePath.getFileName() + ".recovery.tmp");
+        try {
+            Files.copy(backup, temporary, StandardCopyOption.REPLACE_EXISTING);
+            restrictToOwner(temporary);
+            try {
+                Files.move(
+                        temporary,
+                        storePath,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporary, storePath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            restrictToOwner(storePath);
+        } catch (IOException exception) {
+            throw new LayoutSettingsStoreException("共有設定を復旧できません。", exception);
         }
     }
 

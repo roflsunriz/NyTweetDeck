@@ -79,6 +79,63 @@ class LayoutSettingsStoreTest {
     }
 
     @Test
+    void recoversTheBackupWhenTheCurrentFileIsMissingAfterTheFirstSave() throws Exception {
+        var path = temporaryDirectory.resolve("settings.json");
+        var mapper = JsonMapper.builder().build();
+        var store = new LayoutSettingsStore(mapper, path);
+        store.save(0, layout("dark", null));
+        Files.delete(path);
+
+        var recovered = new LayoutSettingsStore(mapper, path);
+
+        assertThat(recovered.current()).hasValueSatisfying(snapshot -> {
+            assertThat(snapshot.revision()).isEqualTo(1);
+            assertThat(snapshot.layout().theme()).isEqualTo("dark");
+        });
+        assertThat(new LayoutSettingsStore(mapper, path).current()).isEqualTo(recovered.current());
+    }
+
+    @Test
+    void reinitializesWhenTheOnlySharedSettingsFileIsCorrupted() throws Exception {
+        var path = temporaryDirectory.resolve("settings.json");
+        var mapper = JsonMapper.builder().build();
+        var store = new LayoutSettingsStore(mapper, path);
+        store.save(0, layout("dark", null));
+        Files.delete(path.resolveSibling("settings.json.bak"));
+        Files.writeString(path, "corrupted-layout-marker");
+
+        var recovered = new LayoutSettingsStore(mapper, path);
+
+        assertThat(recovered.current()).isEmpty();
+        var initialized = recovered.save(0, layout("light", null));
+        assertThat(initialized.snapshot().revision()).isEqualTo(1);
+        assertThat(new LayoutSettingsStore(mapper, path).current()).contains(initialized.snapshot());
+        Files.writeString(path, "corrupted-again-marker");
+        assertThat(new LayoutSettingsStore(mapper, path).current()).contains(initialized.snapshot());
+    }
+
+    @Test
+    void reinitializesWhenBothSharedSettingsFilesAreCorrupted() throws Exception {
+        var path = temporaryDirectory.resolve("settings.json");
+        var backup = path.resolveSibling("settings.json.bak");
+        var mapper = JsonMapper.builder().build();
+        var store = new LayoutSettingsStore(mapper, path);
+        store.save(0, layout("dark", null));
+        store.save(1, layout("light", null));
+        Files.writeString(path, "corrupted-current-marker");
+        Files.writeString(backup, "corrupted-backup-marker");
+
+        var recovered = new LayoutSettingsStore(mapper, path);
+
+        assertThat(recovered.current()).isEmpty();
+        var initialized = recovered.save(0, layout("dark", null));
+        assertThat(new LayoutSettingsStore(mapper, path).current()).contains(initialized.snapshot());
+        assertThat(Files.readString(backup))
+                .doesNotContain("corrupted-backup-marker")
+                .contains("\"revision\":1");
+    }
+
+    @Test
     void restrictsTheSharedSettingsFileToTheOwnerOnPosixSystems() throws Exception {
         var path = temporaryDirectory.resolve("settings.json");
         var store = new LayoutSettingsStore(JsonMapper.builder().build(), path);
