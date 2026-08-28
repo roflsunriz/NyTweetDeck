@@ -200,6 +200,31 @@ class TimelineResponseParserTest {
     }
 
     @Test
+    void usesTheCompleteNoteTweetBodyForARetweetedSource() {
+        var body = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"310",
+                "core":{"user_results":{"result":{"__typename":"User","rest_id":"31",
+                "core":{"screen_name":"reposter","name":"Reposter"}}}},"legacy":{
+                "full_text":"RT @origin: shortened source…",
+                "created_at":"2019-01-02T00:00:00Z","retweeted_status_result":{"result":{
+                "__typename":"Tweet","rest_id":"251","core":{"user_results":{"result":{
+                "__typename":"User","rest_id":"25","core":{"screen_name":"origin",
+                "name":"Original Author"}}}},"legacy":{"full_text":"shortened source…",
+                "lang":"en","created_at":"2019-01-01T00:00:00Z"},"note_tweet":{
+                "note_tweet_results":{"result":{"text":
+                "complete retweeted source body without an omitted ending"}}}}}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().get(0);
+
+        assertThat(post.id()).isEqualTo("251");
+        assertThat(post.text())
+                .isEqualTo("complete retweeted source body without an omitted ending");
+        assertThat(post.author().username()).isEqualTo("origin");
+        assertThat(post.repostedBy().username()).isEqualTo("reposter");
+    }
+
+    @Test
     void normalizesAQuotedTweetForTheEmbeddedWebStyleCard() {
         var body = """
                 {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"400",
@@ -228,6 +253,33 @@ class TimelineResponseParserTest {
         assertThat(post.quotedPost().preTranslated().text()).isEqualTo("quoted translation");
         assertThat(post.quotedPost().preTranslated().targetLanguage()).isEqualTo("en");
         assertThat(post.quotedPost().media()).hasSize(1);
+    }
+
+    @Test
+    void usesCompleteNoteTweetBodiesForAQuoteAndItsEmbeddedSource() {
+        var body = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"410",
+                "core":{"user_results":{"result":{"__typename":"User","rest_id":"41",
+                "core":{"screen_name":"quoter","name":"Quoter"}}}},"legacy":{
+                "full_text":"shortened quote comment…","lang":"en",
+                "created_at":"2019-01-02T00:00:00Z","quoted_status_id_str":"409"},
+                "note_tweet":{"note_tweet_results":{"result":{"text":
+                "complete quote comment without an omitted ending"}}},
+                "quoted_status_result":{"result":{"__typename":"Tweet","rest_id":"409",
+                "core":{"user_results":{"result":{"__typename":"User","rest_id":"39",
+                "core":{"screen_name":"quoted","name":"Quoted Author"}}}},"legacy":{
+                "full_text":"shortened quoted source…","lang":"en",
+                "created_at":"2019-01-01T00:00:00Z"},"note_tweet":{
+                "note_tweet_results":{"result":{"text":
+                "complete quoted source body without an omitted ending"}}}}}}}}}
+                """;
+
+        var post = parser.parse(body).posts().get(0);
+
+        assertThat(post.text()).isEqualTo("complete quote comment without an omitted ending");
+        assertThat(post.quotedPost()).isNotNull();
+        assertThat(post.quotedPost().text())
+                .isEqualTo("complete quoted source body without an omitted ending");
     }
 
     @Test

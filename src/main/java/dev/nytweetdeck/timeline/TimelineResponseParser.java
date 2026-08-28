@@ -106,7 +106,7 @@ public class TimelineResponseParser {
         var legacy = node.get("legacy");
         return legacy != null
                 && legacy.isObject()
-                && text(legacy, "full_text") != null
+                && tweetText(node) != null
                 && (text(node, "rest_id") != null || text(legacy, "id_str") != null);
     }
 
@@ -129,7 +129,7 @@ public class TimelineResponseParser {
                 parsePreTranslated(content, responseNode), omittedUrls);
         return new Post(
                 id,
-                omitRedirectUrls(text(legacy, "full_text"), omittedUrls),
+                omitRedirectUrls(tweetText(content), omittedUrls),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 author,
@@ -205,13 +205,21 @@ public class TimelineResponseParser {
         var omittedUrls = omittedRedirectUrls(legacy, media, article != null);
         return new EmbeddedPost(
                 firstNonNull(text(node, "rest_id"), text(legacy, "id_str")),
-                omitRedirectUrls(text(legacy, "full_text"), omittedUrls),
+                omitRedirectUrls(tweetText(node), omittedUrls),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 parseAuthor(node),
                 omitRedirectUrls(parsePreTranslated(node, node), omittedUrls),
                 article,
                 media);
+    }
+
+    private static String tweetText(JsonNode tweet) {
+        var noteTweet = firstObject(tweet, "note_tweet", "noteTweet");
+        var noteTweetResults = firstObject(noteTweet, "note_tweet_results", "noteTweetResults");
+        var noteTweetResult = firstObject(noteTweetResults, "result");
+        var legacy = tweet == null ? null : tweet.get("legacy");
+        return firstNonBlank(text(noteTweetResult, "text"), text(legacy, "full_text"));
     }
 
     private static Article parseArticle(JsonNode tweet) {
