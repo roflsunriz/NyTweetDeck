@@ -764,25 +764,21 @@ button.deck-feed-item:focus-visible {
   z-index: 2;
   top: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.3rem;
-  padding: 0.5rem;
+  grid-template-columns: repeat(5, minmax(2rem, 1fr));
+  gap: 0.2rem;
+  padding: 0.4rem 0.5rem;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(12px);
-}
-
-.post-filter-exclude {
-  grid-column: 1 / -1;
 }
 
 .post-filter button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
   min-width: 0;
-  padding: 0.45rem 0.25rem;
+  min-height: 2rem;
+  padding: 0.35rem;
   border-radius: 0.55rem;
   color: var(--text-muted);
   background: transparent;
@@ -792,12 +788,6 @@ button.deck-feed-item:focus-visible {
 .post-filter button.active {
   color: var(--accent);
   background: var(--accent-soft);
-}
-
-.post-filter span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .post-author-button {

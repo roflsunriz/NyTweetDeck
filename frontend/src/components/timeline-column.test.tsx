@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
 import type { ColumnConfig } from "../model/layout";
@@ -520,6 +520,14 @@ describe("timeline column", () => {
     render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
 
     await screen.findByText("text only");
+    const filterToolbar = screen.getByRole("toolbar", { name: "ポストを複数条件で絞り込む" });
+    const filterButtons = within(filterToolbar).getAllByRole("button");
+    expect(filterButtons).toHaveLength(5);
+    for (const button of filterButtons) {
+      expect(button.textContent).toBe("");
+      expect(button.querySelector("svg")).not.toBeNull();
+      expect(button.getAttribute("title")).toBe(button.getAttribute("aria-label"));
+    }
     await user.click(screen.getByRole("button", { name: "画像" }));
     expect(screen.getByText("image post")).toBeDefined();
     expect(screen.getByText("reposted image")).toBeDefined();

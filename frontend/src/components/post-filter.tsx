@@ -1,4 +1,4 @@
-import { FileText, Images, ListFilter, Repeat2, Video } from "lucide-react";
+import { FileText, Images, ListFilter, RepeatOff, Video } from "lucide-react";
 import type { Translation } from "../i18n/translations";
 import type { TimelinePost } from "./post-card";
 
@@ -33,11 +33,12 @@ export function PostFilterBar({
         className={value.types.length === 0 ? "active" : undefined}
         data-post-filter="all"
         type="button"
+        aria-label={translation.filterAll}
         aria-pressed={value.types.length === 0}
+        title={translation.filterAll}
         onClick={() => onChange({ ...value, types: [] })}
       >
-        <ListFilter aria-hidden="true" size={15} />
-        <span>{translation.filterAll}</span>
+        <ListFilter aria-hidden="true" size={17} />
       </button>
       {typeFilters.map(([filter, label, Icon]) => {
         const active = value.types.includes(filter);
@@ -47,7 +48,9 @@ export function PostFilterBar({
             data-post-filter={filter}
             key={filter}
             type="button"
+            aria-label={label}
             aria-pressed={active}
+            title={label}
             onClick={() =>
               onChange({
                 ...value,
@@ -57,8 +60,7 @@ export function PostFilterBar({
               })
             }
           >
-            <Icon aria-hidden="true" size={15} />
-            <span>{label}</span>
+            <Icon aria-hidden="true" size={17} />
           </button>
         );
       })}
@@ -66,11 +68,12 @@ export function PostFilterBar({
         className={`post-filter-exclude${value.excludeReposts ? " active" : ""}`}
         data-post-filter="exclude-reposts"
         type="button"
+        aria-label={translation.filterExcludeReposts}
         aria-pressed={value.excludeReposts}
+        title={translation.filterExcludeReposts}
         onClick={() => onChange({ ...value, excludeReposts: !value.excludeReposts })}
       >
-        <Repeat2 aria-hidden="true" size={15} />
-        <span>{translation.filterExcludeReposts}</span>
+        <RepeatOff aria-hidden="true" size={17} />
       </button>
     </div>
   );
