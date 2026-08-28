@@ -75,6 +75,26 @@ describe("shared layout synchronization", () => {
     expect(firstStorage.getItem(layoutStorageKey)).toBeNull();
     expect(secondStorage.getItem(layoutStorageKey)).toBeNull();
   });
+
+  test("automatically retries an initial shared-settings failure after the backend returns", async () => {
+    const fetchAfterFailure = globalThis.fetch;
+    let loadAttempts = 0;
+    globalThis.fetch = (async (input, init) => {
+      if (String(input).endsWith("/api/v1/settings/layout") && init?.method !== "PUT") {
+        loadAttempts += 1;
+        if (loadAttempts === 1) {
+          return new Response(null, { status: 503 });
+        }
+      }
+      return fetchAfterFailure(input, init);
+    }) as typeof fetch;
+
+    render(<LayoutHarness id="recovered" storage={new MemoryStorage()} />);
+
+    expect(await screen.findByText("recovered:system", {}, { timeout: 2_000 })).toBeDefined();
+    expect(loadAttempts).toBeGreaterThanOrEqual(2);
+    expect(sharedSnapshot?.revision).toBe(1);
+  });
 });
 
 function LayoutHarness({ id, storage }: { id: string; storage: StorageLike }) {

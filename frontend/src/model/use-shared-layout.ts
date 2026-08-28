@@ -10,6 +10,10 @@ import {
 
 export type SharedLayoutError = "load" | "save" | "conflict";
 
+const automaticLoadRetryLimit = 8;
+const automaticLoadRetryBaseDelayMs = 500;
+const automaticLoadRetryMaximumDelayMs = 5_000;
+
 export function useSharedLayout(storage: StorageLike = window.localStorage): {
   layout: AppLayout | null;
   error: SharedLayoutError | null;
@@ -24,6 +28,7 @@ export function useSharedLayout(storage: StorageLike = window.localStorage): {
   const lastAppliedRef = useRef<string | null>(null);
   const pendingWritesRef = useRef(0);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const loadFailureCountRef = useRef(0);
 
   const applySnapshot = useCallback((snapshot: SharedLayoutSnapshot) => {
     revisionRef.current = snapshot.revision;
@@ -34,18 +39,33 @@ export function useSharedLayout(storage: StorageLike = window.localStorage): {
   useEffect(() => {
     void loadRetryToken;
     let active = true;
+    let retryTimer: number | null = null;
     void initializeSharedLayout(storage)
       .then((snapshot) => {
         if (active) {
+          loadFailureCountRef.current = 0;
           applySnapshot(snapshot);
           setError(null);
         }
       })
       .catch(() => {
-        if (active) setError("load");
+        if (!active) return;
+        setError("load");
+        const failureCount = loadFailureCountRef.current;
+        if (failureCount < automaticLoadRetryLimit) {
+          loadFailureCountRef.current = failureCount + 1;
+          const delay = Math.min(
+            automaticLoadRetryBaseDelayMs * 2 ** failureCount,
+            automaticLoadRetryMaximumDelayMs,
+          );
+          retryTimer = window.setTimeout(() => {
+            setLoadRetryToken((current) => current + 1);
+          }, delay);
+        }
       });
     return () => {
       active = false;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
   }, [applySnapshot, loadRetryToken, storage]);
 
@@ -131,6 +151,7 @@ export function useSharedLayout(storage: StorageLike = window.localStorage): {
     if (error === "conflict") {
       setError(null);
     } else if (layout === null) {
+      loadFailureCountRef.current = 0;
       setLoadRetryToken((current) => current + 1);
     } else {
       setSaveRetryToken((current) => current + 1);
