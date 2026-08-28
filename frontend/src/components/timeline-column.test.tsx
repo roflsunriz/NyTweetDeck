@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
 import type { ColumnConfig } from "../model/layout";
+import { TimelineCacheProvider } from "../model/timeline-cache";
 import { TimelineColumn } from "./timeline-column";
 
 const originalFetch = globalThis.fetch;
@@ -44,6 +45,108 @@ describe("timeline column", () => {
     expect(timelineUrls[0]).toContain("language=ja");
     expect(timelineUrls[1]).toContain("cursor=next");
     expect(urls.some((url) => url.includes("/api/v1/live/subscriptions/"))).toBe(true);
+  });
+
+  test("renders a cached first page immediately and replaces it only after changed revalidation", async () => {
+    let timelineLoads = 0;
+    const pendingResponses: Array<(response: Response) => void> = [];
+    globalThis.fetch = (async (input) => {
+      if (!String(input).includes("/api/v1/timelines/")) {
+        return Response.json({ connected: true, topicCount: 1 });
+      }
+      timelineLoads += 1;
+      if (timelineLoads === 1) {
+        return Response.json({ posts: [post("1", "cached timeline")], nextCursor: null });
+      }
+      return new Promise<Response>((resolve) => pendingResponses.push(resolve));
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "cached-home", kind: "home", target: null, label: null };
+    const view = (visible: boolean) => (
+      <TimelineCacheProvider>
+        {visible && (
+          <TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />
+        )}
+      </TimelineCacheProvider>
+    );
+    const rendered = render(view(true));
+    await screen.findByText("cached timeline");
+
+    rendered.rerender(view(false));
+    rendered.rerender(view(true));
+
+    const cachedPost = screen.getByText("cached timeline");
+    expect(screen.queryByText("読み込み中")).toBeNull();
+    expect(timelineLoads).toBe(2);
+    act(() =>
+      pendingResponses.shift()?.(
+        Response.json({ posts: [post("1", "cached timeline")], nextCursor: null }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByText("cached timeline")).toBe(cachedPost));
+
+    rendered.rerender(view(false));
+    rendered.rerender(view(true));
+    expect(screen.getByText("cached timeline")).toBeDefined();
+    expect(timelineLoads).toBe(3);
+    act(() =>
+      pendingResponses.shift()?.(
+        Response.json({ posts: [post("2", "updated later")], nextCursor: null }),
+      ),
+    );
+
+    expect(await screen.findByText("updated later")).toBeDefined();
+    expect(screen.queryByText("cached timeline")).toBeNull();
+  });
+
+  test("retains fetched cursor pages when the cached first page is unchanged", async () => {
+    let timelineLoads = 0;
+    let finishRevalidation: ((response: Response) => void) | undefined;
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (!url.includes("/api/v1/timelines/")) {
+        return Response.json({ connected: true, topicCount: 1 });
+      }
+      timelineLoads += 1;
+      if (url.includes("cursor=next")) {
+        return Response.json({ posts: [post("2", "cached older page")], nextCursor: null });
+      }
+      if (timelineLoads === 1) {
+        return Response.json({ posts: [post("1", "cached first page")], nextCursor: "next" });
+      }
+      return new Promise<Response>((resolve) => {
+        finishRevalidation = resolve;
+      });
+    }) as typeof fetch;
+    const user = userEvent.setup();
+    const column: ColumnConfig = { id: "cached-pages", kind: "home", target: null, label: null };
+    const view = (visible: boolean) => (
+      <TimelineCacheProvider>
+        {visible && (
+          <TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />
+        )}
+      </TimelineCacheProvider>
+    );
+    const rendered = render(view(true));
+    await screen.findByText("cached first page");
+    await user.click(screen.getByRole("button", { name: "さらに読み込む" }));
+    await screen.findByText("cached older page");
+
+    rendered.rerender(view(false));
+    rendered.rerender(view(true));
+
+    const olderPage = screen.getByText("cached older page");
+    expect(screen.getByText("cached first page")).toBeDefined();
+    expect(screen.queryByText("読み込み中")).toBeNull();
+    expect(screen.queryByRole("button", { name: "さらに読み込む" })).toBeNull();
+    expect(timelineLoads).toBe(3);
+    act(() =>
+      finishRevalidation?.(
+        Response.json({ posts: [post("1", "cached first page")], nextCursor: "next" }),
+      ),
+    );
+
+    await waitFor(() => expect(screen.getByText("cached older page")).toBe(olderPage));
+    expect(screen.queryByRole("button", { name: "さらに読み込む" })).toBeNull();
   });
 
   test("requires an active account and preserves user target", async () => {

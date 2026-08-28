@@ -3,7 +3,13 @@ import type { Translation } from "../i18n/translations";
 import type { ColumnConfig, Locale } from "../model/layout";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { fetchWithTimeout } from "../model/fetch-with-timeout";
-import { PostCard, type TimelinePost } from "./post-card";
+import {
+  createTimelineCacheKey,
+  type TimelineMemoryCache,
+  useTimelineCache,
+} from "../model/timeline-cache";
+import type { TimelinePage, TimelinePost } from "../model/timeline";
+import { PostCard } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import {
   createDefaultPostFilter,
@@ -13,11 +19,6 @@ import {
 } from "./post-filter";
 import { useManualRefreshAtTop } from "./use-manual-refresh-at-top";
 import { UserProfileDialog } from "./user-profile-dialog";
-
-interface TimelinePage {
-  posts: TimelinePost[];
-  nextCursor: string | null;
-}
 
 interface TimelineUpdate {
   reason?: string;
@@ -44,7 +45,22 @@ interface TimelineColumnProps {
 
 let nextTimelineRefreshSlot = 0;
 
-export function TimelineColumn({
+export function TimelineColumn({ ...props }: TimelineColumnProps) {
+  const timelineCache = useTimelineCache();
+  const locale = props.locale ?? "ja";
+  const cacheKey =
+    props.accountId === null ? null : createTimelineCacheKey(props.accountId, props.column, locale);
+  return (
+    <TimelineColumnContent
+      key={cacheKey ?? "logged-out"}
+      {...props}
+      timelineCache={timelineCache}
+      timelineCacheKey={cacheKey}
+    />
+  );
+}
+
+function TimelineColumnContent({
   column,
   accountId,
   translation,
@@ -54,9 +70,15 @@ export function TimelineColumn({
   refreshMinimumMilliseconds = 60_000,
   refreshMaximumMilliseconds = 300_000,
   refreshGlobalGapMilliseconds = 15_000,
-}: TimelineColumnProps) {
-  const [posts, setPosts] = useState<TimelinePost[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+  timelineCache,
+  timelineCacheKey,
+}: TimelineColumnProps & {
+  timelineCache: TimelineMemoryCache;
+  timelineCacheKey: string | null;
+}) {
+  const cachedPage = timelineCacheKey === null ? null : timelineCache.read(timelineCacheKey);
+  const [posts, setPosts] = useState<TimelinePost[]>(() => cachedPage?.posts ?? []);
+  const [cursor, setCursor] = useState<string | null>(() => cachedPage?.nextCursor ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -64,8 +86,20 @@ export function TimelineColumn({
   const [postFilter, setPostFilter] = useState<PostFilter>(createDefaultPostFilter);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const loadingRef = useRef(false);
-  const latestPostIdRef = useRef<string | null>(null);
+  const postsRef = useRef(posts);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
+
+  const updatePosts = useCallback(
+    (update: (current: TimelinePost[]) => TimelinePost[]) => {
+      setPosts((current) => {
+        const next = update(current);
+        postsRef.current = next;
+        return next;
+      });
+      if (timelineCacheKey !== null) timelineCache.updatePosts(timelineCacheKey, update);
+    },
+    [timelineCache, timelineCacheKey],
+  );
 
   const load = useCallback(
     async (nextCursor?: string) => {
@@ -75,9 +109,10 @@ export function TimelineColumn({
       if (loadingRef.current) {
         return "skipped" as const;
       }
+      const hadPosts = postsRef.current.length > 0;
+      const showLoading = nextCursor !== undefined || !hadPosts;
       loadingRef.current = true;
-      setLoading(true);
-      setError(null);
+      if (showLoading) setLoading(true);
       try {
         const params = new URLSearchParams({ accountId, language: locale });
         if (column.target !== null) {
@@ -96,34 +131,40 @@ export function TimelineColumn({
           throw new TimelineHttpError(response.status, await readProblemDetail(response));
         }
         const page = (await response.json()) as TimelinePage;
-        const previousLatestPostId = latestPostIdRef.current;
-        const latestPostId = page.posts[0]?.id ?? null;
         if (nextCursor === undefined) {
-          latestPostIdRef.current = latestPostId;
+          const changed =
+            timelineCacheKey === null || timelineCache.writeFirstPage(timelineCacheKey, page);
+          if (changed) {
+            postsRef.current = page.posts;
+            setPosts(page.posts);
+            setCursor(page.nextCursor);
+          }
+          setError(null);
+          return changed ? ("changed" as const) : ("unchanged" as const);
         }
-        setPosts((current) =>
-          nextCursor === undefined
-            ? page.posts
-            : [
-                ...current,
-                ...page.posts.filter((post) => !current.some((item) => item.id === post.id)),
-              ],
-        );
+        const next = [
+          ...postsRef.current,
+          ...page.posts.filter((post) => !postsRef.current.some((item) => item.id === post.id)),
+        ];
+        postsRef.current = next;
+        setPosts(next);
+        if (timelineCacheKey !== null) timelineCache.appendPage(timelineCacheKey, page);
         setCursor(page.nextCursor);
-        return previousLatestPostId !== null && latestPostId !== previousLatestPostId
-          ? ("changed" as const)
-          : ("unchanged" as const);
+        setError(null);
+        return "unchanged" as const;
       } catch (loadError) {
-        const detail = loadError instanceof TimelineHttpError ? loadError.detail : null;
-        setError(
-          detail === null
-            ? translation.timelineLoadError
-            : `${translation.timelineLoadError} ${detail}`,
-        );
+        if (!hadPosts || nextCursor !== undefined) {
+          const detail = loadError instanceof TimelineHttpError ? loadError.detail : null;
+          setError(
+            detail === null
+              ? translation.timelineLoadError
+              : `${translation.timelineLoadError} ${detail}`,
+          );
+        }
         return "failed" as const;
       } finally {
         loadingRef.current = false;
-        setLoading(false);
+        if (showLoading) setLoading(false);
       }
     },
     [
@@ -132,15 +173,14 @@ export function TimelineColumn({
       column.target,
       locale,
       requestTimeoutMilliseconds,
+      timelineCache,
+      timelineCacheKey,
       translation.timelineLoadError,
     ],
   );
   const { manualRefreshing, manualRefreshHandlers } = useManualRefreshAtTop(load);
 
   useEffect(() => {
-    setPosts([]);
-    setCursor(null);
-    latestPostIdRef.current = null;
     void load();
   }, [load]);
 
@@ -223,7 +263,7 @@ export function TimelineColumn({
       if (update.reason?.startsWith("live:") === true) {
         setLiveError(false);
         if (update.reason === "live:tweet_engagement" && update.postId != null) {
-          setPosts((current) =>
+          updatePosts((current) =>
             current.map((post) =>
               post.id === update.postId ? applyEngagementUpdate(post, update) : post,
             ),
@@ -233,7 +273,7 @@ export function TimelineColumn({
       }
       const action = update.reason;
       if (update.postId != null && isPostAction(action)) {
-        setPosts((current) =>
+        updatePosts((current) =>
           current.map((post) => (post.id === update.postId ? applyPostAction(post, action) : post)),
         );
       }
@@ -250,7 +290,7 @@ export function TimelineColumn({
       source.removeEventListener("timeline-update", handleUpdate);
       source.close();
     };
-  }, [accountId, column.kind, load]);
+  }, [accountId, column.kind, load, updatePosts]);
 
   const livePostIds = posts
     .slice(0, 100)

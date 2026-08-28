@@ -105,3 +105,36 @@ export class CdpClient {
     this.socket.close();
   }
 }
+
+export async function navigatePage(client: CdpClient, url: string): Promise<void> {
+  const loaded = client.waitForEvent("Page.loadEventFired");
+  await client.call("Page.navigate", { url });
+  await loaded;
+}
+
+export async function reloadPage(client: CdpClient): Promise<void> {
+  const loaded = client.waitForEvent("Page.loadEventFired");
+  await client.call("Page.reload", { ignoreCache: true });
+  await loaded;
+}
+
+export async function waitForPageCondition(
+  client: CdpClient,
+  expression: string,
+  timeoutMilliseconds = 10_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMilliseconds;
+  while (Date.now() < deadline) {
+    if (await client.evaluate<boolean>(expression)) return;
+    await Bun.sleep(40);
+  }
+  const diagnostics = await client.evaluate<Record<string, unknown>>(`(() => ({
+      columnCount: document.querySelectorAll(".deck-column").length,
+      dialogCount: document.querySelectorAll('[role="dialog"]').length,
+      addColumnButtonCount: document.querySelectorAll('[data-action="add-column"]').length,
+      homeChoiceCount: document.querySelectorAll('[role="dialog"] [data-column-kind="home"]').length
+  }))()`);
+  throw new Error(
+    `DOM状態の待機がタイムアウトしました: ${expression}; ${JSON.stringify(diagnostics)}`,
+  );
+}

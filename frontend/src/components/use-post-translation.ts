@@ -4,14 +4,8 @@ import {
   shouldTranslatePost,
   translationTargetsLocale,
 } from "../model/post-translation";
+import type { PreTranslatedPost } from "../model/timeline";
 import { usePostTranslationSettings } from "./post-translation-context";
-
-export interface PreTranslatedPost {
-  text: string;
-  sourceLanguage: string | null;
-  targetLanguage: string;
-  provider: "Grok";
-}
 
 export interface PostTranslationView {
   autoTranslatePosts: boolean;

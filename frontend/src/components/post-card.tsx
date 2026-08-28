@@ -14,73 +14,14 @@ import { type KeyboardEvent, type MouseEvent, useEffect, useRef, useState } from
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { useRelativeTime } from "../model/relative-time";
+import type { CommunityNote, EmbeddedPost, TimelinePost } from "../model/timeline";
 import { ComposerDialog } from "./composer-dialog";
 import { ArticleCard } from "./article-card";
 import { usePostTranslationSettings } from "./post-translation-context";
 import { useOptimisticToggle } from "./use-optimistic-toggle";
-import {
-  type PostTranslationView,
-  type PreTranslatedPost,
-  usePostTranslation,
-} from "./use-post-translation";
+import { type PostTranslationView, usePostTranslation } from "./use-post-translation";
 
-export interface TimelinePost {
-  id: string;
-  text: string;
-  language: string | null;
-  createdAt: string | null;
-  author: {
-    id: string;
-    username: string;
-    displayName: string;
-    avatarUrl: string | null;
-    verified: boolean;
-  };
-  repostedBy: TimelinePost["author"] | null;
-  replyCount: number;
-  repostCount: number;
-  quoteCount: number;
-  likeCount: number;
-  bookmarkCount: number;
-  viewCount: number;
-  liked: boolean;
-  reposted: boolean;
-  bookmarked: boolean;
-  replyToPostId: string | null;
-  replyToUsername: string | null;
-  quotedPost: EmbeddedPost | null;
-  preTranslated?: PreTranslatedPost | null;
-  communityNote?: CommunityNote | null;
-  article?: TimelineArticle | null;
-  media: Array<{ id: string; type: string; url: string; previewUrl: string }>;
-}
-
-export interface TimelineArticle {
-  id: string;
-  title: string;
-  previewText: string | null;
-  body: string | null;
-  coverImageUrl: string | null;
-  url: string;
-}
-
-interface CommunityNote {
-  title: string | null;
-  text: string | null;
-  footer: string | null;
-  sources?: Array<{ fromIndex: number; toIndex: number; url: string }>;
-}
-
-interface EmbeddedPost {
-  id: string;
-  text: string;
-  language: string | null;
-  createdAt: string | null;
-  author: TimelinePost["author"];
-  preTranslated?: PreTranslatedPost | null;
-  article?: TimelineArticle | null;
-  media: TimelinePost["media"];
-}
+export type { TimelineArticle, TimelinePost } from "../model/timeline";
 
 interface PostCardProps {
   post: TimelinePost;

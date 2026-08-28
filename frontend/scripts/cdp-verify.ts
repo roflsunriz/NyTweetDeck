@@ -1,5 +1,11 @@
 import { resolve } from "node:path";
-import { CdpClient, type CdpTarget } from "./cdp-client";
+import {
+  CdpClient,
+  type CdpTarget,
+  navigatePage,
+  reloadPage,
+  waitForPageCondition,
+} from "./cdp-client";
 import { readSharedLayout, updateSharedLayout } from "./shared-layout-cdp";
 
 const applicationUrl = process.env.NYTWEETDECK_URL ?? "http://127.0.0.1:18080";
@@ -35,36 +41,10 @@ client.on("Log.entryAdded", (params) => {
   }
 });
 
-async function navigate(url = applicationUrl): Promise<void> {
-  const loaded = client.waitForEvent("Page.loadEventFired");
-  await client.call("Page.navigate", { url });
-  await loaded;
-}
-
-async function reload(): Promise<void> {
-  const loaded = client.waitForEvent("Page.loadEventFired");
-  await client.call("Page.reload", { ignoreCache: true });
-  await loaded;
-}
-
-async function waitForCondition(expression: string, timeoutMilliseconds = 10_000): Promise<void> {
-  const deadline = Date.now() + timeoutMilliseconds;
-  while (Date.now() < deadline) {
-    if (await client.evaluate<boolean>(expression)) {
-      return;
-    }
-    await Bun.sleep(40);
-  }
-  const diagnostics = await client.evaluate<Record<string, unknown>>(`(() => ({
-      columnCount: document.querySelectorAll(".deck-column").length,
-      dialogCount: document.querySelectorAll('[role="dialog"]').length,
-      addColumnButtonCount: document.querySelectorAll('[data-action="add-column"]').length,
-      homeChoiceCount: document.querySelectorAll('[role="dialog"] [data-column-kind="home"]').length
-  }))()`);
-  throw new Error(
-    `DOM状態の待機がタイムアウトしました: ${expression}; ${JSON.stringify(diagnostics)}`,
-  );
-}
+const navigate = (url = applicationUrl) => navigatePage(client, url);
+const reload = () => reloadPage(client);
+const waitForCondition = (expression: string, timeoutMilliseconds?: number) =>
+  waitForPageCondition(client, expression, timeoutMilliseconds);
 
 await navigate();
 await waitForCondition('document.querySelector(".app-shell") !== null');
@@ -294,6 +274,8 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     window.__qaTranslationPostIds = [];
     window.__qaTranslationAttempts = {};
     window.__qaTimelineRequests = 0;
+    window.__qaHoldTimeline = false;
+    window.__qaResolveTimeline = null;
     window.__qaPostActionRequests = [];
     window.__qaResolvePostAction = null;
     window.__qaListRequests = 0;
@@ -328,7 +310,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
       }
       if (url.pathname === "/api/v1/timelines/homeForYou") {
         window.__qaTimelineRequests += 1;
-        return Promise.resolve(Response.json({
+        const response = Response.json({
           posts: [{
             id: "100", text: "Initial engagement state https://t.co/article100", language: "en",
             createdAt: "2026-08-27T00:00:00Z",
@@ -380,7 +362,17 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
             }] : []
           }))],
           nextCursor: null
-        }));
+        });
+        if (window.__qaHoldTimeline) {
+          return new Promise(resolve => {
+            window.__qaResolveTimeline = () => {
+              window.__qaHoldTimeline = false;
+              window.__qaResolveTimeline = null;
+              resolve(response);
+            };
+          });
+        }
+        return Promise.resolve(response);
       }
       if (url.pathname === "/api/v1/posts/100") {
         return Promise.resolve(Response.json({
@@ -592,6 +584,36 @@ await waitForCondition(`
 `);
 await client.evaluate('document.querySelector(".modal-header .icon-button")?.click()');
 await waitForCondition('document.querySelector(".modal-panel") === null');
+const cachedTimelineReopened = await client.evaluate<boolean>(`(() => {
+  window.__qaHoldTimeline = true;
+  const remove = document.querySelector('[data-action="remove-column"]');
+  if (!(remove instanceof HTMLButtonElement)) return false;
+  remove.click();
+  return true;
+})()`);
+if (!cachedTimelineReopened) throw new Error("キャッシュ検証用カラムを閉じられませんでした。");
+await waitForCondition('document.querySelector("[data-testid=timeline-scroll]") === null');
+await client.evaluate("document.querySelector('[data-action=\"add-column\"]')?.click()");
+await waitForCondition("document.querySelector('[data-column-kind=\"home\"]') !== null");
+await client.evaluate("document.querySelector('[data-column-kind=\"home\"]')?.click()");
+await waitForCondition(`
+  document.querySelector("[data-testid=timeline-scroll]") !== null &&
+  document.querySelector(".post-text")?.textContent === "translated-100" &&
+  window.__qaResolveTimeline !== null
+`);
+const cachedTimelineMarkerSet = await client.evaluate<boolean>(`(() => {
+  const post = document.querySelector(".post-card");
+  if (!(post instanceof HTMLElement)) return false;
+  post.dataset.cacheMarker = "retained";
+  return document.querySelector(".column-message") === null;
+})()`);
+if (!cachedTimelineMarkerSet)
+  throw new Error("キャッシュ済みタイムラインを即時表示できませんでした。");
+await client.evaluate("window.__qaResolveTimeline?.()");
+await waitForCondition(`
+  window.__qaResolveTimeline === null &&
+  document.querySelector(".post-card")?.getAttribute("data-cache-marker") === "retained"
+`);
 const optimisticLikeClicked = await client.evaluate<boolean>(`(() => {
   const button = document.querySelector("[data-post-action=like]");
   if (!(button instanceof HTMLButtonElement)) return false;

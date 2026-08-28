@@ -48,6 +48,7 @@ import {
 } from "./model/layout";
 import { useSharedLayout } from "./model/use-shared-layout";
 import { useListCandidates } from "./model/use-list-candidates";
+import { TimelineCacheProvider } from "./model/timeline-cache";
 
 const navIcons: Record<NavItemId, LucideIcon> = {
   compose: PenLine,
@@ -96,6 +97,14 @@ function resolveBrowserLocale(): Locale {
 }
 
 export function App() {
+  return (
+    <TimelineCacheProvider>
+      <AppContent />
+    </TimelineCacheProvider>
+  );
+}
+
+function AppContent() {
   const {
     layout,
     error: sharedLayoutError,
