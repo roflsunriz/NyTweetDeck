@@ -274,6 +274,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     window.__qaTranslationPostIds = [];
     window.__qaTranslationAttempts = {};
     window.__qaTimelineRequests = 0;
+    window.__qaTimelineCursors = [];
     window.__qaHoldTimeline = false;
     window.__qaResolveTimeline = null;
     window.__qaPostActionRequests = [];
@@ -310,7 +311,9 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
       }
       if (url.pathname === "/api/v1/timelines/homeForYou") {
         window.__qaTimelineRequests += 1;
-        const response = Response.json({
+        const timelineCursor = url.searchParams.get("cursor");
+        window.__qaTimelineCursors.push(timelineCursor);
+        const response = timelineCursor === null ? Response.json({
           posts: [{
             id: "100", text: "Initial engagement state https://t.co/article100", language: "en",
             createdAt: "2026-08-27T00:00:00Z",
@@ -361,9 +364,21 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
               previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
             }] : []
           }))],
-          nextCursor: null
+          nextCursor: "cache-overflow-page"
+        }) : Response.json({
+          posts: Array.from({ length: 188 }, (_, index) => ({
+            id: "older-" + index, text: "Older cached post " + index, language: "ja",
+            createdAt: "2026-08-26T00:00:00Z",
+            author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
+            repostedBy: null, replyCount: 0, repostCount: 0, quoteCount: 0,
+            likeCount: 0, bookmarkCount: 0, viewCount: 0,
+            liked: false, reposted: false, bookmarked: false,
+            replyToPostId: null, replyToUsername: null, quotedPost: null,
+            communityNote: null, media: []
+          })),
+          nextCursor: "cursor-after-overflow"
         });
-        if (window.__qaHoldTimeline) {
+        if (window.__qaHoldTimeline && timelineCursor === null) {
           return new Promise(resolve => {
             window.__qaResolveTimeline = () => {
               window.__qaHoldTimeline = false;
@@ -584,6 +599,20 @@ await waitForCondition(`
 `);
 await client.evaluate('document.querySelector(".modal-header .icon-button")?.click()');
 await waitForCondition('document.querySelector(".modal-panel") === null');
+const overflowPageRequested = await client.evaluate<boolean>(`(() => {
+  if (window.__qaTimelineCursors.filter(cursor => cursor === "cache-overflow-page").length > 0) {
+    return true;
+  }
+  const loadMore = document.querySelector(".load-more-button");
+  if (!(loadMore instanceof HTMLButtonElement)) return false;
+  loadMore.click();
+  return true;
+})()`);
+if (!overflowPageRequested) throw new Error("200件上限を超える追加ページを読み込めませんでした。");
+await waitForCondition(`
+  window.__qaTimelineCursors.filter(cursor => cursor === "cache-overflow-page").length === 1 &&
+  document.querySelectorAll(".post-card").length === 201
+`);
 const cachedTimelineReopened = await client.evaluate<boolean>(`(() => {
   window.__qaHoldTimeline = true;
   const remove = document.querySelector('[data-action="remove-column"]');
@@ -601,6 +630,12 @@ await waitForCondition(`
   document.querySelector(".post-text")?.textContent === "translated-100" &&
   window.__qaResolveTimeline !== null
 `);
+const cachedPostsBeforeRevalidation = await client.evaluate<number>(
+  'document.querySelectorAll(".post-card").length',
+);
+if (cachedPostsBeforeRevalidation !== 13) {
+  throw new Error(`再表示キャッシュの投稿件数が不正です: ${cachedPostsBeforeRevalidation}/13`);
+}
 const cachedTimelineMarkerSet = await client.evaluate<boolean>(`(() => {
   const post = document.querySelector(".post-card");
   if (!(post instanceof HTMLElement)) return false;
@@ -614,6 +649,25 @@ await waitForCondition(`
   window.__qaResolveTimeline === null &&
   document.querySelector(".post-card")?.getAttribute("data-cache-marker") === "retained"
 `);
+const cachedContinuationRequested = await client.evaluate<boolean>(`(() => {
+  const loadMore = document.querySelector(".load-more-button");
+  if (!(loadMore instanceof HTMLButtonElement)) return false;
+  loadMore.click();
+  return true;
+})()`);
+if (!cachedContinuationRequested)
+  throw new Error("再表示したキャッシュの続きを読み込めませんでした。");
+await waitForCondition(`
+  window.__qaTimelineCursors.filter(cursor => cursor === "cache-overflow-page").length === 2 &&
+  window.__qaTimelineCursors.at(-1) === "cache-overflow-page" &&
+  document.querySelectorAll(".post-card").length === 201
+`);
+results.push({
+  view: "timeline-cache-continuation",
+  cachedPosts: cachedPostsBeforeRevalidation,
+  reopenedPostsAfterContinuation: 201,
+  resumedCursor: "cache-overflow-page",
+});
 const optimisticLikeClicked = await client.evaluate<boolean>(`(() => {
   const button = document.querySelector("[data-post-action=like]");
   if (!(button instanceof HTMLButtonElement)) return false;

@@ -36,10 +36,11 @@ export class TimelineMemoryCache {
   appendPage(key: string, page: TimelinePage): void {
     const cached = this.entries.get(key);
     if (cached === undefined) return;
-    const posts = [
-      ...cached.page.posts,
-      ...page.posts.filter((post) => !cached.page.posts.some((item) => item.id === post.id)),
-    ].slice(0, maximumPostsPerSnapshot);
+    const appendedPosts = page.posts.filter(
+      (post) => !cached.page.posts.some((item) => item.id === post.id),
+    );
+    if (cached.page.posts.length + appendedPosts.length > maximumPostsPerSnapshot) return;
+    const posts = [...cached.page.posts, ...appendedPosts];
     this.entries.set(key, { ...cached, page: { posts, nextCursor: page.nextCursor } });
   }
 
