@@ -947,6 +947,7 @@ const newPostMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
     anchorTopAfter: anchor?.getBoundingClientRect().top,
     scrollTopBefore: ${Number(readingPositionBeforeUpdate.scrollTop)},
     scrollTopAfter: timeline instanceof HTMLElement ? timeline.scrollTop : null,
+    overflowAnchor: timeline instanceof HTMLElement ? getComputedStyle(timeline).overflowAnchor : null,
     notificationText: notification?.textContent,
     notificationLabel: notification?.getAttribute("aria-label"),
     authorAvatarCount: notification?.querySelectorAll(".new-post-avatar").length,
@@ -956,6 +957,7 @@ const newPostMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
 if (
   Math.abs(Number(newPostMetrics.anchorTopAfter) - Number(newPostMetrics.anchorTopBefore)) > 1 ||
   Number(newPostMetrics.scrollTopAfter) <= Number(newPostMetrics.scrollTopBefore) ||
+  newPostMetrics.overflowAnchor !== "auto" ||
   newPostMetrics.authorAvatarCount !== 5 ||
   !String(newPostMetrics.notificationText).includes("新規投稿:") ||
   newPostMetrics.notificationLabel !== "6件の新規投稿を表示" ||
@@ -1111,13 +1113,50 @@ const imageOpened = await client.evaluate<boolean>(`(() => {
 })()`);
 if (!imageOpened) throw new Error("フルサイズ画像を開けませんでした。");
 await waitForCondition('document.querySelector(".image-viewer-viewport") !== null');
+const imageZoomedOut = await client.evaluate<boolean>(`(() => {
+  const viewport = document.querySelector(".image-viewer-viewport");
+  if (!(viewport instanceof HTMLElement)) return false;
+  viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: 400, clientX: 200, clientY: 300, bubbles: true }));
+  return true;
+})()`);
+if (!imageZoomedOut) throw new Error("画像の縮小操作を実行できませんでした。");
+await waitForCondition(
+  'Number(document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom")) < 1',
+);
+const zoomBelow100 = await client.evaluate<number>(
+  'Number(document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom"))',
+);
+await client.evaluate(`(() => {
+  const viewport = document.querySelector(".image-viewer-viewport");
+  viewport?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+})()`);
+await waitForCondition(
+  'Number(document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom")) === 1',
+);
+const releasedPointerIgnored = await client.evaluate<boolean>(`(() => {
+  const viewport = document.querySelector(".image-viewer-viewport");
+  if (!(viewport instanceof HTMLElement)) return false;
+  viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, button: 0, buttons: 1, clientX: 100, clientY: 100, bubbles: true }));
+  viewport.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, buttons: 0, clientX: 150, clientY: 135, bubbles: true }));
+  return true;
+})()`);
+if (!releasedPointerIgnored) throw new Error("画像のポインター状態を検証できませんでした。");
+await client.evaluate(
+  "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+);
+const releasedPointerTransform = await client.evaluate<string>(
+  'document.querySelector(".image-viewer-viewport img")?.style.transform ?? ""',
+);
+if (!releasedPointerTransform.includes("translate(0px, 0px)")) {
+  throw new Error(`押されていないポインターで画像が移動しました: ${releasedPointerTransform}`);
+}
 const imageMoved = await client.evaluate<boolean>(`(() => {
   const viewport = document.querySelector(".image-viewer-viewport");
   if (!(viewport instanceof HTMLElement)) return false;
+  viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, button: 0, buttons: 1, clientX: 100, clientY: 100, bubbles: true }));
+  viewport.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, buttons: 1, clientX: 150, clientY: 135, bubbles: true }));
+  viewport.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1, buttons: 0, clientX: 150, clientY: 135, bubbles: true }));
   viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: -240, clientX: 200, clientY: 300, bubbles: true }));
-  viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, button: 0, clientX: 100, clientY: 100, bubbles: true }));
-  viewport.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 150, clientY: 135, bubbles: true }));
-  viewport.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1, clientX: 150, clientY: 135, bubbles: true }));
   return true;
 })()`);
 if (!imageMoved) throw new Error("画像の拡大・移動操作を実行できませんでした。");
@@ -1125,6 +1164,8 @@ await waitForCondition(
   'Number(document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom")) > 1',
 );
 const imageViewerMetrics = await client.evaluate<Record<string, unknown>>(`({
+  zoomBelow100: ${zoomBelow100},
+  releasedPointerTransform: ${JSON.stringify(releasedPointerTransform)},
   zoom: document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom"),
   transform: document.querySelector(".image-viewer-viewport img")?.style.transform,
   detailBehindViewer: document.querySelector(".post-detail-content") !== null,

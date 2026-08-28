@@ -557,7 +557,6 @@ select:focus-visible {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overflow-anchor: none;
   scrollbar-color: var(--border-strong) transparent;
 }
 

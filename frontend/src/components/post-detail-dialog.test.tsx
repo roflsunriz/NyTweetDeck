@@ -15,7 +15,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-test("opens a detail image viewer with pan, zoom, and one-level Escape navigation", async () => {
+test("opens a detail image viewer with sub-100% zoom, held-button pan, and one-level Escape navigation", async () => {
   const onClose = mock(() => undefined);
   const detailPost: TimelinePost = {
     id: "800",
@@ -71,11 +71,20 @@ test("opens a detail image viewer with pan, zoom, and one-level Escape navigatio
   expect(fullImage?.getAttribute("src")).toContain("name=orig");
   const viewport = viewer.querySelector(".image-viewer-viewport");
   if (!(viewport instanceof HTMLElement)) throw new Error("画像ビュー領域がありません。");
+  fireEvent.wheel(viewport, { deltaY: 400, clientX: 100, clientY: 100 });
+  await waitFor(() => expect(Number(viewport.dataset.zoom)).toBeLessThan(1));
+  await user.click(screen.getByRole("button", { name: "表示位置と倍率をリセット" }));
+  await waitFor(() => expect(Number(viewport.dataset.zoom)).toBe(1));
   fireEvent.wheel(viewport, { deltaY: -200, clientX: 100, clientY: 100 });
   await waitFor(() => expect(Number(viewport.dataset.zoom)).toBeGreaterThan(1));
-  fireEvent(viewport, pointerEvent("pointerdown", 50, 50));
-  fireEvent(viewport, pointerEvent("pointermove", 80, 75));
+  await user.click(screen.getByRole("button", { name: "表示位置と倍率をリセット" }));
+  fireEvent(viewport, pointerEvent("pointerdown", 50, 50, 1));
+  fireEvent(viewport, pointerEvent("pointermove", 80, 75, 0));
+  expect(fullImage?.getAttribute("style")).toContain("translate(0px, 0px)");
+  fireEvent(viewport, pointerEvent("pointerdown", 50, 50, 1));
+  fireEvent(viewport, pointerEvent("pointermove", 80, 75, 1));
   expect(fullImage?.getAttribute("style")).toContain("translate(30px, 25px)");
+  fireEvent(viewport, pointerEvent("pointerup", 80, 75, 0));
 
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("dialog", { name: "画像をフルサイズで表示" })).toBeNull();
@@ -192,11 +201,12 @@ function timelinePost(
   };
 }
 
-function pointerEvent(type: string, clientX: number, clientY: number): Event {
+function pointerEvent(type: string, clientX: number, clientY: number, buttons: number): Event {
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperties(event, {
     pointerId: { value: 1 },
     button: { value: 0 },
+    buttons: { value: buttons },
     clientX: { value: clientX },
     clientY: { value: clientY },
   });

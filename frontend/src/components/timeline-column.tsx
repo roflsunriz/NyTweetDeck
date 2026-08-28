@@ -562,13 +562,16 @@ function restoreViewportAnchor(scroll: HTMLDivElement, anchor: ViewportAnchor): 
     (post) => post.dataset.postId === anchor.postId,
   );
   const heightDelta = scroll.scrollHeight - anchor.scrollHeight;
+  if (anchoredPost === undefined) {
+    scroll.scrollTop = Math.max(0, anchor.scrollTop + heightDelta);
+    return;
+  }
   const offsetDelta =
-    anchoredPost === undefined
-      ? heightDelta
-      : anchoredPost.getBoundingClientRect().top -
-        scroll.getBoundingClientRect().top -
-        anchor.postOffset;
-  scroll.scrollTop = Math.max(0, anchor.scrollTop + offsetDelta);
+    anchoredPost.getBoundingClientRect().top -
+    scroll.getBoundingClientRect().top -
+    anchor.postOffset;
+  if (Math.abs(offsetDelta) < 0.5) return;
+  scroll.scrollTop = Math.max(0, scroll.scrollTop + offsetDelta);
 }
 
 class TimelineHttpError extends Error {

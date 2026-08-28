@@ -448,6 +448,48 @@ describe("timeline column", () => {
     expect(screen.queryByRole("button", { name: "6件の新規投稿を表示" })).toBeNull();
   });
 
+  test("keeps the browser-adjusted viewport when new posts arrive while scrolling upward", async () => {
+    let eventSource: FakeEventSource | undefined;
+    globalThis.EventSource = class extends FakeEventSource {
+      constructor(_url: string | URL) {
+        super();
+        eventSource = this;
+      }
+    } as unknown as typeof EventSource;
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (!String(input).includes("/api/v1/timelines/")) {
+        return Response.json({ connected: true, topicCount: 1 });
+      }
+      timelineLoads += 1;
+      return Response.json({
+        posts:
+          timelineLoads === 1
+            ? [post("old", "post being read upward")]
+            : [post("new", "new post above"), post("old", "post being read upward")],
+        nextCursor: null,
+      });
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "native-anchor", kind: "home", target: null, label: null };
+
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+    const oldText = await screen.findByText("post being read upward");
+    const oldCard = oldText.closest<HTMLElement>(".post-card");
+    const timeline = screen.getByTestId("timeline-scroll");
+    if (oldCard === null) throw new Error("表示位置を固定する投稿がありません。");
+    timeline.scrollTop = 800;
+    timeline.getBoundingClientRect = () => rectangle(0, 600);
+    oldCard.getBoundingClientRect = () => {
+      if (screen.queryByText("new post above") !== null) timeline.scrollTop = 1_000;
+      return rectangle(100, 180);
+    };
+
+    act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "new" }));
+
+    await screen.findByText("new post above");
+    await waitFor(() => expect(timeline.scrollTop).toBe(1_000));
+  });
+
   test("keeps the live subscription while engagement-only state changes", async () => {
     let eventSource: FakeEventSource | undefined;
     globalThis.EventSource = class extends FakeEventSource {

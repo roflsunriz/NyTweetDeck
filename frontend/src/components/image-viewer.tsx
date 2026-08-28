@@ -19,7 +19,7 @@ interface Point {
   y: number;
 }
 
-const MIN_ZOOM = 1;
+const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8;
 
 export function ImageViewer({ src, translation, onClose }: ImageViewerProps) {
@@ -89,6 +89,10 @@ export function ImageViewer({ src, translation, onClose }: ImageViewerProps) {
   const drag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const current = dragRef.current;
     if (current === null || current.pointerId !== event.pointerId) return;
+    if ((event.buttons & 1) === 0) {
+      stopDrag(event);
+      return;
+    }
     const next = pointerPoint(event);
     setPan((value) => ({
       x: value.x + next.x - current.point.x,
@@ -146,6 +150,7 @@ export function ImageViewer({ src, translation, onClose }: ImageViewerProps) {
           onPointerMove={drag}
           onPointerUp={stopDrag}
           onPointerCancel={stopDrag}
+          onLostPointerCapture={stopDrag}
           onDoubleClick={reset}
         >
           <img
