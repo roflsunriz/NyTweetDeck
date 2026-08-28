@@ -25,11 +25,14 @@ afterEach(() => {
 });
 
 describe("post actions", () => {
-  test("updates like count only after successful web mutation", async () => {
+  test("updates a like immediately while the web mutation continues in the background", async () => {
     const urls: string[] = [];
+    let finishMutation: ((response: Response) => void) | undefined;
     globalThis.fetch = (async (input) => {
       urls.push(String(input));
-      return Response.json({ postId: "100", action: "like" });
+      return new Promise<Response>((resolve) => {
+        finishMutation = resolve;
+      });
     }) as typeof fetch;
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
@@ -37,11 +40,20 @@ describe("post actions", () => {
     const likeButton = screen.getByRole("button", { name: "いいね" });
     expect(likeButton.textContent).toBe("3");
     await user.click(likeButton);
-    await waitFor(() => expect(likeButton.textContent).toBe("4"));
+    expect(likeButton.textContent).toBe("4");
     expect(likeButton.classList.contains("like-active")).toBe(true);
     expect(likeButton.querySelector("svg")?.getAttribute("fill")).toBe("currentColor");
+    expect(screen.queryByText("ポスト操作に失敗しました。")).toBeNull();
+
+    finishMutation?.(Response.json({ postId: "100", action: "like" }));
+    await waitFor(() => expect((likeButton as HTMLButtonElement).disabled).toBe(false));
+
+    globalThis.fetch = (async (input) => {
+      urls.push(String(input));
+      return Response.json({ postId: "100", action: "unlike" });
+    }) as typeof fetch;
     await user.click(likeButton);
-    await waitFor(() => expect(likeButton.textContent).toBe("3"));
+    expect(likeButton.textContent).toBe("3");
     expect(likeButton.classList.contains("like-active")).toBe(false);
     expect(likeButton.querySelector("svg")?.getAttribute("fill")).toBe("none");
 
@@ -86,20 +98,49 @@ describe("post actions", () => {
     expect(note.textContent).toContain("役に立ったと評価されました");
   });
 
-  test("keeps state when mutation fails", async () => {
+  test("rolls an optimistic like back when the mutation fails", async () => {
+    let failMutation: ((response: Response) => void) | undefined;
     globalThis.fetch = (async () =>
-      Response.json(
-        { detail: "X Web署名情報を取得できませんでした。" },
-        { status: 502 },
-      )) as unknown as typeof fetch;
+      new Promise<Response>((resolve) => {
+        failMutation = resolve;
+      })) as unknown as typeof fetch;
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
-    const bookmarkButton = screen.getByRole("button", { name: "履歴に保存" });
-    await user.click(bookmarkButton);
+    const likeButton = screen.getByRole("button", { name: "いいね" });
+    await user.click(likeButton);
+
+    expect(likeButton.textContent).toBe("4");
+    expect(likeButton.classList.contains("like-active")).toBe(true);
+    failMutation?.(
+      Response.json({ detail: "X Web署名情報を取得できませんでした。" }, { status: 502 }),
+    );
 
     await screen.findByText("ポスト操作に失敗しました。 X Web署名情報を取得できませんでした。");
-    expect(bookmarkButton.textContent).toBe("4");
+    expect(likeButton.textContent).toBe("3");
+    expect(likeButton.classList.contains("like-active")).toBe(false);
+  });
+
+  test("updates a repost immediately and rolls it back on failure", async () => {
+    let failMutation: ((response: Response) => void) | undefined;
+    globalThis.fetch = (async () =>
+      new Promise<Response>((resolve) => {
+        failMutation = resolve;
+      })) as unknown as typeof fetch;
+    const user = userEvent.setup();
+    render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
+
+    const repostToggle = screen.getByLabelText("リポスト");
+    await user.click(repostToggle);
+    await user.click(screen.getByRole("button", { name: "リポスト" }));
+
+    expect(repostToggle.textContent).toBe("3");
+    expect(repostToggle.classList.contains("repost-active")).toBe(true);
+    failMutation?.(new Response(null, { status: 503 }));
+
+    await screen.findByText("ポスト操作に失敗しました。");
+    expect(repostToggle.textContent).toBe("2");
+    expect(repostToggle.classList.contains("repost-active")).toBe(false);
   });
 
   test("opens reply composer and the complete overflow menu", async () => {

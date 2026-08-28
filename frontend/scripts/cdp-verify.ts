@@ -408,6 +408,8 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     window.__qaTranslationPostIds = [];
     window.__qaTranslationAttempts = {};
     window.__qaTimelineRequests = 0;
+    window.__qaPostActionRequests = [];
+    window.__qaResolvePostAction = null;
     window.fetch = (input, init) => {
       const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const url = new URL(raw, location.href);
@@ -507,6 +509,13 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
           },
           replies: [], nextCursor: null
         }));
+      }
+      if (url.pathname.startsWith("/api/v1/posts/100/actions/")) {
+        const action = url.pathname.split("/").at(-1) ?? "unknown";
+        window.__qaPostActionRequests.push(action);
+        return new Promise(resolve => {
+          window.__qaResolvePostAction = status => resolve(new Response(null, { status }));
+        });
       }
       if (
         url.pathname.startsWith("/api/v1/posts/") &&
@@ -652,6 +661,43 @@ await waitForCondition(
   'document.querySelector(".quoted-post-text")?.textContent === "translated-quoted-100"',
 );
 await waitForCondition("window.__qaTranslationActive === 0");
+const optimisticLikeClicked = await client.evaluate<boolean>(`(() => {
+  const button = document.querySelector("[data-post-action=like]");
+  if (!(button instanceof HTMLButtonElement)) return false;
+  button.click();
+  return true;
+})()`);
+if (!optimisticLikeClicked) throw new Error("いいね解除を操作できませんでした。");
+await waitForCondition(`
+  window.__qaPostActionRequests.at(-1) === "unlike" &&
+  document.querySelector("[data-post-action=like]")?.textContent === "2" &&
+  document.querySelector("[data-post-action=like]")?.classList.contains("like-active") === false
+`);
+await client.evaluate("window.__qaResolvePostAction?.(503)");
+await waitForCondition(`
+  document.querySelector("[data-post-action=like]")?.textContent === "3" &&
+  document.querySelector("[data-post-action=like]")?.classList.contains("like-active") === true &&
+  document.querySelector(".post-action-error") !== null
+`);
+const optimisticRepostClicked = await client.evaluate<boolean>(`(() => {
+  const menu = document.querySelector(".repost-menu");
+  const confirm = menu?.querySelector("[data-post-action=repost-confirm]");
+  if (!(menu instanceof HTMLDetailsElement) || !(confirm instanceof HTMLButtonElement)) return false;
+  menu.open = true;
+  confirm.click();
+  return true;
+})()`);
+if (!optimisticRepostClicked) throw new Error("リポスト解除を操作できませんでした。");
+await waitForCondition(`
+  window.__qaPostActionRequests.at(-1) === "undoRepost" &&
+  document.querySelector("[data-post-action=repost]")?.textContent === "1" &&
+  document.querySelector("[data-post-action=repost]")?.classList.contains("repost-active") === false
+`);
+await client.evaluate("window.__qaResolvePostAction?.(503)");
+await waitForCondition(`
+  document.querySelector("[data-post-action=repost]")?.textContent === "2" &&
+  document.querySelector("[data-post-action=repost]")?.classList.contains("repost-active") === true
+`);
 const timelineRequestsBeforeManualRefresh = await client.evaluate<number>(
   "window.__qaTimelineRequests",
 );

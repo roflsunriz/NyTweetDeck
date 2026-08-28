@@ -17,6 +17,7 @@ import { useRelativeTime } from "../model/relative-time";
 import { ComposerDialog } from "./composer-dialog";
 import { ArticleCard } from "./article-card";
 import { usePostTranslationSettings } from "./post-translation-context";
+import { useOptimisticToggle } from "./use-optimistic-toggle";
 import {
   type PostTranslationView,
   type PreTranslatedPost,
@@ -108,7 +109,6 @@ export function PostCard({
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [repostCount, setRepostCount] = useState(post.repostCount + post.quoteCount);
   const [bookmarkCount, setBookmarkCount] = useState(post.bookmarkCount);
-  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
   const [quoting, setQuoting] = useState(false);
@@ -131,6 +131,34 @@ export function PostCard({
   const visibleText = omitTrailingRedirectLink(
     postTranslation.visibleText,
     post.media.length > 0 || post.article != null,
+  );
+  const { pendingActions, toggle } = useOptimisticToggle(
+    async (action) => {
+      setActionError(null);
+      const response = await fetch(
+        `/api/v1/posts/${post.id}/actions/${action}?accountId=${encodeURIComponent(accountId)}`,
+        { method: "POST" },
+      );
+      if (response.ok) return;
+      let detail: string | null = null;
+      try {
+        const problem = (await response.json()) as { detail?: unknown };
+        if (typeof problem.detail === "string" && problem.detail.length > 0) {
+          detail = problem.detail;
+        }
+      } catch {
+        // Use the localized fallback when the response has no problem body.
+      }
+      throw new Error(detail ?? `HTTP ${response.status}`);
+    },
+    (error) => {
+      const detail = error instanceof Error ? error.message : "";
+      setActionError(
+        detail.length > 0 && !detail.startsWith("HTTP ")
+          ? `${translation.postActionFailed} ${detail}`
+          : translation.postActionFailed,
+      );
+    },
   );
 
   useEffect(() => setLiked(post.liked), [post.liked]);
@@ -167,38 +195,6 @@ export function PostCard({
     return () => observer.disconnect();
   }, [post.id]);
 
-  const mutate = async (action: string, onSuccess: () => void) => {
-    setBusyAction(action);
-    setActionError(null);
-    try {
-      const response = await fetch(
-        `/api/v1/posts/${post.id}/actions/${action}?accountId=${encodeURIComponent(accountId)}`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
-        let detail: string | null = null;
-        try {
-          const problem = (await response.json()) as { detail?: unknown };
-          if (typeof problem.detail === "string" && problem.detail.length > 0) {
-            detail = problem.detail;
-          }
-        } catch {
-          // Use the localized fallback when the response has no problem body.
-        }
-        throw new Error(detail ?? `HTTP ${response.status}`);
-      }
-      onSuccess();
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : "";
-      setActionError(
-        detail.length > 0 && !detail.startsWith("HTTP ")
-          ? `${translation.postActionFailed} ${detail}`
-          : translation.postActionFailed,
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  };
   const share = async () => {
     if (navigator.share !== undefined) {
       await navigator.share({ title: post.author.displayName, text: post.text, url: postUrl });
@@ -414,11 +410,16 @@ export function PostCard({
             quoteLabel={translation.quote}
             count={repostCount}
             active={reposted}
-            disabled={busyAction !== null}
+            disabled={pendingActions.has("repost")}
             onRepost={() =>
-              mutate(reposted ? "undoRepost" : "repost", () => {
-                setReposted((current) => !current);
-                setRepostCount((current) => Math.max(0, current + (reposted ? -1 : 1)));
+              toggle({
+                actionKey: "repost",
+                active: reposted,
+                count: repostCount,
+                setActive: setReposted,
+                setCount: setRepostCount,
+                enableAction: "repost",
+                disableAction: "undoRepost",
               })
             }
             onQuote={() => setQuoting(true)}
@@ -429,11 +430,16 @@ export function PostCard({
             label={translation.like}
             count={likeCount}
             active={liked}
-            disabled={busyAction !== null}
+            disabled={pendingActions.has("like")}
             onClick={() =>
-              mutate(liked ? "unlike" : "like", () => {
-                setLiked((current) => !current);
-                setLikeCount((current) => Math.max(0, current + (liked ? -1 : 1)));
+              toggle({
+                actionKey: "like",
+                active: liked,
+                count: likeCount,
+                setActive: setLiked,
+                setCount: setLikeCount,
+                enableAction: "like",
+                disableAction: "unlike",
               })
             }
           />
@@ -450,11 +456,16 @@ export function PostCard({
             label={translation.bookmark}
             count={bookmarkCount}
             active={bookmarked}
-            disabled={busyAction !== null}
+            disabled={pendingActions.has("bookmark")}
             onClick={() =>
-              mutate(bookmarked ? "removeBookmark" : "bookmark", () => {
-                setBookmarked((current) => !current);
-                setBookmarkCount((current) => Math.max(0, current + (bookmarked ? -1 : 1)));
+              toggle({
+                actionKey: "bookmark",
+                active: bookmarked,
+                count: bookmarkCount,
+                setActive: setBookmarked,
+                setCount: setBookmarkCount,
+                enableAction: "bookmark",
+                disableAction: "removeBookmark",
               })
             }
           />
