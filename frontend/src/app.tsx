@@ -47,6 +47,7 @@ import {
   type Theme,
 } from "./model/layout";
 import { useSharedLayout } from "./model/use-shared-layout";
+import { useListCandidates } from "./model/use-list-candidates";
 
 const navIcons: Record<NavItemId, LucideIcon> = {
   compose: PenLine,
@@ -210,6 +211,7 @@ export function App() {
     accountIds?.includes(layout.activeAccountId) === true
       ? layout.activeAccountId
       : null;
+  const listCandidates = useListCandidates(accountIds, activeAccountId);
 
   const addColumn = (kind: ColumnKind, target: string | null, label: string | null = null) => {
     setLayout((current) => ({
@@ -520,6 +522,7 @@ export function App() {
           <AddColumnDialog
             translation={translation}
             accountId={activeAccountId}
+            listCandidates={listCandidates}
             onAdd={addColumn}
             onClose={() => setDialog(null)}
           />
@@ -528,6 +531,7 @@ export function App() {
           <AddColumnDialog
             translation={translation}
             accountId={activeAccountId}
+            listCandidates={listCandidates}
             initialKind="search"
             onAdd={addColumn}
             onClose={() => setDialog(null)}

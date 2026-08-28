@@ -26,6 +26,7 @@ describe("column target selection", () => {
       <AddColumnDialog
         translation={translate("ja")}
         accountId="account-1"
+        listCandidates={{ options: [], ready: true, error: false }}
         initialKind="user"
         onAdd={(...values) => added.push(values)}
         onClose={() => undefined}
@@ -39,30 +40,33 @@ describe("column target selection", () => {
   });
 
   test("shows account lists and adds the selected list by name", async () => {
-    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) =>
-      Response.json({
-        lists: String(input).includes("scope=mine")
-          ? [
-              {
-                id: "84",
-                name: "Friends",
-                description: "People I know",
-                ownerName: "Alice",
-                ownerUsername: "alice",
-                memberCount: 5,
-                subscriberCount: 2,
-                source: "mine",
-              },
-            ]
-          : [],
-        nextCursor: null,
-      })) as unknown as typeof fetch;
+    let requests = 0;
+    globalThis.fetch = (async () => {
+      requests += 1;
+      return Response.json(null);
+    }) as unknown as typeof fetch;
     const added: unknown[] = [];
     const user = userEvent.setup();
     render(
       <AddColumnDialog
         translation={translate("ja")}
         accountId="account-1"
+        listCandidates={{
+          ready: true,
+          error: false,
+          options: [
+            {
+              id: "84",
+              name: "Friends",
+              description: "People I know",
+              ownerName: "Alice",
+              ownerUsername: "alice",
+              memberCount: 5,
+              subscriberCount: 2,
+              source: "mine",
+            },
+          ],
+        }}
         initialKind="list"
         onAdd={(...values) => added.push(values)}
         onClose={() => undefined}
@@ -72,5 +76,6 @@ describe("column target selection", () => {
     await user.click(await screen.findByRole("button", { name: /Friends/ }));
 
     expect(added).toEqual([["list", "84", "Friends"]]);
+    expect(requests).toBe(0);
   });
 });

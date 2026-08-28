@@ -255,6 +255,77 @@ describe("NyTweetDeck shell", () => {
     expect(screen.getByRole("heading", { name: "検索: NyTweetDeck" })).toBeDefined();
   });
 
+  test("prefetches list candidates and updates an open picker only when the background snapshot changes", async () => {
+    let listRequests = 0;
+    let updated = false;
+    let failed = false;
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === "/api/v1/accounts") {
+        return Response.json([
+          { accountId: "account-1", userId: "42", username: "alice", displayName: "Alice" },
+        ]);
+      }
+      if (url.pathname === "/api/v1/lists") {
+        listRequests += 1;
+        if (failed) return new Response(null, { status: 503 });
+        const source = url.searchParams.get("scope");
+        const lists =
+          source === "mine"
+            ? [
+                {
+                  id: updated ? "85" : "84",
+                  name: updated ? "Family" : "Friends",
+                  description: null,
+                  ownerName: "Alice",
+                  ownerUsername: "alice",
+                  memberCount: 5,
+                  subscriberCount: 2,
+                  source: "mine",
+                },
+              ]
+            : [];
+        return Response.json({ lists, nextCursor: null });
+      }
+      return Response.json({ connected: true, topicCount: 0 });
+    });
+    window.localStorage.setItem(
+      layoutStorageKey,
+      JSON.stringify({ ...createDefaultLayout(), activeAccountId: "account-1" }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+
+    await waitFor(() => expect(listRequests).toBe(2));
+    await user.click(
+      screen.getAllByRole("button", { name: "カラムを追加" }).at(-1) as HTMLButtonElement,
+    );
+    const listKind = document.querySelector('[data-column-kind="list"]');
+    if (!(listKind instanceof HTMLButtonElement)) throw new Error("リスト種別が見つかりません。");
+    await user.click(listKind);
+
+    expect(screen.getByRole("button", { name: /Friends/ })).toBeDefined();
+    expect(listRequests).toBe(2);
+
+    updated = true;
+    window.dispatchEvent(new Event("focus"));
+
+    expect(await screen.findByRole("button", { name: /Family/ })).toBeDefined();
+    expect(screen.queryByRole("button", { name: /Friends/ })).toBeNull();
+    expect(listRequests).toBe(4);
+
+    const unchangedFamily = screen.getByRole("button", { name: /Family/ });
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(listRequests).toBe(6));
+    expect(screen.getByRole("button", { name: /Family/ })).toBe(unchangedFamily);
+
+    failed = true;
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(listRequests).toBe(8));
+    expect(screen.getByRole("button", { name: /Family/ })).toBe(unchangedFamily);
+    expect(document.querySelector(".column-target-form .setup-error")).toBeNull();
+  });
+
   test("clears a persisted account that is no longer in the automatic account store", async () => {
     let timelineRequests = 0;
     globalThis.fetch = withSharedLayoutApi(async (input) => {

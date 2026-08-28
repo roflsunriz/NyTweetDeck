@@ -10,33 +10,20 @@ import {
   type LucideIcon,
   UserRound,
 } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { columnKinds, type ColumnKind } from "../model/layout";
+import { loadListDirectory, type ListOption, uniqueLists } from "../model/list-directory";
+import type { ListCandidatesState } from "../model/use-list-candidates";
 import { Modal } from "./modal";
 
 interface AddColumnDialogProps {
   translation: Translation;
   accountId: string | null;
+  listCandidates: ListCandidatesState;
   onAdd: (kind: ColumnKind, target: string | null, label?: string | null) => void;
   onClose: () => void;
   initialKind?: ColumnKind;
-}
-
-interface ListOption {
-  id: string;
-  name: string;
-  description: string | null;
-  ownerName: string | null;
-  ownerUsername: string | null;
-  memberCount: number;
-  subscriberCount: number;
-  source: "mine" | "suggested" | "search";
-}
-
-interface ListDirectoryPage {
-  lists: ListOption[];
-  nextCursor: string | null;
 }
 
 const icons: Record<ColumnKind, LucideIcon> = {
@@ -54,6 +41,7 @@ const icons: Record<ColumnKind, LucideIcon> = {
 export function AddColumnDialog({
   translation,
   accountId,
+  listCandidates,
   onAdd,
   onClose,
   initialKind,
@@ -62,37 +50,15 @@ export function AddColumnDialog({
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [targetError, setTargetError] = useState<string | null>(null);
-  const [listOptions, setListOptions] = useState<ListOption[]>([]);
-
-  useEffect(() => {
-    if (pendingKind !== "list" || accountId === null) {
-      return;
-    }
-    const controller = new AbortController();
-    setBusy(true);
-    setTargetError(null);
-    void Promise.allSettled([
-      loadLists(accountId, "mine", undefined, controller.signal),
-      loadLists(accountId, "suggested", undefined, controller.signal),
-    ]).then((results) => {
-      if (controller.signal.aborted) return;
-      const lists = results.flatMap((result) =>
-        result.status === "fulfilled" ? result.value.lists : [],
-      );
-      setListOptions(uniqueLists(lists));
-      if (results.every((result) => result.status === "rejected")) {
-        setTargetError(translation.listLoadError);
-      }
-      setBusy(false);
-    });
-    return () => controller.abort();
-  }, [accountId, pendingKind, translation.listLoadError]);
+  const [listSearchResults, setListSearchResults] = useState<ListOption[] | null>(null);
+  const listOptions = listSearchResults ?? listCandidates.options;
 
   const chooseKind = (kind: ColumnKind) => {
     if (kind === "user" || kind === "list" || kind === "search") {
       setPendingKind(kind);
       setTarget("");
       setTargetError(null);
+      setListSearchResults(null);
       return;
     }
     onAdd(kind, null);
@@ -126,8 +92,8 @@ export function AddColumnDialog({
         };
         onAdd("user", user.id, `@${user.username}`);
       } else {
-        const page = await loadLists(accountId, "search", normalized);
-        setListOptions(uniqueLists(page.lists));
+        const page = await loadListDirectory(accountId, "search", normalized);
+        setListSearchResults(uniqueLists(page.lists));
         if (page.lists.length === 0) {
           setTargetError(translation.noLists);
         }
@@ -191,7 +157,11 @@ export function AddColumnDialog({
                     : translation.listSearchHint
               }
               value={target}
-              onChange={(event) => setTarget(event.target.value)}
+              onChange={(event) => {
+                setTarget(event.target.value);
+                setTargetError(null);
+                if (pendingKind === "list") setListSearchResults(null);
+              }}
             />
           </label>
           <button className="primary-button" type="submit" disabled={busy}>
@@ -202,6 +172,9 @@ export function AddColumnDialog({
                 : translation.confirmAddColumn}
           </button>
           {targetError !== null && <p className="setup-error">{targetError}</p>}
+          {pendingKind === "list" && listSearchResults === null && listCandidates.error && (
+            <p className="setup-error">{translation.listLoadError}</p>
+          )}
           {pendingKind === "list" && (
             <div className="list-option-groups">
               <ListOptions
@@ -214,9 +187,12 @@ export function AddColumnDialog({
                 options={listOptions.filter((option) => option.source !== "mine")}
                 onSelect={(option) => onAdd("list", option.id, option.name)}
               />
-              {!busy && listOptions.length === 0 && targetError === null && (
-                <p className="modal-description">{translation.noLists}</p>
-              )}
+              {!busy &&
+                listOptions.length === 0 &&
+                targetError === null &&
+                (listSearchResults !== null || listCandidates.ready) && (
+                  <p className="modal-description">{translation.noLists}</p>
+                )}
             </div>
           )}
         </form>
@@ -252,25 +228,4 @@ function ListOptions({
       ))}
     </section>
   );
-}
-
-async function loadLists(
-  accountId: string,
-  scope: ListOption["source"],
-  query?: string,
-  signal?: AbortSignal,
-): Promise<ListDirectoryPage> {
-  const params = new URLSearchParams({ accountId, scope });
-  if (query !== undefined) params.set("query", query);
-  const response = await fetch(`/api/v1/lists?${params}`, { signal });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return (await response.json()) as ListDirectoryPage;
-}
-
-function uniqueLists(lists: ListOption[]): ListOption[] {
-  const byId = new Map<string, ListOption>();
-  for (const list of lists) {
-    if (!byId.has(list.id)) byId.set(list.id, list);
-  }
-  return [...byId.values()];
 }

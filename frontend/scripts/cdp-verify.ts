@@ -1,120 +1,6 @@
 import { resolve } from "node:path";
+import { CdpClient, type CdpTarget } from "./cdp-client";
 import { readSharedLayout, updateSharedLayout } from "./shared-layout-cdp";
-
-interface CdpTarget {
-  type: string;
-  webSocketDebuggerUrl: string;
-}
-
-interface CdpMessage {
-  id?: number;
-  method?: string;
-  params?: unknown;
-  result?: unknown;
-  error?: { message: string };
-}
-
-interface PendingCall {
-  resolve: (value: unknown) => void;
-  reject: (reason: Error) => void;
-}
-
-class CdpClient {
-  private readonly socket: WebSocket;
-  private nextId = 1;
-  private readonly pending = new Map<number, PendingCall>();
-  private readonly eventWaiters = new Map<string, Array<(params: unknown) => void>>();
-  private readonly eventListeners = new Map<string, Array<(params: unknown) => void>>();
-
-  private constructor(socket: WebSocket) {
-    this.socket = socket;
-    this.socket.addEventListener("message", (event) => {
-      const message = JSON.parse(String(event.data)) as CdpMessage;
-      if (message.id !== undefined) {
-        const call = this.pending.get(message.id);
-        if (call === undefined) {
-          return;
-        }
-        this.pending.delete(message.id);
-        if (message.error !== undefined) {
-          call.reject(new Error(message.error.message));
-        } else {
-          call.resolve(message.result);
-        }
-        return;
-      }
-
-      if (message.method !== undefined) {
-        for (const listener of this.eventListeners.get(message.method) ?? []) {
-          listener(message.params);
-        }
-        const waiters = this.eventWaiters.get(message.method) ?? [];
-        this.eventWaiters.delete(message.method);
-        for (const waiter of waiters) {
-          waiter(message.params);
-        }
-      }
-    });
-  }
-
-  static async connect(url: string): Promise<CdpClient> {
-    const socket = new WebSocket(url);
-    await new Promise<void>((resolveOpen, rejectOpen) => {
-      socket.addEventListener("open", () => resolveOpen(), { once: true });
-      socket.addEventListener("error", () => rejectOpen(new Error("CDP connection failed.")), {
-        once: true,
-      });
-    });
-    return new CdpClient(socket);
-  }
-
-  call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
-    const id = this.nextId++;
-    return new Promise<T>((resolveCall, rejectCall) => {
-      this.pending.set(id, {
-        resolve: (value) => resolveCall(value as T),
-        reject: rejectCall,
-      });
-      this.socket.send(JSON.stringify({ id, method, params }));
-    });
-  }
-
-  waitForEvent(method: string, timeoutMilliseconds = 10_000): Promise<unknown> {
-    return new Promise((resolveEvent, rejectEvent) => {
-      const timeout = setTimeout(
-        () => rejectEvent(new Error(`Timed out waiting for ${method}.`)),
-        timeoutMilliseconds,
-      );
-      const waiters = this.eventWaiters.get(method) ?? [];
-      waiters.push((params) => {
-        clearTimeout(timeout);
-        resolveEvent(params);
-      });
-      this.eventWaiters.set(method, waiters);
-    });
-  }
-
-  on(method: string, listener: (params: unknown) => void): void {
-    const listeners = this.eventListeners.get(method) ?? [];
-    listeners.push(listener);
-    this.eventListeners.set(method, listeners);
-  }
-
-  async evaluate<T>(expression: string): Promise<T> {
-    const response = await this.call<{
-      result: { value?: T };
-      exceptionDetails?: { text: string };
-    }>("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
-    if (response.exceptionDetails !== undefined) {
-      throw new Error(response.exceptionDetails.text);
-    }
-    return response.result.value as T;
-  }
-
-  close(): void {
-    this.socket.close();
-  }
-}
 
 const applicationUrl = process.env.NYTWEETDECK_URL ?? "http://127.0.0.1:18080";
 const cdpPort = process.env.CHROME_CDP_PORT ?? "9222";
@@ -410,6 +296,8 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     window.__qaTimelineRequests = 0;
     window.__qaPostActionRequests = [];
     window.__qaResolvePostAction = null;
+    window.__qaListRequests = 0;
+    window.__qaListVersion = 0;
     window.fetch = (input, init) => {
       const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const url = new URL(raw, location.href);
@@ -417,6 +305,17 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
         return Promise.resolve(Response.json([
           { accountId: "qa-account", userId: "42", username: "qa", displayName: "QA" }
         ]));
+      }
+      if (url.pathname === "/api/v1/lists") {
+        window.__qaListRequests += 1;
+        const source = url.searchParams.get("scope");
+        const lists = source === "mine" ? [{
+          id: window.__qaListVersion === 0 ? "84" : "85",
+          name: window.__qaListVersion === 0 ? "Friends" : "Family",
+          description: null, ownerName: "QA", ownerUsername: "qa",
+          memberCount: 5, subscriberCount: 2, source: "mine"
+        }] : [];
+        return Promise.resolve(Response.json({ lists, nextCursor: null }));
       }
       if (url.pathname === "/api/v1/trends") {
         return Promise.resolve(Response.json({
@@ -661,6 +560,38 @@ await waitForCondition(
   'document.querySelector(".quoted-post-text")?.textContent === "translated-quoted-100"',
 );
 await waitForCondition("window.__qaTranslationActive === 0");
+await waitForCondition("window.__qaListRequests === 2");
+const addColumnOpened = await client.evaluate<boolean>(`(() => {
+  const button = document.querySelector('[data-action="add-column"]');
+  if (!(button instanceof HTMLButtonElement)) return false;
+  button.click();
+  return true;
+})()`);
+if (!addColumnOpened) throw new Error("リスト候補検証用のカラム追加画面を開けませんでした。");
+await waitForCondition("document.querySelector('[data-column-kind=\"list\"]') !== null");
+const listPickerOpened = await client.evaluate<boolean>(`(() => {
+  const button = document.querySelector('[data-column-kind="list"]');
+  if (!(button instanceof HTMLButtonElement)) return false;
+  button.click();
+  return true;
+})()`);
+if (!listPickerOpened) throw new Error("リスト候補画面を開けませんでした。");
+await waitForCondition(`
+  document.querySelector(".list-option")?.textContent?.includes("Friends") === true &&
+  window.__qaListRequests === 2 &&
+  document.querySelector(".column-target-form .primary-button")?.disabled === false
+`);
+await client.evaluate(`(() => {
+  window.__qaListVersion = 1;
+  window.dispatchEvent(new Event("focus"));
+})()`);
+await waitForCondition(`
+  window.__qaListRequests === 4 &&
+  document.querySelector(".list-option")?.textContent?.includes("Family") === true &&
+  document.querySelector(".list-option")?.textContent?.includes("Friends") === false
+`);
+await client.evaluate('document.querySelector(".modal-header .icon-button")?.click()');
+await waitForCondition('document.querySelector(".modal-panel") === null');
 const optimisticLikeClicked = await client.evaluate<boolean>(`(() => {
   const button = document.querySelector("[data-post-action=like]");
   if (!(button instanceof HTMLButtonElement)) return false;
