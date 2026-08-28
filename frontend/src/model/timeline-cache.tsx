@@ -33,6 +33,26 @@ export class TimelineMemoryCache {
     return true;
   }
 
+  mergeFirstPage(key: string, page: TimelinePage): boolean {
+    const firstPage = copyPage(page);
+    const firstPageSignature = JSON.stringify(firstPage);
+    const cached = this.entries.get(key);
+    if (cached?.firstPageSignature === firstPageSignature) return false;
+    if (cached === undefined) return this.writeFirstPage(key, page);
+
+    const posts = mergeRefreshedPosts(cached.page.posts, firstPage.posts).slice(
+      0,
+      maximumPostsPerSnapshot,
+    );
+    this.entries.delete(key);
+    this.entries.set(key, {
+      page: { posts, nextCursor: cached.page.nextCursor },
+      firstPage,
+      firstPageSignature,
+    });
+    return true;
+  }
+
   appendPage(key: string, page: TimelinePage): void {
     const cached = this.entries.get(key);
     if (cached === undefined) return;
@@ -54,6 +74,21 @@ export class TimelineMemoryCache {
       firstPageSignature: JSON.stringify(firstPage),
     });
   }
+}
+
+export function mergeRefreshedPosts(
+  current: TimelinePost[],
+  refreshed: TimelinePost[],
+): TimelinePost[] {
+  const currentIds = new Set(current.map((post) => post.id));
+  const refreshedById = new Map(refreshed.map((post) => [post.id, post]));
+  const prependedIds = new Set<string>();
+  const prepended = refreshed.filter((post) => {
+    if (currentIds.has(post.id) || prependedIds.has(post.id)) return false;
+    prependedIds.add(post.id);
+    return true;
+  });
+  return [...prepended, ...current.map((post) => refreshedById.get(post.id) ?? post)];
 }
 
 function copyPage(page: TimelinePage): TimelinePage {

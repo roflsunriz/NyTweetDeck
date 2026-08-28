@@ -17,6 +17,7 @@ describe("translation coverage", () => {
         expect(translate(locale).column.home.title).not.toBe(english.column.home.title);
         expect(translate(locale).followUser).not.toBe(english.followUser);
         expect(translate(locale).manageLists).not.toBe(english.manageLists);
+        expect(translate(locale).newPosts).not.toBe(english.newPosts);
         expect(translate(locale).trendFilterLabel).not.toBe(english.trendFilterLabel);
         expect(translate(locale).communityNoteDetails).not.toBe(english.communityNoteDetails);
         expect(translate(locale).videoLoop).not.toBe(english.videoLoop);

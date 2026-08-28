@@ -275,6 +275,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     window.__qaTranslationAttempts = {};
     window.__qaTimelineRequests = 0;
     window.__qaTimelineCursors = [];
+    window.__qaTimelineVersion = 0;
     window.__qaHoldTimeline = false;
     window.__qaResolveTimeline = null;
     window.__qaPostActionRequests = [];
@@ -314,7 +315,24 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
         const timelineCursor = url.searchParams.get("cursor");
         window.__qaTimelineCursors.push(timelineCursor);
         const response = timelineCursor === null ? Response.json({
-          posts: [{
+          posts: [...(window.__qaTimelineVersion === 0 ? [] : Array.from({ length: 6 }, (_, index) => ({
+            id: "new-" + index, text: "New post " + index, language: "ja",
+            createdAt: "2026-08-28T00:00:00Z",
+            author: {
+              id: "new-author-" + index,
+              username: "new_author_" + index,
+              displayName: "New Author " + index,
+              avatarUrl: index % 2 === 0
+                ? "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+                : null,
+              verified: false
+            },
+            repostedBy: null, replyCount: 0, repostCount: 0, quoteCount: 0,
+            likeCount: 0, bookmarkCount: 0, viewCount: 0,
+            liked: false, reposted: false, bookmarked: false,
+            replyToPostId: null, replyToUsername: null, quotedPost: null,
+            communityNote: null, media: []
+          }))), {
             id: "100", text: "Initial engagement state https://t.co/article100", language: "en",
             createdAt: "2026-08-27T00:00:00Z",
             author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
@@ -866,6 +884,82 @@ results.push({
   ...deferredVideoMetrics,
   ...engagementMetrics,
   screenshotPath: engagementScreenshotPath,
+});
+
+const newPostRequestBaseline = await client.evaluate<number>("window.__qaTimelineRequests");
+const readingPositionBeforeUpdate = await client.evaluate<Record<string, unknown>>(`(() => {
+  const timeline = document.querySelector("[data-testid=timeline-scroll]");
+  const anchor = document.querySelector('[data-post-id="fresh-4"]');
+  if (!(timeline instanceof HTMLElement) || !(anchor instanceof HTMLElement)) return { found: false };
+  anchor.scrollIntoView({ block: "center" });
+  return {
+    found: true,
+    postId: anchor.dataset.postId,
+    postTop: anchor.getBoundingClientRect().top,
+    scrollTop: timeline.scrollTop
+  };
+})()`);
+if (readingPositionBeforeUpdate.found !== true) {
+  throw new Error("新着追加前の読書位置を設定できませんでした。");
+}
+await client.evaluate(`(() => {
+  window.__qaTimelineVersion = 1;
+  document.dispatchEvent(new Event("visibilitychange"));
+})()`);
+await waitForCondition(`
+  window.__qaTimelineRequests === ${newPostRequestBaseline + 1} &&
+  document.querySelector(".new-post-notification") !== null &&
+  document.querySelectorAll('[data-post-id^="new-"]').length === 6
+`);
+const newPostMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
+  const timeline = document.querySelector("[data-testid=timeline-scroll]");
+  const anchor = document.querySelector('[data-post-id="fresh-4"]');
+  const notification = document.querySelector(".new-post-notification");
+  return {
+    anchorTopBefore: ${Number(readingPositionBeforeUpdate.postTop)},
+    anchorTopAfter: anchor?.getBoundingClientRect().top,
+    scrollTopBefore: ${Number(readingPositionBeforeUpdate.scrollTop)},
+    scrollTopAfter: timeline instanceof HTMLElement ? timeline.scrollTop : null,
+    notificationText: notification?.textContent,
+    notificationLabel: notification?.getAttribute("aria-label"),
+    authorAvatarCount: notification?.querySelectorAll(".new-post-avatar").length,
+    documentOverflow: document.documentElement.scrollWidth > innerWidth
+  };
+})()`);
+if (
+  Math.abs(Number(newPostMetrics.anchorTopAfter) - Number(newPostMetrics.anchorTopBefore)) > 1 ||
+  Number(newPostMetrics.scrollTopAfter) <= Number(newPostMetrics.scrollTopBefore) ||
+  newPostMetrics.authorAvatarCount !== 5 ||
+  !String(newPostMetrics.notificationText).includes("新規投稿:") ||
+  newPostMetrics.notificationLabel !== "6件の新規投稿を表示" ||
+  newPostMetrics.documentOverflow !== false
+) {
+  throw new Error(`新着追加時の位置固定検証に失敗しました: ${JSON.stringify(newPostMetrics)}`);
+}
+const newPostScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const newPostScreenshotPath = resolve(
+  import.meta.dir,
+  "../../target/ui-new-post-notification-768x1024.png",
+);
+await Bun.write(newPostScreenshotPath, Buffer.from(newPostScreenshot.data, "base64"));
+const newPostNotificationClicked = await client.evaluate<boolean>(`(() => {
+  const notification = document.querySelector(".new-post-notification");
+  if (!(notification instanceof HTMLButtonElement)) return false;
+  notification.click();
+  return true;
+})()`);
+if (!newPostNotificationClicked) throw new Error("新規投稿通知を操作できませんでした。");
+await waitForCondition(`
+  document.querySelector(".new-post-notification") === null &&
+  document.querySelector("[data-testid=timeline-scroll]")?.scrollTop === 0
+`);
+results.push({
+  view: "new-post-notification",
+  ...newPostMetrics,
+  screenshotPath: newPostScreenshotPath,
 });
 
 const articleOpened = await client.evaluate<boolean>(`(() => {

@@ -16,6 +16,23 @@ describe("timeline memory cache", () => {
     expect(cached?.posts.at(-1)?.id).toBe("post-199");
     expect(cached?.nextCursor).toBe("cursor-200");
   });
+
+  test("prepends refreshed posts without discarding the timeline already being read", () => {
+    const cache = new TimelineMemoryCache();
+    const key = "stable-reading-position";
+    cache.writeFirstPage(key, { posts: [post(1), post(2)], nextCursor: "cursor-2" });
+    cache.appendPage(key, { posts: [post(3)], nextCursor: null });
+
+    cache.mergeFirstPage(key, {
+      posts: [post(0), { ...post(1), text: "updated post 1" }],
+      nextCursor: "new-cursor",
+    });
+
+    const cached = cache.read(key);
+    expect(cached?.posts.map((item) => item.id)).toEqual(["post-0", "post-1", "post-2", "post-3"]);
+    expect(cached?.posts[1]?.text).toBe("updated post 1");
+    expect(cached?.nextCursor).toBeNull();
+  });
 });
 
 function page(start: number, count: number, nextCursor: string | null): TimelinePage {

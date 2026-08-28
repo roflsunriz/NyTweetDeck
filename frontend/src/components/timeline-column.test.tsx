@@ -386,6 +386,68 @@ describe("timeline column", () => {
     await waitFor(() => expect(timelineLoads).toBe(2));
   });
 
+  test("prepends new posts while preserving the visible post and shows five author avatars", async () => {
+    let eventSource: FakeEventSource | undefined;
+    globalThis.EventSource = class extends FakeEventSource {
+      constructor(_url: string | URL) {
+        super();
+        eventSource = this;
+      }
+    } as unknown as typeof EventSource;
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (!String(input).includes("/api/v1/timelines/")) {
+        return Response.json({ connected: true, topicCount: 1 });
+      }
+      timelineLoads += 1;
+      if (timelineLoads === 1) {
+        return Response.json({ posts: [post("old", "post being read")], nextCursor: null });
+      }
+      return Response.json({
+        posts: [
+          ...Array.from({ length: 6 }, (_, index) =>
+            postByAuthor(
+              `new-${index}`,
+              `new post ${index}`,
+              `author-${index}`,
+              index % 2 === 0 ? `https://pbs.twimg.com/avatar-${index}.jpg` : null,
+            ),
+          ),
+          post("old", "post being read"),
+        ],
+        nextCursor: null,
+      });
+    }) as typeof fetch;
+    const user = userEvent.setup();
+    const column: ColumnConfig = { id: "stable", kind: "home", target: null, label: null };
+
+    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
+    const oldText = await screen.findByText("post being read");
+    const oldCard = oldText.closest<HTMLElement>(".post-card");
+    const timeline = screen.getByTestId("timeline-scroll");
+    expect(oldCard).not.toBeNull();
+    timeline.scrollTop = 0;
+    timeline.getBoundingClientRect = () => rectangle(0, 600);
+    if (oldCard !== null) {
+      oldCard.getBoundingClientRect = () =>
+        rectangle(screen.queryByText("new post 0") === null ? 100 : 300, 180);
+    }
+
+    act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "new-0" }));
+
+    const notification = await screen.findByRole("button", { name: "6件の新規投稿を表示" });
+    await waitFor(() => expect(timeline.scrollTop).toBe(200));
+    expect(notification.textContent).toContain("新規投稿:");
+    expect(notification.querySelectorAll(".new-post-avatar")).toHaveLength(5);
+    expect(screen.getByText("post being read")).toBeDefined();
+    expect(screen.getByText("new post 0")).toBeDefined();
+
+    await user.click(notification);
+
+    expect(timeline.scrollTop).toBe(0);
+    expect(screen.queryByRole("button", { name: "6件の新規投稿を表示" })).toBeNull();
+  });
+
   test("keeps the live subscription while engagement-only state changes", async () => {
     let eventSource: FakeEventSource | undefined;
     globalThis.EventSource = class extends FakeEventSource {
@@ -588,6 +650,33 @@ function post(id: string, text: string) {
     bookmarked: false,
     quotedPost: null,
     media: [],
+  };
+}
+
+function postByAuthor(id: string, text: string, authorId: string, avatarUrl: string | null) {
+  return {
+    ...post(id, text),
+    author: {
+      id: authorId,
+      username: authorId,
+      displayName: `Author ${authorId}`,
+      avatarUrl,
+      verified: false,
+    },
+  };
+}
+
+function rectangle(top: number, height: number): DOMRect {
+  return {
+    x: 0,
+    y: top,
+    top,
+    right: 320,
+    bottom: top + height,
+    left: 0,
+    width: 320,
+    height,
+    toJSON: () => ({}),
   };
 }
 

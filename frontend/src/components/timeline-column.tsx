@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import type { ColumnConfig, Locale } from "../model/layout";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { fetchWithTimeout } from "../model/fetch-with-timeout";
 import {
   createTimelineCacheKey,
+  mergeRefreshedPosts,
   type TimelineMemoryCache,
   useTimelineCache,
 } from "../model/timeline-cache";
-import type { TimelinePage, TimelinePost } from "../model/timeline";
+import type { TimelineAuthor, TimelinePage, TimelinePost } from "../model/timeline";
 import { PostCard } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import {
@@ -30,6 +31,20 @@ interface TimelineUpdate {
   bookmarkCount?: number | null;
   viewCount?: number | null;
 }
+
+interface NewPostNotification {
+  count: number;
+  authors: TimelineAuthor[];
+}
+
+interface ViewportAnchor {
+  postId: string | null;
+  postOffset: number;
+  scrollHeight: number;
+  scrollTop: number;
+}
+
+type TimelineLoadMode = "replace" | "preserve-viewport";
 
 interface TimelineColumnProps {
   column: ColumnConfig;
@@ -85,9 +100,12 @@ function TimelineColumnContent({
   const [liveError, setLiveError] = useState(false);
   const [postFilter, setPostFilter] = useState<PostFilter>(createDefaultPostFilter);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [newPostNotification, setNewPostNotification] = useState<NewPostNotification | null>(null);
   const loadingRef = useRef(false);
   const postsRef = useRef(posts);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const viewportAnchorRef = useRef<ViewportAnchor | null>(null);
 
   const updatePosts = useCallback(
     (update: (current: TimelinePost[]) => TimelinePost[]) => {
@@ -102,7 +120,7 @@ function TimelineColumnContent({
   );
 
   const load = useCallback(
-    async (nextCursor?: string) => {
+    async (nextCursor?: string, mode: TimelineLoadMode = "replace") => {
       if (accountId === null) {
         return "skipped" as const;
       }
@@ -132,12 +150,32 @@ function TimelineColumnContent({
         }
         const page = (await response.json()) as TimelinePage;
         if (nextCursor === undefined) {
+          const preservingViewport = mode === "preserve-viewport" && postsRef.current.length > 0;
           const changed =
-            timelineCacheKey === null || timelineCache.writeFirstPage(timelineCacheKey, page);
+            timelineCacheKey === null ||
+            (preservingViewport
+              ? timelineCache.mergeFirstPage(timelineCacheKey, page)
+              : timelineCache.writeFirstPage(timelineCacheKey, page));
           if (changed) {
-            postsRef.current = page.posts;
-            setPosts(page.posts);
-            setCursor(page.nextCursor);
+            if (preservingViewport) {
+              const current = postsRef.current;
+              viewportAnchorRef.current = captureViewportAnchor(scrollRef.current);
+              const merged = mergeRefreshedPosts(current, page.posts);
+              const newPosts = merged.slice(0, merged.length - current.length);
+              postsRef.current = merged;
+              setPosts(merged);
+              if (newPosts.length > 0) {
+                setNewPostNotification((notification) =>
+                  mergeNewPostNotification(notification, newPosts),
+                );
+              }
+            } else {
+              viewportAnchorRef.current = null;
+              postsRef.current = page.posts;
+              setPosts(page.posts);
+              setCursor(page.nextCursor);
+              setNewPostNotification(null);
+            }
           }
           setError(null);
           return changed ? ("changed" as const) : ("unchanged" as const);
@@ -178,7 +216,15 @@ function TimelineColumnContent({
       translation.timelineLoadError,
     ],
   );
-  const { manualRefreshing, manualRefreshHandlers } = useManualRefreshAtTop(load);
+  const { manualRefreshing, manualRefreshHandlers } = useManualRefreshAtTop(() => load());
+
+  useLayoutEffect(() => {
+    const anchor = viewportAnchorRef.current;
+    const scroll = scrollRef.current;
+    if (anchor === null || scroll === null) return;
+    viewportAnchorRef.current = null;
+    restoreViewportAnchor(scroll, anchor);
+  });
 
   useEffect(() => {
     void load();
@@ -209,7 +255,7 @@ function TimelineColumnContent({
       if (document.visibilityState === "hidden") {
         return;
       }
-      const result = await load();
+      const result = await load(undefined, "preserve-viewport");
       if (result === "changed") {
         refreshDelay = refreshMinimumMilliseconds;
       } else if (result === "unchanged" || result === "failed") {
@@ -282,7 +328,7 @@ function TimelineColumnContent({
         return;
       }
       if (update.reason === "create" || update.reason === "reply" || update.reason === "quote") {
-        void load();
+        void load(undefined, "preserve-viewport");
       }
     };
     source.addEventListener("timeline-update", handleUpdate);
@@ -388,10 +434,37 @@ function TimelineColumnContent({
   const visiblePosts = filterPosts(posts, postFilter);
   return (
     <div
+      ref={scrollRef}
       className="timeline-content refreshable-scroll"
       data-testid="timeline-scroll"
       {...manualRefreshHandlers}
     >
+      <div className="new-post-notification-layer">
+        {newPostNotification !== null && (
+          <button
+            className="new-post-notification"
+            type="button"
+            aria-label={translation.showNewPosts(newPostNotification.count)}
+            onClick={() => {
+              if (scrollRef.current !== null) scrollRef.current.scrollTop = 0;
+              setNewPostNotification(null);
+            }}
+          >
+            <span>{translation.newPosts}</span>
+            <span className="new-post-avatars" aria-hidden="true">
+              {newPostNotification.authors.map((author) => (
+                <span className="new-post-avatar" key={author.id} title={`@${author.username}`}>
+                  {author.avatarUrl === null ? (
+                    avatarFallback(author)
+                  ) : (
+                    <img src={author.avatarUrl} alt="" />
+                  )}
+                </span>
+              ))}
+            </span>
+          </button>
+        )}
+      </div>
       {manualRefreshing && (
         <div className="manual-refresh-status" role="status">
           {translation.loading}
@@ -446,6 +519,56 @@ function TimelineColumnContent({
       )}
     </div>
   );
+}
+
+function mergeNewPostNotification(
+  current: NewPostNotification | null,
+  posts: TimelinePost[],
+): NewPostNotification {
+  const authors = current?.authors.slice() ?? [];
+  const authorIds = new Set(authors.map((author) => author.id));
+  for (const post of posts) {
+    if (authors.length >= 5) break;
+    if (authorIds.has(post.author.id)) continue;
+    authorIds.add(post.author.id);
+    authors.push(post.author);
+  }
+  return { count: (current?.count ?? 0) + posts.length, authors };
+}
+
+function avatarFallback(author: TimelineAuthor): string {
+  return author.displayName.trim().charAt(0) || author.username.trim().charAt(0) || "?";
+}
+
+function captureViewportAnchor(scroll: HTMLDivElement | null): ViewportAnchor | null {
+  if (scroll === null) return null;
+  const scrollBounds = scroll.getBoundingClientRect();
+  const firstVisiblePost = Array.from(scroll.querySelectorAll<HTMLElement>(".post-card")).find(
+    (post) => post.getBoundingClientRect().bottom > scrollBounds.top,
+  );
+  return {
+    postId: firstVisiblePost?.dataset.postId ?? null,
+    postOffset:
+      firstVisiblePost === undefined
+        ? 0
+        : firstVisiblePost.getBoundingClientRect().top - scrollBounds.top,
+    scrollHeight: scroll.scrollHeight,
+    scrollTop: scroll.scrollTop,
+  };
+}
+
+function restoreViewportAnchor(scroll: HTMLDivElement, anchor: ViewportAnchor): void {
+  const anchoredPost = Array.from(scroll.querySelectorAll<HTMLElement>(".post-card")).find(
+    (post) => post.dataset.postId === anchor.postId,
+  );
+  const heightDelta = scroll.scrollHeight - anchor.scrollHeight;
+  const offsetDelta =
+    anchoredPost === undefined
+      ? heightDelta
+      : anchoredPost.getBoundingClientRect().top -
+        scroll.getBoundingClientRect().top -
+        anchor.postOffset;
+  scroll.scrollTop = Math.max(0, anchor.scrollTop + offsetDelta);
 }
 
 class TimelineHttpError extends Error {

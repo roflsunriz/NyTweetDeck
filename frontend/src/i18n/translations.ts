@@ -61,6 +61,8 @@ export interface Translation {
   followersCount: string;
   mutualFollowers: string;
   timelineLoadError: string;
+  newPosts: string;
+  showNewPosts: (count: number) => string;
   liveUpdateUnavailable: string;
   messageLoadError: string;
   noMessages: string;
@@ -245,6 +247,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     followersCount: "フォロワー",
     mutualFollowers: "共通のフォロワー",
     timelineLoadError: "タイムラインを読み込めませんでした。",
+    newPosts: "新規投稿:",
+    showNewPosts: (count) => `${count}件の新規投稿を表示`,
     liveUpdateUnavailable: "リアルタイム更新へ接続できません。再接続を試行しています。",
     messageLoadError: "ダイレクトメッセージを読み込めませんでした。",
     noMessages: "表示するダイレクトメッセージがありません。",
@@ -479,6 +483,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     followersCount: "Followers",
     mutualFollowers: "Followed by people you follow",
     timelineLoadError: "Could not load the timeline.",
+    newPosts: "New posts:",
+    showNewPosts: (count) => `Show ${count} new posts`,
     liveUpdateUnavailable: "Real-time updates are unavailable. Reconnecting…",
     messageLoadError: "Could not load direct messages.",
     noMessages: "No direct messages to display.",
