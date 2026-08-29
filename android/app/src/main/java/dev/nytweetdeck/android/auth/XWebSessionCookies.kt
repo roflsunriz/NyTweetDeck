@@ -8,6 +8,9 @@ internal data class XWebSessionCookies(
     val csrfToken: String,
     val userId: String,
 ) {
+    override fun toString(): String =
+        "XWebSessionCookies(authToken=<redacted>, csrfToken=<redacted>, userId=$userId)"
+
     companion object {
         fun fromHeader(header: String): XWebSessionCookies? {
             val cookies = CookieHeaderParser.parse(header)

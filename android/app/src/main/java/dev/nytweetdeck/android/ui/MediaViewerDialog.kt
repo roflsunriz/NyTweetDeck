@@ -5,6 +5,7 @@ import android.net.Uri
 import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -47,7 +49,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Media
-import java.util.Locale
+import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 
 @Composable
 internal fun MediaViewerDialog(
@@ -131,6 +133,14 @@ private fun PhotoViewer(media: Media) {
                         scaleY = scale
                         translationX = offset.x
                         translationY = offset.y
+                    }
+                    .pointerInput(media.id) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                scale = 1f
+                                offset = Offset.Zero
+                            },
+                        )
                     }
                     .transformable(transformState),
                 contentScale = ContentScale.Fit,
@@ -268,14 +278,8 @@ private fun VideoViewer(
     }
 }
 
-private fun safeMediaUri(value: String?): Uri? {
+internal fun safeMediaUri(value: String?): Uri? {
     if (value.isNullOrBlank()) return null
-    return runCatching {
-        val uri = Uri.parse(value)
-        val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
-        uri.takeIf {
-            uri.scheme.equals("https", ignoreCase = true) &&
-                (host == "twimg.com" || host.endsWith(".twimg.com"))
-        }
-    }.getOrNull()
+    val verified = verifiedExternalHttpsUrl(value, setOf("twimg.com")) ?: return null
+    return Uri.parse(verified)
 }

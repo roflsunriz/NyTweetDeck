@@ -25,6 +25,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import androidx.webkit.WebViewClientCompat
+import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 import dev.nytweetdeck.android.R
 
 class LoginActivity : ComponentActivity() {
@@ -136,7 +137,12 @@ class LoginActivity : ComponentActivity() {
             ): Boolean {
                 val uri = request.url
                 if (!request.isForMainFrame || isTrustedXUri(uri)) return false
-                startActivity(Intent(Intent.ACTION_VIEW, uri))
+                verifiedExternalHttpsUrl(uri.toString())?.let { verified ->
+                    startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(verified))
+                            .addCategory(Intent.CATEGORY_BROWSABLE),
+                    )
+                }
                 return true
             }
 
@@ -195,10 +201,10 @@ class LoginActivity : ComponentActivity() {
         private val PROFILE_PATTERN = Regex("[A-Za-z0-9_-]{1,80}")
 
         private fun isTrustedXUri(uri: Uri): Boolean {
-            if (uri.scheme != "https") return false
-            val host = uri.host?.lowercase() ?: return false
-            return host == "x.com" || host.endsWith(".x.com") ||
-                host == "twitter.com" || host.endsWith(".twitter.com")
+            return verifiedExternalHttpsUrl(
+                uri.toString(),
+                setOf("x.com", "twitter.com"),
+            ) != null
         }
 
     }

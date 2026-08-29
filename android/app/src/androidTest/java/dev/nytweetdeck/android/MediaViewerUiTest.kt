@@ -5,6 +5,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.doubleClick
 import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.Media
 import dev.nytweetdeck.android.model.Post
@@ -32,6 +34,7 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("post-media-1-photo-1").performClick()
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image").performTouchInput { doubleClick() }
         composeRule.onNodeWithTag("media-reset").performClick()
         composeRule.onNodeWithTag("media-close").performClick()
         composeRule.onNodeWithTag("post-1").assertIsDisplayed()
@@ -58,12 +61,37 @@ class MediaViewerUiTest {
                 )
             }
         }
+        composeRule.onNodeWithTag("inline-video-video-1").assertDoesNotExist()
         composeRule.onNodeWithTag("post-media-1-video-1").performClick()
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-video").assertIsDisplayed()
         composeRule.onNodeWithTag("media-play").assertIsDisplayed()
         composeRule.onNodeWithTag("media-mute").assertIsDisplayed()
         composeRule.onNodeWithTag("media-close").performClick()
+    }
+
+    @Test
+    fun autoplayVideoCreatesAnInlineMutedPlayerWhileVisible() {
+        composeRule.activity.setContent {
+            NyTweetDeckTheme {
+                PostCard(
+                    post = photoPost().copy(
+                        media = listOf(
+                            Media(
+                                "autoplay-video",
+                                "animated_gif",
+                                "https://video.twimg.com/ext_tw_video/fixture.mp4",
+                                "https://pbs.twimg.com/media/fixture.jpg",
+                            ),
+                        ),
+                    ),
+                    videoAutoplay = true,
+                    videoLoop = true,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("inline-video-autoplay-video").assertIsDisplayed()
     }
 
     private fun photoPost() = Post(

@@ -50,6 +50,7 @@ import dev.nytweetdeck.android.model.CommunityNoteStatus
 import dev.nytweetdeck.android.model.CommunityNoteUiState
 import dev.nytweetdeck.android.model.PostTranslationUiState
 import dev.nytweetdeck.android.model.TranslationCandidate
+import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 import java.util.Locale
 
 private const val COMMUNITY_NOTE_SOURCE_TAG = "community-note-source-url"
@@ -292,10 +293,6 @@ private fun annotatedCommunityNote(
 }
 
 private fun safeSourceIntent(value: String): Intent? = runCatching {
-    val uri = Uri.parse(value)
-    if (uri.scheme.equals("https", ignoreCase = true)) {
-        Intent(Intent.ACTION_VIEW, uri)
-    } else {
-        null
-    }
+    val verified = verifiedExternalHttpsUrl(value) ?: return@runCatching null
+    Intent(Intent.ACTION_VIEW, Uri.parse(verified)).addCategory(Intent.CATEGORY_BROWSABLE)
 }.getOrNull()

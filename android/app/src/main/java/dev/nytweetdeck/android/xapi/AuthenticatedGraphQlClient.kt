@@ -22,7 +22,10 @@ data class XSessionCredentials(
     val bearerToken: String,
     val authToken: String,
     val csrfToken: String,
-)
+) {
+    override fun toString(): String =
+        "XSessionCredentials(bearerToken=<redacted>, authToken=<redacted>, csrfToken=<redacted>)"
+}
 
 fun interface GraphQlExecutor {
     fun execute(

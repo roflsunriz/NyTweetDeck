@@ -73,12 +73,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Article
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.ColumnScrollPosition
+import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 import dev.nytweetdeck.android.model.ColumnTimelineState
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
@@ -701,14 +701,7 @@ private fun timelineItemKeys(state: ColumnTimelineState): List<String> = buildLi
 
 internal fun safeImageUrl(value: String?): String? {
     if (value.isNullOrBlank()) return null
-    return runCatching {
-        val uri = value.toUri()
-        val host = uri.host?.lowercase().orEmpty()
-        value.takeIf {
-            uri.scheme.equals("https", ignoreCase = true) &&
-                (host == "twimg.com" || host.endsWith(".twimg.com"))
-        }
-    }.getOrNull()
+    return verifiedExternalHttpsUrl(value, setOf("twimg.com"))
 }
 
 @Composable

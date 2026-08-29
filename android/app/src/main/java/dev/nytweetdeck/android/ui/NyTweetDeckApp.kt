@@ -59,6 +59,7 @@ import dev.nytweetdeck.android.model.Post
 import dev.nytweetdeck.android.model.Notification as DeckNotification
 import dev.nytweetdeck.android.model.PostMenuAction
 import dev.nytweetdeck.android.data.UserAction
+import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiEnvironment
@@ -262,24 +263,19 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         openDialog = OpenDialog.COMPOSER
     }
     val downloadPostMedia: (String) -> Unit = { postId ->
-        val urls = state.findPost(postId)?.media.orEmpty()
-            .mapNotNull { it.url ?: it.previewUrl }
-            .map(String::toUri)
-            .filter { uri -> uri.scheme == "https" && uri.host in DOWNLOAD_MEDIA_HOSTS }
+        val downloads = planMediaDownloads(postId, state.findPost(postId)?.media.orEmpty())
         val result = runCatching {
-            require(urls.isNotEmpty()) { "ダウンロード可能なメディアがありません。" }
+            require(downloads.isNotEmpty()) { "ダウンロード可能なメディアがありません。" }
             val manager = context.getSystemService(DownloadManager::class.java)
-            urls.forEachIndexed { index, uri ->
-                val extension = uri.lastPathSegment.orEmpty().substringAfterLast('.', "bin")
-                    .takeIf { it.matches(Regex("[A-Za-z0-9]{1,5}")) } ?: "bin"
+            downloads.forEach { download ->
                 manager.enqueue(
-                    DownloadManager.Request(uri)
+                    DownloadManager.Request(download.url.toUri())
                         .setNotificationVisibility(
                             DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
                         )
                         .setDestinationInExternalPublicDir(
                             Environment.DIRECTORY_DOWNLOADS,
-                            "NyTweetDeck-$postId-${index + 1}.$extension",
+                            download.destinationFileName,
                         ),
                 )
             }
@@ -486,8 +482,13 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onDismiss = viewModel::closeCommunityNote,
             onRetry = viewModel::retryCommunityNote,
             onOpenSource = { intent ->
-                val uri = intent.data
-                if (uri?.scheme == "https" && uri.host != null) context.startActivity(intent)
+                val verified = intent.data?.toString()?.let(::verifiedExternalHttpsUrl)
+                if (verified != null) {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, verified.toUri())
+                            .addCategory(Intent.CATEGORY_BROWSABLE),
+                    )
+                }
             },
             onPostClick = viewModel::openPostDetail,
             onQuoteClick = viewModel::openPostDetail,
@@ -561,7 +562,6 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     }
 }
 
-private val DOWNLOAD_MEDIA_HOSTS = setOf("pbs.twimg.com", "video.twimg.com")
 
 private fun dev.nytweetdeck.android.model.DeckUiState.findPost(postId: String): Post? {
     val detailPosts = postDetail.page?.let { page ->

@@ -194,7 +194,11 @@ data class CapturedWebSession(
     val userId: String,
     val authToken: String,
     val csrfToken: String,
-)
+) {
+    override fun toString(): String =
+        "CapturedWebSession(profileName=$profileName, userId=$userId, " +
+            "authToken=<redacted>, csrfToken=<redacted>)"
+}
 
 data class AccountUiModel(
     val accountId: String,

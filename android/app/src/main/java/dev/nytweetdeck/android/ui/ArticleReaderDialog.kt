@@ -41,7 +41,7 @@ import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Article
 import dev.nytweetdeck.android.model.ArticleReaderStatus
 import dev.nytweetdeck.android.model.ArticleReaderUiState
-import java.util.Locale
+import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 
 @Composable
 internal fun ArticleReaderDialog(
@@ -175,14 +175,6 @@ private fun ArticleReaderReady(
 }
 
 private fun safeXViewIntent(value: String): Intent? = runCatching {
-    val uri = Uri.parse(value)
-    val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
-    if (
-        uri.scheme.equals("https", ignoreCase = true) &&
-        (host == "x.com" || host.endsWith(".x.com"))
-    ) {
-        Intent(Intent.ACTION_VIEW, uri)
-    } else {
-        null
-    }
+    val verified = verifiedExternalHttpsUrl(value, setOf("x.com")) ?: return@runCatching null
+    Intent(Intent.ACTION_VIEW, Uri.parse(verified)).addCategory(Intent.CATEGORY_BROWSABLE)
 }.getOrNull()

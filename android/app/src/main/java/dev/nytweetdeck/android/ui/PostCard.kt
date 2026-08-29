@@ -135,6 +135,8 @@ internal fun PostCard(
                 media = post.media,
                 postId = post.id,
                 compact = false,
+                videoAutoplay = videoAutoplay,
+                videoLoop = videoLoop,
                 onMediaClick = { selectedMedia = it },
             )
         } else if (post.media.isNotEmpty()) {
@@ -171,6 +173,8 @@ internal fun PostCard(
                 onTranslationNeeded = onTranslationNeeded,
                 onTranslationRetry = onTranslationRetry,
                 onToggleOriginal = onToggleOriginal,
+                videoAutoplay = videoAutoplay,
+                videoLoop = videoLoop,
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -425,6 +429,8 @@ private fun QuoteCard(
     onTranslationNeeded: (TranslationCandidate) -> Unit,
     onTranslationRetry: (TranslationCandidate) -> Unit,
     onToggleOriginal: (String) -> Unit,
+    videoAutoplay: Boolean,
+    videoLoop: Boolean,
 ) {
     Column(
         modifier = Modifier
@@ -464,6 +470,8 @@ private fun QuoteCard(
                 media = quote.media,
                 postId = quote.id,
                 compact = true,
+                videoAutoplay = videoAutoplay,
+                videoLoop = videoLoop,
                 onMediaClick = onMediaClick,
             )
         }
@@ -484,6 +492,8 @@ private fun MediaPreview(
     media: List<Media>,
     postId: String,
     compact: Boolean,
+    videoAutoplay: Boolean,
+    videoLoop: Boolean,
     onMediaClick: (Media) -> Unit,
 ) {
     val visibleMedia = media.take(4)
@@ -493,6 +503,8 @@ private fun MediaPreview(
             postId = postId,
             height = if (compact) 120.dp else 220.dp,
             modifier = Modifier.fillMaxWidth(),
+            videoAutoplay = videoAutoplay,
+            videoLoop = videoLoop,
             onMediaClick = onMediaClick,
         )
         return
@@ -512,6 +524,8 @@ private fun MediaPreview(
                         postId = postId,
                         height = rowHeight,
                         modifier = Modifier.weight(1f),
+                        videoAutoplay = videoAutoplay,
+                        videoLoop = videoLoop,
                         onMediaClick = onMediaClick,
                     )
                 }
@@ -527,8 +541,11 @@ private fun MediaTile(
     postId: String,
     height: Dp,
     modifier: Modifier,
+    videoAutoplay: Boolean,
+    videoLoop: Boolean,
     onMediaClick: (Media) -> Unit,
 ) {
+    val showInlineVideo = media.type != "photo" && videoAutoplay && safeMediaUri(media.url) != null
     Box(
         modifier = modifier
             .height(height)
@@ -544,7 +561,9 @@ private fun MediaTile(
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
         )
-        if (media.type != "photo") {
+        if (showInlineVideo) {
+            InlineVideoPlayer(media = media, loop = videoLoop)
+        } else if (media.type != "photo") {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = stringResource(R.string.post_media),
