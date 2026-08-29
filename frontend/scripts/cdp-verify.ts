@@ -96,15 +96,30 @@ for (const viewport of viewports) {
     `(async () => (await (await fetch("/api/v1/settings/layout")).json()).layout.columns.length === ${viewport.columns})()`,
   );
 
-  const metrics = await client.evaluate<Record<string, unknown>>(`({
-    viewport: { width: innerWidth, height: innerHeight },
-    documentWidth: document.documentElement.scrollWidth,
-    bodyWidth: document.body.getBoundingClientRect().width,
-    columnCount: document.querySelectorAll(".deck-column").length,
-    dialogCount: document.querySelectorAll('[role="dialog"]').length,
-    horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
-    interactiveElements: document.querySelectorAll("button, select, a, input").length
-  })`);
+  const metrics = await client.evaluate<Record<string, unknown>>(`(() => {
+    const navigation = document.querySelector(".main-navigation")?.getBoundingClientRect();
+    const columns = Array.from(document.querySelectorAll(".deck-column"), element => element.getBoundingClientRect());
+    return {
+      viewport: { width: innerWidth, height: innerHeight },
+      documentWidth: document.documentElement.scrollWidth,
+      bodyWidth: document.body.getBoundingClientRect().width,
+      columnCount: columns.length,
+      dialogCount: document.querySelectorAll('[role="dialog"]').length,
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+      interactiveElements: document.querySelectorAll("button, select, a, input").length,
+      navigationToFirstColumnGap: navigation && columns[0] ? columns[0].left - navigation.right : null,
+      firstToSecondColumnGap: columns[0] && columns[1] ? columns[1].left - columns[0].right : null
+    };
+  })()`);
+  if (
+    typeof metrics.firstToSecondColumnGap === "number" &&
+    (typeof metrics.navigationToFirstColumnGap !== "number" ||
+      Math.abs(metrics.navigationToFirstColumnGap - metrics.firstToSecondColumnGap) > 0.5)
+  ) {
+    throw new Error(
+      `メニューと第1カラムの間隔がカラム間隔と一致しません: ${JSON.stringify(metrics)}`,
+    );
+  }
 
   const screenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
     format: "png",
@@ -496,11 +511,22 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
       }
       if (url.pathname === "/api/v1/notifications") {
         return Promise.resolve(Response.json({
-          notifications: [{
-            id: "community-qa", kind: "community_note",
-            text: "Community Note added",
-            noteId: "555", postId: null, imageUrls: []
-          }],
+          notifications: [
+            {
+              id: "follow-qa", kind: "follow", text: "Alice and Bob followed you",
+              noteId: null, postId: null,
+              actors: [
+                { id: "42", username: "alice", displayName: "Alice", avatarUrl: null },
+                { id: "84", username: "bob", displayName: "Bob", avatarUrl: null }
+              ],
+              imageUrls: []
+            },
+            {
+              id: "community-qa", kind: "community_note",
+              text: "Community Note added",
+              noteId: "555", postId: null, actors: [], imageUrls: []
+            }
+          ],
           posts: [], nextCursor: null
         }));
       }
@@ -1232,6 +1258,55 @@ await updateSharedLayout(
   })`,
 );
 await reload();
+await waitForCondition('document.querySelector("[data-notification-kind=follow]") !== null');
+const followNotificationClicked = await client.evaluate<boolean>(`(() => {
+  const notification = document.querySelector("[data-notification-kind=follow]");
+  if (!(notification instanceof HTMLButtonElement)) return false;
+  notification.click();
+  return true;
+})()`);
+if (!followNotificationClicked) throw new Error("フォロー通知を選択できませんでした。");
+await waitForCondition(
+  'document.querySelectorAll("[data-testid=follow-notification-users] .notification-user-item").length === 2',
+);
+const followNotificationMetrics = await client.evaluate<Record<string, unknown>>(`({
+  title: document.querySelector(".modal-header h2")?.textContent,
+  users: Array.from(document.querySelectorAll(".notification-user-item strong"), element => element.textContent),
+  usernames: Array.from(document.querySelectorAll(".notification-user-item small"), element => element.textContent),
+  documentOverflow: document.documentElement.scrollWidth > innerWidth
+})`);
+if (
+  JSON.stringify(followNotificationMetrics.users) !== JSON.stringify(["Alice", "Bob"]) ||
+  JSON.stringify(followNotificationMetrics.usernames) !== JSON.stringify(["@alice", "@bob"]) ||
+  followNotificationMetrics.documentOverflow !== false
+) {
+  throw new Error(
+    `フォロー通知のユーザー一覧検証に失敗しました: ${JSON.stringify(followNotificationMetrics)}`,
+  );
+}
+const followNotificationScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
+  format: "png",
+  fromSurface: true,
+});
+const followNotificationScreenshotPath = resolve(
+  import.meta.dir,
+  "../../target/ui-follow-notification-users-768x1024.png",
+);
+await Bun.write(
+  followNotificationScreenshotPath,
+  Buffer.from(followNotificationScreenshot.data, "base64"),
+);
+results.push({
+  view: "follow-notification-users",
+  ...followNotificationMetrics,
+  screenshotPath: followNotificationScreenshotPath,
+});
+await client.evaluate(
+  'document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
+);
+await waitForCondition(
+  'document.querySelector("[data-testid=follow-notification-users]") === null',
+);
 await waitForCondition(
   'document.querySelector("[data-notification-kind=community_note]") !== null',
 );
