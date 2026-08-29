@@ -172,4 +172,15 @@
     <string name="translation_health_reset">制限解除: %1$s</string>
     <string name="translation_percent">%1$d%%</string>
     <string name="translation_rate_remaining_value">%1$d / %2$d</string>
+    <string name="follow_users_title">フォロー通知のユーザー</string>
+    <string name="follow_users_close">フォロー通知のユーザー一覧を閉じる</string>
+    <string name="follow_users_empty">表示できるユーザーはいません。</string>
+    <string name="notification_unknown_actor">不明なアカウント</string>
+    <string name="message_unknown_sender">不明な送信者</string>
+    <string name="message_group_context">会話ID: %1$s</string>
+    <string name="message_time_now">たった今</string>
+    <string name="message_time_minutes">%1$d分</string>
+    <string name="message_time_hours">%1$d時間</string>
+    <string name="message_time_days">%1$d日</string>
+    <string name="message_time_date">%1$d月%2$d日</string>
 </resources>

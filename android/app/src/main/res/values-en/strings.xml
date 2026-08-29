@@ -173,4 +173,15 @@
     <string name="translation_health_reset">Resets at: %1$s</string>
     <string name="translation_percent">%1$d%%</string>
     <string name="translation_rate_remaining_value">%1$d / %2$d</string>
+    <string name="follow_users_title">Users in follow notification</string>
+    <string name="follow_users_close">Close follow notification users</string>
+    <string name="follow_users_empty">There are no users to display.</string>
+    <string name="notification_unknown_actor">Unknown account</string>
+    <string name="message_unknown_sender">Unknown sender</string>
+    <string name="message_group_context">Conversation ID: %1$s</string>
+    <string name="message_time_now">now</string>
+    <string name="message_time_minutes">%1$d m</string>
+    <string name="message_time_hours">%1$d h</string>
+    <string name="message_time_days">%1$d d</string>
+    <string name="message_time_date">%1$d/%2$d</string>
 </resources>

@@ -1,6 +1,7 @@
 package dev.nytweetdeck.android.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,10 +18,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -34,6 +42,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,12 +54,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.ColumnScrollPosition
 import dev.nytweetdeck.android.model.DirectMessageColumnState
+import dev.nytweetdeck.android.model.DirectMessage
 import dev.nytweetdeck.android.model.Notification
+import dev.nytweetdeck.android.model.NotificationActor
 import dev.nytweetdeck.android.model.NotificationColumnState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.TrendColumnState
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import coil3.compose.AsyncImage
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
 
 @Composable
 internal fun DirectMessageBody(
@@ -89,18 +105,7 @@ internal fun DirectMessageBody(
                         state = listState,
                     ) {
                         items(messages, key = { it.id }) { message ->
-                            Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                                Text(
-                                    message.senderName ?: message.senderUsername ?: message.senderId,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                message.senderUsername?.let {
-                                    Text("@$it", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Spacer(Modifier.height(6.dp))
-                                Text(message.text)
-                                HorizontalDivider(Modifier.padding(top = 12.dp))
-                            }
+                            DirectMessageRow(message)
                         }
                         item(key = "message-load-more") {
                             SecondaryLoadMoreFooter(
@@ -116,6 +121,104 @@ internal fun DirectMessageBody(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DirectMessageRow(message: DirectMessage) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(14.dp)
+            .testTag("message-" + message.id),
+        verticalAlignment = Alignment.Top,
+    ) {
+        DirectMessageAvatar(message)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = messageSenderName(message),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = relativeMessageTime(message.timestamp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            message.senderUsername?.trim()?.removePrefix("@")?.takeIf(String::isNotBlank)?.let {
+                Text(
+                    text = "@$it",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+            message.conversationId?.takeIf(String::isNotBlank)?.let { conversationId ->
+                Text(
+                    text = stringResource(R.string.message_group_context, conversationId),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(message.text)
+            HorizontalDivider(Modifier.padding(top = 12.dp))
+        }
+    }
+}
+
+@Composable
+private fun DirectMessageAvatar(message: DirectMessage) {
+    val senderName = messageSenderName(message)
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = senderName.take(1).uppercase(),
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        message.senderAvatarUrl?.let { avatarUrl ->
+            AsyncImage(
+                model = safeImageUrl(avatarUrl),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+    }
+}
+
+@Composable
+private fun messageSenderName(message: DirectMessage): String =
+    message.senderName?.takeIf(String::isNotBlank)
+        ?: message.senderUsername?.takeIf(String::isNotBlank)
+        ?: message.senderId.takeIf(String::isNotBlank)
+        ?: stringResource(R.string.message_unknown_sender)
+
+@Composable
+private fun relativeMessageTime(timestamp: Long): String {
+    val instant = if (timestamp >= 1_000_000_000_000L) {
+        Instant.ofEpochMilli(timestamp)
+    } else {
+        Instant.ofEpochSecond(timestamp.coerceAtLeast(0L))
+    }
+    val seconds = Duration.between(instant, Instant.now()).seconds.coerceAtLeast(0)
+    return when {
+        seconds < 60L -> stringResource(R.string.message_time_now)
+        seconds < 3_600L -> stringResource(R.string.message_time_minutes, seconds / 60L)
+        seconds < 86_400L -> stringResource(R.string.message_time_hours, seconds / 3_600L)
+        seconds < 604_800L -> stringResource(R.string.message_time_days, seconds / 86_400L)
+        else -> {
+            val local = instant.atZone(ZoneId.systemDefault())
+            stringResource(R.string.message_time_date, local.monthValue, local.dayOfMonth)
         }
     }
 }
@@ -161,26 +264,7 @@ internal fun NotificationBody(
                         state = listState,
                     ) {
                         items(notifications, key = { it.id }) { notification ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onNotificationClick(notification) }
-                                    .padding(14.dp)
-                                    .testTag("notification-item-" + notification.id.hashCode()),
-                            ) {
-                                Text(notification.kind, style = MaterialTheme.typography.labelSmall)
-                                Spacer(Modifier.height(4.dp))
-                                Text(notification.text)
-                                if (notification.actors.isNotEmpty()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        notification.actors.mapNotNull { it.username }.take(3)
-                                            .joinToString(" · ") { "@$it" },
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                HorizontalDivider(Modifier.padding(top = 12.dp))
-                            }
+                            NotificationRow(notification, onNotificationClick)
                         }
                         item(key = "notification-load-more") {
                             SecondaryLoadMoreFooter(
@@ -198,6 +282,77 @@ internal fun NotificationBody(
             }
         }
     }
+}
+
+@Composable
+private fun NotificationRow(
+    notification: Notification,
+    onNotificationClick: (Notification) -> Unit,
+) {
+    val unknownActor = stringResource(R.string.notification_unknown_actor)
+    val actorNames = notification.actors.take(3).joinToString(" · ") { actor ->
+        actor.displayName?.takeIf(String::isNotBlank)
+            ?: actor.username?.takeIf(String::isNotBlank)
+            ?: actor.id?.takeIf(String::isNotBlank)
+            ?: unknownActor
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onNotificationClick(notification) }
+            .padding(14.dp)
+            .testTag("notification-item-" + notification.id.hashCode()),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            NotificationKindIcon(notification.kind)
+            if (notification.actors.isNotEmpty()) {
+                Spacer(Modifier.width(10.dp))
+                NotificationActorAvatars(notification.actors)
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = notification.kind,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(notification.text)
+        if (notification.actors.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = actorNames,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        HorizontalDivider(Modifier.padding(top = 12.dp))
+    }
+}
+
+@Composable
+private fun NotificationActorAvatars(actors: List<NotificationActor>) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        actors.take(3).forEach { actor ->
+            ActorAvatar(actor, Modifier.size(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun NotificationKindIcon(kind: String) {
+    val icon = when (kind.lowercase()) {
+        "follow", "following" -> Icons.Default.PersonAdd
+        "like", "favorite" -> Icons.Default.Favorite
+        "repost", "retweet" -> Icons.Default.Repeat
+        else -> Icons.Default.Notifications
+    }
+    Icon(
+        imageVector = icon,
+        contentDescription = kind,
+        tint = MaterialTheme.colorScheme.primary,
+    )
 }
 
 @Composable

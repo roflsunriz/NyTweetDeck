@@ -54,6 +54,7 @@ import dev.nytweetdeck.android.model.ComposerMode
 import dev.nytweetdeck.android.model.ComposerStatus
 import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.Post
+import dev.nytweetdeck.android.model.Notification as DeckNotification
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiEnvironment
@@ -102,6 +103,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var openDialog by remember { mutableStateOf<OpenDialog?>(null) }
     var transferStatus by remember { mutableStateOf(TransferStatus.NONE) }
+    var followNotification by remember { mutableStateOf<DeckNotification?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, viewModel) {
@@ -333,8 +335,13 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     onClearTrendHistory = viewModel::clearTrendSearchHistory,
                     onArticleClick = viewModel::openArticle,
                     onNotificationClick = { notification ->
-                        notification.noteId?.let(viewModel::openCommunityNote)
-                            ?: notification.postId?.let(viewModel::openPostDetail)
+                        when {
+                            notification.kind == "follow" && notification.actors.isNotEmpty() -> {
+                                followNotification = notification
+                            }
+                            notification.noteId != null -> viewModel.openCommunityNote(notification.noteId)
+                            notification.postId != null -> viewModel.openPostDetail(notification.postId)
+                        }
                     },
                     translationStates = state.postTranslations,
                     autoTranslatePosts = state.autoTranslatePosts,
@@ -475,6 +482,22 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onTranslationRetry = viewModel::retryPostTranslation,
             onToggleOriginal = viewModel::togglePostOriginal,
         )
+        followNotification?.let { notification ->
+            FollowNotificationUsersDialog(
+                actors = notification.actors,
+                onActorClick = { actor ->
+                    val actorId = actor.id
+                    if (actorId?.matches(Regex("[0-9]{1,24}")) == true) {
+                        val title = actor.displayName ?: actor.username?.let { "@$it" } ?: actorId
+                        viewModel.addColumn(ColumnKind.USER, title, actorId)
+                    } else {
+                        actor.username?.let(viewModel::resolveUserColumn)
+                    }
+                    followNotification = null
+                },
+                onDismiss = { followNotification = null },
+            )
+        }
     }
 }
 
