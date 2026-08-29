@@ -12,6 +12,9 @@ import dev.nytweetdeck.android.data.PostComposerRepository
 import dev.nytweetdeck.android.data.PostDetailRepository
 import dev.nytweetdeck.android.data.CommunityNoteRepository
 import dev.nytweetdeck.android.data.PostTranslationRepository
+import dev.nytweetdeck.android.data.UserActionRepository
+import dev.nytweetdeck.android.data.ListMembershipRepository
+import dev.nytweetdeck.android.xapi.live.LivePipelineSubscriptionService
 import dev.nytweetdeck.android.data.TimelineRepository
 import dev.nytweetdeck.android.data.TrendRepository
 import dev.nytweetdeck.android.data.UserDirectoryRepository
@@ -34,6 +37,9 @@ class DeckViewModelFactory(
     private val postDetailRepository: PostDetailRepository,
     private val communityNoteRepository: CommunityNoteRepository,
     private val postTranslationRepository: PostTranslationRepository,
+    private val userActionRepository: UserActionRepository,
+    private val listMembershipRepository: ListMembershipRepository,
+    private val livePipelineService: LivePipelineSubscriptionService,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         require(modelClass.isAssignableFrom(DeckViewModel::class.java)) {
@@ -55,6 +61,9 @@ class DeckViewModelFactory(
             postDetailRepository = postDetailRepository,
             communityNoteRepository = communityNoteRepository,
             postTranslationRepository = postTranslationRepository,
+            userActionRepository = userActionRepository,
+            listMembershipRepository = listMembershipRepository,
+            livePipelineService = livePipelineService,
             adaptiveRefreshIntervalMillis = 60_000L,
         ) as T
     }

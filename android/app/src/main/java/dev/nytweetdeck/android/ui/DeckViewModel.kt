@@ -16,6 +16,10 @@ import dev.nytweetdeck.android.data.PostComposerRepository
 import dev.nytweetdeck.android.data.PostDetailRepository
 import dev.nytweetdeck.android.data.CommunityNoteRepository
 import dev.nytweetdeck.android.data.PostTranslationRepository
+import dev.nytweetdeck.android.data.UserActionRepository
+import dev.nytweetdeck.android.data.ListMembershipRepository
+import dev.nytweetdeck.android.data.UserAction
+import dev.nytweetdeck.android.xapi.live.LivePipelineSubscriptionService
 import dev.nytweetdeck.android.data.LayoutTransfer
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.AccountUiModel
@@ -70,6 +74,9 @@ class DeckViewModel(
     private val postDetailRepository: PostDetailRepository? = null,
     private val communityNoteRepository: CommunityNoteRepository? = null,
     private val postTranslationRepository: PostTranslationRepository? = null,
+    private val userActionRepository: UserActionRepository? = null,
+    private val listMembershipRepository: ListMembershipRepository? = null,
+    private val livePipelineService: LivePipelineSubscriptionService? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val adaptiveRefreshIntervalMillis: Long? = null,
     private val visibilityRefreshDelayMillis: Long = DEFAULT_VISIBILITY_REFRESH_DELAY_MILLIS,
@@ -120,6 +127,21 @@ class DeckViewModel(
     private val postTranslationController = postTranslationRepository?.let { repository ->
         PostTranslationController(repository, viewModelScope, ioDispatcher, ::savedAccount, mutableState)
     }
+    private val postMenuController = PostMenuController(
+        userActionRepository,
+        listMembershipRepository,
+        viewModelScope,
+        ioDispatcher,
+        ::savedAccount,
+        mutableState,
+    )
+    private val liveDeckController = LiveDeckController(
+        livePipelineService,
+        viewModelScope,
+        ::savedAccount,
+        mutableState,
+        ::refreshColumn,
+    )
     private val columnPagingController = ColumnPagingController(
         timelineRepository,
         notificationRepository,
@@ -281,6 +303,7 @@ class DeckViewModel(
     fun openTrendSearch(query: String) = mutate { it.withTrendSearch(query, addColumn = true) }
     fun recordTrendSearch(query: String) = mutate { it.withTrendSearch(query, addColumn = false) }
     fun clearTrendSearchHistory() = mutate { it.copy(trendSearchHistory = emptyList()) }
+    fun setAppLanguage(languageTag: String) = mutate { it.copy(appLanguageTag = languageTag) }
 
     fun importLayout(serialized: ByteArray) {
         val current = mutableState.value
@@ -799,6 +822,10 @@ class DeckViewModel(
     fun requestPostTranslation(post: TranslationCandidate) = postTranslationController?.request(post)
     fun retryPostTranslation(post: TranslationCandidate) = postTranslationController?.request(post, manual = true)
     fun togglePostOriginal(postId: String) = postTranslationController?.toggleOriginal(postId)
+    fun hidePost(postId: String) = postMenuController.hide(postId)
+    fun runUserAction(post: dev.nytweetdeck.android.model.Post, action: UserAction) = postMenuController.userAction(post, action)
+    fun updateListMembership(post: dev.nytweetdeck.android.model.Post, listId: String, add: Boolean) = postMenuController.listMembership(post, listId, add)
+    fun clearPostMenuFailure() = postMenuController.clearFailure()
 
     fun setVisibleColumns(columnIds: Set<String>) {
         val validIds = mutableState.value.columns.mapTo(HashSet()) { it.id }
@@ -807,6 +834,7 @@ class DeckViewModel(
         val newlyHidden = visibleColumnIds - normalized
         newlyHidden.forEach { visibilityRefreshJobs.remove(it)?.cancel() }
         visibleColumnIds = normalized
+        liveDeckController.setVisibleColumns(normalized)
         newlyVisible.forEach(::scheduleVisibilityRefresh)
     }
 
@@ -848,11 +876,12 @@ class DeckViewModel(
     override fun onCleared() {
         visibilityRefreshJobs.values.forEach(Job::cancel)
         visibilityRefreshJobs.clear()
+        liveDeckController.close()
         super.onCleared()
     }
-
     fun setForeground(value: Boolean) {
         foreground = value
+        liveDeckController.setForeground(value)
     }
 
     private fun rememberSelectedAccountColumns() {

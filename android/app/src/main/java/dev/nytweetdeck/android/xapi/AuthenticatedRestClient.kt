@@ -13,6 +13,7 @@ import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Headers
+import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class AuthenticatedRestClient(
@@ -69,6 +70,53 @@ class AuthenticatedRestClient(
                     continue
                 }
                 throw XApiException("REST ${endpointKey}のWeb署名を更新できませんでした。", 502)
+            }
+            if (response.statusCode !in 200..299) {
+                throw XApiException("REST ${endpointKey}に失敗しました。HTTP ${response.statusCode}", response.statusCode)
+            }
+            return response.body
+        }
+        throw XApiException("REST ${endpointKey}のWeb署名を更新できませんでした。", 502)
+    }
+
+    fun postForm(
+        account: AccountSecrets,
+        endpointKey: String,
+        parameters: Map<String, String>,
+        language: String = "ja",
+    ): String {
+        val profile = profileProvider()
+        val path = profile.restEndpoints[endpointKey]
+            ?: throw XApiException("X REST定義に${endpointKey}がありません。", 503)
+        val form = FormBody.Builder().apply {
+            parameters.toSortedMap().forEach { (key, value) ->
+                require(key.matches(Regex("[A-Za-z0-9_]{1,100}"))) { "RESTパラメーター名が不正です。" }
+                require(value.length <= 1000) { "RESTパラメーターが長すぎます。" }
+                add(key, value)
+            }
+        }.build()
+        val normalizedLanguage = normalizeLanguage(language)
+        val unsignedRequest = Request.Builder()
+            .url(profile.restBaseUrl.toHttpUrl().newBuilder().encodedPath(path).build())
+            .header("Authorization", "Bearer ${account.webBearerToken}")
+            .header("Cookie", "auth_token=${account.authToken}; ct0=${account.csrfToken}")
+            .header("X-CSRF-Token", account.csrfToken)
+            .header("X-Twitter-Auth-Type", "OAuth2Session")
+            .header("X-Twitter-Active-User", "yes")
+            .header("X-Twitter-Client-Language", normalizedLanguage)
+            .header("Accept-Language", normalizedLanguage)
+            .header("Origin", "https://x.com")
+            .header("Referer", "https://x.com/")
+            .header("User-Agent", userAgent)
+            .header("Accept", "application/json")
+            .post(form)
+            .build()
+        for (attempt in 0 until MAX_TRANSACTION_ATTEMPTS) {
+            val request = withTransactionHeader(unsignedRequest, "REST ${endpointKey}")
+            val response = executeRequest(request, endpointKey)
+            if (isSignatureRejected(request, response) && attempt == 0) {
+                transactionIdService.invalidate()
+                continue
             }
             if (response.statusCode !in 200..299) {
                 throw XApiException("REST ${endpointKey}に失敗しました。HTTP ${response.statusCode}", response.statusCode)

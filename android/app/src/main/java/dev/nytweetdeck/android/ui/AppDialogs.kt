@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -510,12 +511,16 @@ internal fun AccountsDialog(
 internal fun SettingsDialog(
     state: DeckUiState,
     onDisplaySettingsChange: (DisplaySettings) -> Unit,
+    selectedLanguageTag: String? = null,
+    onLanguageChange: (String) -> Unit = {},
     onExport: () -> Unit,
     onImport: () -> Unit,
     transferStatus: TransferStatus,
     onDismiss: () -> Unit,
 ) {
     val settings = state.displaySettings()
+    val currentLanguageTag = selectedLanguageTag?.substringBefore('-')
+        ?: AppLocaleController.currentLanguageTag(LocalContext.current)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings)) },
@@ -527,6 +532,17 @@ internal fun SettingsDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                SettingSectionTitle(stringResource(R.string.setting_language))
+                SettingChoiceRow {
+                    AppLocaleController.supportedLanguageTags.forEach { languageTag ->
+                        SettingChoice(
+                            label = languageLabel(languageTag),
+                            selected = currentLanguageTag == languageTag,
+                            tag = "setting-language-" + languageTag,
+                            onClick = { onLanguageChange(languageTag) },
+                        )
+                    }
+                }
                 SettingSectionTitle(stringResource(R.string.setting_theme))
                 SettingChoiceRow {
                     ThemeMode.entries.forEach { mode ->
@@ -648,6 +664,19 @@ internal fun SettingsDialog(
                         .testTag("setting-video-volume"),
                 )
                 TranslationHealthSummary(state.translationHealth)
+                Text(
+                    text = when {
+                        state.liveError != null -> stringResource(R.string.live_pipeline_error)
+                        state.liveConnected -> stringResource(R.string.live_pipeline_connected)
+                        else -> stringResource(R.string.live_pipeline_stopped)
+                    },
+                    color = if (state.liveError != null) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.testTag("live-pipeline-status"),
+                )
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Button(
                     onClick = onExport,
@@ -699,6 +728,8 @@ internal fun SettingsDialog(
             onDarkThemeChange(settings.themeMode != ThemeMode.LIGHT)
             onCompactDensityChange(settings.compactDensity)
         },
+        selectedLanguageTag = null,
+        onLanguageChange = {},
         onExport = onExport,
         onImport = onImport,
         transferStatus = transferStatus,
@@ -807,6 +838,22 @@ private fun accentColorPreview(accent: AccentColor): Color = when (accent) {
     AccentColor.ORANGE -> Color(0xFFFF7A00)
     AccentColor.GREEN -> Color(0xFF00BA7C)
     AccentColor.YELLOW -> Color(0xFFFFC107)
+}
+
+@Composable
+private fun languageLabel(languageTag: String): String = when (languageTag) {
+    "ja" -> stringResource(R.string.language_ja)
+    "en" -> stringResource(R.string.language_en)
+    "zh" -> stringResource(R.string.language_zh)
+    "hi" -> stringResource(R.string.language_hi)
+    "es" -> stringResource(R.string.language_es)
+    "fr" -> stringResource(R.string.language_fr)
+    "ar" -> stringResource(R.string.language_ar)
+    "pt" -> stringResource(R.string.language_pt)
+    "bn" -> stringResource(R.string.language_bn)
+    "ru" -> stringResource(R.string.language_ru)
+    "ur" -> stringResource(R.string.language_ur)
+    else -> stringResource(R.string.language_en)
 }
 
 @Composable

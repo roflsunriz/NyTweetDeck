@@ -37,7 +37,7 @@ private const val MAX_JSON_DEPTH = 64
  */
 class DeckSettingsStore(filePath: Path) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION: Int = 7
+        const val CURRENT_SCHEMA_VERSION: Int = 8
         const val MAX_FILE_SIZE_BYTES: Int = 1 shl 20
 
         private const val MAX_COLUMN_ID_LENGTH = 200
@@ -64,8 +64,12 @@ class DeckSettingsStore(filePath: Path) {
         )
         private val ROOT_KEYS_V6 = ROOT_KEYS_V5 + "trendSearchHistory"
         private val ROOT_KEYS_V7 = ROOT_KEYS_V6 + "autoTranslatePosts"
+        private val ROOT_KEYS_V8 = ROOT_KEYS_V7 + "appLanguageTag"
         private val COLUMN_KEYS_V1 = setOf("id", "kind", "title")
         private val COLUMN_KEYS_V2 = setOf("id", "kind", "title", "target")
+        private val SUPPORTED_LANGUAGES = setOf(
+            "ja", "en", "zh", "hi", "es", "fr", "ar", "pt", "bn", "ru", "ur",
+        )
     }
 
     val primaryPath: Path = filePath.toAbsolutePath().normalize()
@@ -273,6 +277,7 @@ class DeckSettingsStore(filePath: Path) {
                 "トレンド検索履歴が不正です。"
             }
         }
+        require(state.appLanguageTag in SUPPORTED_LANGUAGES) { "表示言語が不正です。" }
 
         return state.copy(
             columns = state.columns.toList(),
@@ -292,6 +297,12 @@ class DeckSettingsStore(filePath: Path) {
             communityNote = dev.nytweetdeck.android.model.CommunityNoteUiState(),
             postTranslations = emptyMap(),
             translationHealth = null,
+            hiddenPostIds = emptySet(),
+            postMenuActionPending = false,
+            postMenuActionFailed = false,
+            liveConnected = false,
+            liveError = null,
+            liveLastEventAt = null,
             targetPicker = dev.nytweetdeck.android.model.TargetPickerState(),
         )
     }
@@ -368,6 +379,8 @@ class DeckSettingsStore(filePath: Path) {
             append(']')
             append(",\"autoTranslatePosts\":")
             append(state.autoTranslatePosts)
+            append(",\"appLanguageTag\":")
+            appendJsonString(state.appLanguageTag)
             append('}')
         }
         return json.toByteArray(StandardCharsets.UTF_8)
@@ -388,7 +401,8 @@ class DeckSettingsStore(filePath: Path) {
                 schemaVersion < 5 -> ROOT_KEYS_V4
                 schemaVersion < 6 -> ROOT_KEYS_V5
                 schemaVersion < 7 -> ROOT_KEYS_V6
-                else -> ROOT_KEYS_V7
+                schemaVersion < 8 -> ROOT_KEYS_V7
+                else -> ROOT_KEYS_V8
             },
         )
 
@@ -452,6 +466,7 @@ class DeckSettingsStore(filePath: Path) {
                 }
             },
             autoTranslatePosts = schemaVersion < 7 || root.requireBoolean("autoTranslatePosts"),
+            appLanguageTag = if (schemaVersion < 8) "ja" else root.requireString("appLanguageTag"),
             mainMenuItems = if (schemaVersion < 3) {
                 DefaultMainMenuItems
             } else {

@@ -67,6 +67,17 @@ enum class PostActionType {
     BOOKMARK,
 }
 
+enum class PostMenuAction {
+    NOT_INTERESTED,
+    FOLLOW,
+    MUTE,
+    BLOCK,
+    ACTIVITY,
+    EMBED,
+    REPORT,
+    COMMUNITY_NOTE_REQUEST,
+}
+
 enum class ComposerMode {
     POST,
     REPLY,
@@ -214,6 +225,7 @@ data class DeckUiState(
     val videoVolume: Int = 100,
     val trendSearchHistory: List<String> = emptyList(),
     val autoTranslatePosts: Boolean = true,
+    val appLanguageTag: String = "ja",
     val replySort: RankingMode = RankingMode.RELEVANCE,
     val accounts: List<AccountUiModel> = emptyList(),
     val selectedAccountId: String? = null,
@@ -231,6 +243,12 @@ data class DeckUiState(
     val communityNote: CommunityNoteUiState = CommunityNoteUiState(),
     val postTranslations: Map<String, PostTranslationUiState> = emptyMap(),
     val translationHealth: TranslationHealth? = null,
+    val hiddenPostIds: Set<String> = emptySet(),
+    val postMenuActionPending: Boolean = false,
+    val postMenuActionFailed: Boolean = false,
+    val liveConnected: Boolean = false,
+    val liveError: String? = null,
+    val liveLastEventAt: String? = null,
     val targetPicker: TargetPickerState = TargetPickerState(),
     val mainMenuItems: List<MainMenuItemId> = DefaultMainMenuItems,
 )

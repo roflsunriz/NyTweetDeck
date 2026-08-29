@@ -46,6 +46,8 @@ import dev.nytweetdeck.android.data.PostComposerRepository
 import dev.nytweetdeck.android.data.PostDetailRepository
 import dev.nytweetdeck.android.data.CommunityNoteRepository
 import dev.nytweetdeck.android.data.PostTranslationRepository
+import dev.nytweetdeck.android.data.UserActionRepository
+import dev.nytweetdeck.android.data.ListMembershipRepository
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.MainMenuItemId
@@ -55,6 +57,8 @@ import dev.nytweetdeck.android.model.ComposerStatus
 import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.Post
 import dev.nytweetdeck.android.model.Notification as DeckNotification
+import dev.nytweetdeck.android.model.PostMenuAction
+import dev.nytweetdeck.android.data.UserAction
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiEnvironment
@@ -97,6 +101,9 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             PostDetailRepository(graphQlClient),
             CommunityNoteRepository(graphQlClient),
             PostTranslationRepository(environment.restClient()),
+            UserActionRepository(environment.restClient()),
+            ListMembershipRepository(graphQlClient),
+            environment.livePipeline(),
         )
     }
     val viewModel = providedViewModel ?: viewModel(factory = factory)
@@ -104,8 +111,14 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     var openDialog by remember { mutableStateOf<OpenDialog?>(null) }
     var transferStatus by remember { mutableStateOf(TransferStatus.NONE) }
     var followNotification by remember { mutableStateOf<DeckNotification?>(null) }
+    var postMenuPost by remember { mutableStateOf<Post?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(state.isInitializing, state.appLanguageTag) {
+        if (!state.isInitializing && AppLocaleController.currentLanguageTag(context) != state.appLanguageTag) {
+            (context as? Activity)?.let { AppLocaleController.apply(it, state.appLanguageTag) }
+        }
+    }
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -334,6 +347,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     onTrendQueryCommitted = viewModel::recordTrendSearch,
                     onClearTrendHistory = viewModel::clearTrendSearchHistory,
                     onArticleClick = viewModel::openArticle,
+                    onPostMenuClick = { postMenuPost = it },
                     onNotificationClick = { notification ->
                         when {
                             notification.kind == "follow" && notification.actors.isNotEmpty() -> {
@@ -380,6 +394,11 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             OpenDialog.SETTINGS -> SettingsDialog(
                 state = state,
                 onDisplaySettingsChange = viewModel::setDisplaySettings,
+                selectedLanguageTag = state.appLanguageTag,
+                onLanguageChange = { languageTag ->
+                    viewModel.setAppLanguage(languageTag)
+                    (context as? Activity)?.let { AppLocaleController.apply(it, languageTag) }
+                },
                 onExport = {
                     transferStatus = TransferStatus.NONE
                     exportLauncher.launch("NyTweetDeck-settings.json")
@@ -439,6 +458,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onDownloadClick = downloadPostMedia,
             mediaPreview = state.mediaPreview,
             onArticleClick = viewModel::openArticle,
+            onPostMenuClick = { postMenuPost = it },
             translationStates = state.postTranslations,
             autoTranslatePosts = state.autoTranslatePosts,
             onTranslationNeeded = viewModel::requestPostTranslation,
@@ -476,6 +496,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onShareClick = sharePost,
             onDownloadClick = downloadPostMedia,
             onArticleClick = viewModel::openArticle,
+            onPostMenuClick = { postMenuPost = it },
             translationStates = state.postTranslations,
             autoTranslatePosts = state.autoTranslatePosts,
             onTranslationNeeded = viewModel::requestPostTranslation,
@@ -497,6 +518,43 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 },
                 onDismiss = { followNotification = null },
             )
+        }
+        postMenuPost?.let { post ->
+            PostMenuDialog(
+                post = post,
+                onAction = { selected, action ->
+                    when (action) {
+                        PostMenuAction.NOT_INTERESTED -> viewModel.hidePost(selected.id)
+                        PostMenuAction.FOLLOW -> viewModel.runUserAction(selected, UserAction.FOLLOW)
+                        PostMenuAction.MUTE -> viewModel.runUserAction(selected, UserAction.MUTE)
+                        PostMenuAction.BLOCK -> viewModel.runUserAction(selected, UserAction.BLOCK)
+                        PostMenuAction.ACTIVITY -> context.startActivity(
+                            Intent(Intent.ACTION_VIEW, "https://x.com/i/status/${selected.id}/analytics".toUri()),
+                        )
+                        PostMenuAction.EMBED -> context.startActivity(
+                            Intent(Intent.ACTION_VIEW, "https://publish.twitter.com/?query=https://x.com/i/status/${selected.id}".toUri()),
+                        )
+                        PostMenuAction.REPORT -> context.startActivity(
+                            Intent(Intent.ACTION_VIEW, "https://x.com/i/flow/report_tweet?tweet_id=${selected.id}".toUri()),
+                        )
+                        PostMenuAction.COMMUNITY_NOTE_REQUEST -> context.startActivity(
+                            Intent(Intent.ACTION_VIEW, "https://x.com/i/communitynotes/contribute".toUri()),
+                        )
+                    }
+                    postMenuPost = null
+                },
+                onListMembership = { selected, listId, add ->
+                    viewModel.updateListMembership(selected, listId, add)
+                    postMenuPost = null
+                },
+                onDismiss = { postMenuPost = null },
+            )
+        }
+        LaunchedEffect(state.postMenuActionFailed) {
+            if (state.postMenuActionFailed) {
+                Toast.makeText(context, R.string.post_menu_action_failed, Toast.LENGTH_SHORT).show()
+                viewModel.clearPostMenuFailure()
+            }
         }
     }
 }

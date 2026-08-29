@@ -10,6 +10,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -76,6 +77,22 @@ class AuthenticatedRestClientTest {
             .let { interceptor.requests.single() }
         assertNull(request.header(TRANSACTION_HEADER))
         assertTrue(transactions.generated.isEmpty())
+    }
+
+    @Test
+    fun postFormUsesAuthenticatedOfficialRequestAndValidatedParameters() {
+        val interceptor = SequenceInterceptor(ResponseSpec(200, "{\"ok\":true}"))
+        val transactions = RecordingTransactionIdService()
+        val client = client(profile(), interceptor, transactions)
+
+        client.postForm(account(), "followUser", mapOf("user_id" to "123"), "ja")
+
+        val request = interceptor.requests.single()
+        val body = Buffer().also { request.body?.writeTo(it) }.readUtf8()
+        assertEquals("POST", request.method)
+        assertEquals("user_id=123", body)
+        assertEquals("transaction-1", request.header(TRANSACTION_HEADER))
+        assertTrue(request.header("Cookie").orEmpty().contains("auth_token="))
     }
 
     @Test
@@ -174,6 +191,7 @@ class AuthenticatedRestClientTest {
         restBaseUrl = restBaseUrl,
         restEndpoints = mapOf(
             "lookup" to "/1.1/users/show.json",
+            "followUser" to "/1.1/friendships/create.json",
             "translatePost" to "/1.1/strato/column/None/tweetId={postId}," +
                 "destinationLanguage=None,translationSource=Some({translationSource})," +
                 "feature=None,timeout=None,onlyCached=None/translation/service/translateTweet",

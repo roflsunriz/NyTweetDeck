@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
@@ -87,6 +88,7 @@ internal fun PostCard(
     onShareClick: (String) -> Unit = {},
     onDownloadClick: (String) -> Unit = {},
     onArticleClick: (String, Article) -> Unit = { _, _ -> },
+    onMenuClick: (Post) -> Unit = {},
     translationStates: Map<String, PostTranslationUiState> = emptyMap(),
     autoTranslatePosts: Boolean = true,
     onTranslationNeeded: (TranslationCandidate) -> Unit = {},
@@ -112,7 +114,7 @@ internal fun PostCard(
             RepostContext(repostedBy)
             Spacer(Modifier.height(6.dp))
         }
-        PostAuthorHeader(post.author, post.createdAt)
+        PostAuthorHeader(post.author, post.createdAt) { onMenuClick(post) }
         ReplyContext(post)
         Spacer(Modifier.height(8.dp))
         TranslatablePostBody(
@@ -217,7 +219,7 @@ private fun RepostContext(author: Author) {
 }
 
 @Composable
-private fun PostAuthorHeader(author: Author, createdAt: String?) {
+private fun PostAuthorHeader(author: Author, createdAt: String?, onMenuClick: (() -> Unit)? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         AuthorAvatar(author, modifier = Modifier.size(42.dp))
         Spacer(Modifier.width(10.dp))
@@ -253,6 +255,11 @@ private fun PostAuthorHeader(author: Author, createdAt: String?) {
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+        onMenuClick?.let {
+            IconButton(onClick = it, modifier = Modifier.testTag("post-menu-button")) {
+                Icon(Icons.Default.MoreVert, stringResource(R.string.post_menu_title))
             }
         }
     }

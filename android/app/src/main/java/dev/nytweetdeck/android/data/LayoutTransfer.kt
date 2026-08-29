@@ -157,6 +157,7 @@ public object LayoutTransfer {
             videoLoop = imported.display.videoLoop,
             videoVolume = imported.display.videoVolume,
             autoTranslatePosts = imported.display.autoTranslatePosts,
+            appLanguageTag = imported.locale,
             trendSearchHistory = imported.trendSearchHistory,
         )
         return ImportResult(state = state, currentAccountId = currentState.selectedAccountId)
@@ -200,7 +201,8 @@ public object LayoutTransfer {
             if (index > 0) append(',')
             appendJsonString(toWebMenuItem(item))
         }
-        append("],\"locale\":\"ja\"")
+        append("],\"locale\":")
+        appendJsonString(state.appLanguageTag)
         append(",\"theme\":")
         appendJsonString(state.themeMode.name.lowercase(Locale.ROOT))
         append(",\"activeAccountId\":null")
@@ -292,6 +294,7 @@ public object LayoutTransfer {
             mainMenuItems,
             replySort,
             trendSearchHistory,
+            locale,
         )
     }
 
@@ -605,6 +608,7 @@ public object LayoutTransfer {
         val mainMenuItems: List<MainMenuItemId>,
         val replySort: RankingMode,
         val trendSearchHistory: List<String>,
+        val locale: String,
     )
 }
 

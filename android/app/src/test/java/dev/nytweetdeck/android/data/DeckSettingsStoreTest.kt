@@ -120,7 +120,7 @@ class DeckSettingsStoreTest {
         val store = DeckSettingsStore(settingsPath())
         store.save(layout())
         val current = readText(store.primaryPath)
-            .replace("\"schemaVersion\":7", "\"schemaVersion\":999")
+            .replace("\"schemaVersion\":8", "\"schemaVersion\":999")
         writeText(store.primaryPath, current)
         Files.delete(store.backupPath)
 
@@ -240,5 +240,6 @@ class DeckSettingsStoreTest {
         videoVolume = 42,
         trendSearchHistory = listOf("Android", "NyTweetDeck"),
         autoTranslatePosts = false,
+        appLanguageTag = "ar",
     )
 }

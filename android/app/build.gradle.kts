@@ -18,6 +18,18 @@ android {
         vectorDrawables.useSupportLibrary = true
     }
 
+    signingConfigs {
+        getByName("debug") {
+            val stableDebugKey = rootProject.file("../.local/android-debug.keystore")
+            if (stableDebugKey.isFile) {
+                storeFile = stableDebugKey
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true

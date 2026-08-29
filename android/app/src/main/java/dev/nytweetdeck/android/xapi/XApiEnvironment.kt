@@ -3,6 +3,8 @@ package dev.nytweetdeck.android.xapi
 import android.content.Context
 import android.webkit.WebSettings
 import dev.nytweetdeck.android.model.CapturedWebSession
+import dev.nytweetdeck.android.xapi.live.LivePipelineClient
+import dev.nytweetdeck.android.xapi.live.LivePipelineSubscriptionService
 import java.util.Locale
 import okhttp3.OkHttpClient
 
@@ -56,6 +58,12 @@ class XApiEnvironment(context: Context) : XSessionVerifier {
     private val restClient by lazy {
         AuthenticatedRestClient(httpClient, { activeProfile }, userAgent, transactionIdService)
     }
+    private val livePipelineClient by lazy {
+        LivePipelineClient(httpClient, { activeProfile }, userAgent)
+    }
+    private val livePipelineSubscriptions by lazy {
+        LivePipelineSubscriptionService(livePipelineClient)
+    }
     private val accountVerifier by lazy { XAccountVerifier(graphQlClient) }
 
     override fun verify(session: CapturedWebSession): VerifiedWebSession {
@@ -75,6 +83,8 @@ class XApiEnvironment(context: Context) : XSessionVerifier {
     fun graphQlClient(): AuthenticatedGraphQlClient = graphQlClient
 
     fun restClient(): AuthenticatedRestClient = restClient
+
+    fun livePipeline(): LivePipelineSubscriptionService = livePipelineSubscriptions
 
     fun metadataResolutionSucceeded(): Boolean? = metadataResolved
 }

@@ -42,6 +42,7 @@ class LayoutTransferTest {
             videoVolume = 37,
             trendSearchHistory = listOf("Android", "NyTweetDeck"),
             autoTranslatePosts = false,
+            appLanguageTag = "fr",
             accounts = listOf(
                 AccountUiModel(
                     accountId = "account-secret-id",
@@ -93,6 +94,7 @@ class LayoutTransferTest {
         assertEquals(source.videoVolume, imported.state.videoVolume)
         assertEquals(source.trendSearchHistory, imported.state.trendSearchHistory)
         assertEquals(source.autoTranslatePosts, imported.state.autoTranslatePosts)
+        assertEquals(source.appLanguageTag, imported.state.appLanguageTag)
         assertEquals(source.accounts, imported.state.accounts)
         assertEquals(source.selectedAccountId, imported.state.selectedAccountId)
         assertEquals(source.accountAuthStatus, imported.state.accountAuthStatus)
@@ -128,6 +130,7 @@ class LayoutTransferTest {
         assertEquals(AccentColor.PURPLE, imported.accentColor)
         assertEquals(listOf("AI", "Japan"), imported.trendSearchHistory)
         assertEquals(false, imported.autoTranslatePosts)
+        assertEquals("ja", imported.appLanguageTag)
     }
 
     @Test
