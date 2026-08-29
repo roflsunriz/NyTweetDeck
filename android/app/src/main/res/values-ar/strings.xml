@@ -223,4 +223,5 @@
     <string name="x_api_metadata_error">فشل تحديث بيانات X API الوصفية. سيستمر استخدام آخر إصدار صالح.</string>
     <string name="x_api_metadata_current">بيانات X API الوصفية: أحدث إصدار تم التحقق منه</string>
     <string name="x_api_metadata_bundled">بيانات X API الوصفية: الإصدار المرفق المتحقق منه</string>
+    <string name="post_link_copied">لم تتوفر وجهة للمشاركة، لذا تم نسخ رابط المنشور.</string>
 </resources>

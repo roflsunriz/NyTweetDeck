@@ -220,4 +220,5 @@
     <string name="x_api_metadata_error">X API定義の更新に失敗しました。直前の有効な定義を使用します。</string>
     <string name="x_api_metadata_current">X API定義：最新の検証済み定義</string>
     <string name="x_api_metadata_bundled">X API定義：同梱の検証済み定義</string>
+    <string name="post_link_copied">共有先を開けなかったため、ポストのリンクをコピーしました。</string>
 </resources>

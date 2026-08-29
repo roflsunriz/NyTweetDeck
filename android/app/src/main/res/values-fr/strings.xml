@@ -220,4 +220,5 @@
     <string name="x_api_metadata_error">Échec de l’actualisation des métadonnées de l’API X. La dernière version valide reste utilisée.</string>
     <string name="x_api_metadata_current">Métadonnées de l’API X : dernière version vérifiée</string>
     <string name="x_api_metadata_bundled">Métadonnées de l’API X : version vérifiée intégrée</string>
+    <string name="post_link_copied">Aucune cible de partage n’était disponible. Le lien du post a été copié.</string>
 </resources>

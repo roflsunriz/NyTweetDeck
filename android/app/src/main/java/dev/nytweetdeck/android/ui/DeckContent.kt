@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Article
+import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.ColumnScrollPosition
 import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
@@ -111,6 +112,7 @@ internal fun DeckContent(
     onSaveColumnScrollPosition: (String, Int, Int, String?) -> Unit,
     onPostClick: (String) -> Unit = {},
     onQuoteClick: (String) -> Unit = {},
+    onAuthorClick: ((Author) -> Unit)? = null,
     onReplyClick: (String) -> Unit = {},
     onRepostClick: (String) -> Unit = {},
     onLikeClick: (String) -> Unit = {},
@@ -198,6 +200,7 @@ internal fun DeckContent(
                     },
                     onPostClick = onPostClick,
                     onQuoteClick = onQuoteClick,
+                    onAuthorClick = onAuthorClick,
                     onReplyClick = onReplyClick,
                     onRepostClick = onRepostClick,
                     onLikeClick = onLikeClick,
@@ -298,6 +301,7 @@ private fun DeckColumnCard(
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
+    onAuthorClick: ((Author) -> Unit)?,
     onReplyClick: (String) -> Unit,
     onRepostClick: (String) -> Unit,
     onLikeClick: (String) -> Unit,
@@ -399,6 +403,7 @@ private fun DeckColumnCard(
                             onScrollPositionChanged = onScrollPositionChanged,
                             onPostClick = onPostClick,
                             onQuoteClick = onQuoteClick,
+                            onAuthorClick = onAuthorClick,
                             onReplyClick = onReplyClick,
                             onRepostClick = onRepostClick,
                             onLikeClick = onLikeClick,
@@ -473,6 +478,7 @@ private fun TimelineBody(
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
+    onAuthorClick: ((Author) -> Unit)?,
     onReplyClick: (String) -> Unit,
     onRepostClick: (String) -> Unit,
     onLikeClick: (String) -> Unit,
@@ -601,6 +607,7 @@ private fun TimelineBody(
                                 post = post,
                                 onPostClick = onPostClick,
                                 onQuoteClick = onQuoteClick,
+                                onAuthorClick = onAuthorClick,
                                 onReplyClick = onReplyClick,
                                 onRepostClick = onRepostClick,
                                 onLikeClick = onLikeClick,

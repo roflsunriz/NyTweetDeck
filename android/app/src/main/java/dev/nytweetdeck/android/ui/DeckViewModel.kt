@@ -363,6 +363,7 @@ class DeckViewModel(
                     )
                 }
                 withContext(Dispatchers.Main.immediate) {
+                    postDetailController?.reset()
                     rememberSelectedAccountColumns()
                     val selectedId = store.selectedAccountId()
                     val restored = selectedId?.let(accountColumnCaches::get) ?: AccountColumnSnapshot()
@@ -413,6 +414,7 @@ class DeckViewModel(
                         emptyMap()
                     }
                     withContext(Dispatchers.Main.immediate) {
+                        postDetailController?.reset()
                         val restored = retainedSnapshot ?: AccountColumnSnapshot(timelines = diskTimelines)
                         mutableState.update {
                             it.copy(

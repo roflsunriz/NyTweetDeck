@@ -219,4 +219,5 @@
     <string name="x_api_metadata_error">X API मेटाडेटा रीफ़्रेश विफल रहा। पिछला मान्य संस्करण उपयोग में रहेगा।</string>
     <string name="x_api_metadata_current">X API मेटाडेटा: नवीनतम सत्यापित संस्करण</string>
     <string name="x_api_metadata_bundled">X API मेटाडेटा: शामिल सत्यापित संस्करण</string>
+    <string name="post_link_copied">कोई शेयर लक्ष्य उपलब्ध नहीं था, इसलिए पोस्ट लिंक कॉपी कर दिया गया।</string>
 </resources>

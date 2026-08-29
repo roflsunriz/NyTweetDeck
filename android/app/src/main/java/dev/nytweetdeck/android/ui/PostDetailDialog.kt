@@ -33,6 +33,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +49,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Article
+import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.PostDetailStatus
 import dev.nytweetdeck.android.model.PostDetailUiState
 import dev.nytweetdeck.android.model.PostTranslationUiState
@@ -65,6 +69,7 @@ internal fun PostDetailDialog(
     onToggleDeemphasized: () -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
+    onAuthorClick: ((Author) -> Unit)? = null,
     onReplyClick: (String) -> Unit,
     onRepostClick: (String) -> Unit,
     onLikeClick: (String) -> Unit,
@@ -85,6 +90,7 @@ internal fun PostDetailDialog(
     videoVolume: Int = 100,
 ) {
     if (state.status == PostDetailStatus.CLOSED) return
+    val detailScrollPositions = remember { mutableStateMapOf<String, Pair<Int, Int>>() }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -102,14 +108,16 @@ internal fun PostDetailDialog(
                 when (state.status) {
                     PostDetailStatus.LOADING -> DetailLoading()
                     PostDetailStatus.FAILED -> DetailFailed(onRetry)
-                    PostDetailStatus.READY -> DetailReady(
+                    PostDetailStatus.READY -> key(state.postId) { DetailReady(
                         state = state,
+                        savedScrollPositions = detailScrollPositions,
                         replySort = replySort,
                         onLoadMore = onLoadMore,
                         onReplySortChange = onReplySortChange,
                         onToggleDeemphasized = onToggleDeemphasized,
                         onPostClick = onPostClick,
                         onQuoteClick = onQuoteClick,
+                        onAuthorClick = onAuthorClick,
                         onReplyClick = onReplyClick,
                         onRepostClick = onRepostClick,
                         onLikeClick = onLikeClick,
@@ -129,7 +137,7 @@ internal fun PostDetailDialog(
                         videoAutoplay = videoAutoplay,
                         videoLoop = videoLoop,
                         videoVolume = videoVolume,
-                    )
+                    ) }
                     PostDetailStatus.CLOSED -> Unit
                 }
             }
@@ -196,12 +204,14 @@ private fun DetailFailed(onRetry: () -> Unit) {
 @Composable
 private fun DetailReady(
     state: PostDetailUiState,
+    savedScrollPositions: MutableMap<String, Pair<Int, Int>>,
     replySort: RankingMode,
     onLoadMore: () -> Unit,
     onReplySortChange: (RankingMode) -> Unit,
     onToggleDeemphasized: () -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
+    onAuthorClick: ((Author) -> Unit)?,
     onReplyClick: (String) -> Unit,
     onRepostClick: (String) -> Unit,
     onLikeClick: (String) -> Unit,
@@ -227,7 +237,16 @@ private fun DetailReady(
         DetailFailed(onRetry)
         return
     }
-    val listState = rememberLazyListState()
+    val savedScroll = savedScrollPositions[page.post.id]
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = savedScroll?.first ?: 0,
+        initialFirstVisibleItemScrollOffset = savedScroll?.second ?: 0,
+    )
+    LaunchedEffect(listState, page.post.id) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .distinctUntilChanged()
+            .collect { savedScrollPositions[page.post.id] = it }
+    }
     LaunchedEffect(listState, page.nextCursor, state.isLoadingMore) {
         snapshotFlow {
             val layout = listState.layoutInfo
@@ -252,6 +271,7 @@ private fun DetailReady(
                 post = page.post,
                 onPostClick = onPostClick,
                 onQuoteClick = onQuoteClick,
+                onAuthorClick = onAuthorClick,
                 onReplyClick = onReplyClick,
                 onRepostClick = onRepostClick,
                 onLikeClick = onLikeClick,
@@ -303,6 +323,7 @@ private fun DetailReady(
                             post = reply.post,
                             onPostClick = onPostClick,
                             onQuoteClick = onQuoteClick,
+                            onAuthorClick = onAuthorClick,
                             onReplyClick = onReplyClick,
                             onRepostClick = onRepostClick,
                             onLikeClick = onLikeClick,

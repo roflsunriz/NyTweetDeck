@@ -21,7 +21,15 @@ internal class PostDetailController(
     private val accountProvider: (String) -> AccountSecrets?,
     private val state: MutableStateFlow<DeckUiState>,
 ) {
+    private val history = ArrayDeque<PostDetailUiState>()
+
     fun open(postId: String) {
+        val current = state.value.postDetail
+        if (current.postId == postId && current.status != PostDetailStatus.CLOSED) return
+        if (current.status != PostDetailStatus.CLOSED) {
+            if (history.size == MAX_DETAIL_HISTORY) history.removeFirst()
+            history.addLast(current)
+        }
         state.update {
             it.copy(postDetail = PostDetailUiState(PostDetailStatus.LOADING, postId))
         }
@@ -101,6 +109,12 @@ internal class PostDetailController(
     }
 
     fun close() {
+        val previous = history.removeLastOrNull()
+        state.update { it.copy(postDetail = previous ?: PostDetailUiState()) }
+    }
+
+    fun reset() {
+        history.clear()
         state.update { it.copy(postDetail = PostDetailUiState()) }
     }
 
@@ -135,5 +149,9 @@ internal class PostDetailController(
 
     private fun fail(postId: String) {
         state.update { it.copy(postDetail = PostDetailUiState(PostDetailStatus.FAILED, postId)) }
+    }
+
+    private companion object {
+        const val MAX_DETAIL_HISTORY = 20
     }
 }

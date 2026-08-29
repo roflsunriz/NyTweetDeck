@@ -219,4 +219,5 @@
     <string name="x_api_metadata_error">X API মেটাডেটা রিফ্রেশ ব্যর্থ হয়েছে। সর্বশেষ বৈধ সংস্করণ ব্যবহার করা হবে।</string>
     <string name="x_api_metadata_current">X API মেটাডেটা: সর্বশেষ যাচাইকৃত সংস্করণ</string>
     <string name="x_api_metadata_bundled">X API মেটাডেটা: সংযুক্ত যাচাইকৃত সংস্করণ</string>
+    <string name="post_link_copied">শেয়ারের কোনো গন্তব্য পাওয়া যায়নি, তাই পোস্টের লিংক কপি করা হয়েছে।</string>
 </resources>

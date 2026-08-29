@@ -45,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Article
+import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.CommunityNoteSource
 import dev.nytweetdeck.android.model.CommunityNoteStatus
 import dev.nytweetdeck.android.model.CommunityNoteUiState
@@ -63,6 +64,7 @@ internal fun CommunityNoteDialog(
     onOpenSource: (Intent) -> Unit,
     onPostClick: (String) -> Unit = {},
     onQuoteClick: (String) -> Unit = {},
+    onAuthorClick: ((Author) -> Unit)? = null,
     onReplyClick: (String) -> Unit = {},
     onRepostClick: (String) -> Unit = {},
     onLikeClick: (String) -> Unit = {},
@@ -100,6 +102,7 @@ internal fun CommunityNoteDialog(
                         onOpenSource = onOpenSource,
                         onPostClick = onPostClick,
                         onQuoteClick = onQuoteClick,
+                        onAuthorClick = onAuthorClick,
                         onReplyClick = onReplyClick,
                         onRepostClick = onRepostClick,
                         onLikeClick = onLikeClick,
@@ -171,6 +174,7 @@ private fun CommunityNoteReady(
     onOpenSource: (Intent) -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
+    onAuthorClick: ((Author) -> Unit)?,
     onReplyClick: (String) -> Unit,
     onRepostClick: (String) -> Unit,
     onLikeClick: (String) -> Unit,
@@ -202,6 +206,7 @@ private fun CommunityNoteReady(
             post = page.post,
             onPostClick = onPostClick,
             onQuoteClick = onQuoteClick,
+            onAuthorClick = onAuthorClick,
             onReplyClick = onReplyClick,
             onRepostClick = onRepostClick,
             onLikeClick = onLikeClick,

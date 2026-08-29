@@ -80,6 +80,8 @@ internal fun PostCard(
     post: Post,
     onPostClick: (String) -> Unit = {},
     onQuoteClick: (String) -> Unit = {},
+    onParentClick: (String) -> Unit = onPostClick,
+    onAuthorClick: ((Author) -> Unit)? = null,
     onReplyClick: (String) -> Unit = {},
     onRepostClick: (String) -> Unit = {},
     onLikeClick: (String) -> Unit = {},
@@ -114,8 +116,13 @@ internal fun PostCard(
             RepostContext(repostedBy)
             Spacer(Modifier.height(6.dp))
         }
-        PostAuthorHeader(post.author, post.createdAt) { onMenuClick(post) }
-        ReplyContext(post)
+        PostAuthorHeader(
+            post.author,
+            post.createdAt,
+            onAuthorClick = onAuthorClick?.let { callback -> { callback(post.author) } },
+            onMenuClick = { onMenuClick(post) },
+        )
+        ReplyContext(post, onParentClick)
         Spacer(Modifier.height(8.dp))
         TranslatablePostBody(
             postId = post.id,
@@ -166,6 +173,7 @@ internal fun PostCard(
                 parentPostId = post.id,
                 quote = quote,
                 onQuoteClick = onQuoteClick,
+                onAuthorClick = onAuthorClick,
                 onMediaClick = { selectedMedia = it },
                 onArticleClick = onArticleClick,
                 translationStates = translationStates,
@@ -223,42 +231,55 @@ private fun RepostContext(author: Author) {
 }
 
 @Composable
-private fun PostAuthorHeader(author: Author, createdAt: String?, onMenuClick: (() -> Unit)? = null) {
+private fun PostAuthorHeader(
+    author: Author,
+    createdAt: String?,
+    onAuthorClick: (() -> Unit)? = null,
+    onMenuClick: (() -> Unit)? = null,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        AuthorAvatar(author, modifier = Modifier.size(42.dp))
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = authorDisplayName(author),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (author.verified) {
-                    Spacer(Modifier.width(4.dp))
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .then(onAuthorClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
+                .testTag("post-author-" + author.id),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AuthorAvatar(author, modifier = Modifier.size(42.dp))
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "✓",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
+                        text = authorDisplayName(author),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (author.verified) {
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "✓",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "@" + authorHandle(author),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = relativeTime(createdAt),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "@" + authorHandle(author),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = relativeTime(createdAt),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
         onMenuClick?.let {
@@ -294,14 +315,22 @@ private fun AuthorAvatar(author: Author, modifier: Modifier) {
 }
 
 @Composable
-private fun ReplyContext(post: Post) {
+private fun ReplyContext(post: Post, onParentClick: (String) -> Unit) {
     val replyTo = post.replyToUsername?.trim()?.removePrefix("@")?.takeIf(String::isNotBlank)
     val section = post.conversationSection?.trim()
         ?.takeIf(String::isNotBlank)
         ?.takeUnless { it in INTERNAL_CONVERSATION_SECTIONS }
     if (replyTo == null && section == null) return
     Spacer(Modifier.height(6.dp))
-    Column {
+    val parentPostId = post.replyToPostId
+    Column(
+        modifier = Modifier
+            .then(
+                if (parentPostId != null) Modifier.clickable { onParentClick(parentPostId) }
+                else Modifier,
+            )
+            .testTag("post-reply-context-" + post.id),
+    ) {
         replyTo?.let {
             Text(
                 text = stringResource(R.string.post_replying_to, it),
@@ -422,6 +451,7 @@ private fun QuoteCard(
     parentPostId: String,
     quote: EmbeddedPost,
     onQuoteClick: (String) -> Unit,
+    onAuthorClick: ((Author) -> Unit)?,
     onMediaClick: (Media) -> Unit,
     onArticleClick: (String, Article) -> Unit,
     translationStates: Map<String, PostTranslationUiState>,
@@ -450,7 +480,11 @@ private fun QuoteCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
-        PostAuthorHeader(quote.author, quote.createdAt)
+        PostAuthorHeader(
+            quote.author,
+            quote.createdAt,
+            onAuthorClick = onAuthorClick?.let { callback -> { callback(quote.author) } },
+        )
         Spacer(Modifier.height(6.dp))
         TranslatablePostBody(
             postId = quote.id,

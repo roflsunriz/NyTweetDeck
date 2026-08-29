@@ -218,4 +218,5 @@
     <string name="x_api_metadata_error">X API 元数据更新失败。将继续使用上一个有效版本。</string>
     <string name="x_api_metadata_current">X API 元数据：最新已验证版本</string>
     <string name="x_api_metadata_bundled">X API 元数据：内置已验证版本</string>
+    <string name="post_link_copied">没有可用的分享目标，因此已复制帖子链接。</string>
 </resources>

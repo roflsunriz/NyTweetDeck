@@ -23,6 +23,7 @@ import dev.nytweetdeck.android.model.ArticleReaderStatus
 import dev.nytweetdeck.android.model.TranslationCandidate
 import dev.nytweetdeck.android.model.TranslationLoadStatus
 import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.PostDetailStatus
 import dev.nytweetdeck.android.xapi.AuthenticatedRestClient
 import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.VerifiedWebSession
@@ -638,6 +639,50 @@ class DeckViewModelTest {
     }
 
     @Test
+    fun nestedPostDetailsRestoreThePreviousDetailBeforeClosing() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            AccountStore(accountFile).addOrReplace(
+                AccountSecrets("7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile"),
+                select = true,
+            )
+            val executor = GraphQlExecutor { _, purpose, variables, _ ->
+                when (purpose) {
+                    "postDetail" -> detailJson(requireNotNull(variables["tweetId"] as? String))
+                    "conversation" -> "{\"data\":{\"entries\":[]}}"
+                    else -> error("unexpected purpose: $purpose")
+                }
+            }
+            val viewModel = DeckViewModel(
+                settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath()),
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                postDetailRepository = PostDetailRepository(executor),
+                ioDispatcher = dispatcher,
+            )
+            advanceUntilIdle()
+
+            viewModel.openPostDetail("101")
+            advanceUntilIdle()
+            viewModel.toggleDeemphasizedReplies()
+            viewModel.openPostDetail("102")
+            advanceUntilIdle()
+            assertEquals("102", viewModel.state.value.postDetail.postId)
+
+            viewModel.closePostDetail()
+            assertEquals("101", viewModel.state.value.postDetail.postId)
+            assertTrue(viewModel.state.value.postDetail.showDeemphasizedReplies)
+            viewModel.closePostDetail()
+            assertEquals(PostDetailStatus.CLOSED, viewModel.state.value.postDetail.status)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun visiblePostTranslationUpdatesUiAndHealthThroughXOnlyRepository() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
@@ -709,4 +754,8 @@ class DeckViewModelTest {
         "article":{"article_results":{"result":{"rest_id":"701","title":"Article",
         "preview_text":"Preview","plain_text":"Complete body"}}}}}}}
     """.trimIndent()
+
+    private fun detailJson(postId: String): String =
+        """{"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"$postId",
+          "legacy":{"full_text":"detail $postId"}}}}}}"""
 }

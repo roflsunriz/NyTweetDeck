@@ -219,4 +219,5 @@
     <string name="x_api_metadata_error">X API میٹا ڈیٹا ریفریش ناکام رہا۔ آخری درست ورژن استعمال ہوتا رہے گا۔</string>
     <string name="x_api_metadata_current">X API میٹا ڈیٹا: تازہ ترین تصدیق شدہ ورژن</string>
     <string name="x_api_metadata_bundled">X API میٹا ڈیٹا: شامل تصدیق شدہ ورژن</string>
+    <string name="post_link_copied">شیئر کرنے کی کوئی منزل دستیاب نہیں تھی، اس لیے پوسٹ کا لنک کاپی کر دیا گیا۔</string>
 </resources>

@@ -31,6 +31,7 @@ class PostCardInteractionUiTest {
     private var openedPost: String? = null
     private var openedQuote: String? = null
     private var toggledTranslation: String? = null
+    private var openedAuthor: String? = null
 
     @Before
     fun showQuotedRepost() {
@@ -41,6 +42,7 @@ class PostCardInteractionUiTest {
                         post = fixturePost(),
                         onPostClick = { openedPost = it },
                     onQuoteClick = { openedQuote = it },
+                    onAuthorClick = { openedAuthor = it.id },
                     translationStates = mapOf(
                         "101" to PostTranslationUiState(
                             TranslationLoadStatus.READY,
@@ -57,7 +59,7 @@ class PostCardInteractionUiTest {
     @Test
     fun quoteAndParentHaveIndependentTargetsAndAllActionsRemainVisible() {
         composeRule.onNodeWithTag("post-body-101", useUnmergedTree = true).assertExists()
-        composeRule.onNodeWithTag("post-quote-101-99", useUnmergedTree = true)
+        composeRule.onNodeWithTag("post-quote-body-99", useUnmergedTree = true)
             .performScrollTo()
             .performClick()
         assertEquals("99", openedQuote)
@@ -72,6 +74,20 @@ class PostCardInteractionUiTest {
             .forEach { action ->
                 composeRule.onNodeWithTag("post-action-$action-101").assertExists()
             }
+    }
+
+    @Test
+    fun replyContextNavigatesToItsParentInsideNyTweetDeck() {
+        composeRule.onNodeWithTag("post-reply-context-101", useUnmergedTree = true)
+            .performClick()
+        assertEquals("90", openedPost)
+    }
+
+    @Test
+    fun authorHeaderUsesAnIndependentInternalTarget() {
+        composeRule.onNodeWithTag("post-author-7", useUnmergedTree = true).performClick()
+        assertEquals("7", openedAuthor)
+        assertNull(openedPost)
     }
 
     private fun fixturePost(): Post {

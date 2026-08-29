@@ -220,4 +220,5 @@
     <string name="x_api_metadata_error">No se pudieron actualizar los metadatos de X API. Se mantiene la última versión válida.</string>
     <string name="x_api_metadata_current">Metadatos de X API: última versión verificada</string>
     <string name="x_api_metadata_bundled">Metadatos de X API: versión verificada incluida</string>
+    <string name="post_link_copied">No había un destino para compartir, así que se copió el enlace del post.</string>
 </resources>

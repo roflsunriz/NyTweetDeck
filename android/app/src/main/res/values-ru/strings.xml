@@ -221,4 +221,5 @@
     <string name="x_api_metadata_error">Не удалось обновить метаданные X API. Используется последняя допустимая версия.</string>
     <string name="x_api_metadata_current">Метаданные X API: последняя проверенная версия</string>
     <string name="x_api_metadata_bundled">Метаданные X API: встроенная проверенная версия</string>
+    <string name="post_link_copied">Приложение для отправки не найдено, поэтому ссылка на пост скопирована.</string>
 </resources>

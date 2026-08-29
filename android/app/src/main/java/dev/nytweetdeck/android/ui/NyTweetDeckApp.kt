@@ -49,6 +49,7 @@ import dev.nytweetdeck.android.data.PostTranslationRepository
 import dev.nytweetdeck.android.data.UserActionRepository
 import dev.nytweetdeck.android.data.ListMembershipRepository
 import dev.nytweetdeck.android.model.CapturedWebSession
+import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.PostActionType
@@ -252,15 +253,25 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         }
     }
     val sharePost: (String) -> Unit = { postId ->
-        val share = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, "https://x.com/i/status/$postId")
+        when (sharePostOrCopy(context, postId, sharePostLabel)) {
+            PostShareOutcome.COPIED -> Toast.makeText(
+                context, R.string.post_link_copied, Toast.LENGTH_SHORT,
+            ).show()
+            PostShareOutcome.INVALID -> Toast.makeText(
+                context, R.string.post_action_failed, Toast.LENGTH_SHORT,
+            ).show()
+            PostShareOutcome.SHARED -> Unit
         }
-        context.startActivity(Intent.createChooser(share, sharePostLabel))
     }
     val replyToPost: (String) -> Unit = { postId ->
         viewModel.openComposer(ComposerMode.REPLY, postId)
         openDialog = OpenDialog.COMPOSER
+    }
+    val openAuthorColumn: (Author) -> Unit = { author ->
+        if (author.id.matches(Regex("[0-9]{1,24}"))) {
+            val title = author.displayName.ifBlank { "@" + author.username }
+            viewModel.addColumn(ColumnKind.USER, title, author.id)
+        }
     }
     val downloadPostMedia: (String) -> Unit = { postId ->
         val downloads = planMediaDownloads(postId, state.findPost(postId)?.media.orEmpty())
@@ -329,6 +340,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     onReplyClick = replyToPost,
                     onPostClick = viewModel::openPostDetail,
                     onQuoteClick = viewModel::openPostDetail,
+                    onAuthorClick = openAuthorColumn,
                     onLikeClick = { postId ->
                         viewModel.togglePostAction(postId, PostActionType.LIKE)
                     },
@@ -441,6 +453,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onToggleDeemphasized = viewModel::toggleDeemphasizedReplies,
             onPostClick = viewModel::openPostDetail,
             onQuoteClick = viewModel::openPostDetail,
+            onAuthorClick = openAuthorColumn,
             onReplyClick = replyToPost,
             onRepostClick = { postId ->
                 viewModel.togglePostAction(postId, PostActionType.REPOST)
@@ -492,6 +505,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             },
             onPostClick = viewModel::openPostDetail,
             onQuoteClick = viewModel::openPostDetail,
+            onAuthorClick = openAuthorColumn,
             onReplyClick = replyToPost,
             onRepostClick = { viewModel.togglePostAction(it, PostActionType.REPOST) },
             onLikeClick = { viewModel.togglePostAction(it, PostActionType.LIKE) },
