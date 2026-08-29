@@ -95,19 +95,84 @@ describe("shared layout synchronization", () => {
     expect(loadAttempts).toBeGreaterThanOrEqual(2);
     expect(sharedSnapshot?.revision).toBe(1);
   });
+
+  test("rebases a local column change onto a newer server revision instead of resetting it", async () => {
+    const user = userEvent.setup();
+    render(<LayoutHarness id="conflict" storage={new MemoryStorage()} />);
+    await screen.findByText("conflict:system");
+    if (sharedSnapshot === null) throw new Error("共有設定が初期化されていません。");
+    sharedSnapshot = {
+      revision: sharedSnapshot.revision + 1,
+      layout: { ...sharedSnapshot.layout, theme: "dark" },
+    };
+
+    await user.click(screen.getByRole("button", { name: "conflict-column" }));
+
+    await waitFor(() => expect(sharedSnapshot?.layout.columns).toHaveLength(1));
+    expect(sharedSnapshot?.layout.theme).toBe("dark");
+    expect(await screen.findByText("conflict:dark")).toBeDefined();
+    expect(screen.getByText("conflict:columns:1")).toBeDefined();
+  });
+
+  test("does not apply a mutation twice when the save response is lost after commit", async () => {
+    const user = userEvent.setup();
+    render(<LayoutHarness id="lost-response" storage={new MemoryStorage()} />);
+    await screen.findByText("lost-response:system");
+    const serverFetch = globalThis.fetch;
+    let droppedResponse = false;
+    globalThis.fetch = (async (input, init) => {
+      const response = await serverFetch(input, init);
+      if (init?.method === "PUT" && !droppedResponse) {
+        droppedResponse = true;
+        throw new TypeError("response lost after commit");
+      }
+      return response;
+    }) as typeof fetch;
+
+    await user.click(screen.getByRole("button", { name: "lost-response-toggle" }));
+    await waitFor(() => expect(sharedSnapshot?.layout.theme).toBe("dark"));
+    await user.click(screen.getByRole("button", { name: "lost-response-retry" }));
+
+    await waitFor(() => expect(screen.getByText("lost-response:dark")).toBeDefined());
+    expect(sharedSnapshot?.layout.theme).toBe("dark");
+  });
 });
 
 function LayoutHarness({ id, storage }: { id: string; storage: StorageLike }) {
-  const { layout, setLayout } = useSharedLayout(storage);
+  const { layout, setLayout, retry } = useSharedLayout(storage);
   if (layout === null) return <span>{id}:loading</span>;
   return (
     <div>
       <span>{`${id}:${layout.theme}`}</span>
+      <span>{`${id}:columns:${layout.columns.length}`}</span>
       <button
         type="button"
         aria-label={`${id}-dark`}
         onClick={() => setLayout((current) => ({ ...current, theme: "dark" }))}
       />
+      <button
+        type="button"
+        aria-label={`${id}-column`}
+        onClick={() =>
+          setLayout((current) => ({
+            ...current,
+            columns: current.columns.some((column) => column.id === `${id}-home`)
+              ? current.columns
+              : [...current.columns, { id: `${id}-home`, kind: "home", target: null, label: null }],
+          }))
+        }
+      />
+      <button
+        type="button"
+        aria-label={`${id}-toggle`}
+        onClick={() =>
+          setLayout((current) => ({
+            ...current,
+            theme: current.theme === "dark" ? "light" : "dark",
+          }))
+        }
+      />
+      <button type="button" aria-label={`${id}-retry`} onClick={retry} />
     </div>
   );
 }

@@ -223,10 +223,12 @@ function AppContent() {
   const listCandidates = useListCandidates(accountIds, activeAccountId);
 
   const addColumn = (kind: ColumnKind, target: string | null, label: string | null = null) => {
-    setLayout((current) => ({
-      ...current,
-      columns: [...current.columns, { id: createColumnId(), kind, target, label }],
-    }));
+    const column = { id: createColumnId(), kind, target, label };
+    setLayout((current) =>
+      current.columns.some((item) => item.id === column.id)
+        ? current
+        : { ...current, columns: [...current.columns, column] },
+    );
     setDialog(null);
   };
 

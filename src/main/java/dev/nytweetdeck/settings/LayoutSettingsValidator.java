@@ -7,8 +7,8 @@ import java.util.Set;
 
 final class LayoutSettingsValidator {
 
-    private static final int CURRENT_LAYOUT_VERSION = 8;
-    private static final int LEGACY_LAYOUT_VERSION = 7;
+    static final int CURRENT_LAYOUT_VERSION = 8;
+    private static final int FIRST_LAYOUT_VERSION = 1;
     private static final int MAX_HISTORY = 20;
     private static final Set<String> COLUMN_KINDS = Set.of(
             "home", "following", "search", "notifications", "history", "user", "list",
@@ -24,10 +24,11 @@ final class LayoutSettingsValidator {
 
     static LayoutSettings validateAndCopy(LayoutSettings settings) {
         if (settings == null || settings.version() == null
-                || (settings.version() != CURRENT_LAYOUT_VERSION
-                        && settings.version() != LEGACY_LAYOUT_VERSION)) {
+                || settings.version() < FIRST_LAYOUT_VERSION
+                || settings.version() > CURRENT_LAYOUT_VERSION) {
             throw new IllegalArgumentException("未対応のレイアウト設定版です。");
         }
+        var sourceVersion = settings.version();
         var columns = validateColumns(settings.columns());
         var navItems = validateUniqueValues(settings.navItems(), NAV_ITEMS, 100, "メニュー項目");
         if (!LOCALES.contains(settings.locale())) {
@@ -37,15 +38,17 @@ final class LayoutSettingsValidator {
             throw new IllegalArgumentException("テーマが不正です。");
         }
         validateNullableText(settings.activeAccountId(), 200, "選択アカウント");
-        var replySort = settings.version() == LEGACY_LAYOUT_VERSION
+        var replySort = sourceVersion < CURRENT_LAYOUT_VERSION
                 ? "relevance"
                 : settings.replySort();
         if (replySort == null
                 || !Set.of("relevance", "recency", "likes").contains(replySort)) {
             throw new IllegalArgumentException("返信の並び順が不正です。");
         }
-        var display = validateDisplay(settings.display());
-        var history = validateHistory(settings.trendSearchHistory());
+        var display = validateDisplay(migrateDisplay(settings.display(), sourceVersion));
+        var history = sourceVersion < 6
+                ? List.<String>of()
+                : validateHistory(settings.trendSearchHistory());
         return new LayoutSettings(
                 CURRENT_LAYOUT_VERSION,
                 columns,
@@ -56,6 +59,27 @@ final class LayoutSettingsValidator {
                 replySort,
                 display,
                 history);
+    }
+
+    private static LayoutSettings.Display migrateDisplay(
+            LayoutSettings.Display display, int sourceVersion) {
+        if (sourceVersion <= 2) {
+            return new LayoutSettings.Display(
+                    "default", "blue", "comfortable", false, true, false, true, 100, true);
+        }
+        if (display == null) {
+            throw new IllegalArgumentException("表示設定が不正です。");
+        }
+        return new LayoutSettings.Display(
+                display.fontSize(),
+                display.accentColor(),
+                display.density(),
+                display.reduceMotion(),
+                display.mediaPreview(),
+                display.videoAutoplay(),
+                sourceVersion <= 6 ? true : display.videoLoop(),
+                sourceVersion <= 6 ? 100 : display.videoVolume(),
+                sourceVersion <= 4 ? true : display.autoTranslatePosts());
     }
 
     private static List<LayoutSettings.Column> validateColumns(

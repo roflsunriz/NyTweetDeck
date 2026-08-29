@@ -107,6 +107,69 @@ class LayoutSettingsStoreTest {
     }
 
     @Test
+    void migratesAllOlderLayoutGenerationsWithoutDiscardingColumns() {
+        for (var version = 1; version <= 6; version++) {
+            var display = version <= 2
+                    ? null
+                    : new LayoutSettings.Display(
+                            "large",
+                            "purple",
+                            "compact",
+                            true,
+                            false,
+                            true,
+                            null,
+                            null,
+                            version >= 5 ? false : null);
+            var migrated = LayoutSettingsValidator.validateAndCopy(new LayoutSettings(
+                    version,
+                    List.of(new LayoutSettings.Column("saved-home", "home", null, null)),
+                    List.of("home", "notifications"),
+                    "ja",
+                    "dark",
+                    version >= 2 ? "account-1" : null,
+                    null,
+                    display,
+                    version >= 6 ? List.of("NyTweetDeck") : null));
+
+            assertThat(migrated.version()).isEqualTo(8);
+            assertThat(migrated.columns()).extracting(LayoutSettings.Column::id)
+                    .containsExactly("saved-home");
+            assertThat(migrated.replySort()).isEqualTo("relevance");
+            assertThat(migrated.display().videoLoop()).isTrue();
+            assertThat(migrated.display().videoVolume()).isEqualTo(100);
+            assertThat(migrated.display().autoTranslatePosts())
+                    .isEqualTo(version >= 5 ? false : true);
+            assertThat(migrated.trendSearchHistory())
+                    .isEqualTo(version >= 6 ? List.of("NyTweetDeck") : List.of());
+        }
+    }
+
+    @Test
+    void rewritesAMigratedPrimaryAtomicallyAndKeepsTheOriginalAsBackup() throws Exception {
+        var path = temporaryDirectory.resolve("settings.json");
+        Files.writeString(path, """
+                {"schemaVersion":1,"revision":12,"layout":{"version":3,
+                "columns":[{"id":"saved-home","kind":"home","target":null}],
+                "navItems":["home","notifications"],"locale":"ja","theme":"dark",
+                "activeAccountId":"account-1","display":{"fontSize":"large",
+                "accentColor":"purple","density":"compact","reduceMotion":true,
+                "mediaPreview":false,"videoAutoplay":true}}}
+                """);
+
+        var loaded = new LayoutSettingsStore(JsonMapper.builder().build(), path);
+
+        assertThat(loaded.current()).hasValueSatisfying(snapshot -> {
+            assertThat(snapshot.revision()).isEqualTo(12);
+            assertThat(snapshot.layout().columns()).extracting(LayoutSettings.Column::id)
+                    .containsExactly("saved-home");
+        });
+        assertThat(Files.readString(path)).contains("\"version\":8");
+        assertThat(Files.readString(path.resolveSibling("settings.json.bak")))
+                .contains("\"version\":3");
+    }
+
+    @Test
     void recoversThePreviousAtomicBackupWhenTheCurrentFileIsCorrupted() throws Exception {
         var path = temporaryDirectory.resolve("settings.json");
         var mapper = JsonMapper.builder().build();

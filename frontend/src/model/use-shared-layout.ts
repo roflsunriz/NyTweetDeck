@@ -13,6 +13,13 @@ export type SharedLayoutError = "load" | "save" | "conflict";
 const automaticLoadRetryLimit = 8;
 const automaticLoadRetryBaseDelayMs = 500;
 const automaticLoadRetryMaximumDelayMs = 5_000;
+const automaticConflictRetryLimit = 4;
+
+type LayoutMutation = (layout: AppLayout) => AppLayout;
+
+function applyMutations(layout: AppLayout, mutations: readonly LayoutMutation[]): AppLayout {
+  return mutations.reduce((current, mutation) => mutation(current), layout);
+}
 
 export function useSharedLayout(storage: StorageLike = window.localStorage): {
   layout: AppLayout | null;
@@ -23,17 +30,15 @@ export function useSharedLayout(storage: StorageLike = window.localStorage): {
   const [layout, setLayoutState] = useState<AppLayout | null>(null);
   const [error, setError] = useState<SharedLayoutError | null>(null);
   const [loadRetryToken, setLoadRetryToken] = useState(0);
-  const [saveRetryToken, setSaveRetryToken] = useState(0);
-  const revisionRef = useRef(0);
-  const lastAppliedRef = useRef<string | null>(null);
-  const pendingWritesRef = useRef(0);
+  const [saveFlushToken, setSaveFlushToken] = useState(0);
+  const confirmedSnapshotRef = useRef<SharedLayoutSnapshot | null>(null);
+  const pendingMutationsRef = useRef<LayoutMutation[]>([]);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const loadFailureCountRef = useRef(0);
 
-  const applySnapshot = useCallback((snapshot: SharedLayoutSnapshot) => {
-    revisionRef.current = snapshot.revision;
-    lastAppliedRef.current = JSON.stringify(snapshot.layout);
-    setLayoutState(snapshot.layout);
+  const rebaseOnSnapshot = useCallback((snapshot: SharedLayoutSnapshot) => {
+    confirmedSnapshotRef.current = snapshot;
+    setLayoutState(applyMutations(snapshot.layout, pendingMutationsRef.current));
   }, []);
 
   useEffect(() => {
@@ -44,7 +49,7 @@ export function useSharedLayout(storage: StorageLike = window.localStorage): {
       .then((snapshot) => {
         if (active) {
           loadFailureCountRef.current = 0;
-          applySnapshot(snapshot);
+          rebaseOnSnapshot(snapshot);
           setError(null);
         }
       })
@@ -67,46 +72,79 @@ export function useSharedLayout(storage: StorageLike = window.localStorage): {
       active = false;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
-  }, [applySnapshot, loadRetryToken, storage]);
+  }, [loadRetryToken, rebaseOnSnapshot, storage]);
 
-  useEffect(() => {
-    void saveRetryToken;
-    if (layout === null) return;
-    const serialized = JSON.stringify(layout);
-    if (serialized === lastAppliedRef.current) return;
-    pendingWritesRef.current += 1;
+  const flushPendingMutations = useCallback((): Promise<void> => {
     saveQueueRef.current = saveQueueRef.current
       .catch(() => undefined)
       .then(async () => {
-        try {
-          const snapshot = await saveSharedLayout(layout, revisionRef.current);
-          revisionRef.current = snapshot.revision;
-          lastAppliedRef.current = JSON.stringify(snapshot.layout);
-          setError(null);
-        } catch (saveError) {
-          if (saveError instanceof SharedLayoutConflictError) {
-            applySnapshot(saveError.snapshot);
-            setError("conflict");
-          } else {
-            setError("save");
+        let conflictCount = 0;
+        while (pendingMutationsRef.current.length > 0) {
+          const confirmed = confirmedSnapshotRef.current;
+          if (confirmed === null) return;
+          const captured = [...pendingMutationsRef.current];
+          const desired = applyMutations(confirmed.layout, captured);
+          if (JSON.stringify(desired) === JSON.stringify(confirmed.layout)) {
+            pendingMutationsRef.current.splice(0, captured.length);
+            setLayoutState(applyMutations(confirmed.layout, pendingMutationsRef.current));
+            continue;
           }
-        } finally {
-          pendingWritesRef.current -= 1;
+          try {
+            const snapshot = await saveSharedLayout(desired, confirmed.revision);
+            confirmedSnapshotRef.current = snapshot;
+            pendingMutationsRef.current.splice(0, captured.length);
+            setLayoutState(applyMutations(snapshot.layout, pendingMutationsRef.current));
+            conflictCount = 0;
+            setError(null);
+          } catch (saveError) {
+            if (saveError instanceof SharedLayoutConflictError) {
+              confirmedSnapshotRef.current = saveError.snapshot;
+              if (JSON.stringify(saveError.snapshot.layout) === JSON.stringify(desired)) {
+                pendingMutationsRef.current.splice(0, captured.length);
+                setLayoutState(
+                  applyMutations(saveError.snapshot.layout, pendingMutationsRef.current),
+                );
+                conflictCount = 0;
+                setError(null);
+                continue;
+              }
+              setLayoutState(
+                applyMutations(saveError.snapshot.layout, pendingMutationsRef.current),
+              );
+              conflictCount += 1;
+              if (conflictCount >= automaticConflictRetryLimit) {
+                setError("conflict");
+                return;
+              }
+              continue;
+            }
+            setError("save");
+            return;
+          }
+        }
+        if (pendingMutationsRef.current.length === 0) {
+          setError(null);
         }
       });
-  }, [applySnapshot, layout, saveRetryToken]);
+    return saveQueueRef.current;
+  }, []);
+
+  useEffect(() => {
+    void saveFlushToken;
+    void flushPendingMutations();
+  }, [flushPendingMutations, saveFlushToken]);
 
   const initialized = layout !== null;
   useEffect(() => {
     if (!initialized || typeof EventSource === "undefined") return;
     const source = new EventSource("/api/v1/settings/events");
     const refresh = () => {
-      void saveQueueRef.current.finally(async () => {
-        if (pendingWritesRef.current !== 0) return;
+      void flushPendingMutations().finally(async () => {
+        if (pendingMutationsRef.current.length !== 0) return;
         try {
           const snapshot = await loadSharedLayout();
-          if (snapshot.revision > revisionRef.current) {
-            applySnapshot(snapshot);
+          if (snapshot.revision > (confirmedSnapshotRef.current?.revision ?? 0)) {
+            rebaseOnSnapshot(snapshot);
             setError(null);
           }
         } catch {
@@ -121,7 +159,7 @@ export function useSharedLayout(storage: StorageLike = window.localStorage): {
           typeof value === "object" &&
           value !== null &&
           "revision" in value &&
-          Number(value.revision) > revisionRef.current
+          Number(value.revision) > (confirmedSnapshotRef.current?.revision ?? 0)
         ) {
           refresh();
         }
@@ -138,23 +176,27 @@ export function useSharedLayout(storage: StorageLike = window.localStorage): {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [applySnapshot, initialized]);
+  }, [flushPendingMutations, initialized, rebaseOnSnapshot]);
 
   const setLayout = useCallback((action: SetStateAction<AppLayout>) => {
+    if (confirmedSnapshotRef.current === null) return;
+    const mutation: LayoutMutation = typeof action === "function" ? action : () => action;
+    pendingMutationsRef.current.push(mutation);
     setLayoutState((current) => {
       if (current === null) return current;
-      return typeof action === "function" ? action(current) : action;
+      return mutation(current);
     });
+    setSaveFlushToken((current) => current + 1);
   }, []);
 
   const retry = useCallback(() => {
     if (error === "conflict") {
-      setError(null);
+      setSaveFlushToken((current) => current + 1);
     } else if (layout === null) {
       loadFailureCountRef.current = 0;
       setLoadRetryToken((current) => current + 1);
     } else {
-      setSaveRetryToken((current) => current + 1);
+      setSaveFlushToken((current) => current + 1);
     }
   }, [error, layout]);
   return { layout, error, setLayout, retry };

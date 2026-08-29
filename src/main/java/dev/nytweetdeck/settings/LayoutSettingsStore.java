@@ -68,7 +68,12 @@ public class LayoutSettingsStore {
         var primaryExists = Files.isRegularFile(storePath);
         if (primaryExists) {
             try {
-                return load(storePath);
+                var loaded = load(storePath);
+                if (loaded.migrated()) {
+                    write(loaded.snapshot());
+                    LOGGER.info("共有設定を現行版へ移行しました。");
+                }
+                return loaded.snapshot();
             } catch (LayoutSettingsStoreException exception) {
                 LOGGER.warn("共有設定が破損しているためバックアップからの復旧を試みます。");
             }
@@ -76,7 +81,7 @@ public class LayoutSettingsStore {
 
         var backup = backupPath();
         if (Files.isRegularFile(backup)) {
-            Snapshot recovered;
+            LoadedSnapshot recovered;
             try {
                 recovered = load(backup);
             } catch (LayoutSettingsStoreException exception) {
@@ -84,27 +89,33 @@ public class LayoutSettingsStore {
                 return null;
             }
             restore(backup);
+            if (recovered.migrated()) {
+                write(recovered.snapshot());
+                LOGGER.info("バックアップから復旧した共有設定を現行版へ移行しました。");
+            }
             LOGGER.warn(
                     primaryExists
                             ? "破損した共有設定をバックアップから復旧しました。"
                             : "欠落した共有設定をバックアップから復旧しました。");
-            return recovered;
+            return recovered.snapshot();
         } else if (primaryExists) {
             LOGGER.warn("共有設定のバックアップがないため初期状態から再生成します。");
         }
         return null;
     }
 
-    private Snapshot load(Path path) {
+    private LoadedSnapshot load(Path path) {
         try {
             var document = objectMapper.readValue(path.toFile(), StoreDocument.class);
             if (document == null || document.schemaVersion() != CURRENT_SCHEMA_VERSION
                     || document.revision() < 1) {
                 throw new IllegalArgumentException("未対応の共有設定保存版です。");
             }
-            return new Snapshot(
-                    document.revision(),
-                    LayoutSettingsValidator.validateAndCopy(document.layout()));
+            var migrated = LayoutSettingsValidator.validateAndCopy(document.layout());
+            return new LoadedSnapshot(
+                    new Snapshot(document.revision(), migrated),
+                    !Integer.valueOf(LayoutSettingsValidator.CURRENT_LAYOUT_VERSION)
+                            .equals(document.layout().version()));
         } catch (JacksonException | IllegalArgumentException exception) {
             throw new LayoutSettingsStoreException("共有設定を読み込めません。", exception);
         }
@@ -197,6 +208,8 @@ public class LayoutSettingsStore {
     }
 
     record StoreDocument(int schemaVersion, long revision, LayoutSettings layout) {}
+
+    private record LoadedSnapshot(Snapshot snapshot, boolean migrated) {}
 
     public record Snapshot(long revision, LayoutSettings layout) {}
 
