@@ -115,6 +115,8 @@ class UserProfileParser(
             verified = verification.bool("verified") || legacy.bool("verified") || bool("is_blue_verified"),
             following = perspectives.bool("following") || legacy.bool("following"),
             followsYou = perspectives.bool("followed_by") || legacy.bool("followed_by"),
+            muting = perspectives.bool("muting") || legacy.bool("muting"),
+            blocking = perspectives.bool("blocking") || legacy.bool("blocking"),
         )
     }
 

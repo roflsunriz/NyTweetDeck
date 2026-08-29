@@ -57,7 +57,8 @@ class UserProfileParserTest {
                 "https://pbs.twimg.com/alice.jpg"},"profile_bio":{"description":"Profile description"},
                 "profile_banner_url":"https://pbs.twimg.com/banner.jpg","location":{"location":"Tokyo"},
                 "website":{"url":"https://example.com"},"relationship_counts":{"friends_count":10,
-                "followers_count":"20"},"relationship_perspectives":{"following":true,"followed_by":true},
+                "followers_count":"20"},"relationship_perspectives":{"following":true,"followed_by":true,
+                "muting":true,"blocking":true},
                 "verification":{"verified":true}}}}}}}
             """.trimIndent(),
             expectedUserId = "42",
@@ -93,6 +94,8 @@ class UserProfileParserTest {
         assertTrue(profile.verified)
         assertTrue(profile.following)
         assertTrue(profile.followsYou)
+        assertTrue(profile.muting)
+        assertTrue(profile.blocking)
     }
 
     @Test
@@ -145,6 +148,8 @@ class UserProfileParserTest {
         assertFalse(profile.verified)
         assertFalse(profile.following)
         assertFalse(profile.followsYou)
+        assertFalse(profile.muting)
+        assertFalse(profile.blocking)
     }
 
     @Test

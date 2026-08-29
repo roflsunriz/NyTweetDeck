@@ -26,6 +26,8 @@ data class UserProfilePage(
     val verified: Boolean,
     val following: Boolean,
     val followsYou: Boolean,
+    val muting: Boolean,
+    val blocking: Boolean,
 )
 
 /** プロフィールに表示する、ログイン中のアカウントと共通するフォロワー。 */

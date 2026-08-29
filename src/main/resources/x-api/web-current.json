@@ -30,6 +30,8 @@
     "unmuteUser": "/1.1/mutes/users/destroy.json",
     "blockUser": "/1.1/blocks/create.json",
     "unblockUser": "/1.1/blocks/destroy.json",
+    "createList": "/1.1/lists/create.json",
+    "destroyList": "/1.1/lists/destroy.json",
     "translatePost": "/1.1/strato/column/None/tweetId={postId},destinationLanguage=None,translationSource=Some({translationSource}),feature=None,timeout=None,onlyCached=None/translation/service/translateTweet"
   },
   "featureKeys": [
