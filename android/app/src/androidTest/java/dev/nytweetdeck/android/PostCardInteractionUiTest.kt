@@ -4,6 +4,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,9 @@ import androidx.compose.ui.Modifier
 import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.EmbeddedPost
 import dev.nytweetdeck.android.model.Post
+import dev.nytweetdeck.android.model.PostTranslation
+import dev.nytweetdeck.android.model.PostTranslationUiState
+import dev.nytweetdeck.android.model.TranslationLoadStatus
 import dev.nytweetdeck.android.ui.PostCard
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import org.junit.Assert.assertEquals
@@ -26,6 +30,7 @@ class PostCardInteractionUiTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
     private var openedPost: String? = null
     private var openedQuote: String? = null
+    private var toggledTranslation: String? = null
 
     @Before
     fun showQuotedRepost() {
@@ -35,7 +40,14 @@ class PostCardInteractionUiTest {
                     PostCard(
                         post = fixturePost(),
                         onPostClick = { openedPost = it },
-                        onQuoteClick = { openedQuote = it },
+                    onQuoteClick = { openedQuote = it },
+                    translationStates = mapOf(
+                        "101" to PostTranslationUiState(
+                            TranslationLoadStatus.READY,
+                            PostTranslation("101", "en", "ja", "翻訳された本文"),
+                        ),
+                    ),
+                    onToggleOriginal = { toggledTranslation = it },
                     )
                 }
             }
@@ -50,6 +62,11 @@ class PostCardInteractionUiTest {
             .performClick()
         assertEquals("99", openedQuote)
         assertNull(openedPost)
+        composeRule.onNodeWithText("翻訳された本文").assertExists()
+        composeRule.onNodeWithTag("translation-toggle", useUnmergedTree = true)
+            .performScrollTo()
+            .performClick()
+        assertEquals("101", toggledTranslation)
 
         listOf("reply", "repost", "like", "impressions", "bookmark", "share", "download")
             .forEach { action ->

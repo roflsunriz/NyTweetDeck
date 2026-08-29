@@ -1,6 +1,7 @@
 package dev.nytweetdeck.android.xapi
 
 import dev.nytweetdeck.android.data.AccountSecrets
+import java.time.Instant
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -11,6 +12,7 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -76,6 +78,75 @@ class AuthenticatedRestClientTest {
         assertTrue(transactions.generated.isEmpty())
     }
 
+    @Test
+    fun translatePostExpandsOnlyTheOfficialPathVariablesAndReturnsRateLimitMetadata() {
+        val resetAt = Instant.parse("2026-08-29T12:00:00Z")
+        val interceptor = SequenceInterceptor(
+            ResponseSpec(
+                statusCode = 200,
+                body = """{"id_str":"123","translation":"こんにちは"}""",
+                headers = mapOf(
+                    "x-rate-limit-limit" to "100",
+                    "x-rate-limit-remaining" to "95",
+                    "x-rate-limit-reset" to resetAt.epochSecond.toString(),
+                    "Retry-After" to "12",
+                ),
+            ),
+        )
+        val transactions = RecordingTransactionIdService()
+        val client = client(profile(), interceptor, transactions)
+
+        val result = client.translatePost(account(), "123", "X", "ja_JP")
+
+        val request = require(interceptor.requests.size == 1) { "expected one request" }
+            .let { interceptor.requests.single() }
+        assertTrue(request.url.encodedPath.contains("tweetId=123"))
+        assertTrue(request.url.encodedPath.contains("translationSource=Some(X)"))
+        assertFalse(request.url.encodedPath.contains('{'))
+        assertEquals("ja-jp", request.header("X-Twitter-Client-Language"))
+        assertEquals("transaction-1", request.header(TRANSACTION_HEADER))
+        assertEquals("こんにちは", result.body.substringAfter("translation\":\"").substringBefore('"'))
+        assertNotNull(result.rateLimit)
+        assertEquals(100, result.rateLimit?.limit)
+        assertEquals(95, result.rateLimit?.remaining)
+        assertEquals(resetAt, result.rateLimit?.resetAt)
+        assertEquals(12L, result.retryAfterSeconds)
+        assertThrows(IllegalArgumentException::class.java) {
+            client.translatePost(account(), "123", "Google", "ja")
+        }
+        assertEquals(1, interceptor.requests.size)
+    }
+
+    @Test
+    fun translatePostExposesRetryAfterAndRateLimitHeadersOnFailures() {
+        val resetAt = Instant.parse("2026-08-29T12:00:00Z")
+        val client = client(
+            profile(),
+            SequenceInterceptor(
+                ResponseSpec(
+                    statusCode = 429,
+                    body = """{"errors":[{"code":88}]}""",
+                    headers = mapOf(
+                        "Retry-After" to "7200",
+                        "x-rate-limit-limit" to "100",
+                        "x-rate-limit-remaining" to "0",
+                        "x-rate-limit-reset" to resetAt.epochSecond.toString(),
+                    ),
+                ),
+            ),
+            RecordingTransactionIdService(),
+        )
+
+        val error = assertThrows(AuthenticatedRestClient.RestRequestException::class.java) {
+            client.translatePost(account(), "123", "X", "ja")
+        }
+
+        assertEquals(429, error.statusCode)
+        assertEquals(7200L, error.retryAfterSeconds)
+        assertEquals(0, error.rateLimit?.remaining)
+        assertEquals(resetAt, error.rateLimit?.resetAt)
+    }
+
     private fun client(
         profile: XApiProfile,
         interceptor: SequenceInterceptor,
@@ -101,7 +172,12 @@ class AuthenticatedRestClientTest {
             ),
         ),
         restBaseUrl = restBaseUrl,
-        restEndpoints = mapOf("lookup" to "/1.1/users/show.json"),
+        restEndpoints = mapOf(
+            "lookup" to "/1.1/users/show.json",
+            "translatePost" to "/1.1/strato/column/None/tweetId={postId}," +
+                "destinationLanguage=None,translationSource=Some({translationSource})," +
+                "feature=None,timeout=None,onlyCached=None/translation/service/translateTweet",
+        ),
     )
 
     private fun account() = AccountSecrets.webSession(
@@ -154,6 +230,9 @@ class AuthenticatedRestClientTest {
                 .code(response.statusCode)
                 .message(if (response.statusCode in 200..299) "OK" else "Rejected")
                 .body(response.body.toResponseBody("application/json".toMediaType()))
+                .apply {
+                    response.headers.forEach { (name, value) -> addHeader(name, value) }
+                }
                 .build()
         }
     }
@@ -161,6 +240,7 @@ class AuthenticatedRestClientTest {
     private data class ResponseSpec(
         val statusCode: Int,
         val body: String,
+        val headers: Map<String, String> = emptyMap(),
     )
 
     private companion object {

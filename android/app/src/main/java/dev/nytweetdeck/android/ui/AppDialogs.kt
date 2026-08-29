@@ -74,7 +74,10 @@ import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.TranslationHealth
 import kotlin.math.roundToInt
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 internal enum class TransferStatus {
     NONE,
@@ -604,6 +607,14 @@ internal fun SettingsDialog(
                     },
                     tag = "setting-video-loop",
                 )
+                SettingCheckbox(
+                    label = stringResource(R.string.setting_auto_translate),
+                    checked = settings.autoTranslatePosts,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(autoTranslatePosts = it))
+                    },
+                    tag = "setting-auto-translate",
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -636,6 +647,7 @@ internal fun SettingsDialog(
                         .fillMaxWidth()
                         .testTag("setting-video-volume"),
                 )
+                TranslationHealthSummary(state.translationHealth)
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Button(
                     onClick = onExport,
@@ -795,6 +807,46 @@ private fun accentColorPreview(accent: AccentColor): Color = when (accent) {
     AccentColor.ORANGE -> Color(0xFFFF7A00)
     AccentColor.GREEN -> Color(0xFF00BA7C)
     AccentColor.YELLOW -> Color(0xFFFFC107)
+}
+
+@Composable
+private fun TranslationHealthSummary(health: TranslationHealth?) {
+    val unavailable = stringResource(R.string.translation_health_unavailable)
+    val successRate = health?.recentSuccessRate ?: health?.upstreamSuccessRate
+    val successText = successRate?.let {
+        stringResource(R.string.translation_percent, it.roundToInt())
+    } ?: unavailable
+    val remaining = health?.rateLimitRemaining
+    val limit = health?.rateLimit
+    val remainingText = if (remaining != null && limit != null) {
+        stringResource(
+            R.string.translation_rate_remaining_value,
+            remaining,
+            limit,
+        )
+    } else {
+        unavailable
+    }
+    val resetText = health?.rateLimitResetAt?.let {
+        DateTimeFormatter.ofPattern("HH:mm")
+            .withZone(ZoneId.systemDefault())
+            .format(it)
+    } ?: unavailable
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .testTag("translation-health"),
+    ) {
+        Text(
+            text = stringResource(R.string.translation_health_title),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(stringResource(R.string.translation_health_success_rate, successText))
+        Text(stringResource(R.string.translation_health_remaining, remainingText))
+        Text(stringResource(R.string.translation_health_reset, resetText))
+    }
 }
 
 private fun iconFor(kind: ColumnKind): ImageVector = when (kind) {

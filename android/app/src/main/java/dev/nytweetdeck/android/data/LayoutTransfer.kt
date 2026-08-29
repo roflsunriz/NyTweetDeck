@@ -156,6 +156,7 @@ public object LayoutTransfer {
             videoAutoplay = imported.display.videoAutoplay,
             videoLoop = imported.display.videoLoop,
             videoVolume = imported.display.videoVolume,
+            autoTranslatePosts = imported.display.autoTranslatePosts,
             trendSearchHistory = imported.trendSearchHistory,
         )
         return ImportResult(state = state, currentAccountId = currentState.selectedAccountId)
@@ -217,7 +218,7 @@ public object LayoutTransfer {
         append(",\"videoAutoplay\":${state.videoAutoplay}")
         append(",\"videoLoop\":${state.videoLoop}")
         append(",\"videoVolume\":${state.videoVolume}")
-        append(",\"autoTranslatePosts\":true")
+        append(",\"autoTranslatePosts\":${state.autoTranslatePosts}")
         append('}')
         append(",\"trendSearchHistory\":[")
         state.trendSearchHistory.forEachIndexed { index, query ->
@@ -387,7 +388,7 @@ public object LayoutTransfer {
         if (volume !in 0..100) {
             invalidLayout("表示設定の動画音量が範囲外です。")
         }
-        requireBoolean(display, "autoTranslatePosts")
+        val autoTranslatePosts = requireBoolean(display, "autoTranslatePosts")
         return DisplaySettings(
             themeMode = themeMode,
             fontSize = fontSize,
@@ -398,6 +399,7 @@ public object LayoutTransfer {
             videoAutoplay = videoAutoplay,
             videoLoop = videoLoop,
             videoVolume = volume,
+            autoTranslatePosts = autoTranslatePosts,
         )
     }
 

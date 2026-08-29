@@ -44,6 +44,8 @@ import dev.nytweetdeck.android.data.UserDirectoryRepository
 import dev.nytweetdeck.android.data.PostActionRepository
 import dev.nytweetdeck.android.data.PostComposerRepository
 import dev.nytweetdeck.android.data.PostDetailRepository
+import dev.nytweetdeck.android.data.CommunityNoteRepository
+import dev.nytweetdeck.android.data.PostTranslationRepository
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.MainMenuItemId
@@ -92,6 +94,8 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             PostActionRepository(graphQlClient),
             PostComposerRepository(graphQlClient),
             PostDetailRepository(graphQlClient),
+            CommunityNoteRepository(graphQlClient),
+            PostTranslationRepository(environment.restClient()),
         )
     }
     val viewModel = providedViewModel ?: viewModel(factory = factory)
@@ -327,6 +331,16 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     onTrendSelected = viewModel::openTrendSearch,
                     onTrendQueryCommitted = viewModel::recordTrendSearch,
                     onClearTrendHistory = viewModel::clearTrendSearchHistory,
+                    onArticleClick = viewModel::openArticle,
+                    onNotificationClick = { notification ->
+                        notification.noteId?.let(viewModel::openCommunityNote)
+                            ?: notification.postId?.let(viewModel::openPostDetail)
+                    },
+                    translationStates = state.postTranslations,
+                    autoTranslatePosts = state.autoTranslatePosts,
+                    onTranslationNeeded = viewModel::requestPostTranslation,
+                    onTranslationRetry = viewModel::retryPostTranslation,
+                    onToggleOriginal = viewModel::togglePostOriginal,
                 )
             }
         }
@@ -417,9 +431,49 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onShareClick = sharePost,
             onDownloadClick = downloadPostMedia,
             mediaPreview = state.mediaPreview,
+            onArticleClick = viewModel::openArticle,
+            translationStates = state.postTranslations,
+            autoTranslatePosts = state.autoTranslatePosts,
+            onTranslationNeeded = viewModel::requestPostTranslation,
+            onTranslationRetry = viewModel::retryPostTranslation,
+            onToggleOriginal = viewModel::togglePostOriginal,
             videoAutoplay = state.videoAutoplay,
             videoLoop = state.videoLoop,
             videoVolume = state.videoVolume,
+        )
+        ArticleReaderDialog(
+            state = state.articleReader,
+            onDismiss = viewModel::closeArticle,
+            onRetry = viewModel::retryArticle,
+            onOpenX = { intent ->
+                val uri = intent.data
+                if (uri?.scheme == "https" && uri.host == "x.com") {
+                    context.startActivity(intent)
+                }
+            },
+        )
+        CommunityNoteDialog(
+            state = state.communityNote,
+            onDismiss = viewModel::closeCommunityNote,
+            onRetry = viewModel::retryCommunityNote,
+            onOpenSource = { intent ->
+                val uri = intent.data
+                if (uri?.scheme == "https" && uri.host != null) context.startActivity(intent)
+            },
+            onPostClick = viewModel::openPostDetail,
+            onQuoteClick = viewModel::openPostDetail,
+            onReplyClick = replyToPost,
+            onRepostClick = { viewModel.togglePostAction(it, PostActionType.REPOST) },
+            onLikeClick = { viewModel.togglePostAction(it, PostActionType.LIKE) },
+            onBookmarkClick = { viewModel.togglePostAction(it, PostActionType.BOOKMARK) },
+            onShareClick = sharePost,
+            onDownloadClick = downloadPostMedia,
+            onArticleClick = viewModel::openArticle,
+            translationStates = state.postTranslations,
+            autoTranslatePosts = state.autoTranslatePosts,
+            onTranslationNeeded = viewModel::requestPostTranslation,
+            onTranslationRetry = viewModel::retryPostTranslation,
+            onToggleOriginal = viewModel::togglePostOriginal,
         )
     }
 }

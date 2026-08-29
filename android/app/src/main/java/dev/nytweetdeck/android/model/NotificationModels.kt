@@ -32,6 +32,24 @@ data class CommunityNoteDetail(
     val targetPostId: String,
 )
 
+data class CommunityNotePage(
+    val detail: CommunityNoteDetail,
+    val post: Post,
+)
+
+enum class CommunityNoteStatus {
+    CLOSED,
+    LOADING,
+    READY,
+    FAILED,
+}
+
+data class CommunityNoteUiState(
+    val status: CommunityNoteStatus = CommunityNoteStatus.CLOSED,
+    val noteId: String? = null,
+    val page: CommunityNotePage? = null,
+)
+
 data class CommunityNoteSource(
     val fromIndex: Int,
     val toIndex: Int,

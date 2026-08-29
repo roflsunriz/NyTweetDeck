@@ -13,12 +13,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -100,7 +100,7 @@ internal fun MediaViewerDialog(
 private fun PhotoViewer(media: Media) {
     var scale by remember(media.id) { mutableStateOf(1f) }
     var offset by remember(media.id) { mutableStateOf(Offset.Zero) }
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+    val transformState = rememberTransformableState { _, zoomChange, panChange, _ ->
         scale = (scale * zoomChange).coerceIn(0.1f, 8f)
         offset = Offset(offset.x + panChange.x, offset.y + panChange.y)
     }
@@ -253,7 +253,11 @@ private fun VideoViewer(
                 modifier = Modifier.testTag("media-mute"),
             ) {
                 Icon(
-                    imageVector = if (muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                    imageVector = if (muted) {
+                        Icons.AutoMirrored.Filled.VolumeOff
+                    } else {
+                        Icons.AutoMirrored.Filled.VolumeUp
+                    },
                     contentDescription = stringResource(
                         if (muted) R.string.media_viewer_unmute else R.string.media_viewer_mute,
                     ),

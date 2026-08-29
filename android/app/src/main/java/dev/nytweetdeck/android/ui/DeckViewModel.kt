@@ -14,6 +14,8 @@ import dev.nytweetdeck.android.data.UserDirectoryRepository
 import dev.nytweetdeck.android.data.PostActionRepository
 import dev.nytweetdeck.android.data.PostComposerRepository
 import dev.nytweetdeck.android.data.PostDetailRepository
+import dev.nytweetdeck.android.data.CommunityNoteRepository
+import dev.nytweetdeck.android.data.PostTranslationRepository
 import dev.nytweetdeck.android.data.LayoutTransfer
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.AccountUiModel
@@ -27,6 +29,8 @@ import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.ComposerMode
 import dev.nytweetdeck.android.model.RankingMode
 import dev.nytweetdeck.android.model.DisplaySettings
+import dev.nytweetdeck.android.model.Article
+import dev.nytweetdeck.android.model.TranslationCandidate
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.ListOption
 import dev.nytweetdeck.android.model.MainMenuItemId
@@ -64,6 +68,8 @@ class DeckViewModel(
     private val postActionRepository: PostActionRepository? = null,
     private val postComposerRepository: PostComposerRepository? = null,
     private val postDetailRepository: PostDetailRepository? = null,
+    private val communityNoteRepository: CommunityNoteRepository? = null,
+    private val postTranslationRepository: PostTranslationRepository? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val adaptiveRefreshIntervalMillis: Long? = null,
     private val visibilityRefreshDelayMillis: Long = DEFAULT_VISIBILITY_REFRESH_DELAY_MILLIS,
@@ -104,6 +110,15 @@ class DeckViewModel(
             accountProvider = ::savedAccount,
             state = mutableState,
         )
+    }
+    private val articleReaderController = postDetailRepository?.let { repository ->
+        ArticleReaderController(repository, viewModelScope, ioDispatcher, ::savedAccount, mutableState)
+    }
+    private val communityNoteController = communityNoteRepository?.let { repository ->
+        CommunityNoteController(repository, viewModelScope, ioDispatcher, ::savedAccount, mutableState)
+    }
+    private val postTranslationController = postTranslationRepository?.let { repository ->
+        PostTranslationController(repository, viewModelScope, ioDispatcher, ::savedAccount, mutableState)
     }
     private val columnPagingController = ColumnPagingController(
         timelineRepository,
@@ -775,6 +790,15 @@ class DeckViewModel(
         mutate { it.copy(replySort = sort) }
         postDetailController?.reload()
     }
+    fun openArticle(postId: String, article: Article) = articleReaderController?.open(postId, article)
+    fun retryArticle() = articleReaderController?.retry()
+    fun closeArticle() = articleReaderController?.close()
+    fun openCommunityNote(noteId: String) = communityNoteController?.open(noteId)
+    fun retryCommunityNote() = communityNoteController?.retry()
+    fun closeCommunityNote() = communityNoteController?.close()
+    fun requestPostTranslation(post: TranslationCandidate) = postTranslationController?.request(post)
+    fun retryPostTranslation(post: TranslationCandidate) = postTranslationController?.request(post, manual = true)
+    fun togglePostOriginal(postId: String) = postTranslationController?.toggleOriginal(postId)
 
     fun setVisibleColumns(columnIds: Set<String>) {
         val validIds = mutableState.value.columns.mapTo(HashSet()) { it.id }

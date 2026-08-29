@@ -7,6 +7,9 @@ import dev.nytweetdeck.android.data.TimelineRepository
 import dev.nytweetdeck.android.data.NotificationRepository
 import dev.nytweetdeck.android.data.PostActionRepository
 import dev.nytweetdeck.android.data.PostComposerRepository
+import dev.nytweetdeck.android.data.PostDetailRepository
+import dev.nytweetdeck.android.data.PostTranslationRepository
+import dev.nytweetdeck.android.data.XPostTranslationEndpoint
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
@@ -15,6 +18,11 @@ import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.ComposerMode
 import dev.nytweetdeck.android.model.ComposerStatus
+import dev.nytweetdeck.android.model.Article
+import dev.nytweetdeck.android.model.ArticleReaderStatus
+import dev.nytweetdeck.android.model.TranslationCandidate
+import dev.nytweetdeck.android.model.TranslationLoadStatus
+import dev.nytweetdeck.android.xapi.AuthenticatedRestClient
 import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.VerifiedWebSession
 import dev.nytweetdeck.android.xapi.VerifiedXAccount
@@ -567,6 +575,86 @@ class DeckViewModelTest {
         }
     }
 
+    @Test
+    fun articleReaderLoadsMissingBodyFromPostDetail() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            AccountStore(accountFile).addOrReplace(
+                AccountSecrets("7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile"),
+                select = true,
+            )
+            val executor = GraphQlExecutor { _, purpose, _, _ ->
+                if (purpose == "postDetail") articleDetailJson() else "{\"data\":{}}"
+            }
+            val viewModel = DeckViewModel(
+                settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath()),
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                postDetailRepository = PostDetailRepository(executor),
+                ioDispatcher = dispatcher,
+            )
+            advanceUntilIdle()
+
+            viewModel.openArticle(
+                "700",
+                Article("701", "Article", "Preview", null, null, "https://x.com/i/article/701"),
+            )
+            assertEquals(ArticleReaderStatus.LOADING, viewModel.state.value.articleReader.status)
+            advanceUntilIdle()
+
+            assertEquals(ArticleReaderStatus.READY, viewModel.state.value.articleReader.status)
+            assertEquals("Complete body", viewModel.state.value.articleReader.article?.body)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun visiblePostTranslationUpdatesUiAndHealthThroughXOnlyRepository() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            AccountStore(accountFile).addOrReplace(
+                AccountSecrets("7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile"),
+                select = true,
+            )
+            var source: String? = null
+            val repository = PostTranslationRepository(
+                XPostTranslationEndpoint { _, postId, translationSource, target ->
+                    source = translationSource
+                    AuthenticatedRestClient.RestResult(
+                        """{"id_str":"$postId","translation":"translated-$target"}""",
+                        null,
+                        null,
+                    )
+                },
+            )
+            val viewModel = DeckViewModel(
+                settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath()),
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                postTranslationRepository = repository,
+                ioDispatcher = dispatcher,
+            )
+            advanceUntilIdle()
+
+            viewModel.requestPostTranslation(TranslationCandidate("123", "en", null))
+            assertEquals(TranslationLoadStatus.LOADING, viewModel.state.value.postTranslations["123"]?.status)
+            advanceUntilIdle()
+
+            assertEquals("X", source)
+            assertEquals(TranslationLoadStatus.READY, viewModel.state.value.postTranslations["123"]?.status)
+            assertTrue(viewModel.state.value.translationHealth?.upstreamSuccesses == 1L)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     private fun timelineJson(id: String, text: String, cursor: String): String =
         """{"data":{"entries":[${tweetJson(id, text)},
           {"entryId":"cursor-bottom","content":{"cursorType":"Bottom","value":"$cursor"}}
@@ -588,4 +676,12 @@ class DeckViewModelTest {
             """{"content":{"notification":{"id":"$id","notification_icon":"person",
               "message":{"text":"$id notification"}}}}"""
         }
+
+    private fun articleDetailJson(): String = """
+        {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"700",
+        "legacy":{"full_text":"https://t.co/article","entities":{"urls":[{
+        "url":"https://t.co/article","expanded_url":"https://x.com/i/article/701"}]}},
+        "article":{"article_results":{"result":{"rest_id":"701","title":"Article",
+        "preview_text":"Preview","plain_text":"Complete body"}}}}}}}
+    """.trimIndent()
 }

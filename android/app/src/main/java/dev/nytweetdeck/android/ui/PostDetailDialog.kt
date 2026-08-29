@@ -45,9 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import dev.nytweetdeck.android.R
+import dev.nytweetdeck.android.model.Article
 import dev.nytweetdeck.android.model.PostDetailStatus
 import dev.nytweetdeck.android.model.PostDetailUiState
+import dev.nytweetdeck.android.model.PostTranslationUiState
 import dev.nytweetdeck.android.model.RankingMode
+import dev.nytweetdeck.android.model.TranslationCandidate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -69,6 +72,12 @@ internal fun PostDetailDialog(
     onBookmarkClick: (String) -> Unit,
     onShareClick: (String) -> Unit,
     onDownloadClick: (String) -> Unit,
+    onArticleClick: (String, Article) -> Unit = { _, _ -> },
+    translationStates: Map<String, PostTranslationUiState> = emptyMap(),
+    autoTranslatePosts: Boolean = true,
+    onTranslationNeeded: (TranslationCandidate) -> Unit = {},
+    onTranslationRetry: (TranslationCandidate) -> Unit = {},
+    onToggleOriginal: (String) -> Unit = {},
     mediaPreview: Boolean = true,
     videoAutoplay: Boolean = false,
     videoLoop: Boolean = true,
@@ -107,6 +116,12 @@ internal fun PostDetailDialog(
                         onBookmarkClick = onBookmarkClick,
                         onShareClick = onShareClick,
                         onDownloadClick = onDownloadClick,
+                        onArticleClick = onArticleClick,
+                        translationStates = translationStates,
+                        autoTranslatePosts = autoTranslatePosts,
+                        onTranslationNeeded = onTranslationNeeded,
+                        onTranslationRetry = onTranslationRetry,
+                        onToggleOriginal = onToggleOriginal,
                         onRetry = onRetry,
                         mediaPreview = mediaPreview,
                         videoAutoplay = videoAutoplay,
@@ -192,6 +207,12 @@ private fun DetailReady(
     onBookmarkClick: (String) -> Unit,
     onShareClick: (String) -> Unit,
     onDownloadClick: (String) -> Unit,
+    onArticleClick: (String, Article) -> Unit,
+    translationStates: Map<String, PostTranslationUiState>,
+    autoTranslatePosts: Boolean,
+    onTranslationNeeded: (TranslationCandidate) -> Unit,
+    onTranslationRetry: (TranslationCandidate) -> Unit,
+    onToggleOriginal: (String) -> Unit,
     onRetry: () -> Unit,
     mediaPreview: Boolean,
     videoAutoplay: Boolean,
@@ -235,6 +256,12 @@ private fun DetailReady(
                 onBookmarkClick = onBookmarkClick,
                 onShareClick = onShareClick,
                 onDownloadClick = onDownloadClick,
+                onArticleClick = onArticleClick,
+                translationStates = translationStates,
+                autoTranslatePosts = autoTranslatePosts,
+                onTranslationNeeded = onTranslationNeeded,
+                onTranslationRetry = onTranslationRetry,
+                onToggleOriginal = onToggleOriginal,
                 mediaPreview = mediaPreview,
                 videoAutoplay = videoAutoplay,
                 videoLoop = videoLoop,
@@ -279,6 +306,12 @@ private fun DetailReady(
                             onBookmarkClick = onBookmarkClick,
                             onShareClick = onShareClick,
                             onDownloadClick = onDownloadClick,
+                            onArticleClick = onArticleClick,
+                            translationStates = translationStates,
+                            autoTranslatePosts = autoTranslatePosts,
+                            onTranslationNeeded = onTranslationNeeded,
+                            onTranslationRetry = onTranslationRetry,
+                            onToggleOriginal = onToggleOriginal,
                             mediaPreview = mediaPreview,
                             videoAutoplay = videoAutoplay,
                             videoLoop = videoLoop,

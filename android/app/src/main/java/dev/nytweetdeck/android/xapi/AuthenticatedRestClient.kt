@@ -1,6 +1,7 @@
 package dev.nytweetdeck.android.xapi
 
 import dev.nytweetdeck.android.data.AccountSecrets
+import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class AuthenticatedRestClient(
@@ -42,10 +44,7 @@ class AuthenticatedRestClient(
             require(value.length <= 1000) { "RESTパラメーターが長すぎます。" }
             urlBuilder.addQueryParameter(key, value)
         }
-        val normalizedLanguage = language.trim().replace('_', '-').lowercase(Locale.ROOT)
-        require(normalizedLanguage.matches(Regex("[a-z]{2,3}(?:-[a-z0-9]{2,8})*"))) {
-            "表示言語の形式が不正です。"
-        }
+        val normalizedLanguage = normalizeLanguage(language)
         val unsignedRequest = Request.Builder()
             .url(urlBuilder.build())
             .header("Authorization", "Bearer ${account.webBearerToken}")
@@ -79,6 +78,80 @@ class AuthenticatedRestClient(
         throw XApiException("REST ${endpointKey}のWeb署名を更新できませんでした。", 502)
     }
 
+    /** Calls only X's native post translation route and returns its rate-limit metadata. */
+    fun translatePost(
+        account: AccountSecrets,
+        postId: String,
+        translationSource: String,
+        language: String = "ja",
+    ): RestResult {
+        require(POST_ID.matches(postId)) { "ポストIDの形式が不正です。" }
+        require(translationSource == X_TRANSLATION_SOURCE) { "翻訳元はXだけを指定できます。" }
+        val profile = profileProvider()
+        val template = profile.restEndpoints[TRANSLATE_POST_ENDPOINT]
+            ?: throw XApiException("X REST定義に${TRANSLATE_POST_ENDPOINT}がありません。", 503)
+        val path = expandTranslationPath(template, postId, translationSource)
+        val normalizedLanguage = normalizeLanguage(language)
+        val unsignedRequest = Request.Builder()
+            .url(profile.restBaseUrl.toHttpUrl().newBuilder().encodedPath(path).build())
+            .header("Authorization", "Bearer ${account.webBearerToken}")
+            .header("Cookie", "auth_token=${account.authToken}; ct0=${account.csrfToken}")
+            .header("X-CSRF-Token", account.csrfToken)
+            .header("X-Twitter-Auth-Type", "OAuth2Session")
+            .header("X-Twitter-Active-User", "yes")
+            .header("X-Twitter-Client-Language", normalizedLanguage)
+            .header("Accept-Language", normalizedLanguage)
+            .header("Origin", "https://x.com")
+            .header("Referer", "https://x.com/")
+            .header("User-Agent", userAgent)
+            .header("Accept", "application/json")
+            .get()
+            .build()
+        for (attempt in 0 until MAX_TRANSACTION_ATTEMPTS) {
+            val request = try {
+                withTransactionHeader(unsignedRequest, "REST ${TRANSLATE_POST_ENDPOINT}")
+            } catch (exception: Exception) {
+                throw RestRequestException(
+                    endpointKey = TRANSLATE_POST_ENDPOINT,
+                    statusCode = 0,
+                    retryAfterSeconds = null,
+                    rateLimit = null,
+                    cause = exception,
+                )
+            }
+            val response = executeTranslationRequest(request)
+            val rateLimit = rateLimitInfo(response.headers)
+            val retryAfter = retryAfterSeconds(response.headers)
+            if (isSignatureRejected(request, response)) {
+                if (attempt == 0) {
+                    transactionIdService.invalidate()
+                    continue
+                }
+                throw RestRequestException(
+                    endpointKey = TRANSLATE_POST_ENDPOINT,
+                    statusCode = 502,
+                    retryAfterSeconds = retryAfter,
+                    rateLimit = rateLimit,
+                )
+            }
+            if (response.statusCode !in 200..299) {
+                throw RestRequestException(
+                    endpointKey = TRANSLATE_POST_ENDPOINT,
+                    statusCode = response.statusCode,
+                    retryAfterSeconds = retryAfter,
+                    rateLimit = rateLimit,
+                )
+            }
+            return RestResult(response.body, rateLimit, retryAfter)
+        }
+        throw RestRequestException(
+            endpointKey = TRANSLATE_POST_ENDPOINT,
+            statusCode = 502,
+            retryAfterSeconds = null,
+            rateLimit = null,
+        )
+    }
+
     private fun withTransactionHeader(request: Request, scope: String): Request {
         if (!XClientTransactionIdService.supportsOfficialApiRequest(request.url)) {
             return request
@@ -104,12 +177,26 @@ class AuthenticatedRestClient(
 
     private fun executeRequest(request: Request, endpointKey: String): ApiResponse = try {
         client.newCall(request).execute().use { response ->
-            ApiResponse(response.code, response.body.string())
+            ApiResponse(response.code, response.body.string(), response.headers)
         }
     } catch (exception: XApiException) {
         throw exception
     } catch (exception: Exception) {
         throw XApiException("REST ${endpointKey}の通信に失敗しました。", cause = exception)
+    }
+
+    private fun executeTranslationRequest(request: Request): ApiResponse = try {
+        client.newCall(request).execute().use { response ->
+            ApiResponse(response.code, response.body.string(), response.headers)
+        }
+    } catch (exception: Exception) {
+        throw RestRequestException(
+            endpointKey = TRANSLATE_POST_ENDPOINT,
+            statusCode = 0,
+            retryAfterSeconds = null,
+            rateLimit = null,
+            cause = exception,
+        )
     }
 
     private fun isSignatureRejected(request: Request, response: ApiResponse): Boolean =
@@ -128,11 +215,105 @@ class AuthenticatedRestClient(
     private data class ApiResponse(
         val statusCode: Int,
         val body: String,
+        val headers: Headers,
     )
+
+    data class RestResult(
+        val body: String,
+        val rateLimit: RateLimitInfo?,
+        val retryAfterSeconds: Long?,
+    )
+
+    data class RateLimitInfo(
+        val limit: Int?,
+        val remaining: Int?,
+        val resetAt: Instant?,
+    )
+
+    class RestRequestException(
+        val endpointKey: String,
+        val statusCode: Int,
+        val retryAfterSeconds: Long?,
+        val rateLimit: RateLimitInfo?,
+        cause: Throwable? = null,
+    ) : RuntimeException(
+        if (statusCode == 0) {
+            "REST ${endpointKey}の通信に失敗しました。"
+        } else {
+            "REST ${endpointKey}に失敗しました。HTTP ${statusCode}"
+        },
+        cause,
+    )
+
+    private fun normalizeLanguage(language: String): String {
+        val normalizedLanguage = language.trim().replace('_', '-').lowercase(Locale.ROOT)
+        require(normalizedLanguage.matches(LANGUAGE_PATTERN)) { "表示言語の形式が不正です。" }
+        return normalizedLanguage
+    }
+
+    private fun expandTranslationPath(template: String, postId: String, translationSource: String): String {
+        require(template.countSubstring("{postId}") == 1) { "翻訳RESTパスのpostId定義が不正です。" }
+        require(template.countSubstring("{translationSource}") == 1) {
+            "翻訳RESTパスのtranslationSource定義が不正です。"
+        }
+        val path = template
+            .replace("{postId}", postId)
+            .replace("{translationSource}", translationSource)
+        require(path.startsWith('/') && !path.contains('{') && !path.contains('}') && path.length <= MAX_PATH_LENGTH) {
+            "翻訳RESTパスが不正です。"
+        }
+        return path
+    }
+
+    private fun rateLimitInfo(headers: Headers): RateLimitInfo? {
+        val limit = headers["x-rate-limit-limit"].toNonNegativeIntOrNull()
+        val remaining = headers["x-rate-limit-remaining"].toNonNegativeIntOrNull()
+        val resetAt = headers["x-rate-limit-reset"].toEpochInstantOrNull()
+        return if (limit == null && remaining == null && resetAt == null) {
+            null
+        } else {
+            RateLimitInfo(limit, remaining, resetAt)
+        }
+    }
+
+    private fun retryAfterSeconds(headers: Headers): Long? = headers["Retry-After"]
+        ?.trim()
+        ?.toLongOrNull()
+        ?.takeIf { value -> value >= 0 }
+
+    private fun String?.toNonNegativeIntOrNull(): Int? = this
+        ?.trim()
+        ?.toLongOrNull()
+        ?.takeIf { value -> value in 0..Int.MAX_VALUE }
+        ?.toInt()
+
+    private fun String?.toEpochInstantOrNull(): Instant? = this
+        ?.trim()
+        ?.toLongOrNull()
+        ?.takeIf { value -> value >= 0 }
+        ?.let { value -> runCatching { Instant.ofEpochSecond(value) }.getOrNull() }
+
+    private fun String.countSubstring(value: String): Int {
+        var count = 0
+        var start = 0
+        while (true) {
+            val index = indexOf(value, start)
+            if (index < 0) {
+                return count
+            }
+            count += 1
+            start = index + value.length
+        }
+    }
 
     private companion object {
         const val MAX_TRANSACTION_ATTEMPTS = 2
         const val SIGNATURE_ERROR_CODE = 344
         const val TRANSACTION_HEADER = "X-Client-Transaction-Id"
+        const val TRANSLATE_POST_ENDPOINT = "translatePost"
+        const val X_TRANSLATION_SOURCE = "X"
+        const val MAX_PATH_LENGTH = 1_500
+        val POST_ID = Regex("[0-9]{1,19}")
+        val LANGUAGE_PATTERN = Regex("[a-z]{2,3}(?:-[a-z0-9]{2,8})*")
     }
 }

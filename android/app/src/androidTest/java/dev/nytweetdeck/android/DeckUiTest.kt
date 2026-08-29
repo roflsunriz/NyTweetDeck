@@ -70,6 +70,7 @@ class DeckUiTest {
         composeRule.onNodeWithTag("setting-media-preview").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-autoplay").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-loop").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-auto-translate").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-volume").performScrollTo().performSemanticsAction(
             SemanticsActions.SetProgress,
         ) { it(42f) }
@@ -84,6 +85,7 @@ class DeckUiTest {
         assertEquals(true, state.videoAutoplay)
         assertEquals(false, state.videoLoop)
         assertEquals(42, state.videoVolume)
+        assertEquals(false, state.autoTranslatePosts)
         if (InstrumentationRegistry.getArguments().getString("capture") == "true") {
             Thread.sleep(5_000)
         }

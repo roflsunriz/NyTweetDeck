@@ -34,7 +34,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +63,10 @@ import dev.nytweetdeck.android.model.EmbeddedPost
 import dev.nytweetdeck.android.model.Media
 import dev.nytweetdeck.android.model.Post
 import dev.nytweetdeck.android.model.PostActionType
+import dev.nytweetdeck.android.model.PostTranslationUiState
+import dev.nytweetdeck.android.model.TranslationCandidate
+import dev.nytweetdeck.android.model.TranslationLoadStatus
+import dev.nytweetdeck.android.model.Translation
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -80,6 +86,12 @@ internal fun PostCard(
     onBookmarkClick: (String) -> Unit = {},
     onShareClick: (String) -> Unit = {},
     onDownloadClick: (String) -> Unit = {},
+    onArticleClick: (String, Article) -> Unit = { _, _ -> },
+    translationStates: Map<String, PostTranslationUiState> = emptyMap(),
+    autoTranslatePosts: Boolean = true,
+    onTranslationNeeded: (TranslationCandidate) -> Unit = {},
+    onTranslationRetry: (TranslationCandidate) -> Unit = {},
+    onToggleOriginal: (String) -> Unit = {},
     pendingActions: Set<PostActionType> = emptySet(),
     failedActions: Set<PostActionType> = emptySet(),
     mediaPreview: Boolean = true,
@@ -103,8 +115,16 @@ internal fun PostCard(
         PostAuthorHeader(post.author, post.createdAt)
         ReplyContext(post)
         Spacer(Modifier.height(8.dp))
-        PostBody(
-            text = displayPostText(post.text, post.preTranslated?.text),
+        TranslatablePostBody(
+            postId = post.id,
+            originalText = post.text,
+            sourceLanguage = post.language,
+            preTranslated = post.preTranslated,
+            translationStates = translationStates,
+            autoTranslatePosts = autoTranslatePosts,
+            onTranslationNeeded = onTranslationNeeded,
+            onTranslationRetry = onTranslationRetry,
+            onToggleOriginal = onToggleOriginal,
             tag = "post-body-" + post.id,
         )
         if (post.media.isNotEmpty() && mediaPreview) {
@@ -129,7 +149,12 @@ internal fun PostCard(
         }
         post.article?.let { article ->
             Spacer(Modifier.height(10.dp))
-            ArticlePreview(article, compact = false)
+            ArticlePreview(
+                article = article,
+                postId = post.id,
+                compact = false,
+                onArticleClick = onArticleClick,
+            )
         }
         post.quotedPost?.let { quote ->
             Spacer(Modifier.height(10.dp))
@@ -138,6 +163,12 @@ internal fun PostCard(
                 quote = quote,
                 onQuoteClick = onQuoteClick,
                 onMediaClick = { selectedMedia = it },
+                onArticleClick = onArticleClick,
+                translationStates = translationStates,
+                autoTranslatePosts = autoTranslatePosts,
+                onTranslationNeeded = onTranslationNeeded,
+                onTranslationRetry = onTranslationRetry,
+                onToggleOriginal = onToggleOriginal,
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -292,11 +323,101 @@ private fun PostBody(text: String, tag: String) {
 }
 
 @Composable
+private fun TranslatablePostBody(
+    postId: String,
+    originalText: String,
+    sourceLanguage: String?,
+    preTranslated: Translation?,
+    translationStates: Map<String, PostTranslationUiState>,
+    autoTranslatePosts: Boolean,
+    onTranslationNeeded: (TranslationCandidate) -> Unit,
+    onTranslationRetry: (TranslationCandidate) -> Unit,
+    onToggleOriginal: (String) -> Unit,
+    tag: String,
+) {
+    val candidate = remember(postId, sourceLanguage, preTranslated) {
+        TranslationCandidate(postId, sourceLanguage, preTranslated)
+    }
+    val translationState = translationStates[postId]
+    LaunchedEffect(postId, autoTranslatePosts, translationState?.status) {
+        if (
+            autoTranslatePosts &&
+            (translationState == null || translationState.status == TranslationLoadStatus.IDLE)
+        ) {
+            onTranslationNeeded(candidate)
+        }
+    }
+    val translatedText = translationState?.translation
+        ?.takeIf { it.postId == postId && it.text.isNotBlank() }
+        ?.text
+    val showTranslation = translationState?.status == TranslationLoadStatus.READY &&
+        !translationState.showOriginal &&
+        translatedText != null
+    PostBody(
+        text = if (showTranslation) requireNotNull(translatedText) else originalText,
+        tag = tag,
+    )
+    when (translationState?.status) {
+        TranslationLoadStatus.LOADING -> Row(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .testTag("translation-loading"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.translation_loading),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TranslationLoadStatus.FAILED -> Column {
+            Text(
+                text = stringResource(R.string.translation_failed),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            TextButton(
+                onClick = { onTranslationRetry(candidate) },
+                modifier = Modifier.testTag("translation-retry"),
+            ) {
+                Text(stringResource(R.string.translation_retry))
+            }
+        }
+        TranslationLoadStatus.READY -> TextButton(
+            onClick = { onToggleOriginal(postId) },
+            modifier = Modifier.testTag("translation-toggle"),
+        ) {
+            Text(
+                stringResource(
+                    if (translationState.showOriginal) {
+                        R.string.translation_show_translation
+                    } else {
+                        R.string.translation_show_original
+                    },
+                ),
+            )
+        }
+        TranslationLoadStatus.IDLE,
+        TranslationLoadStatus.SKIPPED,
+        null,
+        -> Unit
+    }
+}
+
+@Composable
 private fun QuoteCard(
     parentPostId: String,
     quote: EmbeddedPost,
     onQuoteClick: (String) -> Unit,
     onMediaClick: (Media) -> Unit,
+    onArticleClick: (String, Article) -> Unit,
+    translationStates: Map<String, PostTranslationUiState>,
+    autoTranslatePosts: Boolean,
+    onTranslationNeeded: (TranslationCandidate) -> Unit,
+    onTranslationRetry: (TranslationCandidate) -> Unit,
+    onToggleOriginal: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -318,8 +439,16 @@ private fun QuoteCard(
         Spacer(Modifier.height(4.dp))
         PostAuthorHeader(quote.author, quote.createdAt)
         Spacer(Modifier.height(6.dp))
-        PostBody(
-            text = displayPostText(quote.text, quote.preTranslated?.text),
+        TranslatablePostBody(
+            postId = quote.id,
+            originalText = quote.text,
+            sourceLanguage = quote.language,
+            preTranslated = quote.preTranslated,
+            translationStates = translationStates,
+            autoTranslatePosts = autoTranslatePosts,
+            onTranslationNeeded = onTranslationNeeded,
+            onTranslationRetry = onTranslationRetry,
+            onToggleOriginal = onToggleOriginal,
             tag = "post-quote-body-" + quote.id,
         )
         if (quote.media.isNotEmpty()) {
@@ -333,7 +462,12 @@ private fun QuoteCard(
         }
         quote.article?.let { article ->
             Spacer(Modifier.height(8.dp))
-            ArticlePreview(article, compact = true)
+            ArticlePreview(
+                article = article,
+                postId = quote.id,
+                compact = true,
+                onArticleClick = onArticleClick,
+            )
         }
     }
 }
@@ -421,9 +555,17 @@ private fun MediaTile(
 }
 
 @Composable
-private fun ArticlePreview(article: Article, compact: Boolean) {
+private fun ArticlePreview(
+    article: Article,
+    postId: String,
+    compact: Boolean,
+    onArticleClick: (String, Article) -> Unit,
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onArticleClick(postId, article) }
+            .testTag("article-preview"),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -653,9 +795,6 @@ private val INTERNAL_CONVERSATION_SECTIONS = setOf(
     "LowQuality",
     "AbusiveQuality",
 )
-
-private fun displayPostText(original: String, translated: String?): String =
-    translated?.takeIf(String::isNotBlank) ?: original
 
 private fun authorDisplayName(author: Author): String =
     author.displayName.trim().ifBlank { author.username.trim().ifBlank { author.id } }

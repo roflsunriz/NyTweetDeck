@@ -117,6 +117,7 @@ data class DisplaySettings(
     val videoAutoplay: Boolean = false,
     val videoLoop: Boolean = true,
     val videoVolume: Int = 100,
+    val autoTranslatePosts: Boolean = true,
 ) {
     init {
         require(videoVolume in 0..100) { "動画音量が範囲外です。" }
@@ -212,6 +213,7 @@ data class DeckUiState(
     val videoLoop: Boolean = true,
     val videoVolume: Int = 100,
     val trendSearchHistory: List<String> = emptyList(),
+    val autoTranslatePosts: Boolean = true,
     val replySort: RankingMode = RankingMode.RELEVANCE,
     val accounts: List<AccountUiModel> = emptyList(),
     val selectedAccountId: String? = null,
@@ -225,6 +227,10 @@ data class DeckUiState(
     val failedPostActions: Map<String, Set<PostActionType>> = emptyMap(),
     val composer: ComposerUiState = ComposerUiState(),
     val postDetail: PostDetailUiState = PostDetailUiState(),
+    val articleReader: ArticleReaderUiState = ArticleReaderUiState(),
+    val communityNote: CommunityNoteUiState = CommunityNoteUiState(),
+    val postTranslations: Map<String, PostTranslationUiState> = emptyMap(),
+    val translationHealth: TranslationHealth? = null,
     val targetPicker: TargetPickerState = TargetPickerState(),
     val mainMenuItems: List<MainMenuItemId> = DefaultMainMenuItems,
 )

@@ -79,3 +79,16 @@ data class PostDetailUiState(
     val loadMoreFailed: Boolean = false,
     val showDeemphasizedReplies: Boolean = false,
 )
+
+enum class ArticleReaderStatus {
+    CLOSED,
+    LOADING,
+    READY,
+    FAILED,
+}
+
+data class ArticleReaderUiState(
+    val status: ArticleReaderStatus = ArticleReaderStatus.CLOSED,
+    val postId: String? = null,
+    val article: Article? = null,
+)

@@ -41,6 +41,7 @@ internal fun DeckUiState.displaySettings(): DisplaySettings = DisplaySettings(
     videoAutoplay,
     videoLoop,
     videoVolume,
+    autoTranslatePosts,
 )
 
 internal fun DeckUiState.withDisplaySettings(settings: DisplaySettings): DeckUiState = copy(
@@ -54,6 +55,7 @@ internal fun DeckUiState.withDisplaySettings(settings: DisplaySettings): DeckUiS
     videoAutoplay = settings.videoAutoplay,
     videoLoop = settings.videoLoop,
     videoVolume = settings.videoVolume,
+    autoTranslatePosts = settings.autoTranslatePosts,
 )
 
 internal fun DeckUiState.withTrendSearch(query: String, addColumn: Boolean): DeckUiState {
