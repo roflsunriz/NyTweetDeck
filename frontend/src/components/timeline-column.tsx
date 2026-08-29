@@ -543,15 +543,24 @@ function avatarFallback(author: TimelineAuthor): string {
 function captureViewportAnchor(scroll: HTMLDivElement | null): ViewportAnchor | null {
   if (scroll === null) return null;
   const scrollBounds = scroll.getBoundingClientRect();
-  const firstVisiblePost = Array.from(scroll.querySelectorAll<HTMLElement>(".post-card")).find(
-    (post) => post.getBoundingClientRect().bottom > scrollBounds.top,
+  const viewportCenter = (scrollBounds.top + scrollBounds.bottom) / 2;
+  const visiblePosts = Array.from(scroll.querySelectorAll<HTMLElement>(".post-card"))
+    .map((post) => ({ post, bounds: post.getBoundingClientRect() }))
+    .filter(({ bounds }) => bounds.bottom > scrollBounds.top && bounds.top < scrollBounds.bottom);
+  const readingPost = visiblePosts.reduce<(typeof visiblePosts)[number] | undefined>(
+    (closest, candidate) => {
+      if (closest === undefined) return candidate;
+      const candidateCenter = (candidate.bounds.top + candidate.bounds.bottom) / 2;
+      const closestCenter = (closest.bounds.top + closest.bounds.bottom) / 2;
+      return Math.abs(candidateCenter - viewportCenter) < Math.abs(closestCenter - viewportCenter)
+        ? candidate
+        : closest;
+    },
+    undefined,
   );
   return {
-    postId: firstVisiblePost?.dataset.postId ?? null,
-    postOffset:
-      firstVisiblePost === undefined
-        ? 0
-        : firstVisiblePost.getBoundingClientRect().top - scrollBounds.top,
+    postId: readingPost?.post.dataset.postId ?? null,
+    postOffset: readingPost === undefined ? 0 : readingPost.bounds.top - scrollBounds.top,
     scrollHeight: scroll.scrollHeight,
     scrollTop: scroll.scrollTop,
   };

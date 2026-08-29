@@ -448,7 +448,7 @@ describe("timeline column", () => {
     expect(screen.queryByRole("button", { name: "6件の新規投稿を表示" })).toBeNull();
   });
 
-  test("keeps the browser-adjusted viewport when new posts arrive while scrolling upward", async () => {
+  test("keeps the central reading post when a sliver of another post remains above it", async () => {
     let eventSource: FakeEventSource | undefined;
     globalThis.EventSource = class extends FakeEventSource {
       constructor(_url: string | URL) {
@@ -465,8 +465,12 @@ describe("timeline column", () => {
       return Response.json({
         posts:
           timelineLoads === 1
-            ? [post("old", "post being read upward")]
-            : [post("new", "new post above"), post("old", "post being read upward")],
+            ? [post("sliver", "partially visible post"), post("old", "post being read upward")]
+            : [
+                post("new", "new post above"),
+                post("sliver", "partially visible post"),
+                post("old", "post being read upward"),
+              ],
         nextCursor: null,
       });
     }) as typeof fetch;
@@ -474,15 +478,18 @@ describe("timeline column", () => {
 
     render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
     const oldText = await screen.findByText("post being read upward");
+    const sliverText = await screen.findByText("partially visible post");
     const oldCard = oldText.closest<HTMLElement>(".post-card");
+    const sliverCard = sliverText.closest<HTMLElement>(".post-card");
     const timeline = screen.getByTestId("timeline-scroll");
-    if (oldCard === null) throw new Error("表示位置を固定する投稿がありません。");
+    if (oldCard === null || sliverCard === null) {
+      throw new Error("表示位置を固定する投稿がありません。");
+    }
     timeline.scrollTop = 800;
     timeline.getBoundingClientRect = () => rectangle(0, 600);
-    oldCard.getBoundingClientRect = () => {
-      if (screen.queryByText("new post above") !== null) timeline.scrollTop = 1_000;
-      return rectangle(100, 180);
-    };
+    sliverCard.getBoundingClientRect = () => rectangle(-60, 70);
+    oldCard.getBoundingClientRect = () =>
+      screen.queryByText("new post above") === null ? rectangle(250, 80) : rectangle(450, 80);
 
     act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "new" }));
 
