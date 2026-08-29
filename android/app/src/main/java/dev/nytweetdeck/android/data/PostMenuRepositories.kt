@@ -87,7 +87,7 @@ class ListMembershipRepository(
         require(ID.matches(listId)) { "リストIDの形式が不正です。" }
         return GraphQlActionRequest(
             if (action == ListMembershipAction.ADD) "listMemberAdd" else "listMemberRemove",
-            mapOf("list_id" to listId, "user_id" to userId),
+            mapOf("listId" to listId, "userId" to userId),
         )
     }
 

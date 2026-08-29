@@ -29,7 +29,7 @@ public class ListMembershipService {
             default -> throw new IllegalArgumentException("未対応のリスト操作です: " + action);
         };
         return new ActionRequest(
-                purpose, Map.of("list_id", listId, "user_id", userId));
+                purpose, Map.of("listId", listId, "userId", userId));
     }
 
     private static void validateId(String value, String label) {

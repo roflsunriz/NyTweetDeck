@@ -17,8 +17,8 @@ class ListMembershipServiceTest {
         assertThat(add.purpose()).isEqualTo("listMemberAdd");
         assertThat(remove.purpose()).isEqualTo("listMemberRemove");
         assertThat(add.variables())
-                .containsEntry("user_id", "42")
-                .containsEntry("list_id", "84");
+                .containsEntry("userId", "42")
+                .containsEntry("listId", "84");
     }
 
     @Test

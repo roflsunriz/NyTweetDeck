@@ -32,6 +32,10 @@ class PostMenuRepositoriesTest {
         val repository = ListMembershipRepository(GraphQlExecutor { _, _, _, _ -> "{}" })
         assertEquals("listMemberAdd", repository.request("12", "34", ListMembershipAction.ADD).purpose)
         assertEquals("listMemberRemove", repository.request("12", "34", ListMembershipAction.REMOVE).purpose)
+        assertEquals(
+            mapOf("listId" to "34", "userId" to "12"),
+            repository.request("12", "34", ListMembershipAction.ADD).variables,
+        )
         assertThrows(IllegalArgumentException::class.java) {
             repository.request("bad", "34", ListMembershipAction.ADD)
         }
