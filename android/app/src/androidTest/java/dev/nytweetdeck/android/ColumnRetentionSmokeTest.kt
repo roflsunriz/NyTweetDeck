@@ -10,12 +10,15 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performImeAction
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.AccountStore
 import dev.nytweetdeck.android.data.DeckSettingsStore
 import dev.nytweetdeck.android.data.TimelineRepository
 import dev.nytweetdeck.android.data.PostDetailRepository
+import dev.nytweetdeck.android.data.TrendRepository
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.ColumnKind
@@ -40,7 +43,8 @@ class ColumnRetentionSmokeTest {
         val settingsStore = DeckSettingsStore(testRoot.resolve("settings.json").toPath())
         val source = DeckColumn("retained-home", ColumnKind.HOME_FOR_YOU, "Home")
         val destination = DeckColumn("retained-following", ColumnKind.HOME_FOLLOWING, "Following")
-        settingsStore.save(DeckUiState(columns = listOf(source, destination)))
+        val trends = DeckColumn("retained-trends", ColumnKind.TRENDS, "Trends")
+        settingsStore.save(DeckUiState(columns = listOf(source, destination, trends)))
         val accountFile = testRoot.resolve("accounts.json")
         AccountStore(accountFile).addOrReplace(
             AccountSecrets(
@@ -54,6 +58,11 @@ class ColumnRetentionSmokeTest {
                 "conversation" -> conversationFixture(
                     requireNotNull(variables["focalTweetId"] as? String),
                 )
+                "trends" -> if (variables["cursor"] == null) {
+                    trendFixture("#NyTweetDeck", "trend-next")
+                } else {
+                    trendFixture("#Android", null)
+                }
                 else -> fixtureTimeline()
             }
         }
@@ -64,6 +73,7 @@ class ColumnRetentionSmokeTest {
             sessionVerifier = XSessionVerifier { error("not used") },
             timelineRepository = repository,
             postDetailRepository = PostDetailRepository(executor),
+            trendRepository = TrendRepository(executor),
         )
         composeRule.activity.setContent { NyTweetDeckApp(providedViewModel = viewModel) }
         val sourceIndex = 0
@@ -126,6 +136,21 @@ class ColumnRetentionSmokeTest {
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodesWithTag("post-701").fetchSemanticsNodes().isNotEmpty()
         }
+        composeRule.onNodeWithTag("close-post-detail").performClick()
+        composeRule.onNodeWithTag("deck-columns").performScrollToIndex(2)
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTag("trend-list").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.waitUntil(5_000) {
+            viewModel.state.value.trends[trends.id]?.page?.trends?.size == 2
+        }
+        composeRule.onNodeWithTag("trend-filter").performTextInput("Ny")
+        composeRule.onNodeWithTag("trend-filter").performImeAction()
+        assertEquals("Ny", viewModel.state.value.trendSearchHistory.first())
+        composeRule.onNodeWithTag("trend-item-${"#NyTweetDeck".hashCode()}").performClick()
+        assertTrue(viewModel.state.value.columns.any {
+            it.kind == ColumnKind.SEARCH && it.target == "#NyTweetDeck"
+        })
         if (InstrumentationRegistry.getArguments().getString("capture") == "true") {
             Thread.sleep(5_000)
         }
@@ -208,4 +233,19 @@ class ColumnRetentionSmokeTest {
 
     private fun tweetFixture(id: String, text: String, legacySuffix: String = ""): String =
         """{"__typename":"Tweet","rest_id":"$id","legacy":{"full_text":"$text"$legacySuffix}}"""
+
+    private fun trendFixture(name: String, cursor: String?): String {
+        val cursorEntry = cursor?.let {
+            """,{"content":{"entryType":"TimelineTimelineCursor","cursorType":"Bottom",
+            "value":"$it"}}"""
+        }.orEmpty()
+        return """
+        {"data":{"explore_page":{"body":{"initialTimeline":{"timeline":{"timeline":
+        {"instructions":[{"entries":[{"content":{"entryType":"TimelineTimelineItem",
+        "itemContent":{"__typename":"TimelineTrend","itemType":"TimelineTrend",
+        "name":"$name","description":"1,234 posts","rank":"1",
+        "trend_metadata":{"domain_context":"Technology"},
+        "trend_url":{"url":"twitter://search?query=$name"}}}}$cursorEntry]}]}}}}}}}
+    """.trimIndent()
+    }
 }

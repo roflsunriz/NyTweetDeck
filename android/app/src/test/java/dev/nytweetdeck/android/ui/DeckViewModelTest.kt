@@ -65,6 +65,22 @@ class DeckViewModelTest {
     }
 
     @Test
+    fun trendSearchHistoryDeduplicatesCaseInsensitivelyAndCapsAtTwenty() {
+        val viewModel = DeckViewModel()
+
+        viewModel.openTrendSearch("  Android  ")
+        viewModel.recordTrendSearch("android")
+        repeat(21) { index -> viewModel.recordTrendSearch("query-$index") }
+
+        assertEquals(20, viewModel.state.value.trendSearchHistory.size)
+        assertEquals("query-20", viewModel.state.value.trendSearchHistory.first())
+        assertEquals(1, viewModel.state.value.columns.count { it.target == "Android" })
+
+        viewModel.clearTrendSearchHistory()
+        assertTrue(viewModel.state.value.trendSearchHistory.isEmpty())
+    }
+
+    @Test
     fun columnsCanBeReorderedWithoutChangingTheirIdentity() {
         val viewModel = DeckViewModel()
         viewModel.addColumn(ColumnKind.HOME_FOR_YOU, "Home")

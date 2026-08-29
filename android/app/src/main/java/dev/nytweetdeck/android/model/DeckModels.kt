@@ -28,6 +28,8 @@ data class NotificationColumnState(
     val newItemCount: Int = 0,
     val newItemAvatarUrls: List<String> = emptyList(),
     val refreshGeneration: Long = 0,
+    val isLoadingMore: Boolean = false,
+    val loadMoreFailed: Boolean = false,
 )
 
 data class TrendColumnState(
@@ -37,6 +39,8 @@ data class TrendColumnState(
     val refreshFailed: Boolean = false,
     val newItemCount: Int = 0,
     val refreshGeneration: Long = 0,
+    val isLoadingMore: Boolean = false,
+    val loadMoreFailed: Boolean = false,
 )
 
 data class DirectMessageColumnState(
@@ -47,6 +51,8 @@ data class DirectMessageColumnState(
     val newItemCount: Int = 0,
     val newItemAvatarUrls: List<String> = emptyList(),
     val refreshGeneration: Long = 0,
+    val isLoadingMore: Boolean = false,
+    val loadMoreFailed: Boolean = false,
 )
 
 data class ColumnScrollPosition(
@@ -74,11 +80,48 @@ enum class ComposerStatus {
     FAILED,
 }
 
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK,
+}
+
+enum class AppFontSize {
+    SMALL,
+    DEFAULT,
+    LARGE,
+}
+
+enum class AccentColor {
+    BLUE,
+    PURPLE,
+    PINK,
+    ORANGE,
+    GREEN,
+    YELLOW,
+}
+
 data class ComposerUiState(
     val mode: ComposerMode = ComposerMode.POST,
     val targetPostId: String? = null,
     val status: ComposerStatus = ComposerStatus.IDLE,
 )
+
+data class DisplaySettings(
+    val themeMode: ThemeMode = ThemeMode.DARK,
+    val fontSize: AppFontSize = AppFontSize.DEFAULT,
+    val accentColor: AccentColor = AccentColor.BLUE,
+    val compactDensity: Boolean = false,
+    val reduceMotion: Boolean = false,
+    val mediaPreview: Boolean = true,
+    val videoAutoplay: Boolean = false,
+    val videoLoop: Boolean = true,
+    val videoVolume: Int = 100,
+) {
+    init {
+        require(videoVolume in 0..100) { "動画音量が範囲外です。" }
+    }
+}
 
 data class TargetPickerState(
     val status: TimelineLoadStatus = TimelineLoadStatus.IDLE,
@@ -159,7 +202,16 @@ data class DeckUiState(
     val columns: List<DeckColumn> = emptyList(),
     val selectedMenu: ColumnKind = ColumnKind.HOME_FOR_YOU,
     val useDarkTheme: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.DARK,
+    val fontSize: AppFontSize = AppFontSize.DEFAULT,
+    val accentColor: AccentColor = AccentColor.BLUE,
     val compactDensity: Boolean = false,
+    val reduceMotion: Boolean = false,
+    val mediaPreview: Boolean = true,
+    val videoAutoplay: Boolean = false,
+    val videoLoop: Boolean = true,
+    val videoVolume: Int = 100,
+    val trendSearchHistory: List<String> = emptyList(),
     val replySort: RankingMode = RankingMode.RELEVANCE,
     val accounts: List<AccountUiModel> = emptyList(),
     val selectedAccountId: String? = null,

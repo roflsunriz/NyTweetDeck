@@ -5,6 +5,10 @@ import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.RankingMode
+import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.AppFontSize
+import dev.nytweetdeck.android.model.AccentColor
+import dev.nytweetdeck.android.model.DisplaySettings
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
@@ -141,9 +145,18 @@ public object LayoutTransfer {
             columns = imported.columns,
             selectedMenu = imported.selectedMenu,
             useDarkTheme = imported.useDarkTheme,
-            compactDensity = imported.compactDensity,
             mainMenuItems = imported.mainMenuItems,
             replySort = imported.replySort,
+            themeMode = imported.display.themeMode,
+            fontSize = imported.display.fontSize,
+            accentColor = imported.display.accentColor,
+            compactDensity = imported.display.compactDensity,
+            reduceMotion = imported.display.reduceMotion,
+            mediaPreview = imported.display.mediaPreview,
+            videoAutoplay = imported.display.videoAutoplay,
+            videoLoop = imported.display.videoLoop,
+            videoVolume = imported.display.videoVolume,
+            trendSearchHistory = imported.trendSearchHistory,
         )
         return ImportResult(state = state, currentAccountId = currentState.selectedAccountId)
     }
@@ -188,23 +201,30 @@ public object LayoutTransfer {
         }
         append("],\"locale\":\"ja\"")
         append(",\"theme\":")
-        appendJsonString(if (state.useDarkTheme) "dark" else "light")
+        appendJsonString(state.themeMode.name.lowercase(Locale.ROOT))
         append(",\"activeAccountId\":null")
         append(",\"replySort\":")
         appendJsonString(state.replySort.name.lowercase(Locale.ROOT))
         append(",\"display\":{")
-        append("\"fontSize\":\"default\"")
-        append(",\"accentColor\":\"blue\"")
+        append("\"fontSize\":")
+        appendJsonString(state.fontSize.name.lowercase(Locale.ROOT))
+        append(",\"accentColor\":")
+        appendJsonString(state.accentColor.name.lowercase(Locale.ROOT))
         append(",\"density\":")
         appendJsonString(if (state.compactDensity) "compact" else "comfortable")
-        append(",\"reduceMotion\":false")
-        append(",\"mediaPreview\":true")
-        append(",\"videoAutoplay\":false")
-        append(",\"videoLoop\":true")
-        append(",\"videoVolume\":100")
+        append(",\"reduceMotion\":${state.reduceMotion}")
+        append(",\"mediaPreview\":${state.mediaPreview}")
+        append(",\"videoAutoplay\":${state.videoAutoplay}")
+        append(",\"videoLoop\":${state.videoLoop}")
+        append(",\"videoVolume\":${state.videoVolume}")
         append(",\"autoTranslatePosts\":true")
         append('}')
-        append(",\"trendSearchHistory\":[]")
+        append(",\"trendSearchHistory\":[")
+        state.trendSearchHistory.forEachIndexed { index, query ->
+            if (index > 0) append(',')
+            appendJsonString(query)
+        }
+        append(']')
         append(",\"selectedMenu\":")
         appendJsonString(toWebColumnKind(state.selectedMenu))
         append('}')
@@ -248,8 +268,9 @@ public object LayoutTransfer {
         val replySort = RankingMode.fromReplySort(
             parseEnum(layout.requireString("replySort"), REPLY_SORTS, "返信並び順"),
         )
-        val compactDensity = parseDisplay(layout.requireObject("display"))
-        parseTrendSearchHistory(layout.requireArray("trendSearchHistory"))
+        val themeMode = ThemeMode.valueOf(theme.uppercase(Locale.ROOT))
+        val display = parseDisplay(layout.requireObject("display"), themeMode)
+        val trendSearchHistory = parseTrendSearchHistory(layout.requireArray("trendSearchHistory"))
 
         val selectedMenu = if ("selectedMenu" in layout.values) {
             parseColumnKind(layout.requireString("selectedMenu"), "選択メニュー")
@@ -266,9 +287,10 @@ public object LayoutTransfer {
             columns,
             selectedMenu,
             useDarkTheme,
-            compactDensity,
+            display,
             mainMenuItems,
             replySort,
+            trendSearchHistory,
         )
     }
 
@@ -348,29 +370,43 @@ public object LayoutTransfer {
         MainMenuItemId.SPACES -> "spaces"
     }
 
-    private fun parseDisplay(display: TransferJsonObject): Boolean {
+    private fun parseDisplay(display: TransferJsonObject, themeMode: ThemeMode): DisplaySettings {
         requireExactKeys(display, DISPLAY_KEYS, "表示設定")
-        parseEnum(display.requireString("fontSize"), FONT_SIZES, "文字サイズ")
-        parseEnum(display.requireString("accentColor"), ACCENT_COLORS, "アクセントカラー")
+        val fontSize = AppFontSize.valueOf(
+            parseEnum(display.requireString("fontSize"), FONT_SIZES, "文字サイズ").uppercase(Locale.ROOT),
+        )
+        val accentColor = AccentColor.valueOf(
+            parseEnum(display.requireString("accentColor"), ACCENT_COLORS, "アクセントカラー").uppercase(Locale.ROOT),
+        )
         val density = parseEnum(display.requireString("density"), DENSITIES, "表示密度")
-        requireBoolean(display, "reduceMotion")
-        requireBoolean(display, "mediaPreview")
-        requireBoolean(display, "videoAutoplay")
-        requireBoolean(display, "videoLoop")
+        val reduceMotion = requireBoolean(display, "reduceMotion")
+        val mediaPreview = requireBoolean(display, "mediaPreview")
+        val videoAutoplay = requireBoolean(display, "videoAutoplay")
+        val videoLoop = requireBoolean(display, "videoLoop")
         val volume = display.requireInteger("videoVolume")
         if (volume !in 0..100) {
             invalidLayout("表示設定の動画音量が範囲外です。")
         }
         requireBoolean(display, "autoTranslatePosts")
-        return density == "compact"
+        return DisplaySettings(
+            themeMode = themeMode,
+            fontSize = fontSize,
+            accentColor = accentColor,
+            compactDensity = density == "compact",
+            reduceMotion = reduceMotion,
+            mediaPreview = mediaPreview,
+            videoAutoplay = videoAutoplay,
+            videoLoop = videoLoop,
+            videoVolume = volume,
+        )
     }
 
-    private fun parseTrendSearchHistory(array: TransferJsonArray) {
+    private fun parseTrendSearchHistory(array: TransferJsonArray): List<String> {
         if (array.values.size > MAX_HISTORY_ENTRIES) {
             invalidLayout("トレンド検索履歴が20件を超えています。")
         }
         val seen = HashSet<String>(array.values.size)
-        array.values.forEachIndexed { index, value ->
+        val history = array.values.mapIndexed { index, value ->
             val query = value as? TransferJsonString
                 ?: invalidLayout("トレンド検索履歴[$index]が文字列ではありません。")
             validateText(
@@ -382,10 +418,15 @@ public object LayoutTransfer {
             if (!seen.add(query.value.lowercase(Locale.ROOT))) {
                 invalidLayout("トレンド検索履歴が重複しています。")
             }
+            query.value
         }
+        return history
     }
 
     private fun validateExportState(state: DeckUiState) {
+        if (state.videoVolume !in 0..100) {
+            invalid("表示設定の動画音量が範囲外です。")
+        }
         val ids = HashSet<String>(state.columns.size)
         state.columns.forEachIndexed { index, column ->
             validateText(column.id, MAX_COLUMN_ID_LENGTH, "カラムID[$index]", trimRequired = true)
@@ -558,9 +599,10 @@ public object LayoutTransfer {
         val columns: List<DeckColumn>,
         val selectedMenu: ColumnKind,
         val useDarkTheme: Boolean,
-        val compactDensity: Boolean,
+        val display: DisplaySettings,
         val mainMenuItems: List<MainMenuItemId>,
         val replySort: RankingMode,
+        val trendSearchHistory: List<String>,
     )
 }
 

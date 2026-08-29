@@ -6,6 +6,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.down
@@ -15,7 +17,11 @@ import androidx.compose.ui.test.advanceEventTime
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.DefaultMainMenuItems
+import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.AppFontSize
+import dev.nytweetdeck.android.model.AccentColor
 import androidx.test.espresso.intent.Intents
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
@@ -56,8 +62,31 @@ class DeckUiTest {
     @Test
     fun settingsCanChangeThemeAndDensity() {
         composeRule.onNodeWithTag("settings").performClick()
-        composeRule.onNodeWithTag("setting-dark-theme").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("setting-theme-light").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("setting-font-large").performClick()
+        composeRule.onNodeWithTag("setting-accent-purple").performClick()
         composeRule.onNodeWithTag("setting-compact-density").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("setting-reduce-motion").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-media-preview").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-video-autoplay").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-video-loop").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-video-volume").performScrollTo().performSemanticsAction(
+            SemanticsActions.SetProgress,
+        ) { it(42f) }
+
+        val state = isolatedViewModel.state.value
+        assertEquals(ThemeMode.LIGHT, state.themeMode)
+        assertEquals(AppFontSize.LARGE, state.fontSize)
+        assertEquals(AccentColor.PURPLE, state.accentColor)
+        assertEquals(true, state.compactDensity)
+        assertEquals(true, state.reduceMotion)
+        assertEquals(false, state.mediaPreview)
+        assertEquals(true, state.videoAutoplay)
+        assertEquals(false, state.videoLoop)
+        assertEquals(42, state.videoVolume)
+        if (InstrumentationRegistry.getArguments().getString("capture") == "true") {
+            Thread.sleep(5_000)
+        }
     }
 
     @Test

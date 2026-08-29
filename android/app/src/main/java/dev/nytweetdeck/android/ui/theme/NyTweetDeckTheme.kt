@@ -4,7 +4,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.Color
+import dev.nytweetdeck.android.model.AccentColor
+import dev.nytweetdeck.android.model.AppFontSize
 
 private val DarkColors = darkColorScheme(
     primary = Color(0xFF2AA9E0),
@@ -39,10 +44,34 @@ private val LightColors = lightColorScheme(
 @Composable
 fun NyTweetDeckTheme(
     darkTheme: Boolean = true,
+    accentColor: AccentColor = AccentColor.BLUE,
+    fontSize: AppFontSize = AppFontSize.DEFAULT,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        content = content,
+    val accent = accentColor.color
+    val colors = (if (darkTheme) DarkColors else LightColors).copy(
+        primary = accent,
+        secondary = accent,
     )
+    val density = LocalDensity.current
+    val fontScale = when (fontSize) {
+        AppFontSize.SMALL -> 0.88f
+        AppFontSize.DEFAULT -> 1f
+        AppFontSize.LARGE -> 1.18f
+    }
+    CompositionLocalProvider(
+        LocalDensity provides Density(density.density, density.fontScale * fontScale),
+    ) {
+        MaterialTheme(colorScheme = colors, content = content)
+    }
 }
+
+private val AccentColor.color: Color
+    get() = when (this) {
+        AccentColor.BLUE -> Color(0xFF2AA9E0)
+        AccentColor.PURPLE -> Color(0xFF8B7CF6)
+        AccentColor.PINK -> Color(0xFFF05A9D)
+        AccentColor.ORANGE -> Color(0xFFF28C38)
+        AccentColor.GREEN -> Color(0xFF39B982)
+        AccentColor.YELLOW -> Color(0xFFE0B92A)
+    }

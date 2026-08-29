@@ -6,6 +6,9 @@ import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.DefaultMainMenuItems
 import dev.nytweetdeck.android.model.RankingMode
+import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.AppFontSize
+import dev.nytweetdeck.android.model.AccentColor
 import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -22,6 +25,7 @@ import java.nio.file.attribute.PosixFilePermission
 import java.util.EnumSet
 import java.util.HashSet
 import java.util.LinkedHashMap
+import java.util.Locale
 
 private const val MAX_JSON_DEPTH = 64
 
@@ -33,7 +37,7 @@ private const val MAX_JSON_DEPTH = 64
  */
 class DeckSettingsStore(filePath: Path) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION: Int = 4
+        const val CURRENT_SCHEMA_VERSION: Int = 6
         const val MAX_FILE_SIZE_BYTES: Int = 1 shl 20
 
         private const val MAX_COLUMN_ID_LENGTH = 200
@@ -48,6 +52,17 @@ class DeckSettingsStore(filePath: Path) {
         )
         private val ROOT_KEYS_V3 = ROOT_KEYS_V1_V2 + "mainMenuItems"
         private val ROOT_KEYS_V4 = ROOT_KEYS_V3 + "replySort"
+        private val ROOT_KEYS_V5 = ROOT_KEYS_V4 + setOf(
+            "themeMode",
+            "fontSize",
+            "accentColor",
+            "reduceMotion",
+            "mediaPreview",
+            "videoAutoplay",
+            "videoLoop",
+            "videoVolume",
+        )
+        private val ROOT_KEYS_V6 = ROOT_KEYS_V5 + "trendSearchHistory"
         private val COLUMN_KEYS_V1 = setOf("id", "kind", "title")
         private val COLUMN_KEYS_V2 = setOf("id", "kind", "title", "target")
     }
@@ -247,6 +262,16 @@ class DeckSettingsStore(filePath: Path) {
         requireNotNull(state.selectedMenu) { "選択メニューが不正です。" }
         require(state.mainMenuItems.size <= MainMenuItemId.entries.size) { "メニュー項目数が不正です。" }
         require(state.mainMenuItems.distinct().size == state.mainMenuItems.size) { "メニュー項目が重複しています。" }
+        require(state.videoVolume in 0..100) { "動画音量が範囲外です。" }
+        require(state.trendSearchHistory.size <= 20) { "トレンド検索履歴が20件を超えています。" }
+        require(state.trendSearchHistory.distinctBy { it.lowercase(Locale.ROOT) }.size == state.trendSearchHistory.size) {
+            "トレンド検索履歴が重複しています。"
+        }
+        state.trendSearchHistory.forEach { history ->
+            require(history.isNotBlank() && history.length <= 100 && history == history.trim()) {
+                "トレンド検索履歴が不正です。"
+            }
+        }
 
         return state.copy(
             columns = state.columns.toList(),
@@ -314,6 +339,28 @@ class DeckSettingsStore(filePath: Path) {
             append(']')
             append(",\"replySort\":")
             appendJsonString(state.replySort.name)
+            append(",\"themeMode\":")
+            appendJsonString(state.themeMode.name)
+            append(",\"fontSize\":")
+            appendJsonString(state.fontSize.name)
+            append(",\"accentColor\":")
+            appendJsonString(state.accentColor.name)
+            append(",\"reduceMotion\":")
+            append(state.reduceMotion)
+            append(",\"mediaPreview\":")
+            append(state.mediaPreview)
+            append(",\"videoAutoplay\":")
+            append(state.videoAutoplay)
+            append(",\"videoLoop\":")
+            append(state.videoLoop)
+            append(",\"videoVolume\":")
+            append(state.videoVolume)
+            append(",\"trendSearchHistory\":[")
+            state.trendSearchHistory.forEachIndexed { index, history ->
+                if (index > 0) append(',')
+                appendJsonString(history)
+            }
+            append(']')
             append('}')
         }
         return json.toByteArray(StandardCharsets.UTF_8)
@@ -331,7 +378,9 @@ class DeckSettingsStore(filePath: Path) {
             when {
                 schemaVersion < 3 -> ROOT_KEYS_V1_V2
                 schemaVersion < 4 -> ROOT_KEYS_V3
-                else -> ROOT_KEYS_V4
+                schemaVersion < 5 -> ROOT_KEYS_V4
+                schemaVersion < 6 -> ROOT_KEYS_V5
+                else -> ROOT_KEYS_V6
             },
         )
 
@@ -364,6 +413,35 @@ class DeckSettingsStore(filePath: Path) {
             } else {
                 runCatching { RankingMode.valueOf(root.requireString("replySort")) }
                     .getOrElse { invalid("返信並び順が不正です。") }
+            },
+            themeMode = if (schemaVersion < 5) {
+                if (root.requireBoolean("useDarkTheme")) ThemeMode.DARK else ThemeMode.LIGHT
+            } else {
+                parseEnumValue<ThemeMode>(root.requireString("themeMode"), "テーマ")
+            },
+            fontSize = if (schemaVersion < 5) {
+                AppFontSize.DEFAULT
+            } else {
+                parseEnumValue<AppFontSize>(root.requireString("fontSize"), "文字サイズ")
+            },
+            accentColor = if (schemaVersion < 5) {
+                AccentColor.BLUE
+            } else {
+                parseEnumValue<AccentColor>(root.requireString("accentColor"), "アクセント色")
+            },
+            reduceMotion = schemaVersion >= 5 && root.requireBoolean("reduceMotion"),
+            mediaPreview = schemaVersion < 5 || root.requireBoolean("mediaPreview"),
+            videoAutoplay = schemaVersion >= 5 && root.requireBoolean("videoAutoplay"),
+            videoLoop = schemaVersion < 5 || root.requireBoolean("videoLoop"),
+            videoVolume = if (schemaVersion < 5) 100 else root.requireNumber("videoVolume")
+                .asInt("videoVolume"),
+            trendSearchHistory = if (schemaVersion < 6) {
+                emptyList()
+            } else {
+                root.requireArray("trendSearchHistory").values.mapIndexed { index, value ->
+                    (value as? JsonString)?.value
+                        ?: invalid("トレンド検索履歴[$index]が文字列ではありません。")
+                }
             },
             mainMenuItems = if (schemaVersion < 3) {
                 DefaultMainMenuItems
@@ -451,6 +529,9 @@ private object JsonNull : JsonValue
 private class JsonFormatException(message: String, cause: Throwable? = null) : IllegalArgumentException(message, cause)
 
 private fun invalid(message: String): Nothing = throw JsonFormatException(message)
+
+private inline fun <reified T : Enum<T>> parseEnumValue(value: String, label: String): T =
+    runCatching { enumValueOf<T>(value) }.getOrElse { invalid("${label}が不正です。") }
 
 private fun requireExactKeys(value: JsonObject, expected: Set<String>) {
     if (value.values.keys.toSet() != expected) {

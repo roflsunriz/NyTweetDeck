@@ -1,7 +1,10 @@
 package dev.nytweetdeck.android.ui
 
 import android.app.Activity
+import android.app.DownloadManager
 import android.content.Intent
+import android.os.Environment
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Row
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -46,6 +50,8 @@ import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.ComposerMode
 import dev.nytweetdeck.android.model.ComposerStatus
+import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.Post
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiEnvironment
@@ -235,8 +241,46 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         viewModel.openComposer(ComposerMode.REPLY, postId)
         openDialog = OpenDialog.COMPOSER
     }
+    val downloadPostMedia: (String) -> Unit = { postId ->
+        val urls = state.findPost(postId)?.media.orEmpty()
+            .mapNotNull { it.url ?: it.previewUrl }
+            .map(String::toUri)
+            .filter { uri -> uri.scheme == "https" && uri.host in DOWNLOAD_MEDIA_HOSTS }
+        val result = runCatching {
+            require(urls.isNotEmpty()) { "ダウンロード可能なメディアがありません。" }
+            val manager = context.getSystemService(DownloadManager::class.java)
+            urls.forEachIndexed { index, uri ->
+                val extension = uri.lastPathSegment.orEmpty().substringAfterLast('.', "bin")
+                    .takeIf { it.matches(Regex("[A-Za-z0-9]{1,5}")) } ?: "bin"
+                manager.enqueue(
+                    DownloadManager.Request(uri)
+                        .setNotificationVisibility(
+                            DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
+                        )
+                        .setDestinationInExternalPublicDir(
+                            Environment.DIRECTORY_DOWNLOADS,
+                            "NyTweetDeck-$postId-${index + 1}.$extension",
+                        ),
+                )
+            }
+        }
+        Toast.makeText(
+            context,
+            if (result.isSuccess) R.string.media_download_started else R.string.media_download_failed,
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
 
-    NyTweetDeckTheme(darkTheme = state.useDarkTheme) {
+    val darkTheme = when (state.themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+    NyTweetDeckTheme(
+        darkTheme = darkTheme,
+        accentColor = state.accentColor,
+        fontSize = state.fontSize,
+    ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Row(
                 modifier = Modifier
@@ -276,6 +320,13 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                         viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
                     },
                     onShareClick = sharePost,
+                    onDownloadClick = downloadPostMedia,
+                    videoAutoplay = state.videoAutoplay,
+                    videoLoop = state.videoLoop,
+                    videoVolume = state.videoVolume,
+                    onTrendSelected = viewModel::openTrendSearch,
+                    onTrendQueryCommitted = viewModel::recordTrendSearch,
+                    onClearTrendHistory = viewModel::clearTrendSearchHistory,
                 )
             }
         }
@@ -307,8 +358,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             )
             OpenDialog.SETTINGS -> SettingsDialog(
                 state = state,
-                onDarkThemeChange = viewModel::setDarkTheme,
-                onCompactDensityChange = viewModel::setCompactDensity,
+                onDisplaySettingsChange = viewModel::setDisplaySettings,
                 onExport = {
                     transferStatus = TransferStatus.NONE
                     exportLauncher.launch("NyTweetDeck-settings.json")
@@ -365,7 +415,22 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
             },
             onShareClick = sharePost,
-            onDownloadClick = {},
+            onDownloadClick = downloadPostMedia,
+            mediaPreview = state.mediaPreview,
+            videoAutoplay = state.videoAutoplay,
+            videoLoop = state.videoLoop,
+            videoVolume = state.videoVolume,
         )
     }
+}
+
+private val DOWNLOAD_MEDIA_HOSTS = setOf("pbs.twimg.com", "video.twimg.com")
+
+private fun dev.nytweetdeck.android.model.DeckUiState.findPost(postId: String): Post? {
+    val detailPosts = postDetail.page?.let { page ->
+        sequenceOf(page.post) + page.replies.asSequence().map { it.post }
+    } ?: emptySequence()
+    return timelines.values.asSequence().flatMap { it.posts.asSequence() }
+        .plus(detailPosts)
+        .firstOrNull { it.id == postId }
 }

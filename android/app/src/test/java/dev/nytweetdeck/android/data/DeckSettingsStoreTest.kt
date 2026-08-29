@@ -7,6 +7,9 @@ import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.RankingMode
+import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.AppFontSize
+import dev.nytweetdeck.android.model.AccentColor
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import org.junit.Assert.assertArrayEquals
@@ -117,7 +120,7 @@ class DeckSettingsStoreTest {
         val store = DeckSettingsStore(settingsPath())
         store.save(layout())
         val current = readText(store.primaryPath)
-            .replace("\"schemaVersion\":4", "\"schemaVersion\":999")
+            .replace("\"schemaVersion\":6", "\"schemaVersion\":999")
         writeText(store.primaryPath, current)
         Files.delete(store.backupPath)
 
@@ -227,5 +230,14 @@ class DeckSettingsStoreTest {
         useDarkTheme = true,
         compactDensity = false,
         replySort = RankingMode.LIKES,
+        themeMode = ThemeMode.SYSTEM,
+        fontSize = AppFontSize.LARGE,
+        accentColor = AccentColor.PURPLE,
+        reduceMotion = true,
+        mediaPreview = false,
+        videoAutoplay = true,
+        videoLoop = false,
+        videoVolume = 42,
+        trendSearchHistory = listOf("Android", "NyTweetDeck"),
     )
 }

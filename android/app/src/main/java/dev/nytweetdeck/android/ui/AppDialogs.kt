@@ -1,8 +1,11 @@
 package dev.nytweetdeck.android.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -31,11 +35,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,6 +52,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -54,15 +61,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.AccountAuthStatus
+import dev.nytweetdeck.android.model.AccentColor
+import dev.nytweetdeck.android.model.AppFontSize
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.ComposerMode
 import dev.nytweetdeck.android.model.ComposerStatus
 import dev.nytweetdeck.android.model.ComposerUiState
 import dev.nytweetdeck.android.model.DeckUiState
+import dev.nytweetdeck.android.model.DisplaySettings
 import dev.nytweetdeck.android.model.ListOption
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
+import dev.nytweetdeck.android.model.ThemeMode
+import kotlin.math.roundToInt
 
 internal enum class TransferStatus {
     NONE,
@@ -494,29 +506,135 @@ internal fun AccountsDialog(
 @Composable
 internal fun SettingsDialog(
     state: DeckUiState,
-    onDarkThemeChange: (Boolean) -> Unit,
-    onCompactDensityChange: (Boolean) -> Unit,
+    onDisplaySettingsChange: (DisplaySettings) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
     transferStatus: TransferStatus,
     onDismiss: () -> Unit,
 ) {
+    val settings = state.displaySettings()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings)) },
         text = {
-            Column(modifier = Modifier.widthIn(min = 260.dp)) {
-                SettingCheckbox(
-                    label = stringResource(R.string.dark_theme),
-                    checked = state.useDarkTheme,
-                    onCheckedChange = onDarkThemeChange,
-                    tag = "setting-dark-theme",
-                )
+            Column(
+                modifier = Modifier
+                    .widthIn(min = 260.dp)
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                SettingSectionTitle(stringResource(R.string.setting_theme))
+                SettingChoiceRow {
+                    ThemeMode.entries.forEach { mode ->
+                        SettingChoice(
+                            label = themeModeLabel(mode),
+                            selected = settings.themeMode == mode,
+                            tag = "setting-theme-" + mode.name.lowercase(),
+                            onClick = {
+                                onDisplaySettingsChange(settings.copy(themeMode = mode))
+                            },
+                        )
+                    }
+                }
+                SettingSectionTitle(stringResource(R.string.setting_font_size))
+                SettingChoiceRow {
+                    AppFontSize.entries.forEach { size ->
+                        SettingChoice(
+                            label = fontSizeLabel(size),
+                            selected = settings.fontSize == size,
+                            tag = "setting-font-" + size.name.lowercase(),
+                            onClick = {
+                                onDisplaySettingsChange(settings.copy(fontSize = size))
+                            },
+                        )
+                    }
+                }
+                SettingSectionTitle(stringResource(R.string.setting_accent_color))
+                SettingChoiceRow {
+                    AccentColor.entries.forEach { accent ->
+                        SettingChoice(
+                            label = accentColorLabel(accent),
+                            selected = settings.accentColor == accent,
+                            tag = "setting-accent-" + accent.name.lowercase(),
+                            color = accentColorPreview(accent),
+                            onClick = {
+                                onDisplaySettingsChange(settings.copy(accentColor = accent))
+                            },
+                        )
+                    }
+                }
                 SettingCheckbox(
                     label = stringResource(R.string.compact_density),
-                    checked = state.compactDensity,
-                    onCheckedChange = onCompactDensityChange,
+                    checked = settings.compactDensity,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(compactDensity = it))
+                    },
                     tag = "setting-compact-density",
+                )
+                SettingCheckbox(
+                    label = stringResource(R.string.setting_reduce_motion),
+                    checked = settings.reduceMotion,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(reduceMotion = it))
+                    },
+                    tag = "setting-reduce-motion",
+                )
+                SettingCheckbox(
+                    label = stringResource(R.string.setting_media_preview),
+                    checked = settings.mediaPreview,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(mediaPreview = it))
+                    },
+                    tag = "setting-media-preview",
+                )
+                SettingCheckbox(
+                    label = stringResource(R.string.setting_video_autoplay),
+                    checked = settings.videoAutoplay,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(videoAutoplay = it))
+                    },
+                    tag = "setting-video-autoplay",
+                )
+                SettingCheckbox(
+                    label = stringResource(R.string.setting_video_loop),
+                    checked = settings.videoLoop,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(videoLoop = it))
+                    },
+                    tag = "setting-video-loop",
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.setting_video_volume),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.setting_video_volume_value,
+                            settings.videoVolume,
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Slider(
+                    value = settings.videoVolume.toFloat(),
+                    onValueChange = { volume ->
+                        onDisplaySettingsChange(
+                            settings.copy(videoVolume = volume.roundToInt().coerceIn(0, 100)),
+                        )
+                    },
+                    valueRange = 0f..100f,
+                    steps = 99,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("setting-video-volume"),
                 )
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Button(
@@ -554,6 +672,79 @@ internal fun SettingsDialog(
 }
 
 @Composable
+internal fun SettingsDialog(
+    state: DeckUiState,
+    onDarkThemeChange: (Boolean) -> Unit,
+    onCompactDensityChange: (Boolean) -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    transferStatus: TransferStatus,
+    onDismiss: () -> Unit,
+) {
+    SettingsDialog(
+        state = state,
+        onDisplaySettingsChange = { settings ->
+            onDarkThemeChange(settings.themeMode != ThemeMode.LIGHT)
+            onCompactDensityChange(settings.compactDensity)
+        },
+        onExport = onExport,
+        onImport = onImport,
+        transferStatus = transferStatus,
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
+private fun SettingSectionTitle(label: String) {
+    Text(
+        text = label,
+        modifier = Modifier.padding(top = 8.dp),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+@Composable
+private fun SettingChoiceRow(content: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun SettingChoice(
+    label: String,
+    selected: Boolean,
+    tag: String,
+    onClick: () -> Unit,
+    color: Color? = null,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                color?.let {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(it, CircleShape),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(label)
+            }
+        },
+        modifier = Modifier.testTag(tag),
+    )
+}
+
+@Composable
 private fun SettingCheckbox(
     label: String,
     checked: Boolean,
@@ -571,6 +762,39 @@ private fun SettingCheckbox(
         Text(label, modifier = Modifier.weight(1f))
         Checkbox(checked = checked, onCheckedChange = onCheckedChange)
     }
+}
+
+@Composable
+private fun themeModeLabel(mode: ThemeMode): String = when (mode) {
+    ThemeMode.SYSTEM -> stringResource(R.string.setting_theme_system)
+    ThemeMode.LIGHT -> stringResource(R.string.setting_theme_light)
+    ThemeMode.DARK -> stringResource(R.string.setting_theme_dark)
+}
+
+@Composable
+private fun fontSizeLabel(size: AppFontSize): String = when (size) {
+    AppFontSize.SMALL -> stringResource(R.string.setting_font_small)
+    AppFontSize.DEFAULT -> stringResource(R.string.setting_font_default)
+    AppFontSize.LARGE -> stringResource(R.string.setting_font_large)
+}
+
+@Composable
+private fun accentColorLabel(accent: AccentColor): String = when (accent) {
+    AccentColor.BLUE -> stringResource(R.string.setting_accent_blue)
+    AccentColor.PURPLE -> stringResource(R.string.setting_accent_purple)
+    AccentColor.PINK -> stringResource(R.string.setting_accent_pink)
+    AccentColor.ORANGE -> stringResource(R.string.setting_accent_orange)
+    AccentColor.GREEN -> stringResource(R.string.setting_accent_green)
+    AccentColor.YELLOW -> stringResource(R.string.setting_accent_yellow)
+}
+
+private fun accentColorPreview(accent: AccentColor): Color = when (accent) {
+    AccentColor.BLUE -> Color(0xFF1D9BF0)
+    AccentColor.PURPLE -> Color(0xFF7856FF)
+    AccentColor.PINK -> Color(0xFFE0245E)
+    AccentColor.ORANGE -> Color(0xFFFF7A00)
+    AccentColor.GREEN -> Color(0xFF00BA7C)
+    AccentColor.YELLOW -> Color(0xFFFFC107)
 }
 
 private fun iconFor(kind: ColumnKind): ImageVector = when (kind) {

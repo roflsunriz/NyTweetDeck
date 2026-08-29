@@ -6,6 +6,9 @@ import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.RankingMode
+import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.AppFontSize
+import dev.nytweetdeck.android.model.AccentColor
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -27,8 +30,17 @@ class LayoutTransferTest {
             ),
             selectedMenu = ColumnKind.TRENDS,
             useDarkTheme = false,
+            themeMode = ThemeMode.LIGHT,
+            fontSize = AppFontSize.LARGE,
+            accentColor = AccentColor.GREEN,
             compactDensity = true,
             replySort = RankingMode.LIKES,
+            reduceMotion = true,
+            mediaPreview = false,
+            videoAutoplay = true,
+            videoLoop = false,
+            videoVolume = 37,
+            trendSearchHistory = listOf("Android", "NyTweetDeck"),
             accounts = listOf(
                 AccountUiModel(
                     accountId = "account-secret-id",
@@ -70,6 +82,15 @@ class LayoutTransferTest {
         assertEquals(source.useDarkTheme, imported.state.useDarkTheme)
         assertEquals(source.compactDensity, imported.state.compactDensity)
         assertEquals(source.replySort, imported.state.replySort)
+        assertEquals(source.themeMode, imported.state.themeMode)
+        assertEquals(source.fontSize, imported.state.fontSize)
+        assertEquals(source.accentColor, imported.state.accentColor)
+        assertEquals(source.reduceMotion, imported.state.reduceMotion)
+        assertEquals(source.mediaPreview, imported.state.mediaPreview)
+        assertEquals(source.videoAutoplay, imported.state.videoAutoplay)
+        assertEquals(source.videoLoop, imported.state.videoLoop)
+        assertEquals(source.videoVolume, imported.state.videoVolume)
+        assertEquals(source.trendSearchHistory, imported.state.trendSearchHistory)
         assertEquals(source.accounts, imported.state.accounts)
         assertEquals(source.selectedAccountId, imported.state.selectedAccountId)
         assertEquals(source.accountAuthStatus, imported.state.accountAuthStatus)
@@ -100,6 +121,10 @@ class LayoutTransferTest {
         assertTrue(imported.useDarkTheme)
         assertTrue(imported.compactDensity)
         assertEquals(RankingMode.LIKES, imported.replySort)
+        assertEquals(ThemeMode.SYSTEM, imported.themeMode)
+        assertEquals(AppFontSize.LARGE, imported.fontSize)
+        assertEquals(AccentColor.PURPLE, imported.accentColor)
+        assertEquals(listOf("AI", "Japan"), imported.trendSearchHistory)
     }
 
     @Test

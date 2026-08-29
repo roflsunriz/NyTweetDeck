@@ -26,6 +26,7 @@ import dev.nytweetdeck.android.model.ColumnScrollPosition
 import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.ComposerMode
 import dev.nytweetdeck.android.model.RankingMode
+import dev.nytweetdeck.android.model.DisplaySettings
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.ListOption
 import dev.nytweetdeck.android.model.MainMenuItemId
@@ -104,6 +105,16 @@ class DeckViewModel(
             state = mutableState,
         )
     }
+    private val columnPagingController = ColumnPagingController(
+        timelineRepository,
+        notificationRepository,
+        trendRepository,
+        directMessageRepository,
+        viewModelScope,
+        ioDispatcher,
+        ::savedAccount,
+        mutableState,
+    )
     @Volatile
     private var foreground = false
     @Volatile
@@ -249,13 +260,12 @@ class DeckViewModel(
         }
     }
 
-    fun setDarkTheme(enabled: Boolean) {
-        mutate { it.copy(useDarkTheme = enabled) }
-    }
-
-    fun setCompactDensity(enabled: Boolean) {
-        mutate { it.copy(compactDensity = enabled) }
-    }
+    fun setDarkTheme(enabled: Boolean) = setDisplaySettings(mutableState.value.displaySettings().copy(themeMode = if (enabled) dev.nytweetdeck.android.model.ThemeMode.DARK else dev.nytweetdeck.android.model.ThemeMode.LIGHT))
+    fun setCompactDensity(enabled: Boolean) = setDisplaySettings(mutableState.value.displaySettings().copy(compactDensity = enabled))
+    fun setDisplaySettings(settings: DisplaySettings) = mutate { it.withDisplaySettings(settings) }
+    fun openTrendSearch(query: String) = mutate { it.withTrendSearch(query, addColumn = true) }
+    fun recordTrendSearch(query: String) = mutate { it.withTrendSearch(query, addColumn = false) }
+    fun clearTrendSearchHistory() = mutate { it.copy(trendSearchHistory = emptyList()) }
 
     fun importLayout(serialized: ByteArray) {
         val current = mutableState.value
@@ -694,70 +704,7 @@ class DeckViewModel(
         }
     }
 
-    fun loadMore(columnId: String) {
-        val repository = timelineRepository ?: return
-        val store = accountStore ?: return
-        val snapshot = mutableState.value
-        val accountId = snapshot.selectedAccountId ?: return
-        val account = runCatching { store.requireAccount(accountId) }.getOrNull() ?: return
-        val column = snapshot.columns.firstOrNull { it.id == columnId } ?: return
-        val queryKind = queryKind(column.kind) ?: return
-        val currentTimeline = snapshot.timelines[columnId] ?: return
-        val cursor = currentTimeline.nextCursor?.takeIf(String::isNotBlank) ?: return
-        if (currentTimeline.status != TimelineLoadStatus.READY || currentTimeline.isLoadingMore) return
-        mutableState.update { current ->
-            val timeline = current.timelines[columnId] ?: return@update current
-            current.copy(
-                timelines = current.timelines + (
-                    columnId to timeline.copy(isLoadingMore = true, loadMoreFailed = false)
-                ),
-            )
-        }
-        viewModelScope.launch(ioDispatcher) {
-            try {
-                val page = repository.load(
-                    account = account,
-                    kind = queryKind,
-                    target = column.target,
-                    cursor = cursor,
-                    language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
-                )
-                withContext(Dispatchers.Main.immediate) {
-                    if (mutableState.value.selectedAccountId != accountId) return@withContext
-                    mutableState.update { current ->
-                        val timeline = current.timelines[columnId] ?: return@update current
-                        val merged = LinkedHashMap<String, dev.nytweetdeck.android.model.Post>()
-                        timeline.posts.forEach { merged[it.id] = it }
-                        page.posts.forEach { merged.putIfAbsent(it.id, it) }
-                        current.copy(
-                            timelines = current.timelines + (
-                                columnId to timeline.copy(
-                                    posts = merged.values.toList(),
-                                    nextCursor = page.nextCursor,
-                                    isLoadingMore = false,
-                                    loadMoreFailed = false,
-                                )
-                            ),
-                        )
-                    }
-                }
-            } catch (_: Exception) {
-                withContext(Dispatchers.Main.immediate) {
-                    mutableState.update { current ->
-                        val timeline = current.timelines[columnId] ?: return@update current
-                        current.copy(
-                            timelines = current.timelines + (
-                                columnId to timeline.copy(
-                                    isLoadingMore = false,
-                                    loadMoreFailed = true,
-                                )
-                            ),
-                        )
-                    }
-                }
-            }
-        }
-    }
+    fun loadMore(columnId: String) = columnPagingController.loadMore(columnId)
 
     fun clearNewPosts(columnId: String) {
         mutableState.update { current ->

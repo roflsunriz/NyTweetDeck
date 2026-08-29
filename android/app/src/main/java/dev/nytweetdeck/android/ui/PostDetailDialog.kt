@@ -69,6 +69,10 @@ internal fun PostDetailDialog(
     onBookmarkClick: (String) -> Unit,
     onShareClick: (String) -> Unit,
     onDownloadClick: (String) -> Unit,
+    mediaPreview: Boolean = true,
+    videoAutoplay: Boolean = false,
+    videoLoop: Boolean = true,
+    videoVolume: Int = 100,
 ) {
     if (state.status == PostDetailStatus.CLOSED) return
     Dialog(
@@ -104,6 +108,10 @@ internal fun PostDetailDialog(
                         onShareClick = onShareClick,
                         onDownloadClick = onDownloadClick,
                         onRetry = onRetry,
+                        mediaPreview = mediaPreview,
+                        videoAutoplay = videoAutoplay,
+                        videoLoop = videoLoop,
+                        videoVolume = videoVolume,
                     )
                     PostDetailStatus.CLOSED -> Unit
                 }
@@ -185,6 +193,10 @@ private fun DetailReady(
     onShareClick: (String) -> Unit,
     onDownloadClick: (String) -> Unit,
     onRetry: () -> Unit,
+    mediaPreview: Boolean,
+    videoAutoplay: Boolean,
+    videoLoop: Boolean,
+    videoVolume: Int,
 ) {
     val page = state.page
     if (page == null) {
@@ -223,6 +235,10 @@ private fun DetailReady(
                 onBookmarkClick = onBookmarkClick,
                 onShareClick = onShareClick,
                 onDownloadClick = onDownloadClick,
+                mediaPreview = mediaPreview,
+                videoAutoplay = videoAutoplay,
+                videoLoop = videoLoop,
+                videoVolume = videoVolume,
             )
         }
         item(key = "reply-sort") {
@@ -263,6 +279,10 @@ private fun DetailReady(
                             onBookmarkClick = onBookmarkClick,
                             onShareClick = onShareClick,
                             onDownloadClick = onDownloadClick,
+                            mediaPreview = mediaPreview,
+                            videoAutoplay = videoAutoplay,
+                            videoLoop = videoLoop,
+                            videoVolume = videoVolume,
                         )
                     }
                 }

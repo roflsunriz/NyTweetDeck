@@ -1,0 +1,102 @@
+package dev.nytweetdeck.android
+
+import androidx.activity.compose.setContent
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import dev.nytweetdeck.android.model.Author
+import dev.nytweetdeck.android.model.Media
+import dev.nytweetdeck.android.model.Post
+import dev.nytweetdeck.android.ui.PostCard
+import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+
+class MediaViewerUiTest {
+    @get:Rule
+    val composeRule = createAndroidComposeRule<MainActivity>()
+
+    @Before
+    fun showPhotoPost() {
+        composeRule.activity.setContent {
+            NyTweetDeckTheme {
+                PostCard(post = photoPost())
+            }
+        }
+    }
+
+    @Test
+    fun photoViewerOpensResetsAndClosesOnAquos() {
+        composeRule.onNodeWithTag("post-media-1-photo-1").performClick()
+        composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-reset").performClick()
+        composeRule.onNodeWithTag("media-close").performClick()
+        composeRule.onNodeWithTag("post-1").assertIsDisplayed()
+    }
+
+    @Test
+    fun videoViewerUsesDedicatedPlayerControlsOnAquos() {
+        composeRule.activity.setContent {
+            NyTweetDeckTheme {
+                PostCard(
+                    post = photoPost().copy(
+                        media = listOf(
+                            Media(
+                                "video-1",
+                                "video",
+                                "https://video.twimg.com/ext_tw_video/fixture.mp4",
+                                "https://pbs.twimg.com/media/fixture.jpg",
+                            ),
+                        ),
+                    ),
+                    videoAutoplay = false,
+                    videoLoop = false,
+                    videoVolume = 42,
+                )
+            }
+        }
+        composeRule.onNodeWithTag("post-media-1-video-1").performClick()
+        composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-video").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-play").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-mute").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-close").performClick()
+    }
+
+    private fun photoPost() = Post(
+        id = "1",
+        text = "Photo fixture",
+        language = "en",
+        createdAt = "2026-08-29T00:00:00Z",
+        author = Author("7", "fixture", "Fixture", null, false),
+        repostedBy = null,
+        conversationSection = null,
+        replyCount = 0,
+        repostCount = 0,
+        quoteCount = 0,
+        likeCount = 0,
+        bookmarkCount = 0,
+        viewCount = 0,
+        liked = false,
+        reposted = false,
+        bookmarked = false,
+        replyToPostId = null,
+        replyToUsername = null,
+        quotedPostId = null,
+        quotedPost = null,
+        communityNote = null,
+        preTranslated = null,
+        article = null,
+        media = listOf(
+            Media(
+                id = "photo-1",
+                type = "photo",
+                url = "https://pbs.twimg.com/media/fixture.jpg",
+                previewUrl = "https://pbs.twimg.com/media/fixture.jpg",
+            ),
+        ),
+    )
+}

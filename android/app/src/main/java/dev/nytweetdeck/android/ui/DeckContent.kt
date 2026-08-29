@@ -6,6 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -67,6 +70,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -110,6 +114,12 @@ internal fun DeckContent(
     onBookmarkClick: (String) -> Unit = {},
     onShareClick: (String) -> Unit = {},
     onDownloadClick: (String) -> Unit = {},
+    videoAutoplay: Boolean = false,
+    videoLoop: Boolean = true,
+    videoVolume: Int = 100,
+    onTrendSelected: (String) -> Unit = {},
+    onTrendQueryCommitted: (String) -> Unit = {},
+    onClearTrendHistory: () -> Unit = {},
 ) {
     val latestVisibleColumnsChanged by rememberUpdatedState(onVisibleColumnsChanged)
     BoxWithConstraints(
@@ -136,7 +146,10 @@ internal fun DeckContent(
         val deckListState = rememberLazyListState()
         LaunchedEffect(deckListState, state.selectedMenu, state.columns.size) {
             val selectedIndex = state.columns.indexOfLast { it.kind == state.selectedMenu }
-            if (selectedIndex >= 0) deckListState.animateScrollToItem(selectedIndex)
+            if (selectedIndex >= 0) {
+                if (state.reduceMotion) deckListState.scrollToItem(selectedIndex)
+                else deckListState.animateScrollToItem(selectedIndex)
+            }
         }
         LaunchedEffect(deckListState, state.columns) {
             snapshotFlow {
@@ -166,6 +179,7 @@ internal fun DeckContent(
                     messageState = state.messages[column.id],
                     pendingPostActions = state.pendingPostActions,
                     failedPostActions = state.failedPostActions,
+                    mediaPreview = state.mediaPreview,
                     scrollPosition = scrollPosition,
                     onScrollPositionChanged = { index, offset, key ->
                         onSaveColumnScrollPosition(column.id, index, offset, key)
@@ -179,6 +193,13 @@ internal fun DeckContent(
                     onBookmarkClick = onBookmarkClick,
                     onShareClick = onShareClick,
                     onDownloadClick = onDownloadClick,
+                    videoAutoplay = videoAutoplay,
+                    videoLoop = videoLoop,
+                    videoVolume = videoVolume,
+                    trendSearchHistory = state.trendSearchHistory,
+                    onTrendSelected = onTrendSelected,
+                    onTrendQueryCommitted = onTrendQueryCommitted,
+                    onClearTrendHistory = onClearTrendHistory,
                     onRemove = { onRemoveColumn(column.id) },
                     onOpenAccounts = onOpenAccounts,
                     onRetry = { onRefreshColumn(column.id) },
@@ -252,6 +273,7 @@ private fun DeckColumnCard(
     messageState: DirectMessageColumnState?,
     pendingPostActions: Map<String, Set<PostActionType>>,
     failedPostActions: Map<String, Set<PostActionType>>,
+    mediaPreview: Boolean,
     scrollPosition: ColumnScrollPosition?,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
     onPostClick: (String) -> Unit,
@@ -263,6 +285,13 @@ private fun DeckColumnCard(
     onBookmarkClick: (String) -> Unit,
     onShareClick: (String) -> Unit,
     onDownloadClick: (String) -> Unit,
+    videoAutoplay: Boolean,
+    videoLoop: Boolean,
+    videoVolume: Int,
+    trendSearchHistory: List<String>,
+    onTrendSelected: (String) -> Unit,
+    onTrendQueryCommitted: (String) -> Unit,
+    onClearTrendHistory: () -> Unit,
     onRemove: () -> Unit,
     onOpenAccounts: () -> Unit,
     onRetry: () -> Unit,
@@ -312,18 +341,25 @@ private fun DeckColumnCard(
                             onRetry,
                             scrollPosition,
                             onScrollPositionChanged,
+                            onLoadMore,
                         )
                         ColumnKind.TRENDS -> TrendBody(
                             trendState,
                             onRetry,
                             scrollPosition,
                             onScrollPositionChanged,
+                            trendSearchHistory,
+                            onTrendSelected,
+                            onTrendQueryCommitted,
+                            onClearTrendHistory,
+                            onLoadMore,
                         )
                         ColumnKind.MESSAGES -> DirectMessageBody(
                             messageState,
                             onRetry,
                             scrollPosition,
                             onScrollPositionChanged,
+                            onLoadMore,
                         )
                         else -> TimelineBody(
                             state = timelineState,
@@ -343,6 +379,10 @@ private fun DeckColumnCard(
                             onDownloadClick = onDownloadClick,
                             pendingPostActions = pendingPostActions,
                             failedPostActions = failedPostActions,
+                            mediaPreview = mediaPreview,
+                            videoAutoplay = videoAutoplay,
+                            videoLoop = videoLoop,
+                            videoVolume = videoVolume,
                         )
                     }
                 } else {
@@ -392,6 +432,7 @@ private fun DirectMessageBody(
     onRetry: () -> Unit,
     scrollPosition: ColumnScrollPosition?,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
     when (state?.status ?: TimelineLoadStatus.IDLE) {
         TimelineLoadStatus.IDLE -> Button(onClick = onRetry) { Text(stringResource(R.string.load_messages)) }
@@ -411,6 +452,12 @@ private fun DirectMessageBody(
                     messages.map { it.id },
                 )
                 ObserveListScrollPosition(listState, onScrollPositionChanged)
+                ObserveSecondaryPaging(
+                    listState,
+                    readyState.page?.nextCursor,
+                    readyState.isLoadingMore,
+                    onLoadMore,
+                )
                 Box(Modifier.fillMaxSize()) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().testTag("message-list"),
@@ -430,6 +477,14 @@ private fun DirectMessageBody(
                                 HorizontalDivider(Modifier.padding(top = 12.dp))
                             }
                         }
+                        item(key = "message-load-more") {
+                            SecondaryLoadMoreFooter(
+                                readyState.isLoadingMore,
+                                readyState.loadMoreFailed,
+                                onLoadMore,
+                                "message-load-more",
+                            )
+                        }
                     }
                     if (readyState.isRefreshing) {
                         SmallRefreshIndicator(Modifier.align(Alignment.TopEnd).padding(8.dp))
@@ -446,6 +501,7 @@ private fun NotificationBody(
     onRetry: () -> Unit,
     scrollPosition: ColumnScrollPosition?,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
     when (state?.status ?: TimelineLoadStatus.IDLE) {
         TimelineLoadStatus.IDLE -> Button(onClick = onRetry) { Text(stringResource(R.string.load_notifications)) }
@@ -465,6 +521,12 @@ private fun NotificationBody(
                     notifications.map { it.id },
                 )
                 ObserveListScrollPosition(listState, onScrollPositionChanged)
+                ObserveSecondaryPaging(
+                    listState,
+                    readyState.page?.nextCursor,
+                    readyState.isLoadingMore,
+                    onLoadMore,
+                )
                 Box(Modifier.fillMaxSize()) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().testTag("notification-list"),
@@ -486,6 +548,14 @@ private fun NotificationBody(
                                 HorizontalDivider(Modifier.padding(top = 12.dp))
                             }
                         }
+                        item(key = "notification-load-more") {
+                            SecondaryLoadMoreFooter(
+                                readyState.isLoadingMore,
+                                readyState.loadMoreFailed,
+                                onLoadMore,
+                                "notification-load-more",
+                            )
+                        }
                     }
                     if (readyState.isRefreshing) {
                         SmallRefreshIndicator(Modifier.align(Alignment.TopEnd).padding(8.dp))
@@ -502,6 +572,11 @@ private fun TrendBody(
     onRetry: () -> Unit,
     scrollPosition: ColumnScrollPosition?,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
+    trendSearchHistory: List<String>,
+    onTrendSelected: (String) -> Unit,
+    onTrendQueryCommitted: (String) -> Unit,
+    onClearTrendHistory: () -> Unit,
+    onLoadMore: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     when (state?.status ?: TimelineLoadStatus.IDLE) {
@@ -523,6 +598,12 @@ private fun TrendBody(
                 filtered.map { it.name },
             )
             ObserveListScrollPosition(listState, onScrollPositionChanged)
+            ObserveSecondaryPaging(
+                listState,
+                readyState.page?.nextCursor,
+                readyState.isLoadingMore,
+                onLoadMore,
+            )
             Box(Modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize()) {
                     OutlinedTextField(
@@ -531,13 +612,40 @@ private fun TrendBody(
                         modifier = Modifier.fillMaxWidth().padding(8.dp).testTag("trend-filter"),
                         label = { Text(stringResource(R.string.filter_trends)) },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = {
+                            query.trim().takeIf(String::isNotEmpty)?.let(onTrendQueryCommitted)
+                        }),
                     )
+                    if (trendSearchHistory.isNotEmpty()) {
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            trendSearchHistory.forEach { history ->
+                                TextButton(
+                                    onClick = { query = history },
+                                    modifier = Modifier.testTag("trend-history-${history.hashCode()}"),
+                                ) { Text(history) }
+                            }
+                            TextButton(
+                                onClick = onClearTrendHistory,
+                                modifier = Modifier.testTag("clear-trend-history"),
+                            ) { Text(stringResource(R.string.clear_history)) }
+                        }
+                    }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().testTag("trend-list"),
                         state = listState,
                     ) {
                         items(filtered, key = { it.name }) { trend ->
-                            Row(Modifier.fillMaxWidth().padding(14.dp)) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onTrendSelected(trend.name) }
+                                    .padding(14.dp)
+                                    .testTag("trend-item-${trend.name.hashCode()}"),
+                            ) {
                                 trend.rank?.let {
                                     Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Spacer(Modifier.width(12.dp))
@@ -550,6 +658,14 @@ private fun TrendBody(
                                 }
                             }
                             HorizontalDivider()
+                        }
+                        item(key = "trend-load-more") {
+                            SecondaryLoadMoreFooter(
+                                readyState.isLoadingMore,
+                                readyState.loadMoreFailed,
+                                onLoadMore,
+                                "trend-load-more",
+                            )
                         }
                     }
                 }
@@ -581,6 +697,10 @@ private fun TimelineBody(
     onDownloadClick: (String) -> Unit,
     pendingPostActions: Map<String, Set<PostActionType>>,
     failedPostActions: Map<String, Set<PostActionType>>,
+    mediaPreview: Boolean,
+    videoAutoplay: Boolean,
+    videoLoop: Boolean,
+    videoVolume: Int,
 ) {
     val timelineScope = rememberCoroutineScope()
     when (state?.status ?: TimelineLoadStatus.IDLE) {
@@ -698,6 +818,10 @@ private fun TimelineBody(
                                 onDownloadClick = onDownloadClick,
                                 pendingActions = pendingPostActions[post.id].orEmpty(),
                                 failedActions = failedPostActions[post.id].orEmpty(),
+                                mediaPreview = mediaPreview,
+                                videoAutoplay = videoAutoplay,
+                                videoLoop = videoLoop,
+                                videoVolume = videoVolume,
                             )
                         }
                         if (readyState.isLoadingMore) {
@@ -754,6 +878,45 @@ private fun ObserveListScrollPosition(
             .collect { (index, offset, key) ->
                 latestOnScrollPositionChanged(index, offset, key)
             }
+    }
+}
+
+@Composable
+private fun ObserveSecondaryPaging(
+    listState: LazyListState,
+    nextCursor: String?,
+    isLoadingMore: Boolean,
+    onLoadMore: () -> Unit,
+) {
+    LaunchedEffect(listState, nextCursor, isLoadingMore) {
+        snapshotFlow {
+            val layout = listState.layoutInfo
+            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
+            layout.totalItemsCount > 0 && lastVisible >= layout.totalItemsCount - 3
+        }
+            .distinctUntilChanged()
+            .filter { it && nextCursor != null && !isLoadingMore }
+            .collect { onLoadMore() }
+    }
+}
+
+@Composable
+private fun SecondaryLoadMoreFooter(
+    isLoadingMore: Boolean,
+    loadMoreFailed: Boolean,
+    onLoadMore: () -> Unit,
+    tag: String,
+) {
+    when {
+        isLoadingMore -> Box(
+            Modifier.fillMaxWidth().padding(12.dp).testTag(tag),
+            contentAlignment = Alignment.Center,
+        ) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
+        loadMoreFailed -> TextButton(
+            onClick = onLoadMore,
+            modifier = Modifier.fillMaxWidth().testTag(tag),
+        ) { Text(stringResource(R.string.retry)) }
+        else -> Spacer(Modifier.height(1.dp))
     }
 }
 

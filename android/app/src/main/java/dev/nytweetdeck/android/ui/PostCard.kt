@@ -35,6 +35,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,7 +82,12 @@ internal fun PostCard(
     onDownloadClick: (String) -> Unit = {},
     pendingActions: Set<PostActionType> = emptySet(),
     failedActions: Set<PostActionType> = emptySet(),
+    mediaPreview: Boolean = true,
+    videoAutoplay: Boolean = false,
+    videoLoop: Boolean = true,
+    videoVolume: Int = 100,
 ) {
+    var selectedMedia by remember { mutableStateOf<Media?>(null) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -98,9 +107,25 @@ internal fun PostCard(
             text = displayPostText(post.text, post.preTranslated?.text),
             tag = "post-body-" + post.id,
         )
-        if (post.media.isNotEmpty()) {
+        if (post.media.isNotEmpty() && mediaPreview) {
             Spacer(Modifier.height(10.dp))
-            MediaPreview(post.media, post.id, compact = false)
+            MediaPreview(
+                media = post.media,
+                postId = post.id,
+                compact = false,
+                onMediaClick = { selectedMedia = it },
+            )
+        } else if (post.media.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            post.media.forEach { media ->
+                Text(
+                    text = media.url ?: media.previewUrl ?: stringResource(R.string.post_media),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         post.article?.let { article ->
             Spacer(Modifier.height(10.dp))
@@ -112,6 +137,7 @@ internal fun PostCard(
                 parentPostId = post.id,
                 quote = quote,
                 onQuoteClick = onQuoteClick,
+                onMediaClick = { selectedMedia = it },
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -129,6 +155,15 @@ internal fun PostCard(
         )
         Spacer(Modifier.height(8.dp))
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+    }
+    selectedMedia?.let { media ->
+        MediaViewerDialog(
+            media = media,
+            videoAutoplay = videoAutoplay,
+            videoLoop = videoLoop,
+            videoVolume = videoVolume,
+            onDismiss = { selectedMedia = null },
+        )
     }
 }
 
@@ -261,6 +296,7 @@ private fun QuoteCard(
     parentPostId: String,
     quote: EmbeddedPost,
     onQuoteClick: (String) -> Unit,
+    onMediaClick: (Media) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -288,7 +324,12 @@ private fun QuoteCard(
         )
         if (quote.media.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
-            MediaPreview(quote.media, quote.id, compact = true)
+            MediaPreview(
+                media = quote.media,
+                postId = quote.id,
+                compact = true,
+                onMediaClick = onMediaClick,
+            )
         }
         quote.article?.let { article ->
             Spacer(Modifier.height(8.dp))
@@ -298,7 +339,12 @@ private fun QuoteCard(
 }
 
 @Composable
-private fun MediaPreview(media: List<Media>, postId: String, compact: Boolean) {
+private fun MediaPreview(
+    media: List<Media>,
+    postId: String,
+    compact: Boolean,
+    onMediaClick: (Media) -> Unit,
+) {
     val visibleMedia = media.take(4)
     if (visibleMedia.size == 1) {
         MediaTile(
@@ -306,6 +352,7 @@ private fun MediaPreview(media: List<Media>, postId: String, compact: Boolean) {
             postId = postId,
             height = if (compact) 120.dp else 220.dp,
             modifier = Modifier.fillMaxWidth(),
+            onMediaClick = onMediaClick,
         )
         return
     }
@@ -324,6 +371,7 @@ private fun MediaPreview(media: List<Media>, postId: String, compact: Boolean) {
                         postId = postId,
                         height = rowHeight,
                         modifier = Modifier.weight(1f),
+                        onMediaClick = onMediaClick,
                     )
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -333,12 +381,19 @@ private fun MediaPreview(media: List<Media>, postId: String, compact: Boolean) {
 }
 
 @Composable
-private fun MediaTile(media: Media, postId: String, height: Dp, modifier: Modifier) {
+private fun MediaTile(
+    media: Media,
+    postId: String,
+    height: Dp,
+    modifier: Modifier,
+    onMediaClick: (Media) -> Unit,
+) {
     Box(
         modifier = modifier
             .height(height)
             .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable { onMediaClick(media) }
             .testTag("post-media-" + postId + "-" + media.id),
         contentAlignment = Alignment.Center,
     ) {
