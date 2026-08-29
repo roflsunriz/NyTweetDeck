@@ -10,6 +10,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import okhttp3.Request
 import okio.Buffer
 import org.junit.Assert.assertEquals
@@ -146,6 +147,36 @@ class LivePipelineClientTest {
             assertTrue(body.contains("/tweet_engagement/1"))
         } finally {
             connection.close()
+        }
+    }
+
+    @Test
+    fun interruptedConnectIsReportedWithoutCrashingTheProcess() {
+        val uncaught = AtomicReference<Throwable?>()
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable -> uncaught.set(throwable) }
+        val event = CountDownLatch(1)
+        val client = LivePipelineClient(
+            connector = object : LivePipelineConnector {
+                override fun connect(request: Request): LivePipelineStream {
+                    throw InterruptedException("fixture interrupt")
+                }
+
+                override fun updateSubscriptions(request: Request) = Unit
+            },
+            profileProvider = ::profile,
+            userAgent = "NyTD-Test-UA",
+        )
+
+        val connection = client.open(account("account-1", "1"), setOf("/tweet_engagement/1")) {
+            if (it is LivePipelineEvent.Error) event.countDown()
+        }
+        try {
+            assertTrue(event.await(2, TimeUnit.SECONDS))
+            assertEquals(null, uncaught.get())
+        } finally {
+            connection.close()
+            Thread.setDefaultUncaughtExceptionHandler(previousHandler)
         }
     }
 

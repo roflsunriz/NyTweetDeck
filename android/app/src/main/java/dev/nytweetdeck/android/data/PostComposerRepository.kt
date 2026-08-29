@@ -27,6 +27,16 @@ class PostComposerRepository(
             ?: error("投稿応答に作成済みポストがありません。")
     }
 
+    fun delete(account: AccountSecrets, postId: String, language: String = "ja") {
+        require(POST_ID.matches(postId)) { "削除対象ポストIDの形式が不正です。" }
+        graphQlExecutor.execute(
+            XSessionCredentials(account.webBearerToken, account.authToken, account.csrfToken),
+            "deletePost",
+            mapOf("tweet_id" to postId),
+            language,
+        )
+    }
+
     internal fun variables(
         text: String,
         replyToPostId: String? = null,

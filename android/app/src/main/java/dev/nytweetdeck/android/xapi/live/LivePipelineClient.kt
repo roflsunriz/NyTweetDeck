@@ -123,6 +123,18 @@ class LivePipelineClient(
                         break
                     }
                 }
+            } catch (exception: InterruptedException) {
+                Thread.currentThread().interrupt()
+                if (!state.closed.get()) {
+                    emitError(
+                        account,
+                        eventConsumer,
+                        LivePipelineErrorKind.CONNECTION,
+                        RuntimeException("Live Pipeline接続スレッドが中断されました。", exception),
+                        reconnectDelay,
+                    )
+                }
+                return
             } catch (exception: RuntimeException) {
                 if (!state.closed.get()) {
                     emitError(account, eventConsumer, LivePipelineErrorKind.CONNECTION, exception, reconnectDelay)
@@ -135,6 +147,9 @@ class LivePipelineClient(
             if (!state.closed.get() && !state.terminal.get()) {
                 try {
                     delay.pause(reconnectDelay)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    return
                 } catch (exception: RuntimeException) {
                     if (!state.closed.get()) {
                         emitError(account, eventConsumer, LivePipelineErrorKind.CONNECTION, exception, null)
@@ -243,6 +258,9 @@ class LivePipelineClient(
                                 createSubscriptionRequest(account, config.sessionId, topics),
                             )
                         }
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        break
                     } catch (exception: RuntimeException) {
                         if (!state.closed.get()) {
                             emitError(account, eventConsumer, LivePipelineErrorKind.SUBSCRIPTION, exception, null)

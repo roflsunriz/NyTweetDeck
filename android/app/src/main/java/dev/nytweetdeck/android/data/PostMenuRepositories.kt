@@ -6,8 +6,11 @@ import dev.nytweetdeck.android.xapi.XSessionCredentials
 
 enum class UserAction {
     FOLLOW,
+    UNFOLLOW,
     MUTE,
+    UNMUTE,
     BLOCK,
+    UNBLOCK,
 }
 
 enum class ListMembershipAction {
@@ -31,8 +34,11 @@ class UserActionRepository(
         require(ID.matches(userId)) { "ユーザーIDの形式が不正です。" }
         val endpoint = when (action) {
             UserAction.FOLLOW -> "followUser"
+            UserAction.UNFOLLOW -> "unfollowUser"
             UserAction.MUTE -> "muteUser"
+            UserAction.UNMUTE -> "unmuteUser"
             UserAction.BLOCK -> "blockUser"
+            UserAction.UNBLOCK -> "unblockUser"
         }
         return RestActionRequest(endpoint, mapOf("user_id" to userId))
     }

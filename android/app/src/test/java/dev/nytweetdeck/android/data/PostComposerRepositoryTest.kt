@@ -36,4 +36,27 @@ class PostComposerRepositoryTest {
             repository.variables("text", replyToPostId = "1", quotePostId = "2")
         }
     }
+
+    @Test
+    fun deletesOnlyValidatedCreatedPostIds() {
+        var purpose: String? = null
+        var variables: Map<String, Any?>? = null
+        val repository = PostComposerRepository(GraphQlExecutor { _, value, input, _ ->
+            purpose = value
+            variables = input
+            "{}"
+        })
+
+        repository.delete(account(), "123")
+
+        assertEquals("deletePost", purpose)
+        assertEquals(mapOf("tweet_id" to "123"), variables)
+        assertThrows(IllegalArgumentException::class.java) {
+            repository.delete(account(), "../123")
+        }
+    }
+
+    private fun account() = AccountSecrets(
+        "7", "7", "fixture", "Fixture", "bearer", "auth", "csrf", "profile",
+    )
 }

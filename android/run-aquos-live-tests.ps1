@@ -4,6 +4,7 @@ param(
     [string]$MainApkPath = "$PSScriptRoot\app\build\outputs\apk\debug\app-debug.apk",
     [string]$TestApkPath = "$PSScriptRoot\app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk",
     [string]$ReleaseApkPath = "$PSScriptRoot\app\build\outputs\apk\release\app-release.apk",
+    [switch]$MutationAuthorized,
     [string[]]$TestClasses = @(
         "dev.nytweetdeck.android.LiveTimelineSmokeTest",
         "dev.nytweetdeck.android.LiveReadOnlyParitySmokeTest",
@@ -42,15 +43,24 @@ try {
     Invoke-Adb install -r $mainApk.Path
     Invoke-Adb shell run-as dev.nytweetdeck.android ls no_backup/accounts/accounts.json
     Invoke-Adb install -r -t $testApk.Path
-    $instrumentOutput = @(& $AdbPath -s $Serial shell am instrument -w -r -e class ($TestClasses -join ",") dev.nytweetdeck.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
-    $instrumentExitCode = $LASTEXITCODE
-    $instrumentOutput | Write-Output
-    if (
-        $instrumentExitCode -ne 0 -or
-        -not ($instrumentOutput -match "^OK \(") -or
-        $instrumentOutput -match "INSTRUMENTATION_STATUS_CODE: -4"
-    ) {
-        throw "instrumentationテストが成功しませんでした。"
+    foreach ($testClass in $TestClasses) {
+        Invoke-Adb shell input keyevent WAKEUP
+        Invoke-Adb shell wm dismiss-keyguard
+        $authorizationArguments = if ($MutationAuthorized) {
+            @("-e", "mutationAuthorized", "true")
+        } else {
+            @()
+        }
+        $instrumentOutput = @(& $AdbPath -s $Serial shell am instrument -w -r -e class $testClass @authorizationArguments dev.nytweetdeck.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
+        $instrumentExitCode = $LASTEXITCODE
+        $instrumentOutput | Write-Output
+        if (
+            $instrumentExitCode -ne 0 -or
+            -not ($instrumentOutput -match "^OK \(") -or
+            $instrumentOutput -match "INSTRUMENTATION_STATUS_CODE: -4"
+        ) {
+            throw "instrumentationテストが成功しませんでした: $testClass"
+        }
     }
 } catch {
     $testExitCode = 1

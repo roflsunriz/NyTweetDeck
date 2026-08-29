@@ -48,3 +48,11 @@ GitHub Secretsから一時keystoreへ復元して署名・検証・SHA-256生成
 通知/トレンド/DM、pull更新、コールド時キャッシュを読み取り検証した後、
 アプリデータを消さずrelease APKへ戻す。
 失敗時も自動アンインストールは行わない。
+
+X上の状態を一時変更する可逆mutationテストは既定セットに含めない。所有者が
+明示的に許可した場合だけ、次のように単独指定する。いいね・リポスト・履歴保存は
+元状態へ戻し、検証用ポスト・返信・引用は取得したIDを使って削除する。
+
+```powershell
+.\run-aquos-live-tests.ps1 -AdbPath C:\path\to\adb.exe -MutationAuthorized -TestClasses dev.nytweetdeck.android.LiveReversibleMutationSmokeTest
+```

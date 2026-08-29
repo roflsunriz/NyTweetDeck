@@ -19,8 +19,11 @@ class PostMenuRepositoriesTest {
     fun mapsUserActionsToOfficialRestEndpoints() {
         val repository = UserActionRepository(restClient)
         assertEquals("followUser", repository.request("123", UserAction.FOLLOW).endpoint)
+        assertEquals("unfollowUser", repository.request("123", UserAction.UNFOLLOW).endpoint)
         assertEquals("muteUser", repository.request("123", UserAction.MUTE).endpoint)
+        assertEquals("unmuteUser", repository.request("123", UserAction.UNMUTE).endpoint)
         assertEquals("blockUser", repository.request("123", UserAction.BLOCK).endpoint)
+        assertEquals("unblockUser", repository.request("123", UserAction.UNBLOCK).endpoint)
         assertEquals(mapOf("user_id" to "123"), repository.request("123", UserAction.FOLLOW).parameters)
     }
 

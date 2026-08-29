@@ -25,8 +25,11 @@
     "livePipelineEvents": "/live_pipeline/events",
     "livePipelineUpdateSubscriptions": "/1.1/live_pipeline/update_subscriptions",
     "followUser": "/1.1/friendships/create.json",
+    "unfollowUser": "/1.1/friendships/destroy.json",
     "muteUser": "/1.1/mutes/users/create.json",
+    "unmuteUser": "/1.1/mutes/users/destroy.json",
     "blockUser": "/1.1/blocks/create.json",
+    "unblockUser": "/1.1/blocks/destroy.json",
     "translatePost": "/1.1/strato/column/None/tweetId={postId},destinationLanguage=None,translationSource=Some({translationSource}),feature=None,timeout=None,onlyCached=None/translation/service/translateTweet"
   },
   "featureKeys": [
