@@ -32,3 +32,18 @@ GitHub Secretsから一時keystoreへ復元して署名・検証・SHA-256生成
 ```powershell
 .\install-release.ps1 -AdbPath C:\path\to\adb.exe
 ```
+
+## 認証状態を保持するAQUOS実Xテスト
+
+通常の `connectedDebugAndroidTest` は本体を再導入・削除するため、ログイン後の実X
+検証には使用しない。debug本体とandroidTest APKを事前ビルドし、release APKと
+同じ署名であることを確認してから次を実行する。
+
+```powershell
+.\run-aquos-live-tests.ps1 -AdbPath C:\path\to\adb.exe
+```
+
+スクリプトは本体debug APKへ `-t` を付けずに上書きし、test APKだけへ `-t` を
+使用する。タイムライン、対象カラム、通知/トレンド/DM、pull更新、コールド時
+キャッシュを読み取り検証した後、アプリデータを消さずrelease APKへ戻す。
+失敗時も自動アンインストールは行わない。
