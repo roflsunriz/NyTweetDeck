@@ -517,6 +517,7 @@ internal fun SettingsDialog(
     onImport: () -> Unit,
     transferStatus: TransferStatus,
     onDismiss: () -> Unit,
+    onRefreshXApiMetadata: () -> Unit = {},
 ) {
     val settings = state.displaySettings()
     val currentLanguageTag = selectedLanguageTag?.substringBefore('-')
@@ -684,6 +685,27 @@ internal fun SettingsDialog(
                     },
                     modifier = Modifier.testTag("live-pipeline-status"),
                 )
+                Text(
+                    text = when {
+                        state.xApiMetadataRefreshing -> stringResource(R.string.x_api_metadata_refreshing)
+                        state.xApiMetadataError -> stringResource(R.string.x_api_metadata_error)
+                        state.xApiMetadataLastSuccessAt != null -> stringResource(R.string.x_api_metadata_current)
+                        else -> stringResource(R.string.x_api_metadata_bundled)
+                    },
+                    color = if (state.xApiMetadataError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.testTag("x-api-metadata-status"),
+                )
+                Button(
+                    onClick = onRefreshXApiMetadata,
+                    enabled = !state.xApiMetadataRefreshing,
+                    modifier = Modifier.fillMaxWidth().testTag("refresh-x-api-metadata"),
+                ) {
+                    Text(stringResource(R.string.x_api_metadata_refresh))
+                }
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Button(
                     onClick = onExport,

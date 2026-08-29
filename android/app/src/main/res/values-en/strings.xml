@@ -216,4 +216,9 @@
     <string name="language_ru">Русский</string>
     <string name="language_ur">اردو</string>
     <string name="settings_save_conflict">Your settings conflicted with another update. Restart the app to load the latest settings.</string>
+    <string name="x_api_metadata_refresh">Refresh X API metadata</string>
+    <string name="x_api_metadata_refreshing">Refreshing X API metadata</string>
+    <string name="x_api_metadata_error">X API metadata refresh failed. The last valid metadata remains active.</string>
+    <string name="x_api_metadata_current">X API metadata: latest verified version</string>
+    <string name="x_api_metadata_bundled">X API metadata: bundled verified version</string>
 </resources>

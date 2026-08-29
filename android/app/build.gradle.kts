@@ -59,6 +59,7 @@ android {
         // Compose BOM 2026.06 and these compatible stable versions remain on API 36.
         disable += setOf("AndroidGradlePluginVersion", "GradleDependency")
     }
+
 }
 
 dependencies {
@@ -95,4 +96,11 @@ dependencies {
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    systemProperty(
+        "nytd.liveMetadataTest",
+        System.getProperty("nytd.liveMetadataTest", "false"),
+    )
 }

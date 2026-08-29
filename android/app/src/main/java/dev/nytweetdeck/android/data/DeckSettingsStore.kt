@@ -316,6 +316,10 @@ class DeckSettingsStore(filePath: Path) {
             liveConnected = false,
             liveError = null,
             liveLastEventAt = null,
+            xApiMetadataRefreshing = false,
+            xApiMetadataError = false,
+            xApiMetadataLastSuccessAt = null,
+            xApiMetadataSourceVersion = null,
             targetPicker = dev.nytweetdeck.android.model.TargetPickerState(),
         )
     }

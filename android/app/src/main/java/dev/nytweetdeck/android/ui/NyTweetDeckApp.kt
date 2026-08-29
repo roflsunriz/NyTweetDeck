@@ -104,6 +104,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             UserActionRepository(environment.restClient()),
             ListMembershipRepository(graphQlClient),
             environment.livePipeline(),
+            environment,
         )
     }
     val viewModel = providedViewModel ?: viewModel(factory = factory)
@@ -408,6 +409,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     importLauncher.launch(arrayOf("application/json", "text/json", "text/plain"))
                 },
                 transferStatus = transferStatus,
+                onRefreshXApiMetadata = viewModel::refreshXApiMetadata,
                 onDismiss = { openDialog = null },
             )
             OpenDialog.MENU_EDITOR -> MenuEditorDialog(

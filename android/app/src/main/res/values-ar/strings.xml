@@ -218,4 +218,9 @@
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">التحديثات المباشرة: متصلة</string><string name="live_pipeline_stopped">التحديثات المباشرة: متوقفة</string><string name="live_pipeline_error">إعادة اتصال التحديثات المباشرة</string>
     <string name="settings_save_conflict">تعارض حفظ الإعدادات مع تحديث آخر. أعد تشغيل التطبيق لتحميل أحدث الإعدادات.</string>
+    <string name="x_api_metadata_refresh">تحديث بيانات X API الوصفية</string>
+    <string name="x_api_metadata_refreshing">جارٍ تحديث بيانات X API الوصفية</string>
+    <string name="x_api_metadata_error">فشل تحديث بيانات X API الوصفية. سيستمر استخدام آخر إصدار صالح.</string>
+    <string name="x_api_metadata_current">بيانات X API الوصفية: أحدث إصدار تم التحقق منه</string>
+    <string name="x_api_metadata_bundled">بيانات X API الوصفية: الإصدار المرفق المتحقق منه</string>
 </resources>

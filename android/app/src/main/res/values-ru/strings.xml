@@ -216,4 +216,9 @@
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">Обновления: подключено</string><string name="live_pipeline_stopped">Обновления: остановлено</string><string name="live_pipeline_error">Переподключение обновлений</string>
     <string name="settings_save_conflict">Сохранение настроек конфликтует с другим обновлением. Перезапустите приложение, чтобы загрузить последние настройки.</string>
+    <string name="x_api_metadata_refresh">Обновить метаданные X API</string>
+    <string name="x_api_metadata_refreshing">Обновление метаданных X API</string>
+    <string name="x_api_metadata_error">Не удалось обновить метаданные X API. Используется последняя допустимая версия.</string>
+    <string name="x_api_metadata_current">Метаданные X API: последняя проверенная версия</string>
+    <string name="x_api_metadata_bundled">Метаданные X API: встроенная проверенная версия</string>
 </resources>

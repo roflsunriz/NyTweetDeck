@@ -214,4 +214,9 @@
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">लाइव अपडेट: कनेक्टेड</string><string name="live_pipeline_stopped">लाइव अपडेट: रुका हुआ</string><string name="live_pipeline_error">लाइव अपडेट फिर जुड़ रहे हैं</string>
     <string name="settings_save_conflict">सेटिंग सहेजना किसी अन्य अपडेट से टकरा गया। नवीनतम सेटिंग लोड करने के लिए ऐप फिर शुरू करें।</string>
+    <string name="x_api_metadata_refresh">X API मेटाडेटा रीफ़्रेश करें</string>
+    <string name="x_api_metadata_refreshing">X API मेटाडेटा रीफ़्रेश हो रहा है</string>
+    <string name="x_api_metadata_error">X API मेटाडेटा रीफ़्रेश विफल रहा। पिछला मान्य संस्करण उपयोग में रहेगा।</string>
+    <string name="x_api_metadata_current">X API मेटाडेटा: नवीनतम सत्यापित संस्करण</string>
+    <string name="x_api_metadata_bundled">X API मेटाडेटा: शामिल सत्यापित संस्करण</string>
 </resources>

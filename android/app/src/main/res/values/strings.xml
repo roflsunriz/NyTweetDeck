@@ -215,4 +215,9 @@
     <string name="language_ru">Русский</string>
     <string name="language_ur">اردو</string>
     <string name="settings_save_conflict">設定の保存が別の更新と競合しました。アプリを再起動して最新設定を読み込んでください。</string>
+    <string name="x_api_metadata_refresh">X API定義を更新</string>
+    <string name="x_api_metadata_refreshing">X API定義を更新しています</string>
+    <string name="x_api_metadata_error">X API定義の更新に失敗しました。直前の有効な定義を使用します。</string>
+    <string name="x_api_metadata_current">X API定義：最新の検証済み定義</string>
+    <string name="x_api_metadata_bundled">X API定義：同梱の検証済み定義</string>
 </resources>

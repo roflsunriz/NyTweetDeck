@@ -20,6 +20,7 @@ import dev.nytweetdeck.android.data.UserActionRepository
 import dev.nytweetdeck.android.data.ListMembershipRepository
 import dev.nytweetdeck.android.data.UserAction
 import dev.nytweetdeck.android.xapi.live.LivePipelineSubscriptionService
+import dev.nytweetdeck.android.xapi.XApiMetadataRefresher
 import dev.nytweetdeck.android.data.LayoutTransfer
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.AccountUiModel
@@ -77,6 +78,7 @@ class DeckViewModel(
     private val userActionRepository: UserActionRepository? = null,
     private val listMembershipRepository: ListMembershipRepository? = null,
     private val livePipelineService: LivePipelineSubscriptionService? = null,
+    metadataRefresher: XApiMetadataRefresher? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val adaptiveRefreshIntervalMillis: Long? = null,
     private val visibilityRefreshDelayMillis: Long = DEFAULT_VISIBILITY_REFRESH_DELAY_MILLIS,
@@ -142,6 +144,9 @@ class DeckViewModel(
         mutableState,
         ::refreshColumn,
     )
+    private val metadataRefreshController = MetadataRefreshController(
+        metadataRefresher, viewModelScope, ioDispatcher, mutableState,
+    )
     private val columnPagingController = ColumnPagingController(
         timelineRepository,
         notificationRepository,
@@ -160,6 +165,7 @@ class DeckViewModel(
         accountStore?.let { runCatching { it.requireAccount(accountId) }.getOrNull() }
     init {
         require(visibilityRefreshDelayMillis >= 0L) { "表示後更新の待機時間が不正です。" }
+        metadataRefreshController.refresh(force = true)
         if (adaptiveRefreshIntervalMillis != null) {
             require(adaptiveRefreshIntervalMillis >= 15_000L) { "適応更新間隔が短すぎます。" }
             viewModelScope.launch(ioDispatcher) {
@@ -221,7 +227,13 @@ class DeckViewModel(
                             timelines = loaded.timelines,
                         )
                     }
-                    mutableState.value = loaded
+                    val runtime = mutableState.value
+                    mutableState.value = loaded.copy(
+                        xApiMetadataRefreshing = runtime.xApiMetadataRefreshing,
+                        xApiMetadataError = runtime.xApiMetadataError,
+                        xApiMetadataLastSuccessAt = runtime.xApiMetadataLastSuccessAt,
+                        xApiMetadataSourceVersion = runtime.xApiMetadataSourceVersion,
+                    )
                 }
             }
         }
@@ -883,12 +895,16 @@ class DeckViewModel(
         visibilityRefreshJobs.values.forEach(Job::cancel)
         visibilityRefreshJobs.clear()
         liveDeckController.close()
+        metadataRefreshController.close()
         super.onCleared()
     }
     fun setForeground(value: Boolean) {
         foreground = value
         liveDeckController.setForeground(value)
+        if (value) metadataRefreshController.refresh()
     }
+
+    fun refreshXApiMetadata() = metadataRefreshController.refresh(force = true)
 
     private fun rememberSelectedAccountColumns() {
         val current = mutableState.value

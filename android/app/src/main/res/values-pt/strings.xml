@@ -215,4 +215,9 @@
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">Atualizações ao vivo: conectadas</string><string name="live_pipeline_stopped">Atualizações ao vivo: paradas</string><string name="live_pipeline_error">Reconectando atualizações ao vivo</string>
     <string name="settings_save_conflict">O salvamento das configurações entrou em conflito com outra atualização. Reinicie o app para carregar as configurações mais recentes.</string>
+    <string name="x_api_metadata_refresh">Atualizar metadados da X API</string>
+    <string name="x_api_metadata_refreshing">Atualizando metadados da X API</string>
+    <string name="x_api_metadata_error">Falha ao atualizar os metadados da X API. A última versão válida continuará em uso.</string>
+    <string name="x_api_metadata_current">Metadados da X API: versão verificada mais recente</string>
+    <string name="x_api_metadata_bundled">Metadados da X API: versão verificada incluída</string>
 </resources>

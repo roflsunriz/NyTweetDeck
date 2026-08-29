@@ -19,6 +19,7 @@ import dev.nytweetdeck.android.data.TimelineRepository
 import dev.nytweetdeck.android.data.TrendRepository
 import dev.nytweetdeck.android.data.UserDirectoryRepository
 import dev.nytweetdeck.android.xapi.XSessionVerifier
+import dev.nytweetdeck.android.xapi.XApiMetadataRefresher
 import java.io.File
 import java.nio.file.Path
 
@@ -40,6 +41,7 @@ class DeckViewModelFactory(
     private val userActionRepository: UserActionRepository,
     private val listMembershipRepository: ListMembershipRepository,
     private val livePipelineService: LivePipelineSubscriptionService,
+    private val metadataRefresher: XApiMetadataRefresher,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         require(modelClass.isAssignableFrom(DeckViewModel::class.java)) {
@@ -64,6 +66,7 @@ class DeckViewModelFactory(
             userActionRepository = userActionRepository,
             listMembershipRepository = listMembershipRepository,
             livePipelineService = livePipelineService,
+            metadataRefresher = metadataRefresher,
             adaptiveRefreshIntervalMillis = 60_000L,
         ) as T
     }

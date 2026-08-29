@@ -213,4 +213,9 @@
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">实时更新：已连接</string><string name="live_pipeline_stopped">实时更新：已停止</string><string name="live_pipeline_error">正在重新连接实时更新</string>
     <string name="settings_save_conflict">设置保存与其他更新发生冲突。请重启应用以加载最新设置。</string>
+    <string name="x_api_metadata_refresh">更新 X API 元数据</string>
+    <string name="x_api_metadata_refreshing">正在更新 X API 元数据</string>
+    <string name="x_api_metadata_error">X API 元数据更新失败。将继续使用上一个有效版本。</string>
+    <string name="x_api_metadata_current">X API 元数据：最新已验证版本</string>
+    <string name="x_api_metadata_bundled">X API 元数据：内置已验证版本</string>
 </resources>

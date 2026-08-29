@@ -18,7 +18,7 @@ fun interface XSessionVerifier {
     fun verify(session: CapturedWebSession): VerifiedWebSession
 }
 
-class XApiEnvironment(context: Context) : XSessionVerifier {
+class XApiEnvironment(context: Context) : XSessionVerifier, XApiMetadataRefresher {
     private val applicationContext = context.applicationContext
     private val userAgent: String by lazy {
         WebSettings.getDefaultUserAgent(applicationContext).takeIf(String::isNotBlank)
@@ -32,34 +32,22 @@ class XApiEnvironment(context: Context) : XSessionVerifier {
             .bufferedReader(Charsets.UTF_8).use { it.readText() }
         XApiProfile.parse(profileJson, defaultsJson)
     }
-    @Volatile
-    private var metadataResolved: Boolean? = null
-    private val activeProfile: XApiProfile by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        runCatching {
-            XWebMetadataResolver(httpClient, userAgent)
-                .resolve(bundledProfile)
-                .applyTo(bundledProfile)
-        }.fold(
-            onSuccess = {
-                metadataResolved = true
-                it
-            },
-            onFailure = {
-                metadataResolved = false
-                bundledProfile
-            },
-        )
+    @Volatile private var metadataResolved: Boolean? = null
+    private val metadataStore by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        XApiMetadataStore(bundledProfile) {
+            XWebMetadataResolver(httpClient, userAgent).resolve(bundledProfile)
+        }
     }
     private val bearerResolver by lazy { XWebBearerResolver(httpClient, userAgent) }
     private val transactionIdService by lazy { XClientTransactionIdService(httpClient, userAgent) }
     private val graphQlClient by lazy {
-        AuthenticatedGraphQlClient(httpClient, { activeProfile }, userAgent, transactionIdService)
+        AuthenticatedGraphQlClient(httpClient, metadataStore::currentProfile, userAgent, transactionIdService)
     }
     private val restClient by lazy {
-        AuthenticatedRestClient(httpClient, { activeProfile }, userAgent, transactionIdService)
+        AuthenticatedRestClient(httpClient, metadataStore::currentProfile, userAgent, transactionIdService)
     }
     private val livePipelineClient by lazy {
-        LivePipelineClient(httpClient, { activeProfile }, userAgent)
+        LivePipelineClient(httpClient, metadataStore::currentProfile, userAgent)
     }
     private val livePipelineSubscriptions by lazy {
         LivePipelineSubscriptionService(livePipelineClient)
@@ -85,6 +73,9 @@ class XApiEnvironment(context: Context) : XSessionVerifier {
     fun restClient(): AuthenticatedRestClient = restClient
 
     fun livePipeline(): LivePipelineSubscriptionService = livePipelineSubscriptions
+
+    override fun refreshMetadata(): XApiMetadataRefreshResult =
+        metadataStore.refreshMetadata().also { metadataResolved = it.succeeded }
 
     fun metadataResolutionSucceeded(): Boolean? = metadataResolved
 }

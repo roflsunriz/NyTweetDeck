@@ -214,4 +214,9 @@
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">لائیو اپ ڈیٹس: منسلک</string><string name="live_pipeline_stopped">لائیو اپ ڈیٹس: بند</string><string name="live_pipeline_error">لائیو اپ ڈیٹس دوبارہ منسلک ہو رہی ہیں</string>
     <string name="settings_save_conflict">ترتیبات محفوظ کرنا کسی دوسری اپ ڈیٹ سے متصادم ہو گیا۔ تازہ ترین ترتیبات لوڈ کرنے کے لیے ایپ دوبارہ شروع کریں۔</string>
+    <string name="x_api_metadata_refresh">X API میٹا ڈیٹا ریفریش کریں</string>
+    <string name="x_api_metadata_refreshing">X API میٹا ڈیٹا ریفریش ہو رہا ہے</string>
+    <string name="x_api_metadata_error">X API میٹا ڈیٹا ریفریش ناکام رہا۔ آخری درست ورژن استعمال ہوتا رہے گا۔</string>
+    <string name="x_api_metadata_current">X API میٹا ڈیٹا: تازہ ترین تصدیق شدہ ورژن</string>
+    <string name="x_api_metadata_bundled">X API میٹا ڈیٹا: شامل تصدیق شدہ ورژن</string>
 </resources>

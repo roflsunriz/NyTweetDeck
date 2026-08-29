@@ -251,6 +251,10 @@ data class DeckUiState(
     val liveConnected: Boolean = false,
     val liveError: String? = null,
     val liveLastEventAt: String? = null,
+    val xApiMetadataRefreshing: Boolean = false,
+    val xApiMetadataError: Boolean = false,
+    val xApiMetadataLastSuccessAt: String? = null,
+    val xApiMetadataSourceVersion: String? = null,
     val targetPicker: TargetPickerState = TargetPickerState(),
     val mainMenuItems: List<MainMenuItemId> = DefaultMainMenuItems,
 )
