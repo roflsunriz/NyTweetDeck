@@ -15,10 +15,14 @@ enum class ListMembershipAction {
     REMOVE,
 }
 
+fun interface UserActionExecutor {
+    fun execute(account: AccountSecrets, userId: String, action: UserAction, language: String)
+}
+
 class UserActionRepository(
     private val restClient: AuthenticatedRestClient,
-) {
-    fun execute(account: AccountSecrets, userId: String, action: UserAction, language: String = "ja") {
+) : UserActionExecutor {
+    override fun execute(account: AccountSecrets, userId: String, action: UserAction, language: String) {
         val request = request(userId, action)
         restClient.postForm(account, request.endpoint, request.parameters, language)
     }
@@ -39,15 +43,25 @@ class UserActionRepository(
     )
 }
 
-class ListMembershipRepository(
-    private val graphQlExecutor: GraphQlExecutor,
-) {
+fun interface ListMembershipExecutor {
     fun execute(
         account: AccountSecrets,
         userId: String,
         listId: String,
         action: ListMembershipAction,
-        language: String = "ja",
+        language: String,
+    )
+}
+
+class ListMembershipRepository(
+    private val graphQlExecutor: GraphQlExecutor,
+) : ListMembershipExecutor {
+    override fun execute(
+        account: AccountSecrets,
+        userId: String,
+        listId: String,
+        action: ListMembershipAction,
+        language: String,
     ) {
         val request = request(userId, listId, action)
         graphQlExecutor.execute(

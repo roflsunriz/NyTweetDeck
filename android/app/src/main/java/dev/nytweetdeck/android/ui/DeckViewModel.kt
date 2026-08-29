@@ -378,6 +378,7 @@ class DeckViewModel(
                             messages = restored.messages,
                         )
                     }
+                    postMenuController.accountChanged()
                     refreshVisibleColumns()
                 }
             } catch (_: Exception) {
@@ -425,6 +426,7 @@ class DeckViewModel(
                                 messages = restored.messages,
                             )
                         }
+                        postMenuController.accountChanged()
                         accountColumnCaches[accountId] = restored
                         refreshVisibleColumns()
                     }
