@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("notifications column", () => {
-  test("renders non-post follow events from the web notification response", async () => {
+  test("opens the users from a non-post follow notification", async () => {
     let requestedUrl = "";
     globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
       requestedUrl = String(input);
@@ -23,6 +23,20 @@ describe("notifications column", () => {
             kind: "follow",
             text: "Alice followed you",
             postId: null,
+            actors: [
+              {
+                id: "42",
+                username: "alice",
+                displayName: "Alice",
+                avatarUrl: "https://pbs.twimg.com/alice.jpg",
+              },
+              {
+                id: "84",
+                username: "bob",
+                displayName: "Bob",
+                avatarUrl: "https://pbs.twimg.com/bob.jpg",
+              },
+            ],
             imageUrls: ["https://pbs.twimg.com/alice.jpg"],
           },
         ],
@@ -30,14 +44,20 @@ describe("notifications column", () => {
         nextCursor: null,
       });
     }) as unknown as typeof fetch;
+    const user = userEvent.setup();
 
     render(<NotificationsColumn accountId="account-1" translation={translate("ja")} />);
 
-    const notification = await screen.findByRole("article");
+    const notification = await screen.findByRole("button", { name: /Alice followed you/ });
     expect(notification.textContent).toContain("Alice followed you");
     expect(notification.classList.contains("deck-feed-item")).toBe(true);
     expect(notification.getAttribute("data-notification-kind")).toBe("follow");
     expect(requestedUrl).toContain("language=ja");
+    await user.click(notification);
+    const dialog = screen.getByRole("dialog", { name: "フォロワー" });
+    expect(within(dialog).getByText("Alice")).toBeDefined();
+    expect(within(dialog).getByText("Bob")).toBeDefined();
+    expect(within(dialog).getByText("@alice")).toBeDefined();
   });
 
   test("shows the target post and complete Community Note together inside NyTweetDeck", async () => {

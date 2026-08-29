@@ -4,6 +4,10 @@ import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import type { Locale } from "../model/layout";
 import { CommunityNoteDetailDialog } from "./community-note-detail-dialog";
+import {
+  FollowNotificationUsersDialog,
+  type NotificationActor,
+} from "./follow-notification-users-dialog";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import {
@@ -21,6 +25,7 @@ interface NotificationItem {
   text: string;
   noteId: string | null;
   postId: string | null;
+  actors?: NotificationActor[];
   imageUrls: string[];
 }
 
@@ -49,6 +54,8 @@ export function NotificationsColumn({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [postFilter, setPostFilter] = useState<PostFilter>(createDefaultPostFilter);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedFollowNotification, setSelectedFollowNotification] =
+    useState<NotificationItem | null>(null);
   const [selectedCommunityNoteId, setSelectedCommunityNoteId] = useState<string | null>(null);
   const loadingRef = useRef(false);
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
@@ -169,7 +176,9 @@ export function NotificationsColumn({
           notification={notification}
           fallbackText={translation.notifications}
           onOpen={(item) => {
-            if (item.kind === "community_note") {
+            if (item.kind === "follow") {
+              setSelectedFollowNotification(item);
+            } else if (item.kind === "community_note") {
               if (item.noteId !== null) {
                 setSelectedCommunityNoteId(item.noteId);
               }
@@ -223,6 +232,20 @@ export function NotificationsColumn({
           onClose={() => setSelectedUserId(null)}
         />
       )}
+      {selectedFollowNotification !== null && accountId !== null && (
+        <FollowNotificationUsersDialog
+          actors={selectedFollowNotification.actors ?? []}
+          fallbackText={selectedFollowNotification.text || translation.followersCount}
+          fallbackImageUrls={selectedFollowNotification.imageUrls}
+          accountId={accountId}
+          translation={translation}
+          onOpenUser={(userId) => {
+            setSelectedFollowNotification(null);
+            setSelectedUserId(userId);
+          }}
+          onClose={() => setSelectedFollowNotification(null)}
+        />
+      )}
       {selectedCommunityNoteId !== null && (
         <CommunityNoteDetailDialog
           noteId={selectedCommunityNoteId}
@@ -266,7 +289,11 @@ function NotificationEntry({
       </span>
     </>
   );
-  if (postId === null && (notification.kind !== "community_note" || notification.noteId === null)) {
+  if (
+    notification.kind !== "follow" &&
+    postId === null &&
+    (notification.kind !== "community_note" || notification.noteId === null)
+  ) {
     return (
       <article
         className="deck-feed-item notification-item notification-item-static"

@@ -2,6 +2,8 @@ package dev.nytweetdeck.notification;
 
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -97,13 +99,111 @@ public class NotificationResponseParser {
             }
         }
         collectImageUrls(node, images);
+        var actors = new LinkedHashMap<String, NotificationPage.Actor>();
+        collectActors(node, actors);
+        var linkedActor = linkedUserActor(node);
+        if (linkedActor != null) {
+            actors.putIfAbsent(actorKey(linkedActor), linkedActor);
+        }
         return new NotificationPage.Notification(
                 text(node, "id"),
                 notificationKind(node),
                 displayText,
                 findNoteId(node),
                 findPostId(node),
+                new ArrayList<>(actors.values()),
                 images);
+    }
+
+    private static void collectActors(
+            JsonNode node, Map<String, NotificationPage.Actor> actors) {
+        if (node == null || node.isNull() || actors.size() >= 20) {
+            return;
+        }
+        if (node.isObject()) {
+            var actor = parseActor(node);
+            if (actor != null) {
+                actors.putIfAbsent(actorKey(actor), actor);
+                return;
+            }
+            for (Map.Entry<String, JsonNode> property : node.properties()) {
+                collectActors(property.getValue(), actors);
+                if (actors.size() >= 20) return;
+            }
+        } else if (node.isArray()) {
+            for (var child : node) {
+                collectActors(child, actors);
+                if (actors.size() >= 20) return;
+            }
+        }
+    }
+
+    private static NotificationPage.Actor parseActor(JsonNode node) {
+        var legacy = object(node, "legacy");
+        var core = object(node, "core");
+        var avatar = object(node, "avatar");
+        var typename = text(node, "__typename");
+        var id = firstNonNull(text(node, "rest_id"), text(legacy, "id_str"));
+        var username = firstNonNull(text(core, "screen_name"), text(legacy, "screen_name"));
+        if (!"User".equals(typename)
+                && (id == null || (core == null && legacy == null && avatar == null))) {
+            return null;
+        }
+        if ((id == null || id.isBlank()) && (username == null || username.isBlank())) {
+            return null;
+        }
+        var displayName = firstNonNull(text(core, "name"), text(legacy, "name"));
+        var avatarUrl = firstNonNull(
+                text(avatar, "image_url"), text(legacy, "profile_image_url_https"));
+        return new NotificationPage.Actor(
+                blankToNull(id),
+                blankToNull(username),
+                blankToNull(displayName),
+                isSafeImageUrl(avatarUrl) ? avatarUrl : null);
+    }
+
+    private static NotificationPage.Actor linkedUserActor(JsonNode node) {
+        var urlNode = firstObject(node, "url", "notification_url", "notificationUrl");
+        var url = firstNonNull(text(urlNode, "expanded_url"), text(urlNode, "expandedUrl"));
+        url = firstNonNull(url, text(urlNode, "url"));
+        if (url == null) return null;
+        try {
+            var uri = URI.create(url);
+            var username = firstNonNull(
+                    queryParameter(uri.getRawQuery(), "screen_name"),
+                    queryParameter(uri.getRawQuery(), "username"));
+            var id = firstNonNull(
+                    queryParameter(uri.getRawQuery(), "user_id"),
+                    queryParameter(uri.getRawQuery(), "id"));
+            if ((username == null || !username.matches("[A-Za-z0-9_]{1,15}"))
+                    && (id == null || !id.matches("[0-9]{1,24}"))) {
+                return null;
+            }
+            return new NotificationPage.Actor(id, username, username, null);
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    private static String queryParameter(String query, String name) {
+        if (query == null) return null;
+        for (var parameter : query.split("&")) {
+            var parts = parameter.split("=", 2);
+            if (parts.length == 2 && name.equals(URLDecoder.decode(parts[0], StandardCharsets.UTF_8))) {
+                return URLDecoder.decode(parts[1], StandardCharsets.UTF_8);
+            }
+        }
+        return null;
+    }
+
+    private static String actorKey(NotificationPage.Actor actor) {
+        return actor.id() != null
+                ? "id:" + actor.id()
+                : "username:" + actor.username().toLowerCase(Locale.ROOT);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private static String notificationKind(JsonNode node) {

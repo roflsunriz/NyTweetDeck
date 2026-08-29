@@ -19,8 +19,34 @@ class NotificationResponseParserTest {
             assertThat(notification.kind()).isEqualTo("follow");
             assertThat(notification.text()).isEqualTo("Alice followed you");
             assertThat(notification.postId()).isNull();
+            assertThat(notification.actors()).singleElement().satisfies(actor -> {
+                assertThat(actor.id()).isNull();
+                assertThat(actor.username()).isEqualTo("alice");
+            });
             assertThat(notification.imageUrls()).containsExactly("https://pbs.twimg.com/alice.jpg");
         });
+    }
+
+    @Test
+    void collectsEveryEmbeddedFollowerForAnAggregatedFollowNotification() {
+        var parser = new NotificationResponseParser(JsonMapper.builder().build());
+
+        var notification = parser.parse("""
+                {"notification":{"id":"follow-many","notification_icon":"person",
+                "message":{"text":"Alice and Bob followed you"},"template":{"actors":[
+                {"user_results":{"result":{"__typename":"User","rest_id":"42",
+                "core":{"screen_name":"alice","name":"Alice"},
+                "avatar":{"image_url":"https://pbs.twimg.com/alice.jpg"}}}},
+                {"user_results":{"result":{"__typename":"User","rest_id":"84",
+                "core":{"screen_name":"bob","name":"Bob"},
+                "avatar":{"image_url":"https://pbs.twimg.com/bob.jpg"}}}}]}}}
+                """).get(0);
+
+        assertThat(notification.kind()).isEqualTo("follow");
+        assertThat(notification.actors()).extracting(NotificationPage.Actor::id)
+                .containsExactly("42", "84");
+        assertThat(notification.actors()).extracting(NotificationPage.Actor::username)
+                .containsExactly("alice", "bob");
     }
 
     @Test

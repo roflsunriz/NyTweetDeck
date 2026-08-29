@@ -19,9 +19,14 @@ public record NotificationPage(
             String text,
             String noteId,
             String postId,
+            List<Actor> actors,
             List<String> imageUrls) {
         public Notification {
+            actors = List.copyOf(actors);
             imageUrls = List.copyOf(imageUrls);
         }
     }
+
+    public record Actor(
+            String id, String username, String displayName, String avatarUrl) {}
 }
