@@ -9,3 +9,8 @@ frontend/.npm-cache/
 .idea/
 .vscode/
 *.log
+subagents/
+android/.gradle/
+android/local.properties
+android/**/build/
+artifacts/
