@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,6 +55,9 @@ import androidx.compose.ui.unit.dp
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.ColumnKind
+import dev.nytweetdeck.android.model.ComposerMode
+import dev.nytweetdeck.android.model.ComposerStatus
+import dev.nytweetdeck.android.model.ComposerUiState
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.ListOption
 import dev.nytweetdeck.android.model.MainMenuItemId
@@ -65,6 +70,8 @@ internal enum class TransferStatus {
     IMPORT_SUCCESS,
     FAILED,
 }
+
+private const val MAX_COMPOSER_CHARACTERS = 4_000
 
 @Composable
 internal fun AddColumnDialog(
@@ -254,26 +261,173 @@ internal fun MenuEditorDialog(
 }
 
 @Composable
-internal fun SimpleComposerDialog(onDismiss: () -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
+internal fun SimpleComposerDialog(
+    state: ComposerUiState,
+    onSubmit: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable(state.mode, state.targetPostId) { mutableStateOf("") }
+    val characterCount = composerCharacterCount(text)
+    val isBlank = text.isBlank()
+    val isTooLong = characterCount > MAX_COMPOSER_CHARACTERS
+    val requiresTarget = state.mode != ComposerMode.POST
+    val hasTarget = !requiresTarget || !state.targetPostId.isNullOrBlank()
+    val isSending = state.status == ComposerStatus.SENDING
+    val canEdit = state.status != ComposerStatus.SENDING &&
+        state.status != ComposerStatus.SUCCEEDED
+    val canSubmit = canEdit && hasTarget && !isBlank && !isTooLong
+    val validationMessage = when {
+        !hasTarget -> stringResource(R.string.composer_target_missing)
+        isBlank -> stringResource(R.string.composer_text_required)
+        isTooLong -> stringResource(R.string.composer_text_too_long, MAX_COMPOSER_CHARACTERS)
+        else -> null
+    }
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.compose_post)) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it.take(10_000) },
-                modifier = Modifier.fillMaxWidth().imePadding().testTag("composer-text"),
-                label = { Text(stringResource(R.string.post_text)) },
-            )
+        onDismissRequest = {
+            if (!isSending) onDismiss()
         },
-        confirmButton = {},
+        title = {
+            Column {
+                Text(composerModeLabel(state.mode))
+                if (requiresTarget) {
+                    Text(
+                        text = state.targetPostId?.let {
+                            stringResource(R.string.composer_target_post_id, it)
+                        } ?: stringResource(R.string.composer_target_missing),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (hasTarget) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .navigationBarsPadding(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = keepComposerInput(it) },
+                    modifier = Modifier.fillMaxWidth().testTag("composer-text"),
+                    label = { Text(stringResource(R.string.post_text)) },
+                    isError = validationMessage != null,
+                    enabled = canEdit,
+                    minLines = 4,
+                    maxLines = 10,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.composer_character_count,
+                        characterCount,
+                        MAX_COMPOSER_CHARACTERS,
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isTooLong) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+                validationMessage?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                ComposerStatusText(state.status)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (canSubmit) onSubmit(text)
+                },
+                enabled = canSubmit,
+                modifier = Modifier
+                    .imePadding()
+                    .testTag("send-composer"),
+            ) {
+                if (isSending) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(
+                    when (state.status) {
+                        ComposerStatus.FAILED -> stringResource(R.string.composer_resend)
+                        else -> stringResource(R.string.composer_send)
+                    },
+                )
+            }
+        },
         dismissButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("close-composer")) {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isSending,
+                modifier = Modifier
+                    .imePadding()
+                    .testTag("close-composer"),
+            ) {
                 Text(stringResource(R.string.close))
             }
         },
     )
+}
+
+@Composable
+internal fun SimpleComposerDialog(onDismiss: () -> Unit) {
+    SimpleComposerDialog(
+        state = ComposerUiState(),
+        onSubmit = {},
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
+private fun ComposerStatusText(status: ComposerStatus) {
+    val (text, color) = when (status) {
+        ComposerStatus.IDLE -> stringResource(R.string.composer_status_ready) to
+            MaterialTheme.colorScheme.onSurfaceVariant
+        ComposerStatus.SENDING -> stringResource(R.string.composer_status_sending) to
+            MaterialTheme.colorScheme.primary
+        ComposerStatus.SUCCEEDED -> stringResource(R.string.composer_status_succeeded) to
+            MaterialTheme.colorScheme.primary
+        ComposerStatus.FAILED -> stringResource(R.string.composer_status_failed) to
+            MaterialTheme.colorScheme.error
+    }
+    Text(
+        text = text,
+        modifier = Modifier.testTag("composer-status"),
+        style = MaterialTheme.typography.bodySmall,
+        color = color,
+    )
+}
+
+@Composable
+private fun composerModeLabel(mode: ComposerMode): String = when (mode) {
+    ComposerMode.POST -> stringResource(R.string.composer_mode_post)
+    ComposerMode.REPLY -> stringResource(R.string.composer_mode_reply)
+    ComposerMode.QUOTE -> stringResource(R.string.composer_mode_quote)
+}
+
+private fun composerCharacterCount(text: String): Int =
+    text.codePointCount(0, text.length)
+
+private fun keepComposerInput(text: String): String {
+    val allowedCodePoints = minOf(composerCharacterCount(text), MAX_COMPOSER_CHARACTERS + 1)
+    return text.substring(0, text.offsetByCodePoints(0, allowedCodePoints))
 }
 
 @Composable

@@ -1,0 +1,99 @@
+package dev.nytweetdeck.android.data
+
+import dev.nytweetdeck.android.model.ConversationReply
+import dev.nytweetdeck.android.model.PostDetailPage
+import dev.nytweetdeck.android.model.RankingMode
+import dev.nytweetdeck.android.xapi.GraphQlExecutor
+import dev.nytweetdeck.android.xapi.TimelineResponseParser
+import dev.nytweetdeck.android.xapi.XApiException
+import dev.nytweetdeck.android.xapi.XSessionCredentials
+
+/** Loads the focal post and its conversation page through the shared authenticated GraphQL path. */
+class PostDetailRepository(
+    private val graphQlExecutor: GraphQlExecutor,
+    private val responseParser: TimelineResponseParser = TimelineResponseParser(),
+) {
+    fun load(
+        account: AccountSecrets,
+        postId: String,
+        cursor: String? = null,
+        language: String = "ja",
+        replySort: String? = "relevance",
+    ): PostDetailPage {
+        validatePostId(postId)
+        val rankingMode = RankingMode.fromReplySort(replySort)
+        val credentials = XSessionCredentials(
+            bearerToken = account.webBearerToken,
+            authToken = account.authToken,
+            csrfToken = account.csrfToken,
+        )
+        val detailPage = responseParser.parse(
+            graphQlExecutor.execute(
+                credentials = credentials,
+                purpose = "postDetail",
+                variables = detailVariables(postId),
+                language = language,
+            ),
+        )
+        val conversationPage = responseParser.parseInResponseOrder(
+            graphQlExecutor.execute(
+                credentials = credentials,
+                purpose = "conversation",
+                variables = conversationVariables(postId, cursor, rankingMode),
+                language = language,
+            ),
+        )
+        val focalPost = detailPage.posts.firstOrNull { post -> post.id == postId }
+            ?: conversationPage.posts.firstOrNull { post -> post.id == postId }
+            ?: throw XApiException("ポスト詳細応答に対象ポストがありません。", 502)
+        val replies = conversationPage.posts.asSequence()
+            .filter { post -> post.id != postId }
+            .map(::ConversationReply)
+            .toList()
+        return PostDetailPage(
+            post = focalPost,
+            replies = replies,
+            nextCursor = conversationPage.nextCursor,
+            rankingMode = rankingMode,
+        )
+    }
+
+    internal fun detailVariables(postId: String): Map<String, Any> {
+        validatePostId(postId)
+        return linkedMapOf(
+            "tweetId" to postId,
+            "withCommunity" to false,
+            "includePromotedContent" to false,
+            "withVoice" to false,
+        )
+    }
+
+    internal fun conversationVariables(
+        postId: String,
+        cursor: String?,
+        rankingMode: RankingMode,
+    ): Map<String, Any> {
+        validatePostId(postId)
+        return buildMap {
+            put("focalTweetId", postId)
+            put("isReaderMode", false)
+            put("rankingMode", rankingMode.wireValue)
+            put("includePromotedContent", false)
+            put("withCommunity", true)
+            put("withQuickPromoteEligibilityTweetFields", false)
+            put("withBirdwatchNotes", true)
+            put("withVoice", true)
+            if (!cursor.isNullOrBlank()) {
+                put("cursor", cursor)
+            }
+        }
+    }
+
+    private fun validatePostId(postId: String) {
+        require(POST_ID.matches(postId)) { "ポストIDの形式が不正です。" }
+    }
+
+    private companion object {
+        val POST_ID = Regex("[0-9]{1,19}")
+    }
+}

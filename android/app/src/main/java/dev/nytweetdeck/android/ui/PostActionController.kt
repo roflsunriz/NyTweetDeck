@@ -62,46 +62,54 @@ internal class PostActionController(
         operation: ToggleOperation,
         account: AccountSecrets,
     ) {
-        while (operation.desiredActive != operation.confirmedActive) {
-            val requestedActive = operation.desiredActive
-            val result = runCatching {
-                repository.setActive(
-                    account = account,
-                    postId = key.postId,
-                    action = key.action,
-                    active = requestedActive,
-                    language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
-                )
+        while (true) {
+            while (operation.desiredActive != operation.confirmedActive) {
+                val requestedActive = operation.desiredActive
+                val result = runCatching {
+                    repository.setActive(
+                        account = account,
+                        postId = key.postId,
+                        action = key.action,
+                        active = requestedActive,
+                        language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
+                    )
+                }
+                if (result.isFailure) {
+                    withContext(Dispatchers.Main.immediate) {
+                        if (state.value.selectedAccountId == key.accountId) {
+                            updatePostActionState(key.postId, key.action, operation.confirmedActive)
+                            state.update { current ->
+                                current.copy(
+                                    pendingPostActions = current.pendingPostActions
+                                        .withAction(key.postId, key.action, add = false),
+                                    failedPostActions = current.failedPostActions
+                                        .withAction(key.postId, key.action, add = true),
+                                )
+                            }
+                        }
+                        operations.remove(key)
+                    }
+                    return
+                }
+                operation.confirmedActive = requestedActive
             }
-            if (result.isFailure) {
-                withContext(Dispatchers.Main.immediate) {
+            val completed = withContext(Dispatchers.Main.immediate) {
+                if (operation.desiredActive != operation.confirmedActive) {
+                    false
+                } else {
                     if (state.value.selectedAccountId == key.accountId) {
-                        updatePostActionState(key.postId, key.action, operation.confirmedActive)
                         state.update { current ->
                             current.copy(
                                 pendingPostActions = current.pendingPostActions
                                     .withAction(key.postId, key.action, add = false),
-                                failedPostActions = current.failedPostActions
-                                    .withAction(key.postId, key.action, add = true),
                             )
                         }
                     }
                     operations.remove(key)
-                }
-                return
-            }
-            operation.confirmedActive = requestedActive
-        }
-        withContext(Dispatchers.Main.immediate) {
-            if (state.value.selectedAccountId == key.accountId) {
-                state.update { current ->
-                    current.copy(
-                        pendingPostActions = current.pendingPostActions
-                            .withAction(key.postId, key.action, add = false),
-                    )
+                    true
                 }
             }
-            operations.remove(key)
+            if (completed) return
         }
     }
 
@@ -120,6 +128,24 @@ internal class PostActionController(
                         })
                     })
                 },
+                postDetail = current.postDetail.copy(
+                    page = current.postDetail.page?.let { page ->
+                        page.copy(
+                            post = if (page.post.id == postId) {
+                                page.post.withActionActive(action, active)
+                            } else {
+                                page.post
+                            },
+                            replies = page.replies.map { reply ->
+                                if (reply.post.id == postId) {
+                                    reply.copy(post = reply.post.withActionActive(action, active))
+                                } else {
+                                    reply
+                                }
+                            },
+                        )
+                    },
+                ),
             )
         }
     }
@@ -140,6 +166,8 @@ private data class ToggleOperation(
 private fun findPost(state: DeckUiState, postId: String): Post? =
     state.timelines.values.asSequence().flatMap { it.posts.asSequence() }
         .plus(state.notifications.values.asSequence().flatMap { it.page?.posts.orEmpty().asSequence() })
+        .plus(listOfNotNull(state.postDetail.page?.post).asSequence())
+        .plus(state.postDetail.page?.replies.orEmpty().asSequence().map { it.post })
         .firstOrNull { it.id == postId }
 
 private fun Post.actionActive(action: PostActionType): Boolean = when (action) {

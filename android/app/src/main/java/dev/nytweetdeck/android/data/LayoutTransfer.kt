@@ -4,6 +4,7 @@ import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
+import dev.nytweetdeck.android.model.RankingMode
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
@@ -142,6 +143,7 @@ public object LayoutTransfer {
             useDarkTheme = imported.useDarkTheme,
             compactDensity = imported.compactDensity,
             mainMenuItems = imported.mainMenuItems,
+            replySort = imported.replySort,
         )
         return ImportResult(state = state, currentAccountId = currentState.selectedAccountId)
     }
@@ -188,7 +190,8 @@ public object LayoutTransfer {
         append(",\"theme\":")
         appendJsonString(if (state.useDarkTheme) "dark" else "light")
         append(",\"activeAccountId\":null")
-        append(",\"replySort\":\"relevance\"")
+        append(",\"replySort\":")
+        appendJsonString(state.replySort.name.lowercase(Locale.ROOT))
         append(",\"display\":{")
         append("\"fontSize\":\"default\"")
         append(",\"accentColor\":\"blue\"")
@@ -242,7 +245,9 @@ public object LayoutTransfer {
         val mainMenuItems = parseNavItems(layout.requireArray("navItems"))
         val theme = parseEnum(layout.requireString("theme"), THEMES, "テーマ")
         validateNullableString(layout.requireValue("activeAccountId"), MAX_ACCOUNT_ID_LENGTH, "選択アカウントID")
-        parseEnum(layout.requireString("replySort"), REPLY_SORTS, "返信並び順")
+        val replySort = RankingMode.fromReplySort(
+            parseEnum(layout.requireString("replySort"), REPLY_SORTS, "返信並び順"),
+        )
         val compactDensity = parseDisplay(layout.requireObject("display"))
         parseTrendSearchHistory(layout.requireArray("trendSearchHistory"))
 
@@ -257,7 +262,14 @@ public object LayoutTransfer {
             // The Android state has no system theme enum; retain its current effective value.
             else -> currentState.useDarkTheme
         }
-        return ImportedValues(columns, selectedMenu, useDarkTheme, compactDensity, mainMenuItems)
+        return ImportedValues(
+            columns,
+            selectedMenu,
+            useDarkTheme,
+            compactDensity,
+            mainMenuItems,
+            replySort,
+        )
     }
 
     private fun parseColumns(array: TransferJsonArray, locale: String): List<DeckColumn> {
@@ -548,6 +560,7 @@ public object LayoutTransfer {
         val useDarkTheme: Boolean,
         val compactDensity: Boolean,
         val mainMenuItems: List<MainMenuItemId>,
+        val replySort: RankingMode,
     )
 }
 

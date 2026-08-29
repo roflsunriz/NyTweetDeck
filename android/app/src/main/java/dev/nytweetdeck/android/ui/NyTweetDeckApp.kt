@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,10 +38,14 @@ import dev.nytweetdeck.android.data.TimelineRepository
 import dev.nytweetdeck.android.data.TrendRepository
 import dev.nytweetdeck.android.data.UserDirectoryRepository
 import dev.nytweetdeck.android.data.PostActionRepository
+import dev.nytweetdeck.android.data.PostComposerRepository
+import dev.nytweetdeck.android.data.PostDetailRepository
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.PostActionType
+import dev.nytweetdeck.android.model.ComposerMode
+import dev.nytweetdeck.android.model.ComposerStatus
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiEnvironment
@@ -79,6 +84,8 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             ListDirectoryRepository(graphQlClient),
             UserDirectoryRepository(graphQlClient),
             PostActionRepository(graphQlClient),
+            PostComposerRepository(graphQlClient),
+            PostDetailRepository(graphQlClient),
         )
     }
     val viewModel = providedViewModel ?: viewModel(factory = factory)
@@ -175,7 +182,14 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     val sharePostLabel = stringResource(R.string.post_share)
     val activateMenuItem: (MainMenuItemId) -> Unit = { item ->
         when (item) {
-            MainMenuItemId.COMPOSE -> openDialog = OpenDialog.COMPOSER
+            MainMenuItemId.COMPOSE -> {
+                if (state.selectedAccountId == null) {
+                    openDialog = OpenDialog.ACCOUNTS
+                } else {
+                    viewModel.openComposer(ComposerMode.POST)
+                    openDialog = OpenDialog.COMPOSER
+                }
+            }
             MainMenuItemId.SEARCH -> openDialog = OpenDialog.ADD_COLUMN
             MainMenuItemId.HOME -> viewModel.addColumn(
                 ColumnKind.HOME_FOR_YOU,
@@ -210,6 +224,17 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             }
         }
     }
+    val sharePost: (String) -> Unit = { postId ->
+        val share = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, "https://x.com/i/status/$postId")
+        }
+        context.startActivity(Intent.createChooser(share, sharePostLabel))
+    }
+    val replyToPost: (String) -> Unit = { postId ->
+        viewModel.openComposer(ComposerMode.REPLY, postId)
+        openDialog = OpenDialog.COMPOSER
+    }
 
     NyTweetDeckTheme(darkTheme = state.useDarkTheme) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -241,21 +266,16 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     onRepostClick = { postId ->
                         viewModel.togglePostAction(postId, PostActionType.REPOST)
                     },
+                    onReplyClick = replyToPost,
+                    onPostClick = viewModel::openPostDetail,
+                    onQuoteClick = viewModel::openPostDetail,
                     onLikeClick = { postId ->
                         viewModel.togglePostAction(postId, PostActionType.LIKE)
                     },
                     onBookmarkClick = { postId ->
                         viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
                     },
-                    onShareClick = { postId ->
-                        val share = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "https://x.com/i/status/$postId")
-                        }
-                        context.startActivity(
-                            Intent.createChooser(share, sharePostLabel),
-                        )
-                    },
+                    onShareClick = sharePost,
                 )
             }
         }
@@ -306,8 +326,46 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 onMove = viewModel::moveMainMenuItem,
                 onDismiss = { openDialog = null },
             )
-            OpenDialog.COMPOSER -> SimpleComposerDialog(onDismiss = { openDialog = null })
+            OpenDialog.COMPOSER -> SimpleComposerDialog(
+                state = state.composer,
+                onSubmit = viewModel::submitPost,
+                onDismiss = {
+                    viewModel.closeComposer()
+                    openDialog = null
+                },
+            )
             null -> Unit
         }
+        LaunchedEffect(state.composer.status) {
+            if (state.composer.status == ComposerStatus.SUCCEEDED) {
+                openDialog = null
+                viewModel.closeComposer()
+                viewModel.refreshVisibleColumns()
+            }
+        }
+        PostDetailDialog(
+            state = state.postDetail,
+            replySort = state.replySort,
+            onDismiss = viewModel::closePostDetail,
+            onRetry = viewModel::retryPostDetail,
+            onLoadMore = viewModel::loadMorePostDetail,
+            onReplySortChange = viewModel::setReplySort,
+            onToggleDeemphasized = viewModel::toggleDeemphasizedReplies,
+            onPostClick = viewModel::openPostDetail,
+            onQuoteClick = viewModel::openPostDetail,
+            onReplyClick = replyToPost,
+            onRepostClick = { postId ->
+                viewModel.togglePostAction(postId, PostActionType.REPOST)
+            },
+            onLikeClick = { postId ->
+                viewModel.togglePostAction(postId, PostActionType.LIKE)
+            },
+            onImpressionClick = {},
+            onBookmarkClick = { postId ->
+                viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
+            },
+            onShareClick = sharePost,
+            onDownloadClick = {},
+        )
     }
 }

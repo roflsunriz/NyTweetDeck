@@ -8,11 +8,14 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.test.platform.app.InstrumentationRegistry
 import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.AccountStore
 import dev.nytweetdeck.android.data.DeckSettingsStore
 import dev.nytweetdeck.android.data.TimelineRepository
+import dev.nytweetdeck.android.data.PostDetailRepository
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.ColumnKind
@@ -45,12 +48,22 @@ class ColumnRetentionSmokeTest {
             ),
             select = true,
         )
-        val repository = TimelineRepository(GraphQlExecutor { _, _, _, _ -> fixtureTimeline() })
+        val executor = GraphQlExecutor { _, purpose, variables, _ ->
+            when (purpose) {
+                "postDetail" -> detailFixture(requireNotNull(variables["tweetId"] as? String))
+                "conversation" -> conversationFixture(
+                    requireNotNull(variables["focalTweetId"] as? String),
+                )
+                else -> fixtureTimeline()
+            }
+        }
+        val repository = TimelineRepository(executor)
         val viewModel = DeckViewModel(
             settingsStore = settingsStore,
             accountStoreFile = accountFile,
             sessionVerifier = XSessionVerifier { error("not used") },
             timelineRepository = repository,
+            postDetailRepository = PostDetailRepository(executor),
         )
         composeRule.activity.setContent { NyTweetDeckApp(providedViewModel = viewModel) }
         val sourceIndex = 0
@@ -100,6 +113,22 @@ class ColumnRetentionSmokeTest {
             "復帰後のpixel offsetが変わりました: before=${before.top}, after=${after.top}",
             abs(before.top - after.top) <= 1.0f,
         )
+
+        composeRule.onNodeWithTag(after.tag).performClick()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTag("reply-sort-relevance").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("reply-sort-recency").performClick()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTag("post-detail-loading").fetchSemanticsNodes().isEmpty()
+        }
+        composeRule.onNodeWithTag("deemphasized-replies").performClick()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTag("post-701").fetchSemanticsNodes().isNotEmpty()
+        }
+        if (InstrumentationRegistry.getArguments().getString("capture") == "true") {
+            Thread.sleep(5_000)
+        }
     }
 
     private fun timelineNode(columnId: String) = composeRule.onNode(
@@ -157,4 +186,26 @@ class ColumnRetentionSmokeTest {
         }
         append("]}}")
     }
+
+    private fun detailFixture(postId: String): String =
+        """{"data":{"tweet":{"result":${tweetFixture(postId, "focal")}}}}"""
+
+    private fun conversationFixture(postId: String): String = """
+        {"data":{"threaded_conversation_with_injections_v2":{"instructions":[{"entries":[
+          ${conversationEntry(postId, "focal", "HighQuality", null)},
+          ${conversationEntry("701", "low", "LowQuality", postId)},
+          ${conversationEntry("702", "abusive", "AbusiveQuality", postId)},
+          ${conversationEntry("703", "normal", "HighQuality", postId)}
+        ]}]}}}
+    """.trimIndent()
+
+    private fun conversationEntry(id: String, text: String, section: String, parent: String?): String {
+        val reply = parent?.let { ",\"in_reply_to_status_id_str\":\"$it\"" }.orEmpty()
+        return """{"content":{"clientEventInfo":{"details":{"conversationDetails":
+          {"conversationSection":"$section"}}},"itemContent":{"tweet_results":{"result":
+          ${tweetFixture(id, text, reply)}}}}}"""
+    }
+
+    private fun tweetFixture(id: String, text: String, legacySuffix: String = ""): String =
+        """{"__typename":"Tweet","rest_id":"$id","legacy":{"full_text":"$text"$legacySuffix}}"""
 }

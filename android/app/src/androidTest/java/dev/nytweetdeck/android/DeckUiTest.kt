@@ -155,8 +155,8 @@ class DeckUiTest {
         composeRule.onNodeWithTag("close-menu-editor").performClick()
 
         composeRule.onNodeWithTag("menu-compose").performScrollTo().performClick()
-        composeRule.onNodeWithTag("composer-text").assertIsDisplayed()
-        composeRule.onNodeWithTag("close-composer").performClick()
+        composeRule.onNodeWithTag("login-x").assertIsDisplayed()
+        composeRule.onNodeWithTag("close-accounts").performClick()
 
         val beforeFollowing = isolatedViewModel.state.value.columns.size
         composeRule.onNodeWithTag("menu-following").performScrollTo().performClick()

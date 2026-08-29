@@ -5,6 +5,7 @@ import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.DefaultMainMenuItems
+import dev.nytweetdeck.android.model.RankingMode
 import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -32,7 +33,7 @@ private const val MAX_JSON_DEPTH = 64
  */
 class DeckSettingsStore(filePath: Path) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION: Int = 3
+        const val CURRENT_SCHEMA_VERSION: Int = 4
         const val MAX_FILE_SIZE_BYTES: Int = 1 shl 20
 
         private const val MAX_COLUMN_ID_LENGTH = 200
@@ -46,6 +47,7 @@ class DeckSettingsStore(filePath: Path) {
             "compactDensity",
         )
         private val ROOT_KEYS_V3 = ROOT_KEYS_V1_V2 + "mainMenuItems"
+        private val ROOT_KEYS_V4 = ROOT_KEYS_V3 + "replySort"
         private val COLUMN_KEYS_V1 = setOf("id", "kind", "title")
         private val COLUMN_KEYS_V2 = setOf("id", "kind", "title", "target")
     }
@@ -258,6 +260,8 @@ class DeckSettingsStore(filePath: Path) {
             columnScrollPositions = emptyMap(),
             pendingPostActions = emptyMap(),
             failedPostActions = emptyMap(),
+            composer = dev.nytweetdeck.android.model.ComposerUiState(),
+            postDetail = dev.nytweetdeck.android.model.PostDetailUiState(),
             targetPicker = dev.nytweetdeck.android.model.TargetPickerState(),
         )
     }
@@ -308,6 +312,8 @@ class DeckSettingsStore(filePath: Path) {
                 appendJsonString(item.name)
             }
             append(']')
+            append(",\"replySort\":")
+            appendJsonString(state.replySort.name)
             append('}')
         }
         return json.toByteArray(StandardCharsets.UTF_8)
@@ -320,7 +326,14 @@ class DeckSettingsStore(filePath: Path) {
         if (schemaVersion !in 1..CURRENT_SCHEMA_VERSION) {
             invalid("未対応の設定schemaVersionです。")
         }
-        requireExactKeys(root, if (schemaVersion < 3) ROOT_KEYS_V1_V2 else ROOT_KEYS_V3)
+        requireExactKeys(
+            root,
+            when {
+                schemaVersion < 3 -> ROOT_KEYS_V1_V2
+                schemaVersion < 4 -> ROOT_KEYS_V3
+                else -> ROOT_KEYS_V4
+            },
+        )
 
         val columns = root.requireArray("columns").values.mapIndexed { index, value ->
             val column = value as? JsonObject
@@ -346,6 +359,12 @@ class DeckSettingsStore(filePath: Path) {
             selectedMenu = parseColumnKind(root.requireString("selectedMenu"), null),
             useDarkTheme = root.requireBoolean("useDarkTheme"),
             compactDensity = root.requireBoolean("compactDensity"),
+            replySort = if (schemaVersion < 4) {
+                RankingMode.RELEVANCE
+            } else {
+                runCatching { RankingMode.valueOf(root.requireString("replySort")) }
+                    .getOrElse { invalid("返信並び順が不正です。") }
+            },
             mainMenuItems = if (schemaVersion < 3) {
                 DefaultMainMenuItems
             } else {

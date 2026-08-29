@@ -6,12 +6,15 @@ import dev.nytweetdeck.android.data.DeckSettingsStore
 import dev.nytweetdeck.android.data.TimelineRepository
 import dev.nytweetdeck.android.data.NotificationRepository
 import dev.nytweetdeck.android.data.PostActionRepository
+import dev.nytweetdeck.android.data.PostComposerRepository
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.PostActionType
+import dev.nytweetdeck.android.model.ComposerMode
+import dev.nytweetdeck.android.model.ComposerStatus
 import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.VerifiedWebSession
 import dev.nytweetdeck.android.xapi.VerifiedXAccount
@@ -473,7 +476,16 @@ class DeckViewModelTest {
             advanceUntilIdle()
 
             viewModel.togglePostAction("1", PostActionType.LIKE)
+            viewModel.togglePostAction("1", PostActionType.LIKE)
+            advanceUntilIdle()
             var post = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single())
+            assertFalse(post.liked)
+            assertEquals(0L, post.likeCount)
+            assertTrue(purposes.isEmpty())
+            assertTrue(viewModel.state.value.pendingPostActions.isEmpty())
+
+            viewModel.togglePostAction("1", PostActionType.LIKE)
+            post = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single())
             assertTrue(post.liked)
             assertEquals(1L, post.likeCount)
             assertTrue(PostActionType.LIKE in viewModel.state.value.pendingPostActions["1"].orEmpty())
@@ -493,6 +505,47 @@ class DeckViewModelTest {
             assertEquals(1L, post.likeCount)
             assertTrue(PostActionType.LIKE in viewModel.state.value.failedPostActions["1"].orEmpty())
             assertTrue(viewModel.state.value.pendingPostActions.isEmpty())
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun composerSubmitsOnceAndReportsSuccess() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            AccountStore(accountFile).addOrReplace(
+                AccountSecrets("7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile-7"),
+                select = true,
+            )
+            var purpose: String? = null
+            var submittedText: String? = null
+            val executor = GraphQlExecutor { _, requestPurpose, variables, _ ->
+                purpose = requestPurpose
+                submittedText = variables["tweet_text"] as? String
+                timelineJson("123", "created", "next")
+            }
+            val viewModel = DeckViewModel(
+                settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath()),
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                postComposerRepository = PostComposerRepository(executor),
+                ioDispatcher = dispatcher,
+            )
+            advanceUntilIdle()
+
+            viewModel.openComposer(ComposerMode.POST)
+            viewModel.submitPost("  hello Android  ")
+            viewModel.submitPost("must not be submitted twice")
+            assertEquals(ComposerStatus.SENDING, viewModel.state.value.composer.status)
+            advanceUntilIdle()
+
+            assertEquals("createPost", purpose)
+            assertEquals("hello Android", submittedText)
+            assertEquals(ComposerStatus.SUCCEEDED, viewModel.state.value.composer.status)
         } finally {
             Dispatchers.resetMain()
         }

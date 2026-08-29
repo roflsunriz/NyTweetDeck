@@ -6,6 +6,7 @@ import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
+import dev.nytweetdeck.android.model.RankingMode
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import org.junit.Assert.assertArrayEquals
@@ -116,7 +117,7 @@ class DeckSettingsStoreTest {
         val store = DeckSettingsStore(settingsPath())
         store.save(layout())
         val current = readText(store.primaryPath)
-            .replace("\"schemaVersion\":3", "\"schemaVersion\":999")
+            .replace("\"schemaVersion\":4", "\"schemaVersion\":999")
         writeText(store.primaryPath, current)
         Files.delete(store.backupPath)
 
@@ -225,5 +226,6 @@ class DeckSettingsStoreTest {
         selectedMenu = ColumnKind.HOME_FOR_YOU,
         useDarkTheme = true,
         compactDensity = false,
+        replySort = RankingMode.LIKES,
     )
 }

@@ -219,7 +219,9 @@ private fun AuthorAvatar(author: Author, modifier: Modifier) {
 @Composable
 private fun ReplyContext(post: Post) {
     val replyTo = post.replyToUsername?.trim()?.removePrefix("@")?.takeIf(String::isNotBlank)
-    val section = post.conversationSection?.trim()?.takeIf(String::isNotBlank)
+    val section = post.conversationSection?.trim()
+        ?.takeIf(String::isNotBlank)
+        ?.takeUnless { it in INTERNAL_CONVERSATION_SECTIONS }
     if (replyTo == null && section == null) return
     Spacer(Modifier.height(6.dp))
     Column {
@@ -590,6 +592,12 @@ internal fun parsePostInstant(createdAt: String?): Instant? {
 
 private val X_CREATED_AT_FORMAT =
     DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss Z yyyy", Locale.ENGLISH)
+
+private val INTERNAL_CONVERSATION_SECTIONS = setOf(
+    "HighQuality",
+    "LowQuality",
+    "AbusiveQuality",
+)
 
 private fun displayPostText(original: String, translated: String?): String =
     translated?.takeIf(String::isNotBlank) ?: original

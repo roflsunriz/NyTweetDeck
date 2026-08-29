@@ -61,6 +61,25 @@ enum class PostActionType {
     BOOKMARK,
 }
 
+enum class ComposerMode {
+    POST,
+    REPLY,
+    QUOTE,
+}
+
+enum class ComposerStatus {
+    IDLE,
+    SENDING,
+    SUCCEEDED,
+    FAILED,
+}
+
+data class ComposerUiState(
+    val mode: ComposerMode = ComposerMode.POST,
+    val targetPostId: String? = null,
+    val status: ComposerStatus = ComposerStatus.IDLE,
+)
+
 data class TargetPickerState(
     val status: TimelineLoadStatus = TimelineLoadStatus.IDLE,
     val kind: ColumnKind? = null,
@@ -141,6 +160,7 @@ data class DeckUiState(
     val selectedMenu: ColumnKind = ColumnKind.HOME_FOR_YOU,
     val useDarkTheme: Boolean = true,
     val compactDensity: Boolean = false,
+    val replySort: RankingMode = RankingMode.RELEVANCE,
     val accounts: List<AccountUiModel> = emptyList(),
     val selectedAccountId: String? = null,
     val accountAuthStatus: AccountAuthStatus = AccountAuthStatus.IDLE,
@@ -151,6 +171,8 @@ data class DeckUiState(
     val columnScrollPositions: Map<String, ColumnScrollPosition> = emptyMap(),
     val pendingPostActions: Map<String, Set<PostActionType>> = emptyMap(),
     val failedPostActions: Map<String, Set<PostActionType>> = emptyMap(),
+    val composer: ComposerUiState = ComposerUiState(),
+    val postDetail: PostDetailUiState = PostDetailUiState(),
     val targetPicker: TargetPickerState = TargetPickerState(),
     val mainMenuItems: List<MainMenuItemId> = DefaultMainMenuItems,
 )

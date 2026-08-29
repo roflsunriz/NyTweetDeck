@@ -5,6 +5,7 @@ import dev.nytweetdeck.android.model.AccountUiModel
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
+import dev.nytweetdeck.android.model.RankingMode
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -27,6 +28,7 @@ class LayoutTransferTest {
             selectedMenu = ColumnKind.TRENDS,
             useDarkTheme = false,
             compactDensity = true,
+            replySort = RankingMode.LIKES,
             accounts = listOf(
                 AccountUiModel(
                     accountId = "account-secret-id",
@@ -67,6 +69,7 @@ class LayoutTransferTest {
         assertEquals(source.selectedMenu, imported.state.selectedMenu)
         assertEquals(source.useDarkTheme, imported.state.useDarkTheme)
         assertEquals(source.compactDensity, imported.state.compactDensity)
+        assertEquals(source.replySort, imported.state.replySort)
         assertEquals(source.accounts, imported.state.accounts)
         assertEquals(source.selectedAccountId, imported.state.selectedAccountId)
         assertEquals(source.accountAuthStatus, imported.state.accountAuthStatus)
@@ -96,6 +99,7 @@ class LayoutTransferTest {
         assertEquals(ColumnKind.LIST, imported.selectedMenu)
         assertTrue(imported.useDarkTheme)
         assertTrue(imported.compactDensity)
+        assertEquals(RankingMode.LIKES, imported.replySort)
     }
 
     @Test

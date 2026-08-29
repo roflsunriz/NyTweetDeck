@@ -1,9 +1,7 @@
 package dev.nytweetdeck.android.ui
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
 import dev.nytweetdeck.android.data.DeckSettingsStore
 import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.AccountStore
@@ -14,6 +12,8 @@ import dev.nytweetdeck.android.data.DirectMessageRepository
 import dev.nytweetdeck.android.data.ListDirectoryRepository
 import dev.nytweetdeck.android.data.UserDirectoryRepository
 import dev.nytweetdeck.android.data.PostActionRepository
+import dev.nytweetdeck.android.data.PostComposerRepository
+import dev.nytweetdeck.android.data.PostDetailRepository
 import dev.nytweetdeck.android.data.LayoutTransfer
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.AccountUiModel
@@ -24,6 +24,8 @@ import dev.nytweetdeck.android.model.TrendColumnState
 import dev.nytweetdeck.android.model.DirectMessageColumnState
 import dev.nytweetdeck.android.model.ColumnScrollPosition
 import dev.nytweetdeck.android.model.PostActionType
+import dev.nytweetdeck.android.model.ComposerMode
+import dev.nytweetdeck.android.model.RankingMode
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.ListOption
 import dev.nytweetdeck.android.model.MainMenuItemId
@@ -32,7 +34,6 @@ import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import java.util.UUID
-import java.nio.file.Path
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +61,8 @@ class DeckViewModel(
     private val listDirectoryRepository: ListDirectoryRepository? = null,
     private val userDirectoryRepository: UserDirectoryRepository? = null,
     private val postActionRepository: PostActionRepository? = null,
+    private val postComposerRepository: PostComposerRepository? = null,
+    private val postDetailRepository: PostDetailRepository? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val adaptiveRefreshIntervalMillis: Long? = null,
     private val visibilityRefreshDelayMillis: Long = DEFAULT_VISIBILITY_REFRESH_DELAY_MILLIS,
@@ -79,11 +82,25 @@ class DeckViewModel(
             repository = repository,
             scope = viewModelScope,
             ioDispatcher = ioDispatcher,
-            accountProvider = { accountId ->
-                accountStore?.let { store ->
-                    runCatching { store.requireAccount(accountId) }.getOrNull()
-                }
-            },
+            accountProvider = ::savedAccount,
+            state = mutableState,
+        )
+    }
+    private val composerController = postComposerRepository?.let { repository ->
+        ComposerController(
+            repository = repository,
+            scope = viewModelScope,
+            ioDispatcher = ioDispatcher,
+            accountProvider = ::savedAccount,
+            state = mutableState,
+        )
+    }
+    private val postDetailController = postDetailRepository?.let { repository ->
+        PostDetailController(
+            repository = repository,
+            scope = viewModelScope,
+            ioDispatcher = ioDispatcher,
+            accountProvider = ::savedAccount,
             state = mutableState,
         )
     }
@@ -91,7 +108,8 @@ class DeckViewModel(
     private var foreground = false
     @Volatile
     private var currentAdaptiveDelayMillis = adaptiveRefreshIntervalMillis ?: 0L
-
+    private fun savedAccount(accountId: String): AccountSecrets? =
+        accountStore?.let { runCatching { it.requireAccount(accountId) }.getOrNull() }
     init {
         require(visibilityRefreshDelayMillis >= 0L) { "表示後更新の待機時間が不正です。" }
         if (adaptiveRefreshIntervalMillis != null) {
@@ -774,14 +792,41 @@ class DeckViewModel(
         postActionController?.clearFailure(postId, action)
     }
 
-    private fun queryKind(kind: ColumnKind): String? = when (kind) {
-        ColumnKind.HOME_FOR_YOU -> "homeForYou"
-        ColumnKind.HOME_FOLLOWING -> "homeFollowing"
-        ColumnKind.HISTORY -> "history"
-        ColumnKind.SEARCH -> "search"
-        ColumnKind.USER -> "userPosts"
-        ColumnKind.LIST -> "list"
-        else -> null
+    fun openComposer(mode: ComposerMode, targetPostId: String? = null) {
+        composerController?.open(mode, targetPostId)
+    }
+
+    fun closeComposer() {
+        composerController?.close()
+    }
+
+    fun submitPost(text: String) {
+        composerController?.submit(text)
+    }
+
+    fun openPostDetail(postId: String) {
+        postDetailController?.open(postId)
+    }
+
+    fun closePostDetail() {
+        postDetailController?.close()
+    }
+
+    fun retryPostDetail() {
+        postDetailController?.reload()
+    }
+
+    fun loadMorePostDetail() {
+        postDetailController?.loadMore()
+    }
+
+    fun toggleDeemphasizedReplies() {
+        postDetailController?.toggleDeemphasizedReplies()
+    }
+
+    fun setReplySort(sort: RankingMode) {
+        mutate { it.copy(replySort = sort) }
+        postDetailController?.reload()
     }
 
     fun setVisibleColumns(columnIds: Set<String>) {
@@ -953,46 +998,3 @@ class DeckViewModel(
         if (settingsStore != null) saveRequests.trySend(updated)
     }
 }
-
-class DeckViewModelFactory(
-    private val settingsPath: Path,
-    private val accountStoreFile: File,
-    private val sessionVerifier: XSessionVerifier,
-    private val timelineRepository: TimelineRepository,
-    private val notificationRepository: NotificationRepository,
-    private val trendRepository: TrendRepository,
-    private val directMessageRepository: DirectMessageRepository,
-    private val listDirectoryRepository: ListDirectoryRepository,
-    private val userDirectoryRepository: UserDirectoryRepository,
-    private val postActionRepository: PostActionRepository,
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
-        require(modelClass.isAssignableFrom(DeckViewModel::class.java)) {
-            "未対応のViewModelです。"
-        }
-        @Suppress("UNCHECKED_CAST")
-        return DeckViewModel(
-            settingsStore = DeckSettingsStore(settingsPath),
-            accountStoreFile = accountStoreFile,
-            sessionVerifier = sessionVerifier,
-            timelineRepository = timelineRepository,
-            notificationRepository = notificationRepository,
-            trendRepository = trendRepository,
-            directMessageRepository = directMessageRepository,
-            listDirectoryRepository = listDirectoryRepository,
-            userDirectoryRepository = userDirectoryRepository,
-            postActionRepository = postActionRepository,
-            adaptiveRefreshIntervalMillis = 60_000L,
-        ) as T
-    }
-}
-
-private const val MAX_ADAPTIVE_DELAY_MILLIS = 5 * 60_000L
-private const val DEFAULT_VISIBILITY_REFRESH_DELAY_MILLIS = 750L
-
-private data class AccountColumnSnapshot(
-    val timelines: Map<String, ColumnTimelineState> = emptyMap(),
-    val notifications: Map<String, NotificationColumnState> = emptyMap(),
-    val trends: Map<String, TrendColumnState> = emptyMap(),
-    val messages: Map<String, DirectMessageColumnState> = emptyMap(),
-)
