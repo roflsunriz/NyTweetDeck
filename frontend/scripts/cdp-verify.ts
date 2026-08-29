@@ -353,8 +353,8 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
             createdAt: "2026-08-27T00:00:00Z",
             author: { id: "42", username: "qa", displayName: "QA", avatarUrl: null, verified: false },
             repostedBy: null, replyCount: 1, repostCount: 2, quoteCount: 0,
-            likeCount: 3, bookmarkCount: 0, viewCount: 10,
-            liked: true, reposted: true, bookmarked: false,
+            likeCount: 3, bookmarkCount: 1, viewCount: 10,
+            liked: true, reposted: true, bookmarked: true,
             replyToPostId: null, replyToUsername: null,
             quotedPost: {
               id: "quoted-100", text: "Quoted original", language: "en",
@@ -884,12 +884,14 @@ await waitForCondition(
 const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const like = document.querySelector("[data-post-action=like]");
   const repost = document.querySelector("[data-post-action=repost]");
+  const bookmark = document.querySelector("[data-post-action=bookmark]");
   const heart = like?.querySelector("svg");
   const video = document.querySelector(".post-media video");
   return {
     likeColor: like instanceof HTMLElement ? getComputedStyle(like).color : null,
     likeFilled: heart?.getAttribute("fill"),
     repostColor: repost instanceof HTMLElement ? getComputedStyle(repost).color : null,
+    bookmarkFilled: bookmark?.querySelector("svg")?.getAttribute("fill"),
     communityNoteText: document.querySelector("[data-testid=community-note-card]")?.textContent,
     videoLoop: video instanceof HTMLVideoElement ? video.loop : null,
     videoVolume: video instanceof HTMLVideoElement ? video.volume : null,
@@ -911,6 +913,7 @@ if (
   engagementMetrics.likeColor !== "rgb(249, 24, 128)" ||
   engagementMetrics.likeFilled !== "currentColor" ||
   engagementMetrics.repostColor !== "rgb(0, 186, 124)" ||
+  engagementMetrics.bookmarkFilled !== "currentColor" ||
   engagementMetrics.videoLoop !== true ||
   engagementMetrics.videoVolume !== 1 ||
   engagementMetrics.videoMuted !== true ||

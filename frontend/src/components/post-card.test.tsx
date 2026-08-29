@@ -147,7 +147,7 @@ describe("post actions", () => {
   test("colors engagement controls from the initially loaded X state", () => {
     render(
       <PostCard
-        post={{ ...post(), liked: true, reposted: true }}
+        post={{ ...post(), liked: true, reposted: true, bookmarked: true }}
         accountId="account-1"
         translation={translate("ja")}
       />,
@@ -155,9 +155,15 @@ describe("post actions", () => {
 
     const likeButton = screen.getByRole("button", { name: "いいね" });
     const repostButton = screen.getByLabelText("リポスト");
+    const bookmarkButton = document.querySelector('[data-post-action="bookmark"]');
+    if (!(bookmarkButton instanceof HTMLButtonElement)) {
+      throw new Error("履歴保存ボタンが見つかりません。");
+    }
     expect(likeButton.classList.contains("like-active")).toBe(true);
     expect(likeButton.querySelector("svg")?.getAttribute("fill")).toBe("currentColor");
     expect(repostButton.classList.contains("repost-active")).toBe(true);
+    expect(bookmarkButton.classList.contains("bookmark-active")).toBe(true);
+    expect(bookmarkButton.querySelector("svg")?.getAttribute("fill")).toBe("currentColor");
   });
 
   test("renders a Community Note returned with the related post", () => {

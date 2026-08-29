@@ -775,7 +775,7 @@ function Action({
       <Icon
         aria-hidden="true"
         size={16}
-        fill={active && actionId === "like" ? "currentColor" : "none"}
+        fill={active && (actionId === "like" || actionId === "bookmark") ? "currentColor" : "none"}
       />
       <span>{compactNumber(count)}</span>
     </button>
