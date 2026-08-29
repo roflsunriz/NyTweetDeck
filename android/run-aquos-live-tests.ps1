@@ -6,6 +6,7 @@ param(
     [string]$ReleaseApkPath = "$PSScriptRoot\app\build\outputs\apk\release\app-release.apk",
     [string[]]$TestClasses = @(
         "dev.nytweetdeck.android.LiveTimelineSmokeTest",
+        "dev.nytweetdeck.android.LiveReadOnlyParitySmokeTest",
         "dev.nytweetdeck.android.LiveTargetColumnsSmokeTest",
         "dev.nytweetdeck.android.LiveSecondaryColumnsSmokeTest",
         "dev.nytweetdeck.android.LiveRefreshSmokeTest",

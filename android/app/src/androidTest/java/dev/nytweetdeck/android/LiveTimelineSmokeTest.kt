@@ -7,6 +7,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import org.junit.Assert.assertTrue
@@ -24,6 +25,10 @@ class LiveTimelineSmokeTest {
         val accountFile = File(context.noBackupFilesDir, "accounts/accounts.json")
         assumeTrue("保存済み検証アカウントがない環境では実Xテストを省略します。", accountFile.isFile)
 
+        if (composeRule.onAllNodesWithTag("inline-add-column").fetchSemanticsNodes().isNotEmpty()) {
+            composeRule.onNodeWithTag("inline-add-column").performClick()
+            composeRule.onNodeWithTag("add-home_for_you").performClick()
+        }
         composeRule.waitUntil(timeoutMillis = 30_000) {
             composeRule.onAllNodesWithTag("timeline-posts").fetchSemanticsNodes().isNotEmpty() ||
                 composeRule.onAllNodesWithTag("timeline-load-failed").fetchSemanticsNodes().isNotEmpty()
