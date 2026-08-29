@@ -3,6 +3,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseKeystorePath = providers.environmentVariable("NYTD_ANDROID_KEYSTORE").orNull
+val releaseStorePassword = providers.environmentVariable("NYTD_ANDROID_STORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("NYTD_ANDROID_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("NYTD_ANDROID_KEY_PASSWORD").orNull
+val releaseSigningAvailable = listOf(
+    releaseKeystorePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "dev.nytweetdeck.android"
     compileSdk = 36
@@ -26,6 +37,28 @@ android {
                 storePassword = "android"
                 keyAlias = "androiddebugkey"
                 keyPassword = "android"
+            }
+        }
+        if (releaseSigningAvailable) {
+            create("release") {
+                storeFile = file(requireNotNull(releaseKeystorePath))
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            if (releaseSigningAvailable) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }
