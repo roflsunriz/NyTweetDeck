@@ -30,6 +30,7 @@ import dev.nytweetdeck.android.xapi.VerifiedWebSession
 import dev.nytweetdeck.android.xapi.VerifiedXAccount
 import dev.nytweetdeck.android.xapi.XSessionCredentials
 import dev.nytweetdeck.android.xapi.XSessionVerifier
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -713,7 +714,12 @@ class DeckViewModelTest {
             )
             advanceUntilIdle()
 
-            viewModel.requestPostTranslation(TranslationCandidate("123", "en", null))
+            val sourceLanguage = if (Locale.getDefault().language.equals("en", ignoreCase = true)) {
+                "fr"
+            } else {
+                "en"
+            }
+            viewModel.requestPostTranslation(TranslationCandidate("123", sourceLanguage, null))
             assertEquals(TranslationLoadStatus.LOADING, viewModel.state.value.postTranslations["123"]?.status)
             advanceUntilIdle()
 
