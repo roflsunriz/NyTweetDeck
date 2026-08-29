@@ -71,4 +71,23 @@
     <string name="business">Business</string>
     <string name="ads">Ads</string>
     <string name="spaces">Create a Space</string>
+    <string name="post_reposted_by">@%1$s reposted</string>
+    <string name="post_replying_to">Replying to @%1$s</string>
+    <string name="post_quote">Quoted post</string>
+    <string name="post_media">Media</string>
+    <string name="post_avatar">%1$s avatar</string>
+    <string name="post_reply">Reply</string>
+    <string name="post_repost">Repost</string>
+    <string name="post_like">Like</string>
+    <string name="post_impressions">Impressions</string>
+    <string name="post_bookmark">Save to history</string>
+    <string name="post_share">Share</string>
+    <string name="post_download">Download media</string>
+    <string name="post_time_now">now</string>
+    <string name="post_time_minutes">%1$d m</string>
+    <string name="post_time_hours">%1$d h</string>
+    <string name="post_time_days">%1$d d</string>
+    <string name="post_time_date">%1$d/%2$d</string>
+    <string name="post_time_unknown">unknown time</string>
+    <string name="post_action_failed">Action failed. Tap again to retry</string>
 </resources>

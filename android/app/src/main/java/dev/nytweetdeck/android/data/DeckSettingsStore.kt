@@ -256,6 +256,8 @@ class DeckSettingsStore(filePath: Path) {
             trends = emptyMap(),
             messages = emptyMap(),
             columnScrollPositions = emptyMap(),
+            pendingPostActions = emptyMap(),
+            failedPostActions = emptyMap(),
             targetPicker = dev.nytweetdeck.android.model.TargetPickerState(),
         )
     }

@@ -63,6 +63,21 @@ class ColumnRetentionSmokeTest {
         }
         val count = postCount(source.id)
         assertTrue(count >= 20)
+        listOf(
+            "post-action-reply-",
+            "post-action-repost-",
+            "post-action-like-",
+            "post-action-impressions-",
+            "post-action-bookmark-",
+            "post-action-share-",
+            "post-action-download-",
+        ).forEach { prefix ->
+            val matcher = SemanticsMatcher("post action $prefix") { node ->
+                node.config.contains(SemanticsProperties.TestTag) &&
+                    node.config[SemanticsProperties.TestTag].startsWith(prefix)
+            }
+            assertTrue(composeRule.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty())
+        }
         timelineNode(source.id).performScrollToIndex(minOf(5, count - 1))
         composeRule.waitForIdle()
         val before = firstVisiblePost(source.id)

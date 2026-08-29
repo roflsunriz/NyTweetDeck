@@ -80,6 +80,7 @@ import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.DirectMessageColumnState
 import dev.nytweetdeck.android.model.NotificationColumnState
 import dev.nytweetdeck.android.model.Post
+import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.TrendColumnState
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -100,6 +101,15 @@ internal fun DeckContent(
     onVisibleColumnsChanged: (Set<String>) -> Unit,
     onMoveColumn: (String, Int) -> Unit,
     onSaveColumnScrollPosition: (String, Int, Int, String?) -> Unit,
+    onPostClick: (String) -> Unit = {},
+    onQuoteClick: (String) -> Unit = {},
+    onReplyClick: (String) -> Unit = {},
+    onRepostClick: (String) -> Unit = {},
+    onLikeClick: (String) -> Unit = {},
+    onImpressionClick: (String) -> Unit = {},
+    onBookmarkClick: (String) -> Unit = {},
+    onShareClick: (String) -> Unit = {},
+    onDownloadClick: (String) -> Unit = {},
 ) {
     val latestVisibleColumnsChanged by rememberUpdatedState(onVisibleColumnsChanged)
     BoxWithConstraints(
@@ -154,10 +164,21 @@ internal fun DeckContent(
                     notificationState = state.notifications[column.id],
                     trendState = state.trends[column.id],
                     messageState = state.messages[column.id],
+                    pendingPostActions = state.pendingPostActions,
+                    failedPostActions = state.failedPostActions,
                     scrollPosition = scrollPosition,
                     onScrollPositionChanged = { index, offset, key ->
                         onSaveColumnScrollPosition(column.id, index, offset, key)
                     },
+                    onPostClick = onPostClick,
+                    onQuoteClick = onQuoteClick,
+                    onReplyClick = onReplyClick,
+                    onRepostClick = onRepostClick,
+                    onLikeClick = onLikeClick,
+                    onImpressionClick = onImpressionClick,
+                    onBookmarkClick = onBookmarkClick,
+                    onShareClick = onShareClick,
+                    onDownloadClick = onDownloadClick,
                     onRemove = { onRemoveColumn(column.id) },
                     onOpenAccounts = onOpenAccounts,
                     onRetry = { onRefreshColumn(column.id) },
@@ -229,8 +250,19 @@ private fun DeckColumnCard(
     notificationState: NotificationColumnState?,
     trendState: TrendColumnState?,
     messageState: DirectMessageColumnState?,
+    pendingPostActions: Map<String, Set<PostActionType>>,
+    failedPostActions: Map<String, Set<PostActionType>>,
     scrollPosition: ColumnScrollPosition?,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
+    onPostClick: (String) -> Unit,
+    onQuoteClick: (String) -> Unit,
+    onReplyClick: (String) -> Unit,
+    onRepostClick: (String) -> Unit,
+    onLikeClick: (String) -> Unit,
+    onImpressionClick: (String) -> Unit,
+    onBookmarkClick: (String) -> Unit,
+    onShareClick: (String) -> Unit,
+    onDownloadClick: (String) -> Unit,
     onRemove: () -> Unit,
     onOpenAccounts: () -> Unit,
     onRetry: () -> Unit,
@@ -300,6 +332,17 @@ private fun DeckColumnCard(
                             onClearNewPosts = onClearNewPosts,
                             scrollPosition = scrollPosition,
                             onScrollPositionChanged = onScrollPositionChanged,
+                            onPostClick = onPostClick,
+                            onQuoteClick = onQuoteClick,
+                            onReplyClick = onReplyClick,
+                            onRepostClick = onRepostClick,
+                            onLikeClick = onLikeClick,
+                            onImpressionClick = onImpressionClick,
+                            onBookmarkClick = onBookmarkClick,
+                            onShareClick = onShareClick,
+                            onDownloadClick = onDownloadClick,
+                            pendingPostActions = pendingPostActions,
+                            failedPostActions = failedPostActions,
                         )
                     }
                 } else {
@@ -527,6 +570,17 @@ private fun TimelineBody(
     onClearNewPosts: () -> Unit,
     scrollPosition: ColumnScrollPosition?,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
+    onPostClick: (String) -> Unit,
+    onQuoteClick: (String) -> Unit,
+    onReplyClick: (String) -> Unit,
+    onRepostClick: (String) -> Unit,
+    onLikeClick: (String) -> Unit,
+    onImpressionClick: (String) -> Unit,
+    onBookmarkClick: (String) -> Unit,
+    onShareClick: (String) -> Unit,
+    onDownloadClick: (String) -> Unit,
+    pendingPostActions: Map<String, Set<PostActionType>>,
+    failedPostActions: Map<String, Set<PostActionType>>,
 ) {
     val timelineScope = rememberCoroutineScope()
     when (state?.status ?: TimelineLoadStatus.IDLE) {
@@ -631,7 +685,20 @@ private fun TimelineBody(
                             }
                         }
                         items(readyState.posts, key = Post::id) { post ->
-                            PostCard(post)
+                            PostCard(
+                                post = post,
+                                onPostClick = onPostClick,
+                                onQuoteClick = onQuoteClick,
+                                onReplyClick = onReplyClick,
+                                onRepostClick = onRepostClick,
+                                onLikeClick = onLikeClick,
+                                onImpressionClick = onImpressionClick,
+                                onBookmarkClick = onBookmarkClick,
+                                onShareClick = onShareClick,
+                                onDownloadClick = onDownloadClick,
+                                pendingActions = pendingPostActions[post.id].orEmpty(),
+                                failedActions = failedPostActions[post.id].orEmpty(),
+                            )
                         }
                         if (readyState.isLoadingMore) {
                             item(key = "loading-more") {
@@ -717,73 +784,7 @@ private fun timelineItemKeys(state: ColumnTimelineState): List<String> = buildLi
     if (state.loadMoreFailed) add("load-more-failed")
 }
 
-@Composable
-private fun PostCard(post: Post) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-            .testTag("post-${post.id}"),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(post.author.displayName.take(1).uppercase(), fontWeight = FontWeight.Bold)
-                post.author.avatarUrl?.let { avatarUrl ->
-                    AsyncImage(
-                        model = safeImageUrl(avatarUrl),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize().clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(post.author.displayName, fontWeight = FontWeight.SemiBold)
-                Text("@${post.author.username}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        if (post.repostedBy != null) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "↻ @${post.repostedBy.username}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(post.text, style = MaterialTheme.typography.bodyMedium)
-        post.media.firstOrNull { it.type == "photo" && it.url != null }?.let { media ->
-            Spacer(Modifier.height(10.dp))
-            AsyncImage(
-                model = safeImageUrl(media.url),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop,
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("↩ ${post.replyCount}", style = MaterialTheme.typography.labelSmall)
-            Text("↻ ${post.repostCount}", style = MaterialTheme.typography.labelSmall)
-            Text("♥ ${post.likeCount}", style = MaterialTheme.typography.labelSmall)
-            Text("◉ ${post.viewCount}", style = MaterialTheme.typography.labelSmall)
-        }
-        HorizontalDivider(Modifier.padding(top = 12.dp), color = MaterialTheme.colorScheme.outline)
-    }
-}
-
-private fun safeImageUrl(value: String?): String? {
+internal fun safeImageUrl(value: String?): String? {
     if (value.isNullOrBlank()) return null
     return runCatching {
         val uri = value.toUri()

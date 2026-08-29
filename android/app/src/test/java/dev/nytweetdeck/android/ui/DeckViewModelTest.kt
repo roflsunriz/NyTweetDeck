@@ -5,11 +5,13 @@ import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.DeckSettingsStore
 import dev.nytweetdeck.android.data.TimelineRepository
 import dev.nytweetdeck.android.data.NotificationRepository
+import dev.nytweetdeck.android.data.PostActionRepository
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
+import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.VerifiedWebSession
 import dev.nytweetdeck.android.xapi.VerifiedXAccount
@@ -427,6 +429,70 @@ class DeckViewModelTest {
             assertEquals("account-1", viewModel.state.value.timelines["home"]?.posts?.single()?.text)
             viewModel.setVisibleColumns(emptySet())
             advanceUntilIdle()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun postActionIsOptimisticThenRollsBackOnlyTheFailedAction() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath())
+            settingsStore.save(
+                DeckUiState(columns = listOf(DeckColumn("home", ColumnKind.HOME_FOR_YOU, "Home"))),
+            )
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            AccountStore(accountFile).addOrReplace(
+                AccountSecrets("7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile-7"),
+                select = true,
+            )
+            val purposes = mutableListOf<String>()
+            var failUnlike = false
+            val executor = GraphQlExecutor { _, purpose, _, _ ->
+                if (purpose == "homeForYou") {
+                    timelineJson("1", "action target", "next")
+                } else {
+                    purposes += purpose
+                    if (purpose == "unlike" && failUnlike) error("fixture failure")
+                    "{}"
+                }
+            }
+            val viewModel = DeckViewModel(
+                settingsStore = settingsStore,
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                timelineRepository = TimelineRepository(executor),
+                postActionRepository = PostActionRepository(executor),
+                ioDispatcher = dispatcher,
+            )
+            advanceUntilIdle()
+            viewModel.setVisibleColumns(setOf("home"))
+            advanceUntilIdle()
+
+            viewModel.togglePostAction("1", PostActionType.LIKE)
+            var post = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single())
+            assertTrue(post.liked)
+            assertEquals(1L, post.likeCount)
+            assertTrue(PostActionType.LIKE in viewModel.state.value.pendingPostActions["1"].orEmpty())
+            advanceUntilIdle()
+            assertEquals(listOf("like"), purposes)
+            assertTrue(viewModel.state.value.pendingPostActions.isEmpty())
+
+            failUnlike = true
+            viewModel.togglePostAction("1", PostActionType.LIKE)
+            post = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single())
+            assertFalse(post.liked)
+            assertEquals(0L, post.likeCount)
+            advanceUntilIdle()
+
+            post = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single())
+            assertTrue(post.liked)
+            assertEquals(1L, post.likeCount)
+            assertTrue(PostActionType.LIKE in viewModel.state.value.failedPostActions["1"].orEmpty())
+            assertTrue(viewModel.state.value.pendingPostActions.isEmpty())
         } finally {
             Dispatchers.resetMain()
         }

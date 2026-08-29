@@ -36,9 +36,11 @@ import dev.nytweetdeck.android.data.TimelineCache
 import dev.nytweetdeck.android.data.TimelineRepository
 import dev.nytweetdeck.android.data.TrendRepository
 import dev.nytweetdeck.android.data.UserDirectoryRepository
+import dev.nytweetdeck.android.data.PostActionRepository
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.MainMenuItemId
+import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiEnvironment
@@ -76,6 +78,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             DirectMessageRepository(environment.restClient()),
             ListDirectoryRepository(graphQlClient),
             UserDirectoryRepository(graphQlClient),
+            PostActionRepository(graphQlClient),
         )
     }
     val viewModel = providedViewModel ?: viewModel(factory = factory)
@@ -169,6 +172,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     val trendsLabel = stringResource(R.string.trends)
     val followingLabel = stringResource(R.string.following)
     val profileLabel = stringResource(R.string.profile)
+    val sharePostLabel = stringResource(R.string.post_share)
     val activateMenuItem: (MainMenuItemId) -> Unit = { item ->
         when (item) {
             MainMenuItemId.COMPOSE -> openDialog = OpenDialog.COMPOSER
@@ -234,6 +238,24 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     onVisibleColumnsChanged = viewModel::setVisibleColumns,
                     onMoveColumn = viewModel::moveColumn,
                     onSaveColumnScrollPosition = viewModel::saveColumnScrollPosition,
+                    onRepostClick = { postId ->
+                        viewModel.togglePostAction(postId, PostActionType.REPOST)
+                    },
+                    onLikeClick = { postId ->
+                        viewModel.togglePostAction(postId, PostActionType.LIKE)
+                    },
+                    onBookmarkClick = { postId ->
+                        viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
+                    },
+                    onShareClick = { postId ->
+                        val share = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "https://x.com/i/status/$postId")
+                        }
+                        context.startActivity(
+                            Intent.createChooser(share, sharePostLabel),
+                        )
+                    },
                 )
             }
         }

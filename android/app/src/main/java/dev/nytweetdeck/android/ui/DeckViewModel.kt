@@ -13,6 +13,7 @@ import dev.nytweetdeck.android.data.TrendRepository
 import dev.nytweetdeck.android.data.DirectMessageRepository
 import dev.nytweetdeck.android.data.ListDirectoryRepository
 import dev.nytweetdeck.android.data.UserDirectoryRepository
+import dev.nytweetdeck.android.data.PostActionRepository
 import dev.nytweetdeck.android.data.LayoutTransfer
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.AccountUiModel
@@ -22,6 +23,7 @@ import dev.nytweetdeck.android.model.NotificationColumnState
 import dev.nytweetdeck.android.model.TrendColumnState
 import dev.nytweetdeck.android.model.DirectMessageColumnState
 import dev.nytweetdeck.android.model.ColumnScrollPosition
+import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.ListOption
 import dev.nytweetdeck.android.model.MainMenuItemId
@@ -57,6 +59,7 @@ class DeckViewModel(
     private val directMessageRepository: DirectMessageRepository? = null,
     private val listDirectoryRepository: ListDirectoryRepository? = null,
     private val userDirectoryRepository: UserDirectoryRepository? = null,
+    private val postActionRepository: PostActionRepository? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val adaptiveRefreshIntervalMillis: Long? = null,
     private val visibilityRefreshDelayMillis: Long = DEFAULT_VISIBILITY_REFRESH_DELAY_MILLIS,
@@ -71,6 +74,19 @@ class DeckViewModel(
     private var visibleColumnIds: Set<String> = emptySet()
     private val visibilityRefreshJobs = mutableMapOf<String, Job>()
     private val accountColumnCaches = mutableMapOf<String, AccountColumnSnapshot>()
+    private val postActionController = postActionRepository?.let { repository ->
+        PostActionController(
+            repository = repository,
+            scope = viewModelScope,
+            ioDispatcher = ioDispatcher,
+            accountProvider = { accountId ->
+                accountStore?.let { store ->
+                    runCatching { store.requireAccount(accountId) }.getOrNull()
+                }
+            },
+            state = mutableState,
+        )
+    }
     @Volatile
     private var foreground = false
     @Volatile
@@ -750,6 +766,14 @@ class DeckViewModel(
         }
     }
 
+    fun togglePostAction(postId: String, action: PostActionType) {
+        postActionController?.toggle(postId, action)
+    }
+
+    fun clearPostActionFailure(postId: String, action: PostActionType) {
+        postActionController?.clearFailure(postId, action)
+    }
+
     private fun queryKind(kind: ColumnKind): String? = when (kind) {
         ColumnKind.HOME_FOR_YOU -> "homeForYou"
         ColumnKind.HOME_FOLLOWING -> "homeFollowing"
@@ -940,6 +964,7 @@ class DeckViewModelFactory(
     private val directMessageRepository: DirectMessageRepository,
     private val listDirectoryRepository: ListDirectoryRepository,
     private val userDirectoryRepository: UserDirectoryRepository,
+    private val postActionRepository: PostActionRepository,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         require(modelClass.isAssignableFrom(DeckViewModel::class.java)) {
@@ -956,6 +981,7 @@ class DeckViewModelFactory(
             directMessageRepository = directMessageRepository,
             listDirectoryRepository = listDirectoryRepository,
             userDirectoryRepository = userDirectoryRepository,
+            postActionRepository = postActionRepository,
             adaptiveRefreshIntervalMillis = 60_000L,
         ) as T
     }

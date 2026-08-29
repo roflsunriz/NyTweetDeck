@@ -55,6 +55,12 @@ data class ColumnScrollPosition(
     val firstVisibleItemScrollOffset: Int = 0,
 )
 
+enum class PostActionType {
+    LIKE,
+    REPOST,
+    BOOKMARK,
+}
+
 data class TargetPickerState(
     val status: TimelineLoadStatus = TimelineLoadStatus.IDLE,
     val kind: ColumnKind? = null,
@@ -143,6 +149,8 @@ data class DeckUiState(
     val trends: Map<String, TrendColumnState> = emptyMap(),
     val messages: Map<String, DirectMessageColumnState> = emptyMap(),
     val columnScrollPositions: Map<String, ColumnScrollPosition> = emptyMap(),
+    val pendingPostActions: Map<String, Set<PostActionType>> = emptyMap(),
+    val failedPostActions: Map<String, Set<PostActionType>> = emptyMap(),
     val targetPicker: TargetPickerState = TargetPickerState(),
     val mainMenuItems: List<MainMenuItemId> = DefaultMainMenuItems,
 )

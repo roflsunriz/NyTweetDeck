@@ -70,4 +70,23 @@
     <string name="business">ビジネス</string>
     <string name="ads">広告</string>
     <string name="spaces">スペースを作成</string>
+    <string name="post_reposted_by">@%1$sさんがリポスト</string>
+    <string name="post_replying_to">返信先 @%1$s</string>
+    <string name="post_quote">引用ポスト</string>
+    <string name="post_media">メディア</string>
+    <string name="post_avatar">%1$sのアバター</string>
+    <string name="post_reply">返信</string>
+    <string name="post_repost">リポスト</string>
+    <string name="post_like">いいね</string>
+    <string name="post_impressions">インプレッション</string>
+    <string name="post_bookmark">履歴に保存</string>
+    <string name="post_share">共有</string>
+    <string name="post_download">メディアをダウンロード</string>
+    <string name="post_time_now">たった今</string>
+    <string name="post_time_minutes">%1$d分</string>
+    <string name="post_time_hours">%1$d時間</string>
+    <string name="post_time_days">%1$d日</string>
+    <string name="post_time_date">%1$d月%2$d日</string>
+    <string name="post_time_unknown">日時不明</string>
+    <string name="post_action_failed">操作に失敗しました。もう一度タップして再試行できます</string>
 </resources>
