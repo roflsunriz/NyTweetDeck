@@ -13,8 +13,11 @@ bun audit
 Set-Location ..
 mvn verify
 .\scripts\audit-maven.ps1
+.\scripts\audit-gradle.ps1
 .\scripts\verify-ui.ps1
 ```
+
+Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
 ## UIの回帰確認
 
@@ -30,5 +33,6 @@ mvn verify
 ## 失敗時の対策
 
 - フロントエンド検証が失敗した場合は、最初に失敗したテスト名と期待値、対象DOMの実測値を確認し、テストを弱めず製品経路を修正します。
-- ブラウザ検証が失敗した場合は`target/ui-server.log`、`target/ui-server-error.log`と生成されたスクリーンショットを確認します。
+- ブラウザ検証が失敗した場合は`target/ui-server-*.log`、`target/ui-server-error-*.log`と生成されたスクリーンショットを確認します。
+- ブラウザ検証は既存NyTweetDeckと競合しない空きHTTP/CDPポートと一時設定領域を使用します。明示指定したポートが使用中なら起動前に失敗し、既存プロセスへ接続しないことを確認します。
 - 更新後の起動確認に失敗した場合は、統合インストーラーが作成する直前バックアップへ戻し、HTTPとHTTPSの両方が応答する旧版を再起動します。

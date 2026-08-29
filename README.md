@@ -88,6 +88,14 @@ NyTweetDeck本体、自動起動、ローカルHTTPS設定をまとめて解除�
 
 ログイン状態は次回起動時に自動で読み込まれます。保存時には直前のデータを`.bak`へ退避し、破損時は自動復旧します。
 
+## Android版
+
+Android 8.0以降では、GitHub Releasesの`android-v`で始まる最新版から、`NyTweetDeck-Android-v*.apk`と同名の`.sha256`をダウンロードできます。端末の「不明なアプリのインストール」をダウンロードに使用したブラウザへ一時的に許可し、APKを開いてインストールしてください。
+
+初回起動後、左メニュー下部のアカウントアイコンから「Xにログイン」を選び、アプリ内に表示されるX公式Web画面でログインします。パスワードや2要素認証値はNyTweetDeck独自画面へ入力しません。複数アカウントは同じ導線から追加でき、選択中アカウント、カラム、表示設定、取得済みデータ、スクロール位置を端末内へ保持します。
+
+更新時は新しいAPKを同じように開いて上書きします。同じ署名の公式APKであれば、保存済みログイン状態と設定を維持します。署名不一致時はデータを失う自動アンインストールを行わず、インストールを中止してください。
+
 ## カラムを追加する
 
 最初はカラムがない状態で開きます。画面中央の大きな「+」を押し、表示したいカラムを選択してください。カラムがすでにある場合は、右端の「カラムを追加」から追加できます。
@@ -223,6 +231,7 @@ bun audit
 Set-Location ..
 mvn verify
 .\scripts\audit-maven.ps1
+.\scripts\audit-gradle.ps1
 ```
 
 更新作業と復旧方法は [how-to-update.md](how-to-update.md)、構成は [docs/architecture.md](docs/architecture.md)、JDKメーカー別のCI対象は [docs/jdk-compatibility.md](docs/jdk-compatibility.md) を参照してください。
@@ -230,3 +239,5 @@ mvn verify
 ## リリース
 
 `v`で始まるSemVerタグをmainへプッシュすると、検証と脆弱性監査の成功後に、JAR、各OS用ランチャー、ドキュメント、SHA-256ファイルをまとめたZIPをGitHub Releaseへ公開します。本文には`CHANGELOG.md`の該当バージョンだけを使用し、ワークフローはタグがmainの履歴を指すことを確認してから公開します。
+
+`android-v`で始まるSemVerタグをmainへプッシュすると、Androidの単体テスト、Lint、依存関係監査、署名検証の成功後に、バージョン付きAPKとSHA-256ファイルを別のGitHub Releaseへ公開します。本文には`CHANGELOG.md`の`Android <version>`節だけを使用します。

@@ -3,6 +3,9 @@ param(
     [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:[.-][0-9A-Za-z.-]+)?$')]
     [string]$Version,
 
+    [ValidatePattern('^[A-Za-z][A-Za-z0-9-]*$')]
+    [string]$SectionPrefix,
+
     [string]$ChangelogPath = (Join-Path $PSScriptRoot '..' 'CHANGELOG.md'),
 
     [string]$OutputPath
@@ -26,13 +29,24 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $OutputPath = Join-Path $PSScriptRoot '..' 'target' "release-notes-$Version.md"
 }
 
-& (Join-Path $PSScriptRoot 'extract-changelog-section.ps1') `
-    -Version $Version `
-    -ChangelogPath $ChangelogPath `
-    -OutputPath $OutputPath
+$extractArguments = @{
+    Version = $Version
+    ChangelogPath = $ChangelogPath
+    OutputPath = $OutputPath
+}
+if (-not [string]::IsNullOrWhiteSpace($SectionPrefix)) {
+    $extractArguments.SectionPrefix = $SectionPrefix
+}
+& (Join-Path $PSScriptRoot 'extract-changelog-section.ps1') @extractArguments
 
 $notes = Get-Content -Raw -LiteralPath $OutputPath
-$expectedHeading = "## [$Version]"
+$sectionVersion = if ([string]::IsNullOrWhiteSpace($SectionPrefix)) {
+    $Version
+}
+else {
+    "$SectionPrefix $Version"
+}
+$expectedHeading = "## [$sectionVersion]"
 if (-not $notes.StartsWith($expectedHeading, [StringComparison]::Ordinal)) {
     throw "リリース本文が $expectedHeading で始まっていません。"
 }
@@ -46,4 +60,4 @@ if ($notes.Contains('## [Unreleased]', [StringComparison]::Ordinal)) {
     throw 'リリース本文にUnreleasedセクションが混入しています。'
 }
 
-Write-Output "バージョン $Version のリリース本文を検証しました。"
+Write-Output "バージョン $sectionVersion のリリース本文を検証しました。"

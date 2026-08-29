@@ -6,6 +6,7 @@
 - Maven 3.9以上
 - Bun 1.4以上
 - OpenSSL（WindowsではGit for Windows同梱版を利用可能）
+- Android版の検証時はAndroid SDK 36とJDK 17
 - 作業前のGit状態が把握できていること
 
 ## 依存関係の更新
@@ -39,6 +40,7 @@ bun audit
 Set-Location ..
 mvn verify
 .\scripts\audit-maven.ps1
+.\scripts\audit-gradle.ps1
 ```
 
 開発ランチャーを変更した場合は、リリースJARやバージョン付きファイル名を用意せず、別ポートでバックエンドとフロントエンドの準備完了および終了後のポート解放を確認します。
@@ -81,6 +83,14 @@ GitHub Releaseの本文には、`CHANGELOG.md`の同じバージョン見出し�
 ```
 
 配布ZIPには3OSのランチャー、自動起動登録・解除、ローカル証明書／hosts登録・解除、統合インストール／解除、Windows共通ランタイムスクリプトを必ず含めます。
+
+Android版は`android/app/build.gradle.kts`の`versionName`と一致する`android-v<version>`タグをmainのコミットへ付けます。`CHANGELOG.md`へ`## [Android <version>]`節を確定し、次のコマンドでAndroid専用リリース本文を確認します。
+
+```powershell
+.\scripts\verify-release-notes.ps1 -Version 0.1.0 -SectionPrefix Android
+```
+
+タグのpush後はAndroid Releaseワークフローが単体テスト、release Lint、Gradle依存関係のOSV監査、署名付きAPK生成、`apksigner`検証、SHA-256生成を行います。公開されたAPK名のバージョン、署名検証、SHA-256、CHANGELOG本文がタグと一致することを確認します。
 
 ## ロールバック
 

@@ -44,6 +44,10 @@ jobs:
           :app:assembleDebugAndroidTest
           :app:assembleRelease
 
+      - name: Audit Android dependencies
+        shell: pwsh
+        run: ./scripts/audit-gradle.ps1
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -97,7 +101,9 @@ jobs:
 
       - name: Verify release notes extraction
         shell: pwsh
-        run: ./scripts/verify-release-notes.ps1
+        run: |
+          ./scripts/verify-release-notes.ps1
+          ./scripts/verify-release-notes.ps1 -Version 0.1.0 -SectionPrefix Android -OutputPath target/android-release-notes.md
 
       - name: Audit Maven dependencies
         shell: pwsh
