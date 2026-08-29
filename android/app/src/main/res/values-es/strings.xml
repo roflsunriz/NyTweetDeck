@@ -214,4 +214,5 @@
     <string name="post_menu_list_remove">Quitar de la lista</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">Actualizaciones en vivo: conectadas</string><string name="live_pipeline_stopped">Actualizaciones en vivo: detenidas</string><string name="live_pipeline_error">Reconectando actualizaciones en vivo</string>
+    <string name="settings_save_conflict">El guardado de ajustes entró en conflicto con otra actualización. Reinicia la aplicación para cargar los ajustes más recientes.</string>
 </resources>

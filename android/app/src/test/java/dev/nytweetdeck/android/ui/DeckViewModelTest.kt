@@ -22,6 +22,7 @@ import dev.nytweetdeck.android.model.Article
 import dev.nytweetdeck.android.model.ArticleReaderStatus
 import dev.nytweetdeck.android.model.TranslationCandidate
 import dev.nytweetdeck.android.model.TranslationLoadStatus
+import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.xapi.AuthenticatedRestClient
 import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.VerifiedWebSession
@@ -229,6 +230,30 @@ class DeckViewModelTest {
             val timeline = requireNotNull(viewModel.state.value.timelines["home"])
             assertEquals(listOf("1", "2"), timeline.posts.map { it.id })
             assertFalse(timeline.isLoadingMore)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun surfacesAConcurrentSettingsRevisionConflictWithoutOverwritingDisk() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val path = temporaryFolder.root.resolve("layout/settings.json").toPath()
+            val store = DeckSettingsStore(path)
+            val initial = DeckUiState(layoutRevision = 2)
+            store.save(initial)
+            val viewModel = DeckViewModel(settingsStore = store, ioDispatcher = dispatcher)
+            advanceUntilIdle()
+
+            val concurrent = initial.copy(themeMode = ThemeMode.LIGHT, layoutRevision = 3)
+            store.save(concurrent)
+            viewModel.setCompactDensity(true)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value.settingsConflict)
+            assertEquals(concurrent, store.load())
         } finally {
             Dispatchers.resetMain()
         }

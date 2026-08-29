@@ -215,4 +215,5 @@
     <string name="post_menu_list_remove">Удалить из Списка</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">Обновления: подключено</string><string name="live_pipeline_stopped">Обновления: остановлено</string><string name="live_pipeline_error">Переподключение обновлений</string>
+    <string name="settings_save_conflict">Сохранение настроек конфликтует с другим обновлением. Перезапустите приложение, чтобы загрузить последние настройки.</string>
 </resources>

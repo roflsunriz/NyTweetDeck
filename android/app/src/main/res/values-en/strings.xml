@@ -215,4 +215,5 @@
     <string name="language_bn">বাংলা</string>
     <string name="language_ru">Русский</string>
     <string name="language_ur">اردو</string>
+    <string name="settings_save_conflict">Your settings conflicted with another update. Restart the app to load the latest settings.</string>
 </resources>

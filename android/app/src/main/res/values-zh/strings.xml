@@ -212,4 +212,5 @@
     <string name="post_menu_list_remove">从列表移除</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">实时更新：已连接</string><string name="live_pipeline_stopped">实时更新：已停止</string><string name="live_pipeline_error">正在重新连接实时更新</string>
+    <string name="settings_save_conflict">设置保存与其他更新发生冲突。请重启应用以加载最新设置。</string>
 </resources>

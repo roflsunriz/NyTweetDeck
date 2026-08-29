@@ -532,6 +532,13 @@ internal fun SettingsDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                if (state.settingsConflict) {
+                    Text(
+                        text = stringResource(R.string.settings_save_conflict),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.testTag("settings-save-conflict"),
+                    )
+                }
                 SettingSectionTitle(stringResource(R.string.setting_language))
                 SettingChoiceRow {
                     AppLocaleController.supportedLanguageTags.forEach { languageTag ->

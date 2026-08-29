@@ -213,4 +213,5 @@
     <string name="post_menu_list_remove">فہرست سے ہٹائیں</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">لائیو اپ ڈیٹس: منسلک</string><string name="live_pipeline_stopped">لائیو اپ ڈیٹس: بند</string><string name="live_pipeline_error">لائیو اپ ڈیٹس دوبارہ منسلک ہو رہی ہیں</string>
+    <string name="settings_save_conflict">ترتیبات محفوظ کرنا کسی دوسری اپ ڈیٹ سے متصادم ہو گیا۔ تازہ ترین ترتیبات لوڈ کرنے کے لیے ایپ دوبارہ شروع کریں۔</string>
 </resources>

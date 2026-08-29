@@ -213,4 +213,5 @@
     <string name="post_menu_list_remove">सूची से हटाएँ</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">लाइव अपडेट: कनेक्टेड</string><string name="live_pipeline_stopped">लाइव अपडेट: रुका हुआ</string><string name="live_pipeline_error">लाइव अपडेट फिर जुड़ रहे हैं</string>
+    <string name="settings_save_conflict">सेटिंग सहेजना किसी अन्य अपडेट से टकरा गया। नवीनतम सेटिंग लोड करने के लिए ऐप फिर शुरू करें।</string>
 </resources>

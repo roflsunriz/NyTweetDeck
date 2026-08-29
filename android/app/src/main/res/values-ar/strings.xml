@@ -217,4 +217,5 @@
     <string name="post_menu_list_remove">إزالة من القائمة</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">التحديثات المباشرة: متصلة</string><string name="live_pipeline_stopped">التحديثات المباشرة: متوقفة</string><string name="live_pipeline_error">إعادة اتصال التحديثات المباشرة</string>
+    <string name="settings_save_conflict">تعارض حفظ الإعدادات مع تحديث آخر. أعد تشغيل التطبيق لتحميل أحدث الإعدادات.</string>
 </resources>

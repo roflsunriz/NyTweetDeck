@@ -213,4 +213,5 @@
     <string name="post_menu_list_remove">তালিকা থেকে সরান</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">লাইভ আপডেট: সংযুক্ত</string><string name="live_pipeline_stopped">লাইভ আপডেট: বন্ধ</string><string name="live_pipeline_error">লাইভ আপডেট পুনরায় সংযুক্ত হচ্ছে</string>
+    <string name="settings_save_conflict">সেটিংস সংরক্ষণ অন্য একটি আপডেটের সঙ্গে সংঘর্ষ করেছে। সর্বশেষ সেটিংস লোড করতে অ্যাপটি পুনরায় চালু করুন।</string>
 </resources>

@@ -174,7 +174,13 @@ class DeckViewModel(
         if (settingsStore != null) {
             viewModelScope.launch(ioDispatcher) {
                 for (state in saveRequests) {
-                    settingsStore.save(state.copy(isInitializing = false))
+                    try {
+                        settingsStore.save(state.copy(isInitializing = false, settingsConflict = false))
+                    } catch (_: DeckSettingsStore.DeckSettingsConflictException) {
+                        withContext(Dispatchers.Main.immediate) {
+                            mutableState.update { it.copy(settingsConflict = true) }
+                        }
+                    }
                 }
             }
             viewModelScope.launch(ioDispatcher) {
@@ -993,7 +999,9 @@ class DeckViewModel(
     private inline fun mutate(transform: (DeckUiState) -> DeckUiState) {
         val current = mutableState.value
         if (current.isInitializing) return
-        val updated = transform(current)
+        val transformed = transform(current)
+        if (transformed == current) return
+        val updated = transformed.copy(layoutRevision = current.layoutRevision + 1)
         mutableState.value = updated
         if (settingsStore != null) saveRequests.trySend(updated)
     }

@@ -214,4 +214,5 @@
     <string name="post_menu_list_remove">Retirer de la Liste</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">Mises à jour en direct : connectées</string><string name="live_pipeline_stopped">Mises à jour en direct : arrêtées</string><string name="live_pipeline_error">Reconnexion des mises à jour en direct</string>
+    <string name="settings_save_conflict">L’enregistrement des réglages est en conflit avec une autre mise à jour. Redémarrez l’application pour charger les derniers réglages.</string>
 </resources>

@@ -50,6 +50,7 @@ class DeckSettingsStoreTest {
         val second = first.copy(
             selectedMenu = ColumnKind.TRENDS,
             useDarkTheme = false,
+            layoutRevision = 1,
         )
         store.save(first)
 
@@ -58,6 +59,39 @@ class DeckSettingsStoreTest {
 
         assertEquals(second, store.load())
         assertArrayEquals(firstBytes, Files.readAllBytes(store.backupPath))
+    }
+
+    @Test
+    fun rejectsStaleAndSameRevisionConflictsWithoutOverwritingLatestLayout() {
+        val store = DeckSettingsStore(settingsPath())
+        val initial = layout()
+        val latest = initial.copy(useDarkTheme = false, layoutRevision = 2)
+        store.save(initial)
+        store.save(latest)
+
+        assertThrows(DeckSettingsStore.DeckSettingsConflictException::class.java) {
+            store.save(initial.copy(selectedMenu = ColumnKind.TRENDS, layoutRevision = 1))
+        }
+        assertThrows(DeckSettingsStore.DeckSettingsConflictException::class.java) {
+            store.save(latest.copy(selectedMenu = ColumnKind.TRENDS))
+        }
+
+        assertEquals(latest, store.load())
+    }
+
+    @Test
+    fun treatsRepeatedSaveOfTheSameRevisionAsIdempotent() {
+        val store = DeckSettingsStore(settingsPath())
+        val initial = layout()
+        val latest = initial.copy(useDarkTheme = false, layoutRevision = 1)
+        store.save(initial)
+        store.save(latest)
+
+        val backupBeforeRetry = Files.readAllBytes(store.backupPath)
+        store.save(latest)
+
+        assertArrayEquals(backupBeforeRetry, Files.readAllBytes(store.backupPath))
+        assertEquals(latest, store.load())
     }
 
     @Test
@@ -81,7 +115,7 @@ class DeckSettingsStoreTest {
         val store = DeckSettingsStore(settingsPath())
         val first = layout()
         store.save(first)
-        store.save(first.copy(useDarkTheme = false))
+        store.save(first.copy(useDarkTheme = false, layoutRevision = 1))
         writeText(store.primaryPath, "corrupted-primary")
 
         val recovered = DeckSettingsStore(store.primaryPath).load()
@@ -120,7 +154,7 @@ class DeckSettingsStoreTest {
         val store = DeckSettingsStore(settingsPath())
         store.save(layout())
         val current = readText(store.primaryPath)
-            .replace("\"schemaVersion\":8", "\"schemaVersion\":999")
+            .replace("\"schemaVersion\":9", "\"schemaVersion\":999")
         writeText(store.primaryPath, current)
         Files.delete(store.backupPath)
 
@@ -140,6 +174,19 @@ class DeckSettingsStoreTest {
         assertEquals("legacy-home", loaded.columns.single().id)
         assertEquals(ColumnKind.HOME_FOR_YOU, loaded.columns.single().kind)
         assertNull(loaded.columns.single().target)
+    }
+
+    @Test
+    fun migratesEveryLegacySchemaTwoThroughEightToCurrentDefaults() {
+        (2..8).forEach { version ->
+            writeText(settingsPath(), legacySchema(version))
+            val loaded = DeckSettingsStore(settingsPath()).load()
+
+            assertEquals("legacy-home", loaded.columns.single().id)
+            assertEquals(ColumnKind.HOME_FOR_YOU, loaded.columns.single().kind)
+            assertEquals(0L, loaded.layoutRevision)
+            if (version >= 8) assertEquals("ar", loaded.appLanguageTag)
+        }
     }
 
     @Test
@@ -242,4 +289,19 @@ class DeckSettingsStoreTest {
         autoTranslatePosts = false,
         appLanguageTag = "ar",
     )
+
+    private fun legacySchema(version: Int): String = buildString {
+        append("{\"schemaVersion\":$version,\"columns\":[{\"id\":\"legacy-home\",")
+        append("\"kind\":\"HOME_FOR_YOU\",\"title\":\"Home\",\"target\":null}],")
+        append("\"selectedMenu\":\"HOME_FOR_YOU\",\"useDarkTheme\":true,\"compactDensity\":false")
+        if (version >= 3) append(",\"mainMenuItems\":[\"HOME\"]")
+        if (version >= 4) append(",\"replySort\":\"RELEVANCE\"")
+        if (version >= 5) append(",\"themeMode\":\"DARK\",\"fontSize\":\"DEFAULT\"," +
+            "\"accentColor\":\"BLUE\",\"reduceMotion\":false,\"mediaPreview\":true," +
+            "\"videoAutoplay\":false,\"videoLoop\":true,\"videoVolume\":100")
+        if (version >= 6) append(",\"trendSearchHistory\":[]")
+        if (version >= 7) append(",\"autoTranslatePosts\":true")
+        if (version >= 8) append(",\"appLanguageTag\":\"ar\"")
+        append('}')
+    }
 }

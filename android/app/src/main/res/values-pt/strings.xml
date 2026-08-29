@@ -214,4 +214,5 @@
     <string name="post_menu_list_remove">Remover da Lista</string>
     <string name="post_menu_action_failed">The post action failed.</string>
     <string name="live_pipeline_connected">Atualizações ao vivo: conectadas</string><string name="live_pipeline_stopped">Atualizações ao vivo: paradas</string><string name="live_pipeline_error">Reconectando atualizações ao vivo</string>
+    <string name="settings_save_conflict">O salvamento das configurações entrou em conflito com outra atualização. Reinicie o app para carregar as configurações mais recentes.</string>
 </resources>

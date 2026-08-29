@@ -37,7 +37,7 @@ private const val MAX_JSON_DEPTH = 64
  */
 class DeckSettingsStore(filePath: Path) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION: Int = 8
+        const val CURRENT_SCHEMA_VERSION: Int = 9
         const val MAX_FILE_SIZE_BYTES: Int = 1 shl 20
 
         private const val MAX_COLUMN_ID_LENGTH = 200
@@ -65,6 +65,7 @@ class DeckSettingsStore(filePath: Path) {
         private val ROOT_KEYS_V6 = ROOT_KEYS_V5 + "trendSearchHistory"
         private val ROOT_KEYS_V7 = ROOT_KEYS_V6 + "autoTranslatePosts"
         private val ROOT_KEYS_V8 = ROOT_KEYS_V7 + "appLanguageTag"
+        private val ROOT_KEYS_V9 = ROOT_KEYS_V8 + "layoutRevision"
         private val COLUMN_KEYS_V1 = setOf("id", "kind", "title")
         private val COLUMN_KEYS_V2 = setOf("id", "kind", "title", "target")
         private val SUPPORTED_LANGUAGES = setOf(
@@ -113,6 +114,15 @@ class DeckSettingsStore(filePath: Path) {
 
         val previousPrimary = readValid(primaryPath)
         if (previousPrimary != null) {
+            if (previousPrimary.state == validated) return
+            val previousRevision = previousPrimary.state.layoutRevision
+            if (previousRevision > validated.layoutRevision ||
+                (previousRevision == validated.layoutRevision && previousPrimary.state != validated)
+            ) {
+                throw DeckSettingsConflictException(
+                    "設定revision ${validated.layoutRevision}は保存済みrevision ${previousRevision}と競合します。",
+                )
+            }
             writeAtomically(backupPath, previousPrimary.bytes)
         } else if (readValid(backupPath) == null) {
             writeAtomically(backupPath, bytes)
@@ -229,6 +239,7 @@ class DeckSettingsStore(filePath: Path) {
     }
 
     private fun validateState(state: DeckUiState): DeckUiState {
+        require(state.layoutRevision >= 0) { "設定revisionが範囲外です。" }
         val ids = HashSet<String>(state.columns.size)
         state.columns.forEachIndexed { index, column ->
             val nonNullColumn = requireNotNull(column) {
@@ -280,7 +291,9 @@ class DeckSettingsStore(filePath: Path) {
         require(state.appLanguageTag in SUPPORTED_LANGUAGES) { "表示言語が不正です。" }
 
         return state.copy(
+            isInitializing = false,
             columns = state.columns.toList(),
+            settingsConflict = false,
             accounts = emptyList(),
             selectedAccountId = null,
             accountAuthStatus = dev.nytweetdeck.android.model.AccountAuthStatus.IDLE,
@@ -328,6 +341,8 @@ class DeckSettingsStore(filePath: Path) {
             append('{')
             append("\"schemaVersion\":")
             append(CURRENT_SCHEMA_VERSION)
+            append(",\"layoutRevision\":")
+            append(state.layoutRevision)
             append(",\"columns\":[")
             state.columns.forEachIndexed { index, column ->
                 if (index > 0) append(',')
@@ -402,7 +417,8 @@ class DeckSettingsStore(filePath: Path) {
                 schemaVersion < 6 -> ROOT_KEYS_V5
                 schemaVersion < 7 -> ROOT_KEYS_V6
                 schemaVersion < 8 -> ROOT_KEYS_V7
-                else -> ROOT_KEYS_V8
+                schemaVersion < 9 -> ROOT_KEYS_V8
+                else -> ROOT_KEYS_V9
             },
         )
 
@@ -426,6 +442,8 @@ class DeckSettingsStore(filePath: Path) {
         }
 
         val state = DeckUiState(
+            layoutRevision = if (schemaVersion < 9) 0 else root.requireNumber("layoutRevision")
+                .asLong("layoutRevision"),
             columns = columns,
             selectedMenu = parseColumnKind(root.requireString("selectedMenu"), null),
             useDarkTheme = root.requireBoolean("useDarkTheme"),
@@ -533,6 +551,7 @@ class DeckSettingsStore(filePath: Path) {
     )
 
     class DeckSettingsStoreException(message: String, cause: Throwable) : RuntimeException(message, cause)
+    class DeckSettingsConflictException(message: String) : RuntimeException(message)
 
 }
 
@@ -586,6 +605,10 @@ private fun JsonNumber.asInt(key: String): Int {
     }
     return value.toInt()
 }
+
+private fun JsonNumber.asLong(key: String): Long = raw.toLongOrNull()
+    ?.takeIf { it >= 0 }
+    ?: invalid("設定JSONの${key}が範囲外です。")
 
 private class DeckSettingsJsonParser(private val source: String) {
     private var index = 0

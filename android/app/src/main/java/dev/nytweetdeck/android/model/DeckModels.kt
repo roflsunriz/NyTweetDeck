@@ -211,6 +211,8 @@ enum class AccountAuthStatus {
 
 data class DeckUiState(
     val isInitializing: Boolean = false,
+    val settingsConflict: Boolean = false,
+    val layoutRevision: Long = 0,
     val columns: List<DeckColumn> = emptyList(),
     val selectedMenu: ColumnKind = ColumnKind.HOME_FOR_YOU,
     val useDarkTheme: Boolean = true,
