@@ -32,30 +32,41 @@ class LiveReversibleUserMutationSmokeTest {
         ).selectedAccount() ?: error("保存済み検証アカウントがありません。")
         val environment = XApiEnvironment(context)
         val graphQl = environment.graphQlClient()
-        val target = TimelineRepository(graphQl, TimelineResponseParser()).load(
+        val timeline = TimelineRepository(graphQl, TimelineResponseParser()).load(
             account, "homeForYou", language = "ja",
-        ).posts.firstOrNull { it.author.id != account.userId }
-            ?: error("ユーザーmutationの対象がありません。")
+        )
         val credentials = XSessionCredentials(
             account.webBearerToken, account.authToken, account.csrfToken,
         )
-        val profileBody = graphQl.execute(
-            credentials, "userByRestId", mapOf("userId" to target.author.id), "ja",
-        )
-        val profile = UserProfileParser().parseProfile(profileBody, target.author.id, "{}")
+        val parser = UserProfileParser()
+        val targetAndProfile = timeline.posts
+            .filter { it.author.id != account.userId }
+            .distinctBy { it.author.id }
+            .take(10)
+            .mapNotNull { post ->
+                runCatching {
+                    val body = graphQl.execute(
+                        credentials, "userByRestId", mapOf("userId" to post.author.id), "ja",
+                    )
+                    post to parser.parseProfile(body, post.author.id, "{}")
+                }.getOrNull()
+            }
+            .firstOrNull { (_, profile) -> !profile.followsYou && !profile.blocking }
+            ?: error("相手側のフォロー関係を変更しない安全な対象がありません。")
+        val (target, profile) = targetAndProfile
         val users = UserActionRepository(environment.restClient())
 
         restoreUserAction(
-            users, account, target.author.id, profile.following,
-            UserAction.FOLLOW, UserAction.UNFOLLOW,
+            users, account, target.author.id, profile.blocking,
+            UserAction.BLOCK, UserAction.UNBLOCK,
         )
         restoreUserAction(
             users, account, target.author.id, profile.muting,
             UserAction.MUTE, UserAction.UNMUTE,
         )
         restoreUserAction(
-            users, account, target.author.id, profile.blocking,
-            UserAction.BLOCK, UserAction.UNBLOCK,
+            users, account, target.author.id, profile.following,
+            UserAction.FOLLOW, UserAction.UNFOLLOW,
         )
 
         verifyTemporaryListMembership(environment, graphQl, account, target.author.id)
