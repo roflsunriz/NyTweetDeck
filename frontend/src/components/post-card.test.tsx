@@ -28,12 +28,12 @@ describe("post actions", () => {
   test("updates a like immediately while the web mutation continues in the background", async () => {
     const urls: string[] = [];
     let finishMutation: ((response: Response) => void) | undefined;
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
       urls.push(String(input));
       return new Promise<Response>((resolve) => {
         finishMutation = resolve;
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
@@ -43,6 +43,8 @@ describe("post actions", () => {
     expect(likeButton.textContent).toBe("4");
     expect(likeButton.classList.contains("like-active")).toBe(true);
     expect(likeButton.querySelector("svg")?.getAttribute("fill")).toBe("currentColor");
+    expect((likeButton as HTMLButtonElement).disabled).toBe(false);
+    expect(likeButton.getAttribute("aria-busy")).toBe("true");
     expect(screen.queryByText("ポスト操作に失敗しました。")).toBeNull();
 
     finishMutation?.(Response.json({ postId: "100", action: "like" }));
@@ -59,6 +61,87 @@ describe("post actions", () => {
 
     expect(urls[0]).toContain("/posts/100/actions/like?accountId=account-1");
     expect(urls[1]).toContain("/posts/100/actions/unlike?accountId=account-1");
+  });
+
+  test("accepts rapid toggles immediately and serializes only the states needed to converge", async () => {
+    const urls: string[] = [];
+    const finishMutations: Array<(response: Response) => void> = [];
+    globalThis.fetch = (async (input) => {
+      urls.push(String(input));
+      return new Promise<Response>((resolve) => finishMutations.push(resolve));
+    }) as typeof fetch;
+    const user = userEvent.setup();
+    render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
+    const likeButton = screen.getByRole("button", { name: "いいね" });
+
+    await user.click(likeButton);
+    expect(likeButton.textContent).toBe("4");
+    await user.click(likeButton);
+    expect(likeButton.textContent).toBe("3");
+    expect(likeButton.classList.contains("like-active")).toBe(false);
+    expect(finishMutations).toHaveLength(1);
+
+    finishMutations[0]?.(Response.json({ postId: "100", action: "like" }));
+    await waitFor(() => expect(finishMutations).toHaveLength(2));
+    expect(likeButton.textContent).toBe("3");
+    finishMutations[1]?.(Response.json({ postId: "100", action: "unlike" }));
+    await waitFor(() => expect(likeButton.getAttribute("aria-busy")).toBe("false"));
+
+    expect(urls[0]).toContain("/actions/like?");
+    expect(urls[1]).toContain("/actions/unlike?");
+  });
+
+  test("reconciles live counts without overwriting a pending optimistic intent", async () => {
+    let finishMutation: ((response: Response) => void) | undefined;
+    globalThis.fetch = (async () =>
+      new Promise<Response>((resolve) => {
+        finishMutation = resolve;
+      })) as unknown as typeof fetch;
+    const user = userEvent.setup();
+    const view = render(
+      <PostCard post={post()} accountId="account-1" translation={translate("ja")} />,
+    );
+    const likeButton = screen.getByRole("button", { name: "いいね" });
+
+    await user.click(likeButton);
+    view.rerender(
+      <PostCard
+        post={{ ...post(), likeCount: 4 }}
+        accountId="account-1"
+        translation={translate("ja")}
+      />,
+    );
+
+    expect(likeButton.textContent).toBe("5");
+    expect(likeButton.classList.contains("like-active")).toBe(true);
+    finishMutation?.(Response.json({ postId: "100", action: "like" }));
+    await waitFor(() => expect(likeButton.getAttribute("aria-busy")).toBe("false"));
+    expect(likeButton.textContent).toBe("5");
+  });
+
+  test("coalesces a superseded rapid toggle without sending an unnecessary inverse request", async () => {
+    let finishMutation: ((response: Response) => void) | undefined;
+    let requests = 0;
+    globalThis.fetch = (async () => {
+      requests += 1;
+      return new Promise<Response>((resolve) => {
+        finishMutation = resolve;
+      });
+    }) as unknown as typeof fetch;
+    const user = userEvent.setup();
+    render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
+    const likeButton = screen.getByRole("button", { name: "いいね" });
+
+    await user.click(likeButton);
+    await user.click(likeButton);
+    await user.click(likeButton);
+    expect(likeButton.textContent).toBe("4");
+    expect(requests).toBe(1);
+    finishMutation?.(Response.json({ postId: "100", action: "like" }));
+
+    await waitFor(() => expect(likeButton.getAttribute("aria-busy")).toBe("false"));
+    expect(requests).toBe(1);
+    expect(likeButton.classList.contains("like-active")).toBe(true);
   });
 
   test("colors engagement controls from the initially loaded X state", () => {
@@ -481,27 +564,56 @@ describe("post actions", () => {
     expect(second.container.querySelector("video")?.volume).toBe(0);
   });
 
-  test("executes follow from the post menu through the authenticated local API", async () => {
-    let requestedUrl = "";
+  test("completes independent user menu actions immediately while requests remain pending", async () => {
+    const requestedUrls: string[] = [];
+    const finishActions: Array<(response: Response) => void> = [];
     globalThis.fetch = (async (input) => {
-      requestedUrl = String(input);
-      return Response.json({ userId: "42", action: "follow" });
+      requestedUrls.push(String(input));
+      return new Promise<Response>((resolve) => finishActions.push(resolve));
     }) as typeof fetch;
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
     await user.click(screen.getByLabelText("ポストメニュー"));
     await user.click(screen.getByRole("button", { name: "フォロー" }));
+    const followed = screen.getByRole("button", { name: "フォロー · 完了" });
+    expect(followed.getAttribute("aria-busy")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "ミュート" }));
 
-    await screen.findByRole("button", { name: "フォロー · 完了" });
-    expect(requestedUrl).toContain("/api/v1/users/42/actions/follow?accountId=account-1");
+    expect(screen.getByRole("button", { name: "ミュート · 完了" })).toBeDefined();
+    expect(requestedUrls).toHaveLength(2);
+    expect(requestedUrls[0]).toContain("/api/v1/users/42/actions/follow?accountId=account-1");
+    expect(requestedUrls[1]).toContain("/api/v1/users/42/actions/mute?accountId=account-1");
+    finishActions[0]?.(Response.json({ userId: "42", action: "follow" }));
+    finishActions[1]?.(Response.json({ userId: "42", action: "mute" }));
+    await waitFor(() => expect(followed.getAttribute("aria-busy")).toBe("false"));
   });
 
-  test("adds the post author to a selected list through the web mutation", async () => {
-    let requestedUrl = "";
+  test("rolls back only the failed optimistic user menu action", async () => {
+    let finishAction: ((response: Response) => void) | undefined;
+    globalThis.fetch = (async () =>
+      new Promise<Response>((resolve) => {
+        finishAction = resolve;
+      })) as unknown as typeof fetch;
+    const user = userEvent.setup();
+    render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
+
+    await user.click(screen.getByLabelText("ポストメニュー"));
+    await user.click(screen.getByRole("button", { name: "フォロー" }));
+    expect(screen.getByRole("button", { name: "フォロー · 完了" })).toBeDefined();
+    finishAction?.(new Response(null, { status: 503 }));
+
+    await screen.findByText("ユーザー操作に失敗しました。");
+    expect(screen.getByRole("button", { name: "フォロー" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "ミュート" })).toBeDefined();
+  });
+
+  test("shows the latest list intent immediately and sends rapid operations in order", async () => {
+    const requestedUrls: string[] = [];
+    const finishActions: Array<(response: Response) => void> = [];
     globalThis.fetch = (async (input) => {
-      requestedUrl = String(input);
-      return Response.json({ userId: "42", listId: "84", action: "add" });
+      requestedUrls.push(String(input));
+      return new Promise<Response>((resolve) => finishActions.push(resolve));
     }) as typeof fetch;
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
@@ -510,9 +622,21 @@ describe("post actions", () => {
     await user.click(screen.getByRole("button", { name: "リストから追加と削除" }));
     await user.type(screen.getByLabelText("リストID"), "84");
     await user.click(screen.getByRole("button", { name: "リストに追加" }));
+    expect(screen.getByRole("button", { name: "リストに追加 · 完了" })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "リストから削除" }));
 
-    await screen.findByRole("button", { name: "リストに追加 · 完了" });
-    expect(requestedUrl).toContain("/api/v1/users/42/lists/84/add?accountId=account-1");
+    expect(screen.getByRole("button", { name: "リストから削除 · 完了" })).toBeDefined();
+    expect(requestedUrls).toHaveLength(1);
+    finishActions[0]?.(Response.json({ userId: "42", listId: "84", action: "add" }));
+    await waitFor(() => expect(requestedUrls).toHaveLength(2));
+    finishActions[1]?.(Response.json({ userId: "42", listId: "84", action: "remove" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "リストから削除 · 完了" }).getAttribute("aria-busy"),
+      ).toBe("false"),
+    );
+    expect(requestedUrls[0]).toContain("/api/v1/users/42/lists/84/add?accountId=account-1");
+    expect(requestedUrls[1]).toContain("/api/v1/users/42/lists/84/remove?accountId=account-1");
   });
 
   test("opens details by clicking or pressing Enter on the post card surface", async () => {

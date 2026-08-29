@@ -5,7 +5,6 @@ import {
   Download,
   Heart,
   MessageCircle,
-  MoreHorizontal,
   Repeat2,
   Settings,
   Share2,
@@ -18,6 +17,7 @@ import type { CommunityNote, EmbeddedPost, TimelinePost } from "../model/timelin
 import { ComposerDialog } from "./composer-dialog";
 import { ArticleCard } from "./article-card";
 import { usePostTranslationSettings } from "./post-translation-context";
+import { PostMenu } from "./post-menu";
 import { useOptimisticToggle } from "./use-optimistic-toggle";
 import { type PostTranslationView, usePostTranslation } from "./use-post-translation";
 
@@ -73,7 +73,7 @@ export function PostCard({
     postTranslation.visibleText,
     post.media.length > 0 || post.article != null,
   );
-  const { pendingActions, toggle } = useOptimisticToggle(
+  const { pendingActions, reconcile, toggle } = useOptimisticToggle(
     async (action) => {
       setActionError(null);
       const response = await fetch(
@@ -102,15 +102,25 @@ export function PostCard({
     },
   );
 
-  useEffect(() => setLiked(post.liked), [post.liked]);
-  useEffect(() => setReposted(post.reposted), [post.reposted]);
-  useEffect(() => setBookmarked(post.bookmarked), [post.bookmarked]);
-  useEffect(() => setLikeCount(post.likeCount), [post.likeCount]);
-  useEffect(
-    () => setRepostCount(post.repostCount + post.quoteCount),
-    [post.quoteCount, post.repostCount],
-  );
-  useEffect(() => setBookmarkCount(post.bookmarkCount), [post.bookmarkCount]);
+  useEffect(() => {
+    if (!reconcile("like", post.liked, post.likeCount)) {
+      setLiked(post.liked);
+      setLikeCount(post.likeCount);
+    }
+  }, [post.likeCount, post.liked, reconcile]);
+  useEffect(() => {
+    const count = post.repostCount + post.quoteCount;
+    if (!reconcile("repost", post.reposted, count)) {
+      setReposted(post.reposted);
+      setRepostCount(count);
+    }
+  }, [post.quoteCount, post.repostCount, post.reposted, reconcile]);
+  useEffect(() => {
+    if (!reconcile("bookmark", post.bookmarked, post.bookmarkCount)) {
+      setBookmarked(post.bookmarked);
+      setBookmarkCount(post.bookmarkCount);
+    }
+  }, [post.bookmarkCount, post.bookmarked, reconcile]);
 
   useEffect(() => {
     const target = cardRef.current;
@@ -351,7 +361,7 @@ export function PostCard({
             quoteLabel={translation.quote}
             count={repostCount}
             active={reposted}
-            disabled={pendingActions.has("repost")}
+            pending={pendingActions.has("repost")}
             onRepost={() =>
               toggle({
                 actionKey: "repost",
@@ -371,7 +381,7 @@ export function PostCard({
             label={translation.like}
             count={likeCount}
             active={liked}
-            disabled={pendingActions.has("like")}
+            pending={pendingActions.has("like")}
             onClick={() =>
               toggle({
                 actionKey: "like",
@@ -397,7 +407,7 @@ export function PostCard({
             label={translation.bookmark}
             count={bookmarkCount}
             active={bookmarked}
-            disabled={pendingActions.has("bookmark")}
+            pending={pendingActions.has("bookmark")}
             onClick={() =>
               toggle({
                 actionKey: "bookmark",
@@ -667,7 +677,7 @@ function RepostMenu({
   quoteLabel,
   count,
   active,
-  disabled,
+  pending,
   onRepost,
   onQuote,
 }: {
@@ -675,7 +685,7 @@ function RepostMenu({
   quoteLabel: string;
   count: number;
   active: boolean;
-  disabled: boolean;
+  pending: boolean;
   onRepost: () => void;
   onQuote: () => void;
 }) {
@@ -686,10 +696,10 @@ function RepostMenu({
   return (
     <details className="repost-menu">
       <summary
-        className={`post-action${active ? " active repost-active" : ""}${disabled ? " disabled" : ""}`}
+        className={`post-action${active ? " active repost-active" : ""}${pending ? " pending" : ""}`}
         data-post-action="repost"
         aria-label={label}
-        aria-disabled={disabled}
+        aria-busy={pending}
       >
         <Repeat2 aria-hidden="true" size={16} />
         <span>{compactNumber(count)}</span>
@@ -698,13 +708,12 @@ function RepostMenu({
         <button
           type="button"
           data-post-action="repost-confirm"
-          disabled={disabled}
           onClick={(event) => closeAndRun(event, onRepost)}
         >
           <Repeat2 aria-hidden="true" size={16} />
           {label}
         </button>
-        <button type="button" disabled={disabled} onClick={(event) => closeAndRun(event, onQuote)}>
+        <button type="button" onClick={(event) => closeAndRun(event, onQuote)}>
           <MessageCircle aria-hidden="true" size={16} />
           {quoteLabel}
         </button>
@@ -732,142 +741,6 @@ function omitTrailingRedirectLink(text: string, enabled: boolean): string {
   return enabled ? text.replace(/(?:\s*https:\/\/t\.co\/[A-Za-z0-9]+)+\s*$/u, "").trimEnd() : text;
 }
 
-function PostMenu({
-  accountId,
-  userId,
-  postUrl,
-  translation,
-  onHide,
-}: {
-  accountId: string;
-  userId: string;
-  postUrl: string;
-  translation: Translation;
-  onHide: () => void;
-}) {
-  const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [completedAction, setCompletedAction] = useState<string | null>(null);
-  const [error, setError] = useState(false);
-  const [listEditor, setListEditor] = useState(false);
-  const [listId, setListId] = useState("");
-  const links = [
-    [translation.postActivity, `${postUrl}/analytics`],
-    [translation.embedPost, `https://publish.twitter.com/#query=${encodeURIComponent(postUrl)}`],
-    [
-      translation.reportPost,
-      `https://x.com/i/safety/report_story?tweet_id=${postUrl.split("/").at(-1)}`,
-    ],
-    [translation.requestCommunityNote, "https://x.com/i/communitynotes"],
-  ] as const;
-  const userAction = async (action: "follow" | "mute" | "block") => {
-    if (action === "block" && !window.confirm(translation.confirmBlock)) {
-      return;
-    }
-    setBusyAction(action);
-    setCompletedAction(null);
-    setError(false);
-    try {
-      const response = await fetch(
-        `/api/v1/users/${encodeURIComponent(userId)}/actions/${action}?accountId=${encodeURIComponent(accountId)}`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      setCompletedAction(action);
-    } catch {
-      setError(true);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-  const listAction = async (action: "add" | "remove") => {
-    if (!/^\d{1,30}$/.test(listId)) {
-      setError(true);
-      return;
-    }
-    setBusyAction(`list-${action}`);
-    setCompletedAction(null);
-    setError(false);
-    try {
-      const response = await fetch(
-        `/api/v1/users/${encodeURIComponent(userId)}/lists/${encodeURIComponent(listId)}/${action}?accountId=${encodeURIComponent(accountId)}`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      setCompletedAction(`list-${action}`);
-    } catch {
-      setError(true);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-  return (
-    <details className="post-overflow">
-      <summary aria-label={translation.postMenu}>
-        <MoreHorizontal aria-hidden="true" size={17} />
-      </summary>
-      <div>
-        <button type="button" onClick={onHide}>
-          {translation.notInterested}
-        </button>
-        {(
-          [
-            ["follow", translation.followUser],
-            ["mute", translation.muteUser],
-            ["block", translation.blockUser],
-          ] as const
-        ).map(([action, label]) => (
-          <button
-            key={action}
-            type="button"
-            disabled={busyAction !== null}
-            onClick={() => userAction(action)}
-          >
-            {label}
-            {completedAction === action ? ` · ${translation.userActionCompleted}` : ""}
-          </button>
-        ))}
-        <button type="button" onClick={() => setListEditor((current) => !current)}>
-          {translation.manageLists}
-        </button>
-        {listEditor && (
-          <div className="list-membership-editor">
-            <input
-              aria-label={translation.listId}
-              inputMode="numeric"
-              pattern="[0-9]+"
-              maxLength={30}
-              value={listId}
-              onChange={(event) => setListId(event.target.value)}
-            />
-            <button type="button" disabled={busyAction !== null} onClick={() => listAction("add")}>
-              {translation.addToList}
-              {completedAction === "list-add" ? ` · ${translation.userActionCompleted}` : ""}
-            </button>
-            <button
-              type="button"
-              disabled={busyAction !== null}
-              onClick={() => listAction("remove")}
-            >
-              {translation.removeFromList}
-              {completedAction === "list-remove" ? ` · ${translation.userActionCompleted}` : ""}
-            </button>
-          </div>
-        )}
-        {links.map(([label, href]) => (
-          <a key={label} href={href} target="_blank" rel="noreferrer">
-            {label}
-          </a>
-        ))}
-        {error && <p className="post-menu-error">{translation.userActionFailed}</p>}
-      </div>
-    </details>
-  );
-}
-
 interface ActionProps {
   actionId: string;
   icon: typeof MessageCircle;
@@ -875,6 +748,7 @@ interface ActionProps {
   count: number;
   active?: boolean;
   disabled?: boolean;
+  pending?: boolean;
   onClick?: () => void;
 }
 
@@ -885,14 +759,16 @@ function Action({
   count,
   active = false,
   disabled = false,
+  pending = false,
   onClick,
 }: ActionProps) {
   return (
     <button
       type="button"
-      className={`post-action${active ? ` active ${actionId}-active` : ""}`}
+      className={`post-action${active ? ` active ${actionId}-active` : ""}${pending ? " pending" : ""}`}
       data-post-action={actionId}
       aria-label={label}
+      aria-busy={pending}
       disabled={disabled}
       onClick={onClick}
     >

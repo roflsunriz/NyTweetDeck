@@ -265,6 +265,15 @@
   background: var(--surface-hover);
 }
 
+.post-overflow button:disabled,
+.post-overflow button[aria-busy="true"] {
+  color: var(--accent);
+}
+
+.post-overflow button:disabled {
+  cursor: default;
+}
+
 .account-login-button {
   margin: 0 18px 18px;
 }
@@ -351,11 +360,6 @@
 
 .repost-menu button:hover:not(:disabled) {
   background: var(--surface-hover);
-}
-
-.post-action.disabled {
-  cursor: default;
-  opacity: 0.5;
 }
 
 :root[data-font-size="small"] {

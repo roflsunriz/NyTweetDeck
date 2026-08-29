@@ -749,7 +749,9 @@ if (!optimisticLikeClicked) throw new Error("いいね解除を操作できま�
 await waitForCondition(`
   window.__qaPostActionRequests.at(-1) === "unlike" &&
   document.querySelector("[data-post-action=like]")?.textContent === "2" &&
-  document.querySelector("[data-post-action=like]")?.classList.contains("like-active") === false
+  document.querySelector("[data-post-action=like]")?.classList.contains("like-active") === false &&
+  document.querySelector("[data-post-action=like]")?.disabled === false &&
+  document.querySelector("[data-post-action=like]")?.getAttribute("aria-busy") === "true"
 `);
 await client.evaluate("window.__qaResolvePostAction?.(503)");
 await waitForCondition(`
@@ -769,7 +771,8 @@ if (!optimisticRepostClicked) throw new Error("リポスト解除を操作でき
 await waitForCondition(`
   window.__qaPostActionRequests.at(-1) === "undoRepost" &&
   document.querySelector("[data-post-action=repost]")?.textContent === "1" &&
-  document.querySelector("[data-post-action=repost]")?.classList.contains("repost-active") === false
+  document.querySelector("[data-post-action=repost]")?.classList.contains("repost-active") === false &&
+  document.querySelector("[data-post-action=repost]")?.getAttribute("aria-busy") === "true"
 `);
 await client.evaluate("window.__qaResolvePostAction?.(503)");
 await waitForCondition(`
