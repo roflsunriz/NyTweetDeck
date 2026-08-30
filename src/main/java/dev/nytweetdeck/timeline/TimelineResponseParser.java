@@ -7,6 +7,8 @@ import dev.nytweetdeck.timeline.TimelinePage.EmbeddedPost;
 import dev.nytweetdeck.timeline.TimelinePage.Media;
 import dev.nytweetdeck.timeline.TimelinePage.Post;
 import dev.nytweetdeck.timeline.TimelinePage.Translation;
+import dev.nytweetdeck.timeline.PostTextUrlNormalizer.Kind;
+import dev.nytweetdeck.timeline.PostTextUrlNormalizer.UrlEntity;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -144,12 +146,12 @@ public class TimelineResponseParser {
         var quotedPost = parseEmbeddedPost(quotedTweet);
         var article = parseArticle(content);
         var media = parseMedia(legacy.get("extended_entities"));
-        var omittedUrls = omittedRedirectUrls(legacy, media, article != null);
-        var preTranslated = omitRedirectUrls(
-                parsePreTranslated(content, responseNode), omittedUrls);
+        var urlEntities = urlEntities(content, legacy);
+        var preTranslated = normalizeUrls(
+                parsePreTranslated(content, responseNode), urlEntities);
         return new Post(
                 id,
-                omitRedirectUrls(tweetText(content), omittedUrls),
+                PostTextUrlNormalizer.normalize(tweetText(content), urlEntities),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 author,
@@ -231,14 +233,14 @@ public class TimelineResponseParser {
         var legacy = node.get("legacy");
         var article = parseArticle(node);
         var media = parseMedia(legacy.get("extended_entities"));
-        var omittedUrls = omittedRedirectUrls(legacy, media, article != null);
+        var urlEntities = urlEntities(node, legacy);
         return new EmbeddedPost(
                 firstNonNull(text(node, "rest_id"), text(legacy, "id_str")),
-                omitRedirectUrls(tweetText(node), omittedUrls),
+                PostTextUrlNormalizer.normalize(tweetText(node), urlEntities),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 parseAuthor(node),
-                omitRedirectUrls(parsePreTranslated(node, node), omittedUrls),
+                normalizeUrls(parsePreTranslated(node, node), urlEntities),
                 article,
                 media);
     }
@@ -303,58 +305,60 @@ public class TimelineResponseParser {
         return normalized.length() <= 280 ? normalized : normalized.substring(0, 277) + "…";
     }
 
-    private static List<String> omittedRedirectUrls(
-            JsonNode legacy, List<Media> media, boolean hasArticle) {
-        var urls = new ArrayList<String>();
-        if (!media.isEmpty()) {
-            collectEntityUrls(legacy == null ? null : legacy.path("extended_entities").get("media"), urls, false);
-            collectEntityUrls(legacy == null ? null : legacy.path("entities").get("media"), urls, false);
-        }
-        if (hasArticle) {
-            collectEntityUrls(legacy == null ? null : legacy.path("entities").get("urls"), urls, true);
-        }
-        return urls;
+    private static List<UrlEntity> urlEntities(JsonNode tweet, JsonNode legacy) {
+        var entities = new ArrayList<UrlEntity>();
+        collectUrlEntities(
+                legacy == null ? null : legacy.path("extended_entities").get("media"),
+                entities,
+                Kind.MEDIA);
+        collectUrlEntities(
+                legacy == null ? null : legacy.path("entities").get("media"),
+                entities,
+                Kind.MEDIA);
+        collectUrlEntities(
+                legacy == null ? null : legacy.path("entities").get("urls"),
+                entities,
+                Kind.LINK);
+        var noteTweet = firstObject(tweet, "note_tweet", "noteTweet");
+        var noteResults = firstObject(noteTweet, "note_tweet_results", "noteTweetResults");
+        var noteResult = firstObject(noteResults, "result");
+        var entitySet = firstObject(noteResult, "entity_set", "entitySet");
+        collectUrlEntities(entitySet == null ? null : entitySet.get("urls"), entities, Kind.LINK);
+        return entities;
     }
 
-    private static void collectEntityUrls(
-            JsonNode entities, List<String> urls, boolean articleOnly) {
-        if (entities == null || !entities.isArray()) {
+    private static void collectUrlEntities(
+            JsonNode values, List<UrlEntity> entities, Kind defaultKind) {
+        if (values == null || !values.isArray()) {
             return;
         }
-        for (var entity : entities) {
+        for (var entity : values) {
             var expanded = firstNonNull(text(entity, "expanded_url"), text(entity, "expandedUrl"));
-            if (articleOnly && (expanded == null || !expanded.matches("https?://(?:x|twitter)\\.com/i/article/.*"))) {
-                continue;
-            }
-            var url = text(entity, "url");
-            if (url != null && !url.isBlank()) {
-                urls.add(url);
+            var kind = defaultKind == Kind.LINK && isArticleUrl(expanded)
+                    ? Kind.ARTICLE
+                    : defaultKind;
+            var shortUrl = text(entity, "url");
+            if (shortUrl != null && !shortUrl.isBlank()) {
+                entities.add(new UrlEntity(
+                        shortUrl,
+                        expanded,
+                        firstNonNull(text(entity, "unwound_url"), text(entity, "unwoundUrl")),
+                        kind));
             }
         }
     }
 
-    private static String omitRedirectUrls(String value, List<String> omittedUrls) {
-        if (value == null || omittedUrls.isEmpty()) {
-            return value;
-        }
-        var normalized = value;
-        for (var url : omittedUrls) {
-            normalized = normalized.replace(url, "");
-        }
-        return normalized
-                .replaceAll("[ \\t]+(?=\\R|$)", "")
-                .replaceAll("(?m)^[ \\t]+", "")
-                .replaceAll("\\R{3,}", "\n\n")
-                .strip();
+    private static boolean isArticleUrl(String value) {
+        return value != null && value.matches("https?://(?:x|twitter)\\.com/i/article/.*");
     }
 
-    private static Translation omitRedirectUrls(
-            Translation translation, List<String> omittedUrls) {
+    private static Translation normalizeUrls(
+            Translation translation, List<UrlEntity> urlEntities) {
         if (translation == null) {
             return null;
         }
         return new Translation(
-                omitRedirectUrls(translation.text(), omittedUrls),
+                PostTextUrlNormalizer.normalize(translation.text(), urlEntities),
                 translation.sourceLanguage(),
                 translation.targetLanguage(),
                 translation.provider());

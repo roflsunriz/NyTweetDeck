@@ -53,6 +53,15 @@ describe("NyTweetDeck shell", () => {
     window.open = originalOpen;
   });
 
+  test("removes the inactive N brand mark and uses the Android compose pencil", async () => {
+    const { container } = render(<App />);
+
+    const compose = await screen.findByRole("button", { name: "ポストを作成" });
+    expect(container.querySelector(".brand-mark")).toBeNull();
+    expect(compose.querySelector(".lucide-pencil")).not.toBeNull();
+    expect(compose.querySelector(".lucide-pen-line")).toBeNull();
+  });
+
   test("adds, persists, and removes a column", async () => {
     const user = userEvent.setup();
     const firstRender = render(<App />);

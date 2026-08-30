@@ -447,6 +447,10 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
               id: "photo-qa", type: "photo",
               url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
               previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+            }, {
+              id: "photo-qa-next", type: "photo",
+              url: "data:image/gif;base64,R0lGODlhAQABAIAAAAD/AP///ywAAAAAAQABAAACAUwAOw==",
+              previewUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAD/AP///ywAAAAAAQABAAACAUwAOw=="
             }]
           },
           replies: [{
@@ -464,7 +468,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
             repostedBy: null, conversationSection: "LowQuality",
             replyCount: 0, repostCount: 0, quoteCount: 0, likeCount: 0,
             bookmarkCount: 0, viewCount: 1, liked: false, reposted: false, bookmarked: false,
-            replyToPostId: "100", replyToUsername: "qa", quotedPost: null, media: []
+            replyToPostId: "reply-regular", replyToUsername: "regular", quotedPost: null, media: []
           }, {
             id: "reply-abusive", text: "abusive quality reply", language: "ja",
             createdAt: "2026-08-28T00:00:00Z",
@@ -472,7 +476,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
             repostedBy: null, conversationSection: "AbusiveQuality",
             replyCount: 0, repostCount: 0, quoteCount: 0, likeCount: 0,
             bookmarkCount: 0, viewCount: 1, liked: false, reposted: false, bookmarked: false,
-            replyToPostId: "100", replyToUsername: "qa", quotedPost: null, media: []
+            replyToPostId: "reply-low", replyToUsername: "low", quotedPost: null, media: []
           }], nextCursor: null
         }));
       }
@@ -1097,7 +1101,10 @@ if (!possibleSpamExpanded) throw new Error("スパムの可能性のある返信
 await waitForCondition(`
   document.querySelector(".possible-spam-toggle")?.getAttribute("aria-expanded") === "true" &&
   document.querySelector(".post-detail-content")?.textContent?.includes("low quality reply") === true &&
-  document.querySelector(".post-detail-content")?.textContent?.includes("abusive quality reply") === true
+  document.querySelector(".post-detail-content")?.textContent?.includes("abusive quality reply") === true &&
+  document.querySelector('[data-reply-thread-id="reply-regular"]')?.getAttribute("data-thread-depth") === "0" &&
+  document.querySelector('[data-reply-thread-id="reply-low"]')?.getAttribute("data-thread-depth") === "1" &&
+  document.querySelector('[data-reply-thread-id="reply-abusive"]')?.getAttribute("data-thread-depth") === "2"
 `);
 const replyControlsPositioned = await client.evaluate<boolean>(`(() => {
   const header = document.querySelector(".detail-replies-header");
@@ -1111,12 +1118,22 @@ const replySortingMetrics = await client.evaluate<Record<string, unknown>>(`({
   requestModes: window.__qaReplySortRequests,
   possibleSpamExpanded: document.querySelector(".possible-spam-toggle")?.getAttribute("aria-expanded"),
   possibleSpamReplyCount: document.querySelectorAll(".possible-spam-replies .post-card").length,
+  replyThreadDepths: Array.from(
+    document.querySelectorAll("[data-reply-thread-id]"),
+    element => [element.getAttribute("data-reply-thread-id"), element.getAttribute("data-thread-depth")]
+  ),
   documentOverflow: document.documentElement.scrollWidth > innerWidth
 })`);
 if (
   replySortingMetrics.replySort !== "likes" ||
   replySortingMetrics.possibleSpamExpanded !== "true" ||
   replySortingMetrics.possibleSpamReplyCount !== 2 ||
+  JSON.stringify(replySortingMetrics.replyThreadDepths) !==
+    JSON.stringify([
+      ["reply-regular", "0"],
+      ["reply-low", "1"],
+      ["reply-abusive", "2"],
+    ]) ||
   replySortingMetrics.documentOverflow !== false
 ) {
   throw new Error(
@@ -1182,6 +1199,111 @@ const releasedPointerTransform = await client.evaluate<string>(
 if (!releasedPointerTransform.includes("translate(0px, 0px)")) {
   throw new Error(`押されていないポインターで画像が移動しました: ${releasedPointerTransform}`);
 }
+const edgeBounds = await client.evaluate<{
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+} | null>(`(() => {
+  const viewport = document.querySelector(".image-viewer-viewport");
+  if (!(viewport instanceof HTMLElement)) return null;
+  const bounds = viewport.getBoundingClientRect();
+  return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom };
+})()`);
+if (edgeBounds === null) throw new Error("画像の境界実測範囲を取得できませんでした。");
+const edgeCenterX = (edgeBounds.left + edgeBounds.right) / 2;
+const edgeCenterY = (edgeBounds.top + edgeBounds.bottom) / 2;
+await client.call("Input.dispatchMouseEvent", {
+  type: "mousePressed",
+  x: edgeCenterX,
+  y: edgeCenterY,
+  button: "left",
+  buttons: 1,
+  clickCount: 1,
+});
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseMoved",
+  x: edgeBounds.left,
+  y: edgeCenterY,
+  button: "left",
+  buttons: 1,
+});
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseReleased",
+  x: edgeBounds.left,
+  y: edgeCenterY,
+  button: "left",
+  buttons: 0,
+  clickCount: 1,
+});
+await waitForCondition(
+  'document.querySelector(".image-viewer-viewport")?.getAttribute("data-image-index") === "1" && document.querySelector(".image-viewer-viewport")?.getAttribute("data-dragging") === "false"',
+);
+const edgeNextIndex = await client.evaluate<string>(
+  'document.querySelector(".image-viewer-viewport")?.getAttribute("data-image-index") ?? ""',
+);
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseMoved",
+  x: edgeCenterX,
+  y: edgeCenterY,
+  button: "none",
+  buttons: 0,
+});
+await client.call("Input.dispatchMouseEvent", {
+  type: "mousePressed",
+  x: edgeCenterX,
+  y: edgeCenterY,
+  button: "left",
+  buttons: 1,
+  clickCount: 1,
+});
+await waitForCondition(
+  'document.querySelector(".image-viewer-viewport")?.getAttribute("data-dragging") === "true"',
+);
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseMoved",
+  x: edgeCenterX + (edgeBounds.right - edgeCenterX) / 2,
+  y: edgeCenterY,
+  button: "left",
+  buttons: 1,
+});
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseMoved",
+  x: edgeBounds.right - 0.5,
+  y: edgeCenterY,
+  button: "left",
+  buttons: 1,
+});
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseReleased",
+  x: edgeBounds.right - 0.5,
+  y: edgeCenterY,
+  button: "left",
+  buttons: 0,
+  clickCount: 1,
+});
+await client.evaluate(
+  "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+);
+const rightEdgeSnapshot = await client.evaluate<Record<string, unknown>>(`(() => {
+  const viewport = document.querySelector(".image-viewer-viewport");
+  if (!(viewport instanceof HTMLElement)) return { found: false };
+  const bounds = viewport.getBoundingClientRect();
+  return {
+    found: true,
+    imageIndex: viewport.getAttribute("data-image-index"),
+    imageCount: viewport.getAttribute("data-image-count"),
+    dragging: viewport.getAttribute("data-dragging"),
+    panX: viewport.getAttribute("data-pan-x"),
+    bounds: { left: bounds.left, right: bounds.right }
+  };
+})()`);
+if (rightEdgeSnapshot.imageIndex !== "0") {
+  throw new Error(`画像の右境界切替に失敗しました: ${JSON.stringify(rightEdgeSnapshot)}`);
+}
+const edgePreviousIndex = await client.evaluate<string>(
+  'document.querySelector(".image-viewer-viewport")?.getAttribute("data-image-index") ?? ""',
+);
 const imageMoved = await client.evaluate<boolean>(`(() => {
   const viewport = document.querySelector(".image-viewer-viewport");
   if (!(viewport instanceof HTMLElement)) return false;
@@ -1198,6 +1320,9 @@ await waitForCondition(
 const imageViewerMetrics = await client.evaluate<Record<string, unknown>>(`({
   zoomBelow100: ${zoomBelow100},
   releasedPointerTransform: ${JSON.stringify(releasedPointerTransform)},
+  imageCount: document.querySelector(".image-viewer-viewport")?.getAttribute("data-image-count"),
+  edgeNextIndex: ${JSON.stringify(edgeNextIndex)},
+  edgePreviousIndex: ${JSON.stringify(edgePreviousIndex)},
   zoom: document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom"),
   transform: document.querySelector(".image-viewer-viewport img")?.style.transform,
   detailBehindViewer: document.querySelector(".post-detail-content") !== null,

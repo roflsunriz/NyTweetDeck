@@ -94,6 +94,8 @@ export interface Translation {
   viewMedia: string;
   fullSizeImage: string;
   closeImage: string;
+  previousImage: string;
+  nextImage: string;
   zoomIn: string;
   zoomOut: string;
   resetImageView: string;
@@ -286,6 +288,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     viewMedia: "メディアを表示",
     fullSizeImage: "画像をフルサイズで表示",
     closeImage: "画像を閉じる",
+    previousImage: "前の画像",
+    nextImage: "次の画像",
     zoomIn: "拡大",
     zoomOut: "縮小",
     resetImageView: "表示位置と倍率をリセット",
@@ -529,6 +533,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     viewMedia: "View media",
     fullSizeImage: "View full-size image",
     closeImage: "Close image",
+    previousImage: "Previous image",
+    nextImage: "Next image",
     zoomIn: "Zoom in",
     zoomOut: "Zoom out",
     resetImageView: "Reset image position and zoom",

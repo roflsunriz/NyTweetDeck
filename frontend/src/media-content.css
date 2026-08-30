@@ -169,6 +169,12 @@
   text-align: center;
 }
 
+.image-viewer-toolbar > .image-viewer-position {
+  min-width: 50px;
+  color: rgb(255 255 255 / 80%);
+  font-variant-numeric: tabular-nums;
+}
+
 .image-viewer-toolbar button {
   background: rgb(255 255 255 / 14%);
   color: #fff;
@@ -190,7 +196,7 @@
   user-select: none;
 }
 
-.image-viewer-viewport:active {
+.image-viewer-viewport[data-dragging="true"] {
   cursor: grabbing;
 }
 

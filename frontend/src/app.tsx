@@ -10,7 +10,7 @@ import {
   Megaphone,
   MessageCircleMore,
   Minus,
-  PenLine,
+  Pencil,
   Plus,
   Radio,
   Search,
@@ -51,7 +51,7 @@ import { useListCandidates } from "./model/use-list-candidates";
 import { TimelineCacheProvider } from "./model/timeline-cache";
 
 const navIcons: Record<NavItemId, LucideIcon> = {
-  compose: PenLine,
+  compose: Pencil,
   search: Search,
   home: Home,
   notifications: Bell,
@@ -369,9 +369,6 @@ function AppContent() {
           </div>
         )}
         <aside className="main-navigation" aria-label={translation.appName}>
-          <div className="brand-mark" aria-hidden="true">
-            N
-          </div>
           <nav className="primary-actions">
             {layout.navItems.map((item) => {
               const Icon = navIcons[item];

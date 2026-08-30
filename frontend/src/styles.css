@@ -92,22 +92,6 @@ select:focus-visible {
   background: color-mix(in srgb, var(--surface) 94%, transparent);
 }
 
-.brand-mark {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  margin-bottom: 9px;
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
-  border-radius: 11px;
-  background: linear-gradient(145deg, var(--accent), var(--accent-strong));
-  box-shadow: 0 8px 25px color-mix(in srgb, var(--accent) 28%, transparent);
-  color: white;
-  font-weight: 800;
-  letter-spacing: -0.05em;
-}
-
 .primary-actions,
 .secondary-actions {
   display: flex;

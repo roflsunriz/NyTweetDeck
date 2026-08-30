@@ -30,7 +30,7 @@ interface PostCardProps {
   onOpen?: () => void;
   onOpenUser?: (userId: string) => void;
   onOpenQuotedPost?: (postId: string) => void;
-  onOpenImage?: (media: TimelinePost["media"][number]) => void;
+  onOpenImage?: (media: TimelinePost["media"][number], siblings: TimelinePost["media"]) => void;
   display?: DisplayPreferences;
 }
 
@@ -313,7 +313,7 @@ export function PostCard({
                   key={media.id}
                   type="button"
                   aria-label={translation.fullSizeImage}
-                  onClick={() => onOpenImage(media)}
+                  onClick={() => onOpenImage(media, post.media)}
                 >
                   <img loading="lazy" src={media.url} alt="" />
                 </button>

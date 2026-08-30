@@ -1,8 +1,9 @@
-import { Minus, Plus, RotateCcw, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, Plus, RotateCcw, X } from "lucide-react";
 import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -10,6 +11,7 @@ import type { Translation } from "../i18n/translations";
 
 interface ImageViewerProps {
   src: string;
+  sources?: readonly string[];
   translation: Translation;
   onClose: () => void;
 }
@@ -19,30 +21,49 @@ interface Point {
   y: number;
 }
 
+interface ActiveDrag {
+  pointerId: number;
+  point: Point;
+  origin: Point;
+}
+
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8;
+const EDGE_SWITCH_TOLERANCE = 1;
+const EDGE_SWITCH_SWIPE_FRACTION = 0.49;
 
-export function ImageViewer({ src, translation, onClose }: ImageViewerProps) {
+export function ImageViewer({ src, sources, translation, onClose }: ImageViewerProps) {
+  const viewerRef = useRef<HTMLElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ pointerId: number; point: Point } | null>(null);
+  const dragRef = useRef<ActiveDrag | null>(null);
+  const imageSources = useMemo(() => normalizeImageSources(src, sources), [src, sources]);
+  const [imageIndex, setImageIndex] = useState(() => selectedImageIndex(src, imageSources));
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
 
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      onClose();
-    };
-    window.addEventListener("keydown", handleEscape, true);
-    return () => window.removeEventListener("keydown", handleEscape, true);
-  }, [onClose]);
-
-  const reset = () => {
+  const reset = useCallback(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-  };
+  }, []);
+
+  const stopActiveDrag = useCallback((target: HTMLElement, pointerId?: number) => {
+    const active = dragRef.current;
+    if (active === null || (pointerId !== undefined && active.pointerId !== pointerId)) return;
+    dragRef.current = null;
+    setDragging(false);
+    if (target.hasPointerCapture(active.pointerId)) target.releasePointerCapture(active.pointerId);
+  }, []);
+
+  const navigate = useCallback(
+    (offset: number) => {
+      if (imageSources.length <= 1) return;
+      setImageIndex((current) => (current + offset + imageSources.length) % imageSources.length);
+      reset();
+    },
+    [imageSources.length, reset],
+  );
+
   const setZoomAround = useCallback(
     (nextValue: number, origin: Point = { x: 0, y: 0 }) => {
       const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextValue));
@@ -62,10 +83,49 @@ export function ImageViewer({ src, translation, onClose }: ImageViewerProps) {
   );
 
   useEffect(() => {
+    setImageIndex(selectedImageIndex(src, imageSources));
+    reset();
+  }, [imageSources, reset, src]);
+
+  useEffect(() => {
+    viewerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyboard = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        navigate(-1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        navigate(1);
+      } else if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        setZoomAround(zoom * 1.25);
+      } else if (event.key === "-") {
+        event.preventDefault();
+        setZoomAround(zoom / 1.25);
+      } else if (event.key === "0") {
+        event.preventDefault();
+        stopActiveDrag(viewportRef.current ?? viewerRef.current ?? document.body);
+        reset();
+      }
+    };
+    window.addEventListener("keydown", handleKeyboard, true);
+    return () => window.removeEventListener("keydown", handleKeyboard, true);
+  }, [navigate, onClose, reset, setZoomAround, stopActiveDrag, zoom]);
+
+  useEffect(() => {
     const viewport = viewportRef.current;
     if (viewport === null) return;
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
+      stopActiveDrag(viewport);
       const bounds = viewport.getBoundingClientRect();
       setZoomAround(zoom * Math.exp(-event.deltaY * 0.0015), {
         x:
@@ -80,43 +140,117 @@ export function ImageViewer({ src, translation, onClose }: ImageViewerProps) {
     };
     viewport.addEventListener("wheel", handleWheel, { passive: false });
     return () => viewport.removeEventListener("wheel", handleWheel);
-  }, [setZoomAround, zoom]);
+  }, [setZoomAround, stopActiveDrag, zoom]);
+
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || event.isPrimary === false || dragRef.current !== null) return;
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId, point: pointerPoint(event) };
+    const point = pointerPoint(event);
+    dragRef.current = { pointerId: event.pointerId, point, origin: point };
+    setDragging(true);
   };
+
   const drag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const current = dragRef.current;
     if (current === null || current.pointerId !== event.pointerId) return;
-    if ((event.buttons & 1) === 0) {
-      stopDrag(event);
+    if (event.pointerType !== "touch" && (event.buttons & 1) === 0) {
+      stopActiveDrag(event.currentTarget, event.pointerId);
       return;
     }
     const next = pointerPoint(event);
+    const horizontalDelta = next.x - current.point.x;
+    const totalHorizontalDelta = next.x - current.origin.x;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (
+      imageSources.length > 1 &&
+      bounds.width > 0 &&
+      totalHorizontalDelta < 0 &&
+      (next.x <= bounds.left + EDGE_SWITCH_TOLERANCE ||
+        totalHorizontalDelta <= -bounds.width * EDGE_SWITCH_SWIPE_FRACTION)
+    ) {
+      stopActiveDrag(event.currentTarget, event.pointerId);
+      navigate(1);
+      return;
+    }
+    if (
+      imageSources.length > 1 &&
+      bounds.width > 0 &&
+      totalHorizontalDelta > 0 &&
+      (next.x >= bounds.right - EDGE_SWITCH_TOLERANCE ||
+        totalHorizontalDelta >= bounds.width * EDGE_SWITCH_SWIPE_FRACTION)
+    ) {
+      stopActiveDrag(event.currentTarget, event.pointerId);
+      navigate(-1);
+      return;
+    }
     setPan((value) => ({
-      x: value.x + next.x - current.point.x,
+      x: value.x + horizontalDelta,
       y: value.y + next.y - current.point.y,
     }));
-    dragRef.current = { pointerId: event.pointerId, point: next };
+    dragRef.current = { ...current, point: next };
   };
-  const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+
+  const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const current = dragRef.current;
+    if (current === null || current.pointerId !== event.pointerId) return;
+    const next = pointerPoint(event);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const navigateAtLeft =
+      imageSources.length > 1 &&
+      bounds.width > 0 &&
+      next.x < current.origin.x &&
+      next.x <= bounds.left + EDGE_SWITCH_TOLERANCE;
+    const navigateAtRight =
+      imageSources.length > 1 &&
+      bounds.width > 0 &&
+      next.x > current.origin.x &&
+      next.x >= bounds.right - EDGE_SWITCH_TOLERANCE;
+    stopActiveDrag(event.currentTarget, event.pointerId);
+    if (navigateAtLeft) navigate(1);
+    if (navigateAtRight) navigate(-1);
   };
+
+  const cancelDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    stopActiveDrag(event.currentTarget, event.pointerId);
+  };
+
+  const resetFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    stopActiveDrag(event.currentTarget);
+    reset();
+  };
+
+  const currentSource = imageSources[imageIndex] ?? src;
 
   return (
     <div className="image-viewer-backdrop">
       <section
+        ref={viewerRef}
         className="image-viewer"
         aria-modal="true"
         role="dialog"
         aria-label={translation.fullSizeImage}
+        tabIndex={-1}
       >
         <header className="image-viewer-toolbar">
           <span>{Math.round(zoom * 100)}%</span>
+          {imageSources.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label={translation.previousImage}
+                onClick={() => navigate(-1)}
+              >
+                <ChevronLeft aria-hidden="true" size={19} />
+              </button>
+              <span className="image-viewer-position" aria-live="polite">
+                {imageIndex + 1} / {imageSources.length}
+              </span>
+              <button type="button" aria-label={translation.nextImage} onClick={() => navigate(1)}>
+                <ChevronRight aria-hidden="true" size={19} />
+              </button>
+            </>
+          )}
           <button
             type="button"
             aria-label={translation.zoomOut}
@@ -144,17 +278,22 @@ export function ImageViewer({ src, translation, onClose }: ImageViewerProps) {
           ref={viewportRef}
           className="image-viewer-viewport"
           data-zoom={zoom}
+          data-pan-x={pan.x}
+          data-pan-y={pan.y}
+          data-dragging={dragging}
+          data-image-index={imageIndex}
+          data-image-count={imageSources.length}
           role="application"
           aria-label={translation.imageViewerHelp}
           onPointerDown={startDrag}
           onPointerMove={drag}
-          onPointerUp={stopDrag}
-          onPointerCancel={stopDrag}
-          onLostPointerCapture={stopDrag}
-          onDoubleClick={reset}
+          onPointerUp={finishDrag}
+          onPointerCancel={cancelDrag}
+          onLostPointerCapture={cancelDrag}
+          onDoubleClick={resetFromPointer}
         >
           <img
-            src={originalImageUrl(src)}
+            src={originalImageUrl(currentSource)}
             alt=""
             draggable={false}
             style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
@@ -164,6 +303,19 @@ export function ImageViewer({ src, translation, onClose }: ImageViewerProps) {
       </section>
     </div>
   );
+}
+
+function normalizeImageSources(src: string, sources?: readonly string[]): string[] {
+  const normalized = Array.from(
+    new Set((sources ?? [src]).filter((source) => source.trim().length > 0)),
+  );
+  if (!normalized.includes(src)) normalized.push(src);
+  return normalized.length === 0 ? [src] : normalized;
+}
+
+function selectedImageIndex(src: string, sources: readonly string[]): number {
+  const index = sources.indexOf(src);
+  return index < 0 ? 0 : index;
 }
 
 function originalImageUrl(value: string): string {
