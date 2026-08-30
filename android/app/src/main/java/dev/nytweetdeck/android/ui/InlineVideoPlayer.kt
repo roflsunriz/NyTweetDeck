@@ -1,7 +1,6 @@
 package dev.nytweetdeck.android.ui
 
-import android.graphics.Color
-import android.widget.VideoView
+import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -13,15 +12,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.PlayerView
 import dev.nytweetdeck.android.model.Media
 import kotlin.math.max
 import kotlin.math.min
 
 private const val INLINE_PLAYBACK_VISIBLE_FRACTION = 0.6f
 
+@OptIn(UnstableApi::class)
 @Composable
 internal fun InlineVideoPlayer(
     media: Media,
@@ -29,45 +34,37 @@ internal fun InlineVideoPlayer(
     modifier: Modifier = Modifier,
 ) {
     val uri = remember(media.url) { safeMediaUri(media.url) }
+    val context = LocalContext.current
     val rootView = LocalView.current
     var visible by remember(media.id) { mutableStateOf(false) }
-    var videoView by remember(media.id) { mutableStateOf<VideoView?>(null) }
-
-    LaunchedEffect(videoView, uri, visible, loop) {
-        val playerView = videoView ?: return@LaunchedEffect
-        playerView.setOnPreparedListener(null)
-        playerView.setOnErrorListener(null)
-        if (!visible || uri == null) {
-            playerView.stopPlayback()
-            return@LaunchedEffect
-        }
-        playerView.setVideoURI(uri)
-        playerView.setOnPreparedListener { player ->
-            player.isLooping = loop
-            player.setVolume(0f, 0f)
-            if (visible) playerView.start()
-        }
-        playerView.setOnErrorListener { _, _, _ ->
-            playerView.stopPlayback()
-            true
+    val player = remember(media.id, uri) {
+        uri?.let {
+            CachedVideoPlayback.createPlayer(context).apply {
+                volume = 0f
+                repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+                setMediaItem(MediaItem.fromUri(it))
+                prepare()
+            }
         }
     }
-    DisposableEffect(videoView) {
-        onDispose {
-            videoView?.setOnPreparedListener(null)
-            videoView?.setOnErrorListener(null)
-            videoView?.stopPlayback()
-        }
+
+    LaunchedEffect(player, visible, loop) {
+        player ?: return@LaunchedEffect
+        player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        player.playWhenReady = visible
+    }
+    DisposableEffect(player) {
+        onDispose { player?.release() }
     }
     AndroidView(
-        factory = { context ->
-            VideoView(context).also { view ->
-                view.setBackgroundColor(Color.TRANSPARENT)
-                view.isClickable = false
-                view.isFocusable = false
-                videoView = view
+        factory = { viewContext ->
+            PlayerView(viewContext).apply {
+                useController = false
+                this.player = player
+                setKeepContentOnPlayerReset(true)
             }
         },
+        update = { it.player = player },
         modifier = modifier
             .fillMaxSize()
             .onGloballyPositioned { coordinates ->

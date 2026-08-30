@@ -72,6 +72,7 @@ import kotlinx.coroutines.withContext
 
 private enum class OpenDialog {
     ADD_COLUMN,
+    LIST_PICKER,
     ACCOUNTS,
     SETTINGS,
     MENU_EDITOR,
@@ -387,8 +388,20 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     openDialog = null
                 },
                 onResolveUser = viewModel::resolveUserColumn,
-                onLoadLists = viewModel::loadListCandidates,
-                onSelectList = viewModel::addListColumn,
+                onOpenLists = {
+                    viewModel.openListPicker()
+                    openDialog = OpenDialog.LIST_PICKER
+                },
+            )
+            OpenDialog.LIST_PICKER -> ListPickerDialog(
+                state = state.listPicker,
+                onScopeChange = viewModel::selectListPickerScope,
+                onSearch = viewModel::searchListCandidates,
+                onSelect = { option ->
+                    viewModel.addListColumn(option)
+                    openDialog = null
+                },
+                onDismiss = { openDialog = null },
             )
             OpenDialog.ACCOUNTS -> AccountsDialog(
                 state = state,

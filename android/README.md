@@ -55,6 +55,12 @@ GitHub Secretsから一時keystoreへ復元して署名・検証・SHA-256生成
 アプリデータを消さずrelease APKへ戻す。
 失敗時も自動アンインストールは行わない。
 
+実動画は外部タイムラインに動画候補が存在する時だけ成立するため、既定セットとは分離して次を実行する。取得した候補から実再生を確認し、同じ動画を開き直して共有ディスクキャッシュが維持されることを検証する。
+
+```powershell
+.\run-aquos-live-tests.ps1 -TestClasses dev.nytweetdeck.android.LiveVideoPlaybackSmokeTest
+```
+
 X上の状態を一時変更する可逆mutationテストは既定セットに含めない。所有者が
 明示的に許可した場合だけ、次のように単独指定する。いいね・リポスト・履歴保存は
 元状態へ戻し、検証用ポスト・返信・引用は取得したIDを使って削除する。

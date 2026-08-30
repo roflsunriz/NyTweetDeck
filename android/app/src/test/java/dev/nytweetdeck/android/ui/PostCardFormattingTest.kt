@@ -1,8 +1,11 @@
 package dev.nytweetdeck.android.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Test
 
 class PostCardFormattingTest {
@@ -18,5 +21,10 @@ class PostCardFormattingTest {
     fun rejectsMissingOrMalformedTime() {
         assertNull(parsePostInstant(null))
         assertNull(parsePostInstant("not-a-time"))
+    }
+
+    @Test
+    fun replyActionUsesASpeechBubbleInsteadOfAReplyArrow() {
+        assertSame(Icons.Outlined.ChatBubbleOutline, replyActionIcon())
     }
 }

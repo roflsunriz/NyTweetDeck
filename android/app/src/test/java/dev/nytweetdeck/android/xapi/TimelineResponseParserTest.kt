@@ -365,6 +365,37 @@ class TimelineResponseParserTest {
     }
 
     @Test
+    fun expandsOrdinaryTcoLinksInPostNoteTweetAndPretranslation() {
+        val post = parser.parse(
+            """
+            {"result":{"__typename":"Tweet","rest_id":"800",
+              "legacy":{"full_text":"本文 https://t.co/main","lang":"ja",
+                "created_at":"2019-01-02T00:00:00Z","entities":{"urls":[{
+                  "url":"https://t.co/main","expanded_url":"https://example.com/expanded",
+                  "unwound_url":"https://example.com/original?from=x"}]}},
+              "grok_translated_post_with_availability":{"is_available":true,"data":{
+                "translation":"Body https://t.co/main","source_language":"ja",
+                "destination_language":"en"}}}}
+            """.trimIndent(),
+        ).posts.single()
+        val notePost = parser.parse(
+            """
+            {"result":{"__typename":"Tweet","rest_id":"799",
+              "legacy":{"full_text":"short","created_at":"2019-01-01T00:00:00Z"},
+              "note_tweet":{"note_tweet_results":{"result":{
+                "text":"長文 https://t.co/note","entity_set":{"urls":[{
+                  "url":"https://t.co/note",
+                  "expanded_url":"https://docs.example.org/guide"}]}
+              }}}}}
+            """.trimIndent(),
+        ).posts.single()
+
+        assertEquals("本文 https://example.com/original?from=x", post.text)
+        assertEquals("Body https://example.com/original?from=x", post.preTranslated?.text)
+        assertEquals("長文 https://docs.example.org/guide", notePost.text)
+    }
+
+    @Test
     fun preservesResponseOrderConversationSectionAndDeduplicatesPosts() {
         val body = """
             {"data":{"threaded_conversation_with_injections_v2":{"instructions":[{

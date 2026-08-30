@@ -22,6 +22,7 @@ internal class PostDetailController(
     private val state: MutableStateFlow<DeckUiState>,
 ) {
     private val history = ArrayDeque<PostDetailUiState>()
+    private val requestedReplyCursors = mutableMapOf<String, MutableSet<String>>()
 
     fun open(postId: String) {
         val current = state.value.postDetail
@@ -33,11 +34,13 @@ internal class PostDetailController(
         state.update {
             it.copy(postDetail = PostDetailUiState(PostDetailStatus.LOADING, postId))
         }
+        requestedReplyCursors[postId] = mutableSetOf()
         load(postId)
     }
 
     fun reload() {
         val postId = state.value.postDetail.postId ?: return
+        requestedReplyCursors[postId] = mutableSetOf()
         state.update {
             it.copy(postDetail = PostDetailUiState(PostDetailStatus.LOADING, postId))
         }
@@ -52,6 +55,18 @@ internal class PostDetailController(
         if (detail.isLoadingMore) return
         val accountId = snapshot.selectedAccountId ?: return
         val account = accountProvider(accountId) ?: return
+        val requested = requestedReplyCursors.getOrPut(page.post.id, ::mutableSetOf)
+        if (!requested.add(cursor)) {
+            state.update { current ->
+                current.copy(
+                    postDetail = current.postDetail.copy(
+                        page = current.postDetail.page?.copy(nextCursor = null),
+                        isLoadingMore = false,
+                    ),
+                )
+            }
+            return
+        }
         state.update { current ->
             current.copy(postDetail = detail.copy(isLoadingMore = true, loadMoreFailed = false))
         }
@@ -61,6 +76,7 @@ internal class PostDetailController(
                     account = account,
                     postId = page.post.id,
                     cursor = cursor,
+                    knownFocalPost = page.post,
                     language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
                     replySort = snapshot.replySort.name.lowercase(Locale.ROOT),
                 )
@@ -74,17 +90,21 @@ internal class PostDetailController(
                             val merged = LinkedHashMap<String, dev.nytweetdeck.android.model.ConversationReply>()
                             currentPage.replies.forEach { merged[it.post.id] = it }
                             next.replies.forEach { merged.putIfAbsent(it.post.id, it) }
+                            val nextCursor = next.nextCursor
+                                ?.takeIf(String::isNotBlank)
+                                ?.takeUnless(requested::contains)
                             current.copy(
                                 postDetail = current.postDetail.copy(
                                     page = currentPage.copy(
                                         replies = merged.values.toList(),
-                                        nextCursor = next.nextCursor,
+                                        nextCursor = nextCursor,
                                     ),
                                     isLoadingMore = false,
                                 ),
                             )
                         },
                         onFailure = {
+                            requested.remove(cursor)
                             current.copy(
                                 postDetail = current.postDetail.copy(
                                     isLoadingMore = false,
@@ -115,6 +135,7 @@ internal class PostDetailController(
 
     fun reset() {
         history.clear()
+        requestedReplyCursors.clear()
         state.update { it.copy(postDetail = PostDetailUiState()) }
     }
 

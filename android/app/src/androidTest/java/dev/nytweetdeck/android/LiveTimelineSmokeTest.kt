@@ -43,16 +43,28 @@ class LiveTimelineSmokeTest {
             }
             composeRule.onNodeWithTag("add-home_for_you").performClick()
         }
+        val savedColumns = DeckSettingsStore(
+            context.filesDir.toPath().resolve("layout/settings.json"),
+        ).load().columns
+        val homeColumnIndex = savedColumns.indexOfLast { it.kind == ColumnKind.HOME_FOR_YOU }
+        val homeColumnId = savedColumns[homeColumnIndex].id
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag("deck-columns").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("deck-columns").performScrollToIndex(homeColumnIndex)
         composeRule.waitUntil(timeoutMillis = 30_000) {
-            composeRule.onAllNodesWithTag("timeline-posts").fetchSemanticsNodes().isNotEmpty() ||
+            composeRule.onAllNodes(
+                hasTestTag("timeline-posts") and hasAnyAncestor(hasTestTag("column-$homeColumnId")),
+            ).fetchSemanticsNodes().isNotEmpty() ||
                 composeRule.onAllNodesWithTag("timeline-load-failed").fetchSemanticsNodes().isNotEmpty()
         }
 
-        assertTrue(composeRule.onAllNodes(hasTestTag("timeline-posts")).fetchSemanticsNodes().isNotEmpty())
+        assertTrue(
+            composeRule.onAllNodes(
+                hasTestTag("timeline-posts") and hasAnyAncestor(hasTestTag("column-$homeColumnId")),
+            ).fetchSemanticsNodes().isNotEmpty(),
+        )
 
-        val homeColumnId = DeckSettingsStore(
-            context.filesDir.toPath().resolve("layout/settings.json"),
-        ).load().columns.last { it.kind == ColumnKind.HOME_FOR_YOU }.id
         val initialCount = postCount(homeColumnId)
         assertTrue(initialCount > 0)
         composeRule.onNode(

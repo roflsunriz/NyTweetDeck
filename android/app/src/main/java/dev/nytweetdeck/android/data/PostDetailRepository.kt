@@ -2,6 +2,7 @@ package dev.nytweetdeck.android.data
 
 import dev.nytweetdeck.android.model.ConversationReply
 import dev.nytweetdeck.android.model.PostDetailPage
+import dev.nytweetdeck.android.model.Post
 import dev.nytweetdeck.android.model.RankingMode
 import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
@@ -19,6 +20,7 @@ class PostDetailRepository(
         cursor: String? = null,
         language: String = "ja",
         replySort: String? = "relevance",
+        knownFocalPost: Post? = null,
     ): PostDetailPage {
         validatePostId(postId)
         val rankingMode = RankingMode.fromReplySort(replySort)
@@ -27,14 +29,18 @@ class PostDetailRepository(
             authToken = account.authToken,
             csrfToken = account.csrfToken,
         )
-        val detailPage = responseParser.parse(
-            graphQlExecutor.execute(
-                credentials = credentials,
-                purpose = "postDetail",
-                variables = detailVariables(postId),
-                language = language,
-            ),
-        )
+        val detailPage = if (knownFocalPost == null) {
+            responseParser.parse(
+                graphQlExecutor.execute(
+                    credentials = credentials,
+                    purpose = "postDetail",
+                    variables = detailVariables(postId),
+                    language = language,
+                ),
+            )
+        } else {
+            null
+        }
         val conversationPage = responseParser.parseInResponseOrder(
             graphQlExecutor.execute(
                 credentials = credentials,
@@ -43,7 +49,8 @@ class PostDetailRepository(
                 language = language,
             ),
         )
-        val focalPost = detailPage.posts.firstOrNull { post -> post.id == postId }
+        val focalPost = knownFocalPost?.takeIf { post -> post.id == postId }
+            ?: detailPage?.posts?.firstOrNull { post -> post.id == postId }
             ?: conversationPage.posts.firstOrNull { post -> post.id == postId }
             ?: throw XApiException("ポスト詳細応答に対象ポストがありません。", 502)
         val replies = conversationPage.posts.asSequence()

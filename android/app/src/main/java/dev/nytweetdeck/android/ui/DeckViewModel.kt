@@ -38,6 +38,7 @@ import dev.nytweetdeck.android.model.Article
 import dev.nytweetdeck.android.model.TranslationCandidate
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.ListOption
+import dev.nytweetdeck.android.model.ListPickerScope
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
@@ -157,6 +158,13 @@ class DeckViewModel(
         ::savedAccount,
         mutableState,
     )
+    private val listPickerController = ListPickerController(
+        listDirectoryRepository,
+        viewModelScope,
+        ioDispatcher,
+        ::savedAccount,
+        mutableState,
+    )
     @Volatile
     private var foreground = false
     @Volatile
@@ -234,6 +242,7 @@ class DeckViewModel(
                         xApiMetadataLastSuccessAt = runtime.xApiMetadataLastSuccessAt,
                         xApiMetadataSourceVersion = runtime.xApiMetadataSourceVersion,
                     )
+                    listPickerController.accountChanged(loaded.selectedAccountId)
                 }
             }
         }
@@ -379,6 +388,7 @@ class DeckViewModel(
                         )
                     }
                     postMenuController.accountChanged()
+                    listPickerController.accountChanged(selectedId)
                     refreshVisibleColumns()
                 }
             } catch (_: Exception) {
@@ -427,6 +437,7 @@ class DeckViewModel(
                             )
                         }
                         postMenuController.accountChanged()
+                        listPickerController.accountChanged(accountId)
                         accountColumnCaches[accountId] = restored
                         refreshVisibleColumns()
                     }
@@ -506,8 +517,11 @@ class DeckViewModel(
                                     nextCursor = existing?.nextCursor ?: page.nextCursor,
                                     isRefreshing = false,
                                     refreshFailed = false,
-                                    newPostCount = newPosts.size,
-                                    newPostAvatarUrls = newPosts.mapNotNull { it.author.avatarUrl }
+                                    newPostCount = (existing?.newPostCount ?: 0) + newPosts.size,
+                                    newPostAvatarUrls = (
+                                        newPosts.mapNotNull { it.author.avatarUrl } +
+                                            existing?.newPostAvatarUrls.orEmpty()
+                                        )
                                         .distinct()
                                         .take(5),
                                     refreshGeneration = if (existing?.status == TimelineLoadStatus.READY) {
@@ -959,57 +973,14 @@ class DeckViewModel(
         }
     }
 
-    fun loadListCandidates(query: String? = null) {
-        val repository = listDirectoryRepository ?: return
-        val store = accountStore ?: return
-        val account = mutableState.value.selectedAccountId
-            ?.let { runCatching { store.requireAccount(it) }.getOrNull() }
-            ?: return
-        mutableState.update {
-            it.copy(targetPicker = TargetPickerState(TimelineLoadStatus.LOADING, ColumnKind.LIST))
-        }
-        viewModelScope.launch(ioDispatcher) {
-            val result = runCatching {
-                val pages = if (query.isNullOrBlank()) {
-                    listOf(
-                        repository.load(account, "mine"),
-                        repository.load(account, "suggested"),
-                    )
-                } else {
-                    listOf(repository.load(account, "search", query))
-                }
-                val deduplicated = LinkedHashMap<String, ListOption>()
-                pages.flatMap { it.lists }.forEach { deduplicated.putIfAbsent(it.id, it) }
-                deduplicated.values.toList()
-            }
-            withContext(Dispatchers.Main.immediate) {
-                mutableState.update {
-                    it.copy(
-                        targetPicker = result.fold(
-                            onSuccess = { options -> TargetPickerState(
-                                TimelineLoadStatus.READY,
-                                ColumnKind.LIST,
-                                options,
-                            ) },
-                            onFailure = { TargetPickerState(TimelineLoadStatus.FAILED, ColumnKind.LIST) },
-                        ),
-                    )
-                }
-            }
-        }
-    }
+    fun openListPicker() = listPickerController.open()
+
+    fun selectListPickerScope(scope: ListPickerScope) = listPickerController.selectScope(scope)
+
+    fun searchListCandidates(query: String) = listPickerController.search(query)
 
     fun addListColumn(option: ListOption) {
-        val id = addColumn(ColumnKind.LIST, option.name, option.id)
-        mutableState.update {
-            it.copy(
-                targetPicker = TargetPickerState(
-                    TimelineLoadStatus.READY,
-                    ColumnKind.LIST,
-                    completedColumnId = id,
-                ),
-            )
-        }
+        addColumn(ColumnKind.LIST, option.name, option.id)
     }
 
     fun clearTargetPicker() {

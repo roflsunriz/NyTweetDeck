@@ -258,6 +258,9 @@ private fun DetailReady(
             .collect { onLoadMore() }
     }
     val deemphasizedCount = page.replies.count { it.quality.isDeemphasized }
+    val replyThread = remember(page.post.id, page.replies) {
+        buildReplyThreadLayout(page.post.id, page.replies)
+    }
     val firstDeemphasizedReplyId = page.replies
         .firstOrNull { it.quality.isDeemphasized }
         ?.post
@@ -307,7 +310,8 @@ private fun DetailReady(
                 )
             }
         } else {
-            page.replies.forEach { reply ->
+            replyThread.forEach { position ->
+                val reply = position.reply
                 if (reply.post.id == firstDeemphasizedReplyId) {
                     item(key = "deemphasized-toggle") {
                         DeemphasizedRepliesToggle(
@@ -319,30 +323,32 @@ private fun DetailReady(
                 }
                 if (!reply.quality.isDeemphasized || state.showDeemphasizedReplies) {
                     item(key = reply.post.id) {
-                        PostCard(
-                            post = reply.post,
-                            onPostClick = onPostClick,
-                            onQuoteClick = onQuoteClick,
-                            onAuthorClick = onAuthorClick,
-                            onReplyClick = onReplyClick,
-                            onRepostClick = onRepostClick,
-                            onLikeClick = onLikeClick,
-                            onImpressionClick = onImpressionClick,
-                            onBookmarkClick = onBookmarkClick,
-                            onShareClick = onShareClick,
-                            onDownloadClick = onDownloadClick,
-                            onArticleClick = onArticleClick,
-                            onMenuClick = onPostMenuClick,
-                            translationStates = translationStates,
-                            autoTranslatePosts = autoTranslatePosts,
-                            onTranslationNeeded = onTranslationNeeded,
-                            onTranslationRetry = onTranslationRetry,
-                            onToggleOriginal = onToggleOriginal,
-                            mediaPreview = mediaPreview,
-                            videoAutoplay = videoAutoplay,
-                            videoLoop = videoLoop,
-                            videoVolume = videoVolume,
-                        )
+                        ReplyThreadContainer(position) {
+                            PostCard(
+                                post = reply.post,
+                                onPostClick = onPostClick,
+                                onQuoteClick = onQuoteClick,
+                                onAuthorClick = onAuthorClick,
+                                onReplyClick = onReplyClick,
+                                onRepostClick = onRepostClick,
+                                onLikeClick = onLikeClick,
+                                onImpressionClick = onImpressionClick,
+                                onBookmarkClick = onBookmarkClick,
+                                onShareClick = onShareClick,
+                                onDownloadClick = onDownloadClick,
+                                onArticleClick = onArticleClick,
+                                onMenuClick = onPostMenuClick,
+                                translationStates = translationStates,
+                                autoTranslatePosts = autoTranslatePosts,
+                                onTranslationNeeded = onTranslationNeeded,
+                                onTranslationRetry = onTranslationRetry,
+                                onToggleOriginal = onToggleOriginal,
+                                mediaPreview = mediaPreview,
+                                videoAutoplay = videoAutoplay,
+                                videoLoop = videoLoop,
+                                videoVolume = videoVolume,
+                            )
+                        }
                     }
                 }
             }

@@ -2,11 +2,14 @@ package dev.nytweetdeck.android
 
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.Media
 import dev.nytweetdeck.android.model.Post
@@ -34,6 +37,11 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("post-media-1-photo-1").performClick()
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag("media-image-index-1", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeRight() }
+        composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").performTouchInput { doubleClick() }
         composeRule.onNodeWithTag("media-reset").performClick()
         composeRule.onNodeWithTag("media-close").performClick()
@@ -66,7 +74,9 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-video").assertIsDisplayed()
         composeRule.onNodeWithTag("media-play").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-play").assertIsEnabled()
         composeRule.onNodeWithTag("media-mute").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-mute").assertIsEnabled()
         composeRule.onNodeWithTag("media-close").performClick()
     }
 
@@ -124,6 +134,12 @@ class MediaViewerUiTest {
                 type = "photo",
                 url = "https://pbs.twimg.com/media/fixture.jpg",
                 previewUrl = "https://pbs.twimg.com/media/fixture.jpg",
+            ),
+            Media(
+                id = "photo-2",
+                type = "photo",
+                url = "https://pbs.twimg.com/media/fixture-2.jpg",
+                previewUrl = "https://pbs.twimg.com/media/fixture-2.jpg",
             ),
         ),
     )

@@ -1,8 +1,7 @@
 package dev.nytweetdeck.android.ui
 
-import android.media.MediaPlayer
 import android.net.Uri
-import android.widget.VideoView
+import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -29,9 +28,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -40,13 +42,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.PlayerView
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Media
 import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
@@ -54,11 +62,22 @@ import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 @Composable
 internal fun MediaViewerDialog(
     media: Media,
+    mediaItems: List<Media> = listOf(media),
     videoAutoplay: Boolean,
     videoLoop: Boolean,
     videoVolume: Int,
     onDismiss: () -> Unit,
 ) {
+    val photos = remember(media.id, mediaItems) {
+        buildList {
+            mediaItems.filterTo(this) { it.type == "photo" }
+            if (media.type == "photo" && none { it.id == media.id }) add(media)
+        }.distinctBy(Media::id)
+    }
+    var photoIndex by remember(media.id, photos) {
+        mutableIntStateOf(photos.indexOfFirst { it.id == media.id }.coerceAtLeast(0))
+    }
+    val activeMedia = if (media.type == "photo") photos.getOrNull(photoIndex) ?: media else media
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -70,11 +89,23 @@ internal fun MediaViewerDialog(
             color = Color.Black,
         ) {
             Box(Modifier.fillMaxSize()) {
-                if (media.type == "photo") {
-                    PhotoViewer(media)
+                if (activeMedia.type == "photo") {
+                    PhotoViewer(
+                        media = activeMedia,
+                        index = photoIndex,
+                        count = photos.size,
+                        onNext = {
+                            if (photos.size > 1) photoIndex = (photoIndex + 1) % photos.size
+                        },
+                        onPrevious = {
+                            if (photos.size > 1) {
+                                photoIndex = (photoIndex - 1 + photos.size) % photos.size
+                            }
+                        },
+                    )
                 } else {
                     VideoViewer(
-                        media = media,
+                        media = activeMedia,
                         videoAutoplay = videoAutoplay,
                         videoLoop = videoLoop,
                         videoVolume = videoVolume,
@@ -99,12 +130,46 @@ internal fun MediaViewerDialog(
 }
 
 @Composable
-private fun PhotoViewer(media: Media) {
+private fun PhotoViewer(
+    media: Media,
+    index: Int,
+    count: Int,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+) {
     var scale by remember(media.id) { mutableStateOf(1f) }
     var offset by remember(media.id) { mutableStateOf(Offset.Zero) }
+    var viewportWidth by remember { mutableFloatStateOf(0f) }
+    var navigationLocked by remember { mutableStateOf(false) }
     val transformState = rememberTransformableState { _, zoomChange, panChange, _ ->
-        scale = (scale * zoomChange).coerceIn(0.1f, 8f)
-        offset = Offset(offset.x + panChange.x, offset.y + panChange.y)
+        val nextScale = (scale * zoomChange).coerceIn(0.1f, 8f)
+        val nextOffset = Offset(offset.x + panChange.x, offset.y + panChange.y)
+        val switchThreshold = viewportWidth * 0.45f
+        when {
+            !navigationLocked && count > 1 && nextScale <= 1.05f &&
+                switchThreshold > 0f && nextOffset.x <= -switchThreshold -> {
+                navigationLocked = true
+                scale = 1f
+                offset = Offset.Zero
+                onNext()
+            }
+            !navigationLocked && count > 1 && nextScale <= 1.05f &&
+                switchThreshold > 0f && nextOffset.x >= switchThreshold -> {
+                navigationLocked = true
+                scale = 1f
+                offset = Offset.Zero
+                onPrevious()
+            }
+            else -> {
+                scale = nextScale
+                offset = nextOffset
+            }
+        }
+    }
+    LaunchedEffect(transformState) {
+        snapshotFlow { transformState.isTransformInProgress }.collect { inProgress ->
+            if (!inProgress) navigationLocked = false
+        }
     }
     val imageUri = remember(media.url, media.previewUrl) {
         safeMediaUri(media.url ?: media.previewUrl)
@@ -114,6 +179,7 @@ private fun PhotoViewer(media: Media) {
             .fillMaxSize()
             .clipToBounds()
             .background(Color.Black)
+            .onSizeChanged { viewportWidth = it.width.toFloat() }
             .testTag("media-image"),
         contentAlignment = Alignment.Center,
     ) {
@@ -142,7 +208,8 @@ private fun PhotoViewer(media: Media) {
                             },
                         )
                     }
-                    .transformable(transformState),
+                    .transformable(transformState)
+                    .testTag("media-image-index-$index"),
                 contentScale = ContentScale.Fit,
             )
         }
@@ -165,6 +232,7 @@ private fun PhotoViewer(media: Media) {
     }
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 private fun VideoViewer(
     media: Media,
@@ -173,22 +241,36 @@ private fun VideoViewer(
     videoVolume: Int,
 ) {
     val videoUri = remember(media.url) { safeMediaUri(media.url) }
-    var videoView by remember { mutableStateOf<VideoView?>(null) }
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
-    var isPrepared by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val player = remember(media.id, videoUri) {
+        videoUri?.let {
+            CachedVideoPlayback.createPlayer(context).apply {
+                setMediaItem(MediaItem.fromUri(it))
+                playWhenReady = videoAutoplay
+                prepare()
+            }
+        }
+    }
     var isPlaying by remember { mutableStateOf(false) }
     var muted by remember { mutableStateOf(true) }
     val volume = (videoVolume.coerceIn(0, 100) / 100f).takeIf { !muted } ?: 0f
 
-    LaunchedEffect(mediaPlayer, videoLoop, volume) {
-        mediaPlayer?.isLooping = videoLoop
-        mediaPlayer?.setVolume(volume, volume)
+    LaunchedEffect(player, videoLoop, volume) {
+        player ?: return@LaunchedEffect
+        player.repeatMode = if (videoLoop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        player.volume = volume
     }
-    DisposableEffect(videoView) {
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(value: Boolean) {
+                isPlaying = value
+            }
+        }
+        player?.addListener(listener)
+        isPlaying = player?.isPlaying == true
         onDispose {
-            videoView?.setOnPreparedListener(null)
-            videoView?.setOnCompletionListener(null)
-            videoView?.stopPlayback()
+            player?.removeListener(listener)
+            player?.release()
         }
     }
     Box(
@@ -203,31 +285,25 @@ private fun VideoViewer(
                 color = Color.White,
             )
         } else {
-            AndroidView(
-                factory = { context ->
-                    VideoView(context).also { view ->
-                        videoView = view
-                        view.setBackgroundColor(android.graphics.Color.BLACK)
-                        view.setVideoURI(videoUri)
-                        view.setOnPreparedListener { player ->
-                            mediaPlayer = player
-                            isPrepared = true
-                            player.isLooping = videoLoop
-                            player.setVolume(0f, 0f)
-                            if (videoAutoplay) {
-                                view.start()
-                                isPlaying = true
-                            }
-                        }
-                        view.setOnCompletionListener {
-                            isPlaying = false
-                        }
-                    }
-                },
-                modifier = Modifier
+            Box(
+                Modifier
                     .fillMaxSize()
                     .testTag("media-video"),
-            )
+            ) {
+                AndroidView(
+                    factory = { viewContext ->
+                        PlayerView(viewContext).apply {
+                            useController = false
+                            this.player = player
+                            setKeepContentOnPlayerReset(true)
+                        }
+                    },
+                    update = { it.player = player },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(if (isPlaying) "media-video-playing" else "media-video-paused"),
+                )
+            }
         }
         Row(
             modifier = Modifier
@@ -237,16 +313,17 @@ private fun VideoViewer(
         ) {
             IconButton(
                 onClick = {
-                    val view = videoView ?: return@IconButton
-                    if (view.isPlaying) {
-                        view.pause()
-                        isPlaying = false
+                    val activePlayer = player ?: return@IconButton
+                    if (activePlayer.playWhenReady) {
+                        activePlayer.pause()
                     } else {
-                        view.start()
-                        isPlaying = true
+                        if (activePlayer.playbackState == Player.STATE_ENDED) {
+                            activePlayer.seekToDefaultPosition()
+                        }
+                        activePlayer.play()
                     }
                 },
-                enabled = isPrepared && videoUri != null,
+                enabled = videoUri != null,
                 modifier = Modifier.testTag("media-play"),
             ) {
                 Icon(
@@ -259,7 +336,7 @@ private fun VideoViewer(
             }
             IconButton(
                 onClick = { muted = !muted },
-                enabled = isPrepared && videoUri != null,
+                enabled = videoUri != null,
                 modifier = Modifier.testTag("media-mute"),
             ) {
                 Icon(

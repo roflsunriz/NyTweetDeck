@@ -54,6 +54,8 @@
     <string name="search_query">অনুসন্ধান লিখুন</string>
     <string name="x_username">@ইউজারনেম লিখুন</string>
     <string name="list_search_query">Enter a list name or keyword</string>
+    <string name="list_picker_mine">Your lists</string>
+    <string name="list_picker_suggested">Suggested</string>
     <string name="target_lookup_failed">Could not find that X user.</string>
     <string name="edit_menu">প্রধান মেনু সম্পাদনা করুন</string>
     <string name="move_up">Move up</string>

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Download
@@ -28,6 +27,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -75,6 +75,11 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+private data class SelectedMedia(
+    val media: Media,
+    val siblings: List<Media>,
+)
+
 @Composable
 internal fun PostCard(
     post: Post,
@@ -103,7 +108,7 @@ internal fun PostCard(
     videoLoop: Boolean = true,
     videoVolume: Int = 100,
 ) {
-    var selectedMedia by remember { mutableStateOf<Media?>(null) }
+    var selectedMedia by remember { mutableStateOf<SelectedMedia?>(null) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,9 +147,9 @@ internal fun PostCard(
                 media = post.media,
                 postId = post.id,
                 compact = false,
-                videoAutoplay = videoAutoplay,
+                videoAutoplay = videoAutoplay && selectedMedia == null,
                 videoLoop = videoLoop,
-                onMediaClick = { selectedMedia = it },
+                onMediaClick = { selectedMedia = SelectedMedia(it, post.media) },
             )
         } else if (post.media.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
@@ -174,14 +179,14 @@ internal fun PostCard(
                 quote = quote,
                 onQuoteClick = onQuoteClick,
                 onAuthorClick = onAuthorClick,
-                onMediaClick = { selectedMedia = it },
+                onMediaClick = { selectedMedia = SelectedMedia(it, quote.media) },
                 onArticleClick = onArticleClick,
                 translationStates = translationStates,
                 autoTranslatePosts = autoTranslatePosts,
                 onTranslationNeeded = onTranslationNeeded,
                 onTranslationRetry = onTranslationRetry,
                 onToggleOriginal = onToggleOriginal,
-                videoAutoplay = videoAutoplay,
+                videoAutoplay = videoAutoplay && selectedMedia == null,
                 videoLoop = videoLoop,
             )
         }
@@ -201,9 +206,10 @@ internal fun PostCard(
         Spacer(Modifier.height(8.dp))
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline)
     }
-    selectedMedia?.let { media ->
+    selectedMedia?.let { selection ->
         MediaViewerDialog(
-            media = media,
+            media = selection.media,
+            mediaItems = selection.siblings,
             videoAutoplay = videoAutoplay,
             videoLoop = videoLoop,
             videoVolume = videoVolume,
@@ -683,7 +689,7 @@ private fun PostActions(
             PostActionButton(
                 tag = "post-action-reply-" + post.id,
                 label = stringResource(R.string.post_reply),
-                icon = Icons.AutoMirrored.Filled.Reply,
+                icon = replyActionIcon(),
                 count = post.replyCount,
                 active = false,
                 activeColor = MaterialTheme.colorScheme.primary,
@@ -763,6 +769,9 @@ private fun PostActions(
         }
     }
 }
+
+internal fun replyActionIcon(): androidx.compose.ui.graphics.vector.ImageVector =
+    Icons.Outlined.ChatBubbleOutline
 
 @Composable
 private fun PostActionButton(

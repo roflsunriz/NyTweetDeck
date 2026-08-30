@@ -54,6 +54,8 @@
     <string name="search_query">输入搜索词</string>
     <string name="x_username">输入 @用户名</string>
     <string name="list_search_query">Enter a list name or keyword</string>
+    <string name="list_picker_mine">Your lists</string>
+    <string name="list_picker_suggested">Suggested</string>
     <string name="target_lookup_failed">Could not find that X user.</string>
     <string name="edit_menu">编辑主菜单</string>
     <string name="move_up">Move up</string>

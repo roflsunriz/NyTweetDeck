@@ -306,6 +306,12 @@ class DeckViewModelTest {
             assertEquals(1, timeline.newPostCount)
             assertTrue(timeline.newPostAvatarUrls.size <= 5)
             assertEquals(false, viewModel.state.value.timelines.containsKey("following"))
+
+            viewModel.refreshColumn("home")
+            advanceUntilIdle()
+            assertEquals(1, viewModel.state.value.timelines["home"]?.newPostCount)
+            viewModel.clearNewPosts("home")
+            assertEquals(0, viewModel.state.value.timelines["home"]?.newPostCount)
         } finally {
             Dispatchers.resetMain()
         }

@@ -142,6 +142,30 @@ data class TargetPickerState(
     val completedColumnId: String? = null,
 )
 
+enum class ListPickerScope {
+    MINE,
+    SUGGESTED,
+    SEARCH,
+}
+
+data class ListPickerState(
+    val status: TimelineLoadStatus = TimelineLoadStatus.IDLE,
+    val selectedScope: ListPickerScope = ListPickerScope.MINE,
+    val mineOptions: List<ListOption> = emptyList(),
+    val suggestedOptions: List<ListOption> = emptyList(),
+    val searchOptions: List<ListOption> = emptyList(),
+    val searchQuery: String = "",
+    val isRefreshing: Boolean = false,
+    val refreshFailed: Boolean = false,
+) {
+    val visibleOptions: List<ListOption>
+        get() = when (selectedScope) {
+            ListPickerScope.MINE -> mineOptions
+            ListPickerScope.SUGGESTED -> suggestedOptions
+            ListPickerScope.SEARCH -> searchOptions
+        }
+}
+
 enum class ColumnKind {
     HOME_FOR_YOU,
     HOME_FOLLOWING,
@@ -260,5 +284,6 @@ data class DeckUiState(
     val xApiMetadataLastSuccessAt: String? = null,
     val xApiMetadataSourceVersion: String? = null,
     val targetPicker: TargetPickerState = TargetPickerState(),
+    val listPicker: ListPickerState = ListPickerState(),
     val mainMenuItems: List<MainMenuItemId> = DefaultMainMenuItems,
 )

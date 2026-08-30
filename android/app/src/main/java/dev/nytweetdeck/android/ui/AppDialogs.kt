@@ -70,7 +70,6 @@ import dev.nytweetdeck.android.model.ComposerStatus
 import dev.nytweetdeck.android.model.ComposerUiState
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.DisplaySettings
-import dev.nytweetdeck.android.model.ListOption
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
@@ -95,8 +94,7 @@ internal fun AddColumnDialog(
     onDismiss: () -> Unit,
     onAdd: (ColumnKind, String, String?) -> Unit,
     onResolveUser: (String) -> Unit,
-    onLoadLists: (String?) -> Unit,
-    onSelectList: (ListOption) -> Unit,
+    onOpenLists: () -> Unit,
 ) {
     var pendingKind by rememberSaveable { mutableStateOf<ColumnKind?>(null) }
     var targetInput by rememberSaveable { mutableStateOf("") }
@@ -117,10 +115,11 @@ internal fun AddColumnDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                if (kind.requiresTarget()) {
+                                if (kind == ColumnKind.LIST) {
+                                    onOpenLists()
+                                } else if (kind.requiresTarget()) {
                                     pendingKind = kind
                                     targetInput = ""
-                                    if (kind == ColumnKind.LIST) onLoadLists(null)
                                 } else {
                                     onAdd(kind, title, null)
                                 }
@@ -139,7 +138,6 @@ internal fun AddColumnDialog(
                     val label = when (kind) {
                         ColumnKind.SEARCH -> stringResource(R.string.search_query)
                         ColumnKind.USER -> stringResource(R.string.x_username)
-                        ColumnKind.LIST -> stringResource(R.string.list_search_query)
                         else -> ""
                     }
                     OutlinedTextField(
@@ -154,7 +152,6 @@ internal fun AddColumnDialog(
                             when (kind) {
                                 ColumnKind.SEARCH -> onAdd(kind, targetInput.trim(), targetInput.trim())
                                 ColumnKind.USER -> onResolveUser(targetInput)
-                                ColumnKind.LIST -> onLoadLists(targetInput)
                                 else -> Unit
                             }
                         },
@@ -163,7 +160,6 @@ internal fun AddColumnDialog(
                             ColumnKind.USER -> targetInput.trim().removePrefix("@").matches(
                                 Regex("[A-Za-z0-9_]{1,15}"),
                             )
-                            ColumnKind.LIST -> targetInput.isBlank() || targetInput.length <= 100
                             else -> false
                         },
                         modifier = Modifier.fillMaxWidth().testTag("confirm-target-column"),
@@ -177,26 +173,7 @@ internal fun AddColumnDialog(
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.testTag("target-picker-failed"),
                         )
-                        TimelineLoadStatus.READY -> if (kind == ColumnKind.LIST) {
-                            pickerState.listOptions.take(50).forEach { option ->
-                                Column(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .clickable { onSelectList(option) }
-                                        .padding(vertical = 10.dp)
-                                        .testTag("list-option-${option.id}"),
-                                ) {
-                                    Text(option.name, fontWeight = FontWeight.SemiBold)
-                                    option.ownerUsername?.let {
-                                        Text("@$it", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    option.description?.let {
-                                        Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                                HorizontalDivider()
-                            }
-                        }
+                        TimelineLoadStatus.READY -> Unit
                         TimelineLoadStatus.IDLE -> Unit
                     }
                 }
@@ -950,4 +927,4 @@ private fun columnChoices(): List<Pair<ColumnKind, Int>> = listOf(
 )
 
 private fun ColumnKind.requiresTarget(): Boolean =
-    this == ColumnKind.SEARCH || this == ColumnKind.USER || this == ColumnKind.LIST
+    this == ColumnKind.SEARCH || this == ColumnKind.USER

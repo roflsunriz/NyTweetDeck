@@ -116,15 +116,15 @@ class TimelineResponseParser(
         )
         val article = parseArticle(content)
         val media = parseMedia(legacy.objectValue("extended_entities"))
-        val omittedUrls = omittedRedirectUrls(legacy, media, article != null)
-        val preTranslated = omitRedirectUrls(
+        val urlEntities = urlEntities(content, legacy)
+        val preTranslated = normalizeUrls(
             parsePreTranslated(content, responseNode),
-            omittedUrls,
+            urlEntities,
         )
 
         return Post(
             id = id,
-            text = omitRedirectUrls(tweetText(content).orEmpty(), omittedUrls),
+            text = PostTextUrlNormalizer.normalize(tweetText(content).orEmpty(), urlEntities),
             language = legacy.text("lang"),
             createdAt = parseCreatedAt(legacy.text("created_at")),
             author = author,
@@ -191,14 +191,14 @@ class TimelineResponseParser(
         val legacy = requireNotNull(tweet.objectValue("legacy"))
         val article = parseArticle(tweet)
         val media = parseMedia(legacy.objectValue("extended_entities"))
-        val omittedUrls = omittedRedirectUrls(legacy, media, article != null)
+        val urlEntities = urlEntities(tweet, legacy)
         return EmbeddedPost(
             id = firstNonNull(tweet.text("rest_id"), legacy.text("id_str")).orEmpty(),
-            text = omitRedirectUrls(tweetText(tweet).orEmpty(), omittedUrls),
+            text = PostTextUrlNormalizer.normalize(tweetText(tweet).orEmpty(), urlEntities),
             language = legacy.text("lang"),
             createdAt = parseCreatedAt(legacy.text("created_at")),
             author = parseAuthor(tweet),
-            preTranslated = omitRedirectUrls(parsePreTranslated(tweet, tweet), omittedUrls),
+            preTranslated = normalizeUrls(parsePreTranslated(tweet, tweet), urlEntities),
             article = article,
             media = media.toList(),
         )
@@ -254,54 +254,60 @@ class TimelineResponseParser(
         }
     }
 
-    private fun omittedRedirectUrls(
+    private fun urlEntities(
+        tweet: JsonObject,
         legacy: JsonObject,
-        media: List<Media>,
-        hasArticle: Boolean,
-    ): List<String> = buildList {
-        if (media.isNotEmpty()) {
-            collectEntityUrls(legacy.objectValue("extended_entities")?.get("media"), this, articleOnly = false)
-            collectEntityUrls(legacy.objectValue("entities")?.get("media"), this, articleOnly = false)
-        }
-        if (hasArticle) {
-            collectEntityUrls(legacy.objectValue("entities")?.get("urls"), this, articleOnly = true)
-        }
+    ): List<PostUrlEntity> = buildList {
+        collectUrlEntities(
+            legacy.objectValue("extended_entities")?.get("media"),
+            this,
+            PostUrlEntityKind.MEDIA,
+        )
+        collectUrlEntities(
+            legacy.objectValue("entities")?.get("media"),
+            this,
+            PostUrlEntityKind.MEDIA,
+        )
+        collectUrlEntities(
+            legacy.objectValue("entities")?.get("urls"),
+            this,
+            PostUrlEntityKind.LINK,
+        )
+        val noteResult = tweet.firstObject("note_tweet", "noteTweet")
+            ?.firstObject("note_tweet_results", "noteTweetResults")
+            ?.firstObject("result")
+        val entitySet = noteResult?.firstObject("entity_set", "entitySet")
+        collectUrlEntities(entitySet?.get("urls"), this, PostUrlEntityKind.LINK)
     }
 
-    private fun collectEntityUrls(
-        entities: JsonElement?,
-        urls: MutableList<String>,
-        articleOnly: Boolean,
+    private fun collectUrlEntities(
+        values: JsonElement?,
+        entities: MutableList<PostUrlEntity>,
+        defaultKind: PostUrlEntityKind,
     ) {
-        (entities as? JsonArray)?.forEach { entity ->
+        (values as? JsonArray)?.forEach { entity ->
             val item = entity as? JsonObject ?: return@forEach
             val expanded = firstNonNull(item.text("expanded_url"), item.text("expandedUrl"))
-            if (articleOnly && (expanded == null || !ARTICLE_URL.matches(expanded))) {
-                return@forEach
+            val kind = if (defaultKind == PostUrlEntityKind.LINK && expanded?.let(ARTICLE_URL::matches) == true) {
+                PostUrlEntityKind.ARTICLE
+            } else {
+                defaultKind
             }
-            item.text("url")?.takeIf(String::isNotBlank)?.let(urls::add)
+            item.text("url")?.takeIf(String::isNotBlank)?.let { shortUrl ->
+                entities += PostUrlEntity(
+                    shortUrl = shortUrl,
+                    expandedUrl = expanded,
+                    unwoundUrl = firstNonNull(item.text("unwound_url"), item.text("unwoundUrl")),
+                    kind = kind,
+                )
+            }
         }
     }
 
-    private fun omitRedirectUrls(value: String, omittedUrls: List<String>): String {
-        if (omittedUrls.isEmpty()) {
-            return value
-        }
-        var normalized = value
-        omittedUrls.forEach { url ->
-            normalized = normalized.replace(url, "")
-        }
-        return normalized
-            .replace(TRAILING_HORIZONTAL_SPACE, "")
-            .replace(LEADING_HORIZONTAL_SPACE, "")
-            .replace(EXCESSIVE_LINE_BREAKS, "\n\n")
-            .trim()
-    }
-
-    private fun omitRedirectUrls(
+    private fun normalizeUrls(
         translation: Translation?,
-        omittedUrls: List<String>,
-    ): Translation? = translation?.copy(text = omitRedirectUrls(translation.text, omittedUrls))
+        urlEntities: List<PostUrlEntity>,
+    ): Translation? = translation?.copy(text = PostTextUrlNormalizer.normalize(translation.text, urlEntities))
 
     private fun parseCommunityNote(
         tweet: JsonObject,
@@ -555,9 +561,6 @@ class TimelineResponseParser(
         val TWEET_RESULT_TYPES = setOf("Tweet", "TweetWithVisibilityResults")
         val ARTICLE_URL = Regex("https?://(?:x|twitter)\\.com/i/article/.*")
         val WHITESPACE = Regex("\\s+")
-        val TRAILING_HORIZONTAL_SPACE = Regex("[ \\t]+(?=\\R|$)")
-        val LEADING_HORIZONTAL_SPACE = Regex("(?m)^[ \\t]+")
-        val EXCESSIVE_LINE_BREAKS = Regex("\\R{3,}")
         const val ARTICLE_SUMMARY_LENGTH = 280
         const val MAX_USER_LOOKUP_DEPTH = 8
     }

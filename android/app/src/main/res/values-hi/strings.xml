@@ -54,6 +54,8 @@
     <string name="search_query">खोज शब्द दर्ज करें</string>
     <string name="x_username">@यूज़रनेम दर्ज करें</string>
     <string name="list_search_query">Enter a list name or keyword</string>
+    <string name="list_picker_mine">Your lists</string>
+    <string name="list_picker_suggested">Suggested</string>
     <string name="target_lookup_failed">Could not find that X user.</string>
     <string name="edit_menu">मुख्य मेन्यू संपादित करें</string>
     <string name="move_up">Move up</string>

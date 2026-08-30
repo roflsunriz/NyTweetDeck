@@ -49,6 +49,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -563,45 +564,6 @@ private fun TimelineBody(
                                 ) { Text(stringResource(R.string.retry_latest_posts)) }
                             }
                         }
-                        if (readyState.newPostCount > 0) {
-                            item(key = "new-posts") {
-                                TextButton(
-                                    onClick = {
-                                        onClearNewPosts()
-                                        timelineScope.launch { listState.animateScrollToItem(0) }
-                                    },
-                                    modifier = Modifier.fillMaxWidth().testTag("new-posts-banner"),
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        readyState.newPostAvatarUrls.take(5).forEach { avatarUrl ->
-                                            AsyncImage(
-                                                model = safeImageUrl(avatarUrl),
-                                                contentDescription = null,
-                                                modifier = Modifier
-                                                    .size(24.dp)
-                                                    .clip(CircleShape)
-                                                    .border(
-                                                        1.dp,
-                                                        MaterialTheme.colorScheme.surface,
-                                                        CircleShape,
-                                                    ),
-                                                contentScale = ContentScale.Crop,
-                                            )
-                                        }
-                                        if (readyState.newPostAvatarUrls.isNotEmpty()) {
-                                            Spacer(Modifier.width(8.dp))
-                                        }
-                                        Text(
-                                            pluralStringResource(
-                                                R.plurals.new_posts_count,
-                                                readyState.newPostCount,
-                                                readyState.newPostCount,
-                                            ),
-                                        )
-                                    }
-                                }
-                            }
-                        }
                         items(readyState.posts, key = Post::id) { post ->
                             PostCard(
                                 post = post,
@@ -648,7 +610,53 @@ private fun TimelineBody(
                             }
                         }
                     }
+                    if (readyState.newPostCount > 0) {
+                        NewPostsBanner(
+                            count = readyState.newPostCount,
+                            avatarUrls = readyState.newPostAvatarUrls,
+                            onClick = {
+                                onClearNewPosts()
+                                timelineScope.launch { listState.animateScrollToItem(0) }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 8.dp),
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun NewPostsBanner(
+    count: Int,
+    avatarUrls: List<String>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.testTag("new-posts-banner"),
+        shape = CircleShape,
+        tonalElevation = 6.dp,
+        shadowElevation = 6.dp,
+    ) {
+        TextButton(onClick = onClick) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                avatarUrls.take(5).forEach { avatarUrl ->
+                    AsyncImage(
+                        model = safeImageUrl(avatarUrl),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                if (avatarUrls.isNotEmpty()) Spacer(Modifier.width(8.dp))
+                Text(pluralStringResource(R.plurals.new_posts_count, count, count))
             }
         }
     }

@@ -90,6 +90,30 @@ class PostDetailRepositoryTest {
     }
 
     @Test
+    fun paginationReusesTheKnownFocalPostAndOnlyRequestsConversationData() {
+        val executor = RecordingGraphQlExecutor(
+            detail = detailResponse("123"),
+            conversation = conversationResponse(includeFocal = false),
+        )
+        val repository = PostDetailRepository(executor)
+        val focal = dev.nytweetdeck.android.xapi.TimelineResponseParser()
+            .parse(detailResponse("123"))
+            .posts
+            .single()
+        executor.calls.clear()
+
+        val page = repository.load(
+            account = account(),
+            postId = "123",
+            cursor = "next-page",
+            knownFocalPost = focal,
+        )
+
+        assertEquals("123", page.post.id)
+        assertEquals(listOf("conversation"), executor.calls.map { it.purpose })
+    }
+
+    @Test
     fun mapsOnlyNativeRankingModesAndRejectsBadIdsBeforeNetwork() {
         assertEquals(RankingMode.RELEVANCE, RankingMode.fromReplySort(null))
         assertEquals(RankingMode.RECENCY, RankingMode.fromReplySort(" RECENCY "))

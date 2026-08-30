@@ -76,6 +76,8 @@
     <string name="search_query">検索語句</string>
     <string name="x_username">@ユーザー名</string>
     <string name="list_search_query">リスト検索語（空欄で自分・おすすめ）</string>
+    <string name="list_picker_mine">自分のリスト</string>
+    <string name="list_picker_suggested">おすすめ</string>
     <string name="target_lookup_failed">対象を確認できませんでした。入力と通信状態を確認してください。</string>
     <string name="edit_menu">メインメニューを編集</string>
     <string name="move_up">上へ移動</string>
