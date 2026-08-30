@@ -87,7 +87,7 @@ GitHub Releaseの本文には、`CHANGELOG.md`の同じバージョン見出し�
 Android版は`android/app/build.gradle.kts`の`versionName`と一致する`android-v<version>`タグをmainのコミットへ付けます。`CHANGELOG.md`へ`## [Android <version>]`節を確定し、次のコマンドでAndroid専用リリース本文を確認します。
 
 ```powershell
-.\scripts\verify-release-notes.ps1 -Version 0.1.0 -SectionPrefix Android
+.\scripts\verify-release-notes.ps1 -Version 0.1.1 -SectionPrefix Android
 ```
 
 タグのpush後はAndroid Releaseワークフローが単体テスト、release Lint、Gradle依存関係のOSV監査、署名付きAPK生成、`apksigner`検証、SHA-256生成を行います。公開されたAPK名のバージョン、署名検証、SHA-256、CHANGELOG本文がタグと一致することを確認します。
