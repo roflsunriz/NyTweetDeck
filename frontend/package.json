@@ -12,7 +12,12 @@
     "type-check": "tsc --noEmit",
     "test": "bun test",
     "capture:readme": "bun scripts/capture-readme.ts",
-    "verify:ui": "bun scripts/cdp-verify.ts"
+    "verify:ui": "bun scripts/cdp-verify.ts",
+    "sandbox:capture-x-reference": "bun scripts/sandbox/capture-x-reference.ts",
+    "sandbox:analyze-x-reference": "bun scripts/sandbox/analyze-x-reference.ts",
+    "sandbox:inventory-x-reference": "bun scripts/sandbox/inventory-x-reference.ts",
+    "sandbox:verify-x-offline": "bun scripts/sandbox/verify-x-offline-sandbox.ts",
+    "sandbox:run-x-url-contract": "bun scripts/sandbox/run-offline-url-contract.ts"
   },
   "dependencies": {
     "lucide-react": "1.34.0",

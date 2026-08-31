@@ -20,6 +20,22 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## X公式Webリファレンスsandbox
+
+公式資産captureのURL許可境界、query・fragment除去、保存名・SHA-256、loopback限定通信を単体テストで確認します。raw CDP付き専用Chromeが起動中の場合はオフラインsandboxも実行し、外部HTTP・HTTPS・WebSocket・FTP遮断、Cookie・Storage空、合成mock投入を確認します。
+
+```powershell
+Set-Location .\frontend
+bun test scripts/sandbox/x-reference-policy.test.ts scripts/sandbox/offline-sandbox-policy.test.ts scripts/sandbox/x-reference-coverage-catalog.test.ts
+bun run sandbox:inventory-x-reference
+bun run sandbox:verify-x-offline
+bun run sandbox:run-x-url-contract
+```
+
+ログイン済みcaptureはXへの読み取りアクセスを伴うため、通常のCIと無認証テストでは実行しません。手動観測でも投稿、返信、いいね、リポスト、フォロー等の変更操作を実行せず、capture内にCookie、認証header、HTML、DOM、スクリーンショット、実ポスト本文、ユーザー識別子がないことをmanifestと保存ファイル種別から確認します。既知の代表例だけで全要素対応と判定せず、手動カタログと自動発見inventoryの未分類・未観測・未契約・片方だけ実装・未検証件数を確認します。
+
+意味契約の反映後は、X互換部分だけでなく、任意数のカラム追加・削除・並べ替え・再起動復元、左メニューの常設・追加・削除・並べ替え、複数保存アカウントの前回選択・#1 fallback・切替後のアカウント別カラムを回帰確認します。いずれかを単一フィードまたは単一アカウントへ縮小する変更は不合格です。
+
 ## UIの回帰確認
 
 - メインメニューと第1カラムの間隔を実測し、第1・第2カラム間と同じ幅であることをデスクトップとタブレットで確認します。モバイルを含め、横スクロール後もメニュー側の間隔が消えないことを確認します。

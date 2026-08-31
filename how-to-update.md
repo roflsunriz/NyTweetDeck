@@ -27,6 +27,23 @@ XのWeb資産またはAPI仕様が変わった場合も、queryId・operation me
 
 更新機構自体を変更した場合は、公式ドメイン制限、資産サイズ上限、queryId形式、必須operation完全性、Feature Boolean抽出、失敗時フォールバックをテストします。公開Bearer Token、Cookie、アカウント情報はログ、生成物、変更履歴へ含めません。
 
+X公式Webの動画、画像、返信、リンク、プロフィール遷移の挙動が変わった場合は、`frontend/scripts/README.sandbox.md`を確認し、raw CDPを公開する専用Chromeで公式資産を再取得します。captureはGit管理外の`frontend/src/sandbox/x-reference-captures/`だけへ保存し、Cookie、Authorization、header、HTML、DOM、スクリーンショット、実ユーザーデータを保存しません。
+
+```powershell
+Set-Location .\frontend
+bun run sandbox:capture-x-reference
+bun run sandbox:analyze-x-reference
+bun run sandbox:inventory-x-reference
+bun run sandbox:verify-x-offline
+bun run sandbox:run-x-url-contract
+```
+
+意味契約を更新する前に、新規BrowserContextで外部HTTP・HTTPS・WebSocket・FTPが遮断され、CookieとWeb Storageが空であることを確認します。公式moduleの対象関数は複数captureのde-minify結果と動的挙動から特定し、調査用instrumentationはcapture内だけへ追加します。機能語の出現数だけで挙動を断定せず、合成mockの境界値と操作列で前後状態を観測してから、Xコードを含まない契約テストと独自実装へ反映します。
+
+観測範囲は動画、画像、返信、リンク、プロフィール遷移へ限定しません。`sandbox:inventory-x-reference`で全surface・コンテンツ型・UI要素・状態・入力・環境・データ条件の台帳と、実captureから自動発見したbundle token・role・タグ・ARIA状態を比較します。新しい要素が見つかった場合は既存の対象集合へ追加し、未観測、観測済み、契約化済み、デスクトップ実装済み、Android実装済み、両版検証済みを区別して追跡します。
+
+X公式挙動を取り込む際も、自由追加・削除・並べ替え可能な任意数カラム、左メインメニューの常設とカスタマイズ、複数アカウントのログイン状態保持・自動選択・切替を製品不変条件として維持します。Xの単一フィードまたは単一アカウント前提の状態はカラム単位・選択アカウント単位へ適応し、これらを削除する変更を互換対応として扱いません。
+
 ## 検証
 
 ```powershell
