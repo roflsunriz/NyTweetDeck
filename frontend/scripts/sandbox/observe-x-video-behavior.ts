@@ -24,12 +24,14 @@ interface VideoState {
   autoplay: boolean;
   connected: boolean;
   controls: boolean;
+  currentTime: number;
   currentTimePositive: boolean;
   hasCurrentSource: boolean;
   loop: boolean;
   muted: boolean;
   networkState: number;
   paused: boolean;
+  playbackRate: number;
   playsInline: boolean;
   readyState: number;
   videoCount: number;
@@ -46,6 +48,37 @@ interface PlayerUiState {
 interface Point {
   x: number;
   y: number;
+}
+
+interface ControlPoint extends Point {
+  fingerprint: string;
+  relativeX: number;
+  relativeY: number;
+}
+
+interface OverlayState {
+  dialogCount: number;
+  fullscreen: boolean;
+  menuCount: number;
+  pictureInPicture: boolean;
+  routeShape: string;
+}
+
+interface ControlExperiment {
+  controlFingerprint: string;
+  controlIndex: number;
+  currentTimeDelta: number;
+  dialogDelta: number;
+  fullscreen: boolean;
+  menuDelta: number;
+  mutedChanged: boolean;
+  pausedChanged: boolean;
+  pictureInPicture: boolean;
+  playbackRateChanged: boolean;
+  relativeX: number;
+  relativeY: number;
+  routeChanged: boolean;
+  volumeChanged: boolean;
 }
 
 const DEFAULT_CDP_ENDPOINT = "http://127.0.0.1:9222";
@@ -119,12 +152,14 @@ async function videoState(client: CdpClient): Promise<VideoState | null> {
       autoplay: video.autoplay,
       connected: video.isConnected,
       controls: video.controls,
+      currentTime: video.currentTime,
       currentTimePositive: video.currentTime > 0,
       hasCurrentSource: video.currentSrc.length > 0,
       loop: video.loop,
       muted: video.muted,
       networkState: video.networkState,
       paused: video.paused,
+      playbackRate: video.playbackRate,
       playsInline: video.playsInline,
       readyState: video.readyState,
       videoCount: videos.length,
@@ -153,12 +188,14 @@ async function retainedVideoState(client: CdpClient): Promise<VideoState> {
       autoplay: video.autoplay,
       connected: video.isConnected,
       controls: video.controls,
+      currentTime: video.currentTime,
       currentTimePositive: video.currentTime > 0,
       hasCurrentSource: video.currentSrc.length > 0,
       loop: video.loop,
       muted: video.muted,
       networkState: video.networkState,
       paused: video.paused,
+      playbackRate: video.playbackRate,
       playsInline: video.playsInline,
       readyState: video.readyState,
       videoCount: document.querySelectorAll('video').length,
@@ -223,6 +260,139 @@ async function playerUiState(client: CdpClient): Promise<PlayerUiState> {
   })()`);
 }
 
+async function controlPoints(client: CdpClient): Promise<ControlPoint[]> {
+  return client.evaluate<ControlPoint[]>(`(() => {
+    const video = window.__nytdObservedVideo;
+    if (!(video instanceof HTMLVideoElement)) throw new Error('observed video missing');
+    const article = video.closest('article[data-testid="tweet"]');
+    if (!(article instanceof HTMLElement)) throw new Error('video article missing');
+    const videoRect = video.getBoundingClientRect();
+    const fingerprint = (value) => {
+      let hash = 2166136261;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return (hash >>> 0).toString(16).padStart(8, '0');
+    };
+    return [...article.querySelectorAll('button')]
+      .filter((node) => {
+        if (!(node instanceof HTMLButtonElement) || node.getClientRects().length === 0) return false;
+        const rect = node.getBoundingClientRect();
+        return rect.right > videoRect.left && rect.left < videoRect.right &&
+          rect.bottom > videoRect.top && rect.top < videoRect.bottom;
+      })
+      .map((node, index) => {
+        const rect = node.getBoundingClientRect();
+        const structuralValue = [
+          String(index),
+          node.getAttribute('data-testid') ?? '',
+          String(node.querySelectorAll('svg path').length),
+          String(Math.round(rect.width)),
+          String(Math.round(rect.height))
+        ].join('|');
+        return {
+          fingerprint: fingerprint(structuralValue),
+          relativeX: videoRect.width > 0 ? (rect.left + rect.width / 2 - videoRect.left) / videoRect.width : 0,
+          relativeY: videoRect.height > 0 ? (rect.top + rect.height / 2 - videoRect.top) / videoRect.height : 0,
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        };
+      });
+  })()`);
+}
+
+async function overlayState(client: CdpClient): Promise<OverlayState> {
+  return client.evaluate<OverlayState>(`(() => {
+    const safe = new Set(['i', 'search']);
+    const routeShape = location.pathname.split('/').map((segment, index) =>
+      index === 0 || safe.has(segment) ? segment : ':dynamic'
+    ).join('/');
+    return {
+      dialogCount: document.querySelectorAll('[role="dialog"]').length,
+      fullscreen: document.fullscreenElement !== null,
+      menuCount: document.querySelectorAll('[role="menu"]').length,
+      pictureInPicture: document.pictureInPictureElement !== null,
+      routeShape
+    };
+  })()`);
+}
+
+async function clickPoint(client: CdpClient, point: Point): Promise<void> {
+  await client.call("Input.dispatchMouseEvent", {
+    button: "left",
+    clickCount: 1,
+    type: "mousePressed",
+    x: point.x,
+    y: point.y,
+  });
+  await client.call("Input.dispatchMouseEvent", {
+    button: "left",
+    clickCount: 1,
+    type: "mouseReleased",
+    x: point.x,
+    y: point.y,
+  });
+}
+
+async function prepareVideoControls(client: CdpClient): Promise<ControlPoint[]> {
+  const loaded = client.waitForEvent("Page.loadEventFired", 45_000);
+  await client.call("Page.navigate", { url: VIDEO_SEARCH_URL });
+  await loaded;
+  await Bun.sleep(6_000);
+  await waitForVideo(client);
+  await client.evaluate(`window.__nytdObservedVideo.scrollIntoView({ block: 'center' })`);
+  await Bun.sleep(2_000);
+  const center = await videoCenter(client);
+  await client.call("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: center.x,
+    y: center.y,
+  });
+  await Bun.sleep(700);
+  return controlPoints(client);
+}
+
+async function observeControlExperiments(client: CdpClient): Promise<ControlExperiment[]> {
+  const experiments: ControlExperiment[] = [];
+  for (let controlIndex = 0; controlIndex < 5; controlIndex += 1) {
+    const controls = await prepareVideoControls(client);
+    const control = controls[controlIndex];
+    if (control === undefined) continue;
+    const beforeVideo = await retainedVideoState(client);
+    const beforeOverlay = await overlayState(client);
+    await clickPoint(client, control);
+    await Bun.sleep(800);
+    const afterVideo = await retainedVideoState(client);
+    const afterOverlay = await overlayState(client);
+    experiments.push({
+      controlFingerprint: control.fingerprint,
+      controlIndex,
+      currentTimeDelta: afterVideo.currentTime - beforeVideo.currentTime,
+      dialogDelta: afterOverlay.dialogCount - beforeOverlay.dialogCount,
+      fullscreen: afterOverlay.fullscreen,
+      menuDelta: afterOverlay.menuCount - beforeOverlay.menuCount,
+      mutedChanged: afterVideo.muted !== beforeVideo.muted,
+      pausedChanged: afterVideo.paused !== beforeVideo.paused,
+      pictureInPicture: afterOverlay.pictureInPicture,
+      playbackRateChanged: afterVideo.playbackRate !== beforeVideo.playbackRate,
+      relativeX: control.relativeX,
+      relativeY: control.relativeY,
+      routeChanged: afterOverlay.routeShape !== beforeOverlay.routeShape,
+      volumeChanged: afterVideo.volume !== beforeVideo.volume,
+    });
+    if (afterOverlay.fullscreen) {
+      await client.call("Input.dispatchKeyEvent", {
+        code: "Escape",
+        key: "Escape",
+        type: "keyDown",
+      });
+      await client.call("Input.dispatchKeyEvent", { code: "Escape", key: "Escape", type: "keyUp" });
+    }
+  }
+  return experiments;
+}
+
 async function main(): Promise<void> {
   const cdpEndpoint = parseCdpEndpoint();
   const observedAt = new Date();
@@ -285,6 +455,7 @@ async function main(): Promise<void> {
       await pageClient.evaluate(`window.scrollTo(0, window.__nytdObservedScrollY)`);
       await Bun.sleep(3_000);
       const reenteredViewport = await waitForVideo(pageClient);
+      const controlExperiments = await observeControlExperiments(pageClient);
 
       const files = [];
       const failures = [];
@@ -310,6 +481,7 @@ async function main(): Promise<void> {
         browser: versionValue.Browser,
         controlsAfterHover,
         controlsBeforeHover,
+        controlExperiments,
         discovered,
         enteredViewport,
         files,

@@ -94,6 +94,10 @@ NyTweetDeck Webは要素を維持して`src`を解除するため、通信資源
 
 buttonのラベルやポスト内容は保存しない。各buttonを個別操作してpaused、muted、fullscreen、menu、sliderのどの状態が変化したかを次の観測で判定し、全controlの意味が揃うまでNyTweetDeckのnative controlsを先に削除しない。
 
+個別クリックではmediaごとに可視button数が4〜5件へ変動した。左端（動画幅の約4%）は`paused`だけを反転し、再生／一時停止と確認できた。約72%位置のbuttonはvideo状態を変えずdialogを1件増やし、player設定系と確認できた。約75%位置ではmuteが反転した。約89%位置ではPicture-in-Pictureへ移行したが、同時に保持中videoのmuteも変わったため、副作用か参照差かを追加サンプルで分離する。fullscreenはheadless実行で成立しない可能性があり、falseだけでcontrol不在と判断しない。
+
+controlの順序と個数はmedia能力によって変わるため、固定indexではなく、状態差・相対位置・optional能力から意味を決める。再生、一時停止、mute、進捗、音量、設定、Picture-in-Picture、fullscreenの全契約が独立して確認できるまでcustom player置換は未実装とする。
+
 ## 意味契約の採用条件
 
 - 公式moduleの機能語出現だけで採用しない。
