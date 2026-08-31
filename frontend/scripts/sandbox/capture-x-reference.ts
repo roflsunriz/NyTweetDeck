@@ -58,7 +58,9 @@ interface StructureObservation {
     safeTestIds: Record<string, number>;
     tags: Record<string, number>;
   };
+  expectedRouteReached: boolean;
   loggedIn: boolean;
+  routeShape: string;
   routeKind: "home" | "login" | "other";
   videoCount: number;
 }
@@ -124,6 +126,13 @@ function parseArgument(name: string): string | undefined {
     ?.slice(prefix.length);
 }
 
+function validateSurfaceId(value: string): string {
+  if (!/^[a-z][a-z0-9-]{1,80}$/.test(value)) {
+    throw new Error(`surface IDが不正です: ${value}`);
+  }
+  return value;
+}
+
 function validateTargetUrl(value: string): string {
   const url = new URL(value);
   if (url.protocol !== "https:" || url.hostname !== "x.com") {
@@ -162,10 +171,17 @@ async function waitForTargetWebSocket(cdpEndpoint: string, targetId: string): Pr
   throw new Error(`CDP target ${targetId} のWebSocketを特定できませんでした。`);
 }
 
-async function observeStructure(client: CdpClient): Promise<StructureObservation> {
+async function observeStructure(
+  client: CdpClient,
+  expectedPath: string,
+): Promise<StructureObservation> {
   return client.evaluate<StructureObservation>(`(() => {
     const posts = [...document.querySelectorAll('article[data-testid="tweet"]')];
     const path = location.pathname;
+    const safeRouteSegments = new Set(['all', 'bookmarks', 'communities', 'compose', 'explore', 'grok', 'home', 'i', 'inbox', 'lists', 'messages', 'notifications', 'post', 'premium_sign_up', 'search', 'settings']);
+    const routeShape = path.split('/').map((segment, index) =>
+      index === 0 || safeRouteSegments.has(segment) ? segment : ':dynamic'
+    ).join('/');
     const countValues = (values) => values.reduce((counts, value) => {
       if (value) counts[value] = (counts[value] ?? 0) + 1;
       return counts;
@@ -201,7 +217,9 @@ async function observeStructure(client: CdpClient): Promise<StructureObservation
         safeTestIds: countValues(safeTestIds),
         tags: Object.fromEntries(tags.map((tag) => [tag, document.querySelectorAll(tag).length]))
       },
+      expectedRouteReached: path === ${JSON.stringify(expectedPath)},
       loggedIn: document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]') !== null,
+      routeShape,
       routeKind: path === '/home' ? 'home' : path.startsWith('/i/flow/login') ? 'login' : 'other',
       videoCount: posts.reduce((count, post) => count + post.querySelectorAll('video').length, 0)
     };
@@ -211,6 +229,7 @@ async function observeStructure(client: CdpClient): Promise<StructureObservation
 async function main(): Promise<void> {
   const cdpEndpoint = parseArgument("cdp") ?? DEFAULT_CDP_ENDPOINT;
   const targetUrl = validateTargetUrl(parseArgument("url") ?? DEFAULT_URL);
+  const surfaceId = validateSurfaceId(parseArgument("surface-id") ?? "home-for-you");
   const settleMs = Number.parseInt(parseArgument("settle-ms") ?? String(DEFAULT_SETTLE_MS), 10);
   if (!Number.isFinite(settleMs) || settleMs < 0 || settleMs > 60_000) {
     throw new Error("--settle-msは0から60000の整数で指定してください。");
@@ -296,7 +315,7 @@ async function main(): Promise<void> {
       while (bodyTasks.size > 0) {
         await Promise.allSettled([...bodyTasks]);
       }
-      observation = await observeStructure(pageClient);
+      observation = await observeStructure(pageClient, new URL(targetUrl).pathname);
     } finally {
       pageClient.close();
     }
@@ -333,6 +352,7 @@ async function main(): Promise<void> {
       responseHeadersStored: false,
       schemaVersion: 1,
       screenshotStored: false,
+      surfaceId,
       target: new URL(targetUrl).pathname,
       transientBodyCaptureFailures: bodyFailures,
     };

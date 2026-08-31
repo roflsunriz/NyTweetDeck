@@ -1,5 +1,5 @@
 import { MoreHorizontal } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 
 type UserMenuAction = "follow" | "mute" | "block";
@@ -18,6 +18,16 @@ export function PostMenu({
   translation: Translation;
   onHide: () => void;
 }) {
+  const menuId = useId();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
   const [pendingUserActions, setPendingUserActions] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -109,74 +119,91 @@ export function PostMenu({
   };
 
   return (
-    <details className="post-overflow">
-      <summary aria-label={translation.postMenu}>
+    <div className="post-overflow">
+      <button
+        type="button"
+        className="post-menu-trigger"
+        aria-controls={menuId}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={translation.postMenu}
+        onClick={() => setOpen((current) => !current)}
+      >
         <MoreHorizontal aria-hidden="true" size={17} />
-      </summary>
-      <div>
-        <button type="button" onClick={onHide}>
-          {translation.notInterested}
-        </button>
-        {(
-          [
-            ["follow", translation.followUser],
-            ["mute", translation.muteUser],
-            ["block", translation.blockUser],
-          ] as const
-        ).map(([action, label]) => (
-          <button
-            key={action}
-            type="button"
-            aria-busy={pendingUserActions.has(action)}
-            disabled={completedUserActions.has(action)}
-            onClick={() => userAction(action)}
-          >
-            {label}
-            {completedUserActions.has(action) ? ` · ${translation.userActionCompleted}` : ""}
+      </button>
+      {open && (
+        <div id={menuId} role="menu">
+          <button type="button" role="menuitem" onClick={onHide}>
+            {translation.notInterested}
           </button>
-        ))}
-        <button type="button" onClick={() => setListEditor((current) => !current)}>
-          {translation.manageLists}
-        </button>
-        {listEditor && (
-          <div className="list-membership-editor">
-            <input
-              aria-label={translation.listId}
-              inputMode="numeric"
-              pattern="[0-9]+"
-              maxLength={30}
-              value={listId}
-              onChange={(event) => setListId(event.target.value)}
-            />
+          {(
+            [
+              ["follow", translation.followUser],
+              ["mute", translation.muteUser],
+              ["block", translation.blockUser],
+            ] as const
+          ).map(([action, label]) => (
             <button
+              key={action}
               type="button"
-              aria-busy={listPendingCount > 0}
-              onClick={() => listAction("add")}
+              role="menuitem"
+              aria-busy={pendingUserActions.has(action)}
+              disabled={completedUserActions.has(action)}
+              onClick={() => userAction(action)}
             >
-              {translation.addToList}
-              {listOptimisticAction?.id === listId && listOptimisticAction.action === "add"
-                ? ` · ${translation.userActionCompleted}`
-                : ""}
+              {label}
+              {completedUserActions.has(action) ? ` · ${translation.userActionCompleted}` : ""}
             </button>
-            <button
-              type="button"
-              aria-busy={listPendingCount > 0}
-              onClick={() => listAction("remove")}
-            >
-              {translation.removeFromList}
-              {listOptimisticAction?.id === listId && listOptimisticAction.action === "remove"
-                ? ` · ${translation.userActionCompleted}`
-                : ""}
-            </button>
-          </div>
-        )}
-        {links.map(([label, href]) => (
-          <a key={label} href={href} target="_blank" rel="noreferrer">
-            {label}
-          </a>
-        ))}
-        {error && <p className="post-menu-error">{translation.userActionFailed}</p>}
-      </div>
-    </details>
+          ))}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setListEditor((current) => !current)}
+          >
+            {translation.manageLists}
+          </button>
+          {listEditor && (
+            <div className="list-membership-editor">
+              <input
+                aria-label={translation.listId}
+                inputMode="numeric"
+                pattern="[0-9]+"
+                maxLength={30}
+                value={listId}
+                onChange={(event) => setListId(event.target.value)}
+              />
+              <button
+                type="button"
+                role="menuitem"
+                aria-busy={listPendingCount > 0}
+                onClick={() => listAction("add")}
+              >
+                {translation.addToList}
+                {listOptimisticAction?.id === listId && listOptimisticAction.action === "add"
+                  ? ` · ${translation.userActionCompleted}`
+                  : ""}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                aria-busy={listPendingCount > 0}
+                onClick={() => listAction("remove")}
+              >
+                {translation.removeFromList}
+                {listOptimisticAction?.id === listId && listOptimisticAction.action === "remove"
+                  ? ` · ${translation.userActionCompleted}`
+                  : ""}
+              </button>
+            </div>
+          )}
+          {links.map(([label, href]) => (
+            <a key={label} href={href} target="_blank" rel="noreferrer" role="menuitem">
+              {label}
+            </a>
+          ))}
+          {error && <p className="post-menu-error">{translation.userActionFailed}</p>}
+        </div>
+      )}
+    </div>
   );
 }

@@ -9,7 +9,7 @@ import {
   Settings,
   Share2,
 } from "lucide-react";
-import { type KeyboardEvent, type MouseEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { useRelativeTime } from "../model/relative-time";
@@ -689,36 +689,54 @@ function RepostMenu({
   onRepost: () => void;
   onQuote: () => void;
 }) {
-  const closeAndRun = (event: MouseEvent<HTMLButtonElement>, action: () => void) => {
-    event.currentTarget.closest("details")?.removeAttribute("open");
+  const menuId = useId();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+  const closeAndRun = (action: () => void) => {
+    setOpen(false);
     action();
   };
   return (
-    <details className="repost-menu">
-      <summary
+    <div className="repost-menu">
+      <button
+        type="button"
         className={`post-action${active ? " active repost-active" : ""}${pending ? " pending" : ""}`}
         data-post-action="repost"
+        aria-controls={menuId}
+        aria-expanded={open}
+        aria-haspopup="menu"
         aria-label={label}
         aria-busy={pending}
+        onClick={() => setOpen((current) => !current)}
       >
         <Repeat2 aria-hidden="true" size={16} />
         <span>{compactNumber(count)}</span>
-      </summary>
-      <div>
-        <button
-          type="button"
-          data-post-action="repost-confirm"
-          onClick={(event) => closeAndRun(event, onRepost)}
-        >
-          <Repeat2 aria-hidden="true" size={16} />
-          {label}
-        </button>
-        <button type="button" onClick={(event) => closeAndRun(event, onQuote)}>
-          <MessageCircle aria-hidden="true" size={16} />
-          {quoteLabel}
-        </button>
-      </div>
-    </details>
+      </button>
+      {open && (
+        <div id={menuId} role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            data-post-action="repost-confirm"
+            onClick={() => closeAndRun(onRepost)}
+          >
+            <Repeat2 aria-hidden="true" size={16} />
+            {label}
+          </button>
+          <button type="button" role="menuitem" onClick={() => closeAndRun(onQuote)}>
+            <MessageCircle aria-hidden="true" size={16} />
+            {quoteLabel}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

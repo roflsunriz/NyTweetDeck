@@ -271,7 +271,7 @@
 }
 
 .post-header-action,
-.post-overflow summary {
+.post-overflow > .post-menu-trigger {
   display: grid;
   place-items: center;
   width: 28px;
@@ -282,21 +282,13 @@
 }
 
 .post-header-action:hover,
-.post-overflow summary:hover {
+.post-overflow > .post-menu-trigger:hover {
   background: var(--accent-soft);
   color: var(--accent);
 }
 
 .post-overflow {
   position: relative;
-}
-
-.post-overflow summary {
-  list-style: none;
-}
-
-.post-overflow summary::-webkit-details-marker {
-  display: none;
 }
 
 .post-overflow > div {
@@ -388,13 +380,8 @@
   position: relative;
 }
 
-.repost-menu summary {
-  list-style: none;
+.repost-menu > .post-action {
   cursor: pointer;
-}
-
-.repost-menu summary::-webkit-details-marker {
-  display: none;
 }
 
 .repost-menu > div {

@@ -18,8 +18,12 @@
 
 ```powershell
 bun run sandbox:capture-x-reference
+bun run sandbox:capture-x-surfaces
 bun run sandbox:analyze-x-reference
 bun run sandbox:inventory-x-reference
+bun run sandbox:inventory-x-surfaces
+bun run sandbox:observe-x-dynamic
+bun run sandbox:observe-x-dynamic-matrix
 bun run sandbox:verify-x-offline
 bun run sandbox:run-x-url-contract
 ```
@@ -40,3 +44,17 @@ bun scripts/sandbox/capture-x-reference.ts `
 `sandbox:run-x-url-contract`は、最新captureの公式`main`資産からURL entity補完関数をメモリー上で抽出し、外部通信を全面遮断した新規BrowserContextで5種類の合成entityを実行します。公式関数本体は保存せず、欠落時のfallbackと診断件数だけを意味契約としてcapture内の実行結果へ記録します。
 
 `sandbox:inventory-x-reference`は、既知の5領域に限定せず、全surface・コンテンツ型・要素・状態・入力・環境・データ条件の手動カタログ件数と、captureで実際に見つかったbundle token、固定role、タグ、安全な既知`data-testid`、ARIA状態を集計します。自動発見結果をカタログの上限にせず、未知のbundle tokenや構造を次の観測対象へ追加します。
+
+`sandbox:capture-x-surfaces`は、ログイン済み専用Chromeの新規一時タブで、変更操作を含まない静的route台帳を順に開きます。surfaceごとに独立captureと匿名構造を保存し、到達失敗も母集団から除外せず集計します。アカウント・ポストIDが必要な詳細画面、タブ切替、メニュー、viewerなどの操作起動surfaceは別の動的scenario runnerで観測します。
+
+`sandbox:observe-x-dynamic`は、ホームを毎回読み直して状態を分離し、変更操作を行わずにタブ、メニュー、アカウント切替、作成画面、詳細、プロフィール、画像viewerを開きます。前後のroute形状、dialog・menu・modal・selected tab・video等の匿名件数と、遅延読込された許可済み公式JS/CSSだけを保存します。対象要素が現在のタイムラインにない場合も`actionPerformed=false`として残します。
+
+`sandbox:observe-x-dynamic-matrix`は同じ読み取りscenarioを1440x900、768x1024、390x844で繰り返し、route、menu、modal、expanded、selected tabの差を比較可能な1つのreportへ集約します。単一viewportの結果をデスクトップ・Android共通規則として採用しません。
+
+一部契約だけを再確認する場合は、カンマ区切りのIDとviewportを指定できます。未知IDは拒否します。
+
+```powershell
+bun scripts/sandbox/observe-x-dynamic-scenarios.ts `
+  --viewport=390x844 `
+  --scenarios=account-switcher,composer-dialog
+```

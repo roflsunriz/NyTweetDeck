@@ -154,7 +154,7 @@ describe("post actions", () => {
     );
 
     const likeButton = screen.getByRole("button", { name: "いいね" });
-    const repostButton = screen.getByLabelText("リポスト");
+    const repostButton = screen.getByRole("button", { name: "リポスト" });
     const bookmarkButton = document.querySelector('[data-post-action="bookmark"]');
     if (!(bookmarkButton instanceof HTMLButtonElement)) {
       throw new Error("履歴保存ボタンが見つかりません。");
@@ -219,9 +219,9 @@ describe("post actions", () => {
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
-    const repostToggle = screen.getByLabelText("リポスト");
+    const repostToggle = screen.getByRole("button", { name: "リポスト" });
     await user.click(repostToggle);
-    await user.click(screen.getByRole("button", { name: "リポスト" }));
+    await user.click(screen.getByRole("menuitem", { name: "リポスト" }));
 
     expect(repostToggle.textContent).toBe("3");
     expect(repostToggle.classList.contains("repost-active")).toBe(true);
@@ -239,10 +239,17 @@ describe("post actions", () => {
     await user.click(screen.getByRole("button", { name: "返信" }));
     expect(screen.getByRole("heading", { name: "返信" })).toBeDefined();
     await user.click(screen.getByRole("button", { name: "閉じる" }));
-    await user.click(screen.getByLabelText("ポストメニュー"));
+    const overflowTrigger = screen.getByRole("button", { name: "ポストメニュー" });
+    expect(overflowTrigger.getAttribute("aria-expanded")).toBe("false");
+    await user.click(overflowTrigger);
 
-    expect(screen.getByRole("button", { name: "このポストに興味がない" })).toBeDefined();
-    expect(screen.getByRole("link", { name: "コミュニティノートリクエスト" })).toBeDefined();
+    expect(overflowTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menu")).toBeDefined();
+    expect(screen.getByRole("menuitem", { name: "このポストに興味がない" })).toBeDefined();
+    expect(screen.getByRole("menuitem", { name: "コミュニティノートリクエスト" })).toBeDefined();
+    await user.keyboard("{Escape}");
+    expect(overflowTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("menuitem", { name: "このポストに興味がない" })).toBeNull();
   });
 
   test("shows the at-username and hashtags and offers repost and quote choices", async () => {
@@ -253,9 +260,16 @@ describe("post actions", () => {
     expect(screen.getByText("@alice")).toBeDefined();
     expect(screen.queryByText("42")).toBeNull();
     expect(screen.getByText("#NyTweetDeck").classList.contains("hashtag")).toBe(true);
-    await user.click(screen.getByLabelText("リポスト"));
-    expect(screen.getByRole("button", { name: "リポスト" })).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "引用" }));
+    const repostTrigger = screen.getByRole("button", { name: "リポスト" });
+    expect(repostTrigger.getAttribute("aria-expanded")).toBe("false");
+    await user.click(repostTrigger);
+    expect(repostTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menuitem", { name: "リポスト" })).toBeDefined();
+    await user.keyboard("{Escape}");
+    expect(repostTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("menuitem", { name: "引用" })).toBeNull();
+    await user.click(repostTrigger);
+    await user.click(screen.getByRole("menuitem", { name: "引用" }));
     expect(screen.getByRole("heading", { name: "引用" })).toBeDefined();
   });
 
@@ -580,13 +594,13 @@ describe("post actions", () => {
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
-    await user.click(screen.getByLabelText("ポストメニュー"));
-    await user.click(screen.getByRole("button", { name: "フォロー" }));
-    const followed = screen.getByRole("button", { name: "フォロー · 完了" });
+    await user.click(screen.getByRole("button", { name: "ポストメニュー" }));
+    await user.click(screen.getByRole("menuitem", { name: "フォロー" }));
+    const followed = screen.getByRole("menuitem", { name: "フォロー · 完了" });
     expect(followed.getAttribute("aria-busy")).toBe("true");
-    await user.click(screen.getByRole("button", { name: "ミュート" }));
+    await user.click(screen.getByRole("menuitem", { name: "ミュート" }));
 
-    expect(screen.getByRole("button", { name: "ミュート · 完了" })).toBeDefined();
+    expect(screen.getByRole("menuitem", { name: "ミュート · 完了" })).toBeDefined();
     expect(requestedUrls).toHaveLength(2);
     expect(requestedUrls[0]).toContain("/api/v1/users/42/actions/follow?accountId=account-1");
     expect(requestedUrls[1]).toContain("/api/v1/users/42/actions/mute?accountId=account-1");
@@ -604,14 +618,14 @@ describe("post actions", () => {
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
-    await user.click(screen.getByLabelText("ポストメニュー"));
-    await user.click(screen.getByRole("button", { name: "フォロー" }));
-    expect(screen.getByRole("button", { name: "フォロー · 完了" })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "ポストメニュー" }));
+    await user.click(screen.getByRole("menuitem", { name: "フォロー" }));
+    expect(screen.getByRole("menuitem", { name: "フォロー · 完了" })).toBeDefined();
     finishAction?.(new Response(null, { status: 503 }));
 
     await screen.findByText("ユーザー操作に失敗しました。");
-    expect(screen.getByRole("button", { name: "フォロー" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "ミュート" })).toBeDefined();
+    expect(screen.getByRole("menuitem", { name: "フォロー" })).toBeDefined();
+    expect(screen.getByRole("menuitem", { name: "ミュート" })).toBeDefined();
   });
 
   test("shows the latest list intent immediately and sends rapid operations in order", async () => {
@@ -624,21 +638,21 @@ describe("post actions", () => {
     const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
-    await user.click(screen.getByLabelText("ポストメニュー"));
-    await user.click(screen.getByRole("button", { name: "リストから追加と削除" }));
+    await user.click(screen.getByRole("button", { name: "ポストメニュー" }));
+    await user.click(screen.getByRole("menuitem", { name: "リストから追加と削除" }));
     await user.type(screen.getByLabelText("リストID"), "84");
-    await user.click(screen.getByRole("button", { name: "リストに追加" }));
-    expect(screen.getByRole("button", { name: "リストに追加 · 完了" })).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "リストから削除" }));
+    await user.click(screen.getByRole("menuitem", { name: "リストに追加" }));
+    expect(screen.getByRole("menuitem", { name: "リストに追加 · 完了" })).toBeDefined();
+    await user.click(screen.getByRole("menuitem", { name: "リストから削除" }));
 
-    expect(screen.getByRole("button", { name: "リストから削除 · 完了" })).toBeDefined();
+    expect(screen.getByRole("menuitem", { name: "リストから削除 · 完了" })).toBeDefined();
     expect(requestedUrls).toHaveLength(1);
     finishActions[0]?.(Response.json({ userId: "42", listId: "84", action: "add" }));
     await waitFor(() => expect(requestedUrls).toHaveLength(2));
     finishActions[1]?.(Response.json({ userId: "42", listId: "84", action: "remove" }));
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "リストから削除 · 完了" }).getAttribute("aria-busy"),
+        screen.getByRole("menuitem", { name: "リストから削除 · 完了" }).getAttribute("aria-busy"),
       ).toBe("false"),
     );
     expect(requestedUrls[0]).toContain("/api/v1/users/42/lists/84/add?accountId=account-1");

@@ -64,6 +64,22 @@ X Webが単一画面・単一アカウント前提で持つ状態は、NyTweetDe
 
 この契約はURL entityの欠落補完までを対象とする。本文からのentity分割、`display_url`の表示、`expanded_url`への遷移、`unwound_url`の採用、メディア・記事URLの本文除去、クリック伝播は別の公式境界として追加観測する。
 
+### 複数surface・動的viewport matrix
+
+変更操作を含まない静的route 12件を巡回し、12件すべてでログイン状態を維持してcaptureできた。9件は指定pathへ直接到達し、検索はExploreへ、履歴とDMは識別子を`:dynamic`へ伏せた内部routeへredirectされた。12 surfaceの統合inventoryはbundle token 161種類、role 23種類、安全な固定`data-testid` 20種類だった。
+
+ホームを毎回読み直す動的scenarioを1440x900、768x1024、390x844で実行した。観測から次を一般規則として採用した。
+
+- ポストoverflowとリポストは全幅でrouteを変えない非modal menuで、開くと`role=menu`とtriggerの`aria-expanded=true`が各1件増える。
+- 両menuは全幅でEscape後にmenu 0件・expanded増分0件へ戻る。
+- ポスト詳細と作者プロフィールは全幅でmodalを増やさず固有routeへ遷移する。
+- 画像viewerはdesktop・tabletでは固有route上のmodal、phoneではmodalを持たない全画面routeになる。
+- 作成画面はdesktop・tabletでは`/compose/post`上のmodal、phoneでは同routeの全画面表示になる。
+- phoneのアカウント切替はhome routeを維持し、非modal dialogとexpanded triggerを各1件増やす。広幅では別の非modal構造を使うため、内部構造は追加観測する。
+- phoneのMoreはSideNavと同じ操作点を持たず、未観測のモバイル導線として残す。
+
+これらの契約とデスクトップ・Androidの反映状態は`x-observed-interaction-contracts.ts`で追跡する。特定タイムラインに対象画像や作者リンクがない場合の`actionPerformed=false`を機能欠落と断定せず、独立fixtureまたは別サンプルで再観測する。
+
 ## 意味契約の採用条件
 
 - 公式moduleの機能語出現だけで採用しない。

@@ -30,6 +30,9 @@ bun test scripts/sandbox/x-reference-policy.test.ts scripts/sandbox/offline-sand
 bun run sandbox:inventory-x-reference
 bun run sandbox:verify-x-offline
 bun run sandbox:run-x-url-contract
+bun run sandbox:capture-x-surfaces
+bun run sandbox:inventory-x-surfaces
+bun run sandbox:observe-x-dynamic-matrix
 ```
 
 ログイン済みcaptureはXへの読み取りアクセスを伴うため、通常のCIと無認証テストでは実行しません。手動観測でも投稿、返信、いいね、リポスト、フォロー等の変更操作を実行せず、capture内にCookie、認証header、HTML、DOM、スクリーンショット、実ポスト本文、ユーザー識別子がないことをmanifestと保存ファイル種別から確認します。既知の代表例だけで全要素対応と判定せず、手動カタログと自動発見inventoryの未分類・未観測・未契約・片方だけ実装・未検証件数を確認します。
