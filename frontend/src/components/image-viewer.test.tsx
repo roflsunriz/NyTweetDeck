@@ -115,6 +115,21 @@ test("cancels an active drag when zoom/reset wins and closes exactly once with E
   expect(onClose).toHaveBeenCalledTimes(1);
 });
 
+test("uses a modal dialog on wide screens and a non-modal full-page region on phone widths", () => {
+  const originalMatchMedia = window.matchMedia;
+  try {
+    window.matchMedia = matchMediaResult(true);
+    renderViewer();
+    expect(screen.queryByRole("dialog", { name: "画像をフルサイズで表示" })).toBeNull();
+    const region = screen.getByRole("region", { name: "画像をフルサイズで表示" });
+    expect(region.getAttribute("aria-modal")).toBeNull();
+    expect(region.getAttribute("data-presentation")).toBe("full-page");
+  } finally {
+    cleanup();
+    window.matchMedia = originalMatchMedia;
+  }
+});
+
 function renderViewer({
   src = sources[0],
   sources: siblingSources = [src],
@@ -176,4 +191,17 @@ function pointerEvent(
     clientY: { value: clientY },
   });
   return event;
+}
+
+function matchMediaResult(matches: boolean): typeof window.matchMedia {
+  return ((query: string) => ({
+    addEventListener: () => undefined,
+    addListener: () => undefined,
+    dispatchEvent: () => true,
+    matches,
+    media: query,
+    onchange: null,
+    removeEventListener: () => undefined,
+    removeListener: () => undefined,
+  })) as typeof window.matchMedia;
 }

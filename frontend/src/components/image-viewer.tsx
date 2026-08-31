@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { Translation } from "../i18n/translations";
+import { useMediaQuery } from "../model/use-media-query";
 
 interface ImageViewerProps {
   src: string;
@@ -33,6 +34,7 @@ const EDGE_SWITCH_TOLERANCE = 1;
 const EDGE_SWITCH_SWIPE_FRACTION = 0.49;
 
 export function ImageViewer({ src, sources, translation, onClose }: ImageViewerProps) {
+  const compactPresentation = useMediaQuery("(max-width: 599px)");
   const viewerRef = useRef<HTMLElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
@@ -221,15 +223,18 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
   };
 
   const currentSource = imageSources[imageIndex] ?? src;
+  const presentationProps = compactPresentation
+    ? ({ role: "region" } as const)
+    : ({ "aria-modal": "true", role: "dialog" } as const);
 
   return (
     <div className="image-viewer-backdrop">
       <section
         ref={viewerRef}
         className="image-viewer"
-        aria-modal="true"
-        role="dialog"
+        {...presentationProps}
         aria-label={translation.fullSizeImage}
+        data-presentation={compactPresentation ? "full-page" : "modal"}
         tabIndex={-1}
       >
         <header className="image-viewer-toolbar">

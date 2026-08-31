@@ -20,6 +20,7 @@
     "sandbox:inventory-x-surfaces": "bun scripts/sandbox/inventory-x-surfaces.ts",
     "sandbox:observe-x-dynamic": "bun scripts/sandbox/observe-x-dynamic-scenarios.ts",
     "sandbox:observe-x-dynamic-matrix": "bun scripts/sandbox/observe-x-dynamic-matrix.ts",
+    "sandbox:observe-x-video": "bun scripts/sandbox/observe-x-video-behavior.ts",
     "sandbox:verify-x-offline": "bun scripts/sandbox/verify-x-offline-sandbox.ts",
     "sandbox:run-x-url-contract": "bun scripts/sandbox/run-offline-url-contract.ts"
   },

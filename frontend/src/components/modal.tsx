@@ -6,10 +6,21 @@ interface ModalProps {
   closeLabel: string;
   onClose: () => void;
   children: ReactNode;
+  presentation?: "modal" | "full-page";
 }
 
-export function Modal({ title, closeLabel, onClose, children }: ModalProps) {
+export function Modal({
+  title,
+  closeLabel,
+  onClose,
+  children,
+  presentation = "modal",
+}: ModalProps) {
   const titleId = useId();
+  const presentationProps =
+    presentation === "full-page"
+      ? ({ role: "region" } as const)
+      : ({ "aria-modal": "true", role: "dialog" } as const);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -22,8 +33,13 @@ export function Modal({ title, closeLabel, onClose, children }: ModalProps) {
   }, [onClose]);
 
   return (
-    <div className="modal-backdrop">
-      <section aria-labelledby={titleId} aria-modal="true" className="modal-panel" role="dialog">
+    <div className={`modal-backdrop${presentation === "full-page" ? " full-page" : ""}`}>
+      <section
+        aria-labelledby={titleId}
+        className="modal-panel"
+        data-presentation={presentation}
+        {...presentationProps}
+      >
         <header className="modal-header">
           <h2 id={titleId}>{title}</h2>
           <button className="icon-button" type="button" aria-label={closeLabel} onClick={onClose}>

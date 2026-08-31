@@ -13,11 +13,14 @@
 - URL正規化の独自実装へ観測事実を反映できるよう、公式資産からURL entity補完関数だけをメモリー抽出し、外部通信を全面遮断した環境で欠落・片側欠落・空文字を含む合成5ケースを実行して意味契約だけを記録するrunnerを追加した。
 - 代表的な5領域だけでX互換を判断しないよう、全surface・コンテンツ型・静的／動的要素・状態・入力・環境・データ条件のカバレッジ台帳と、公式bundle token・role・タグ・安全な固定test ID・ARIA状態を匿名で自動発見するinventoryを追加した。
 - 初期ホームだけをX全体の代表にしないよう、変更操作を含まない12 surface巡回と、タブ・menu・作成・詳細・プロフィール・画像viewerを3 viewportで比較する動的scenario matrixを追加し、識別子を保存せずroute・menu・modal・ARIA状態を契約化した。
+- X動画playerとの差を推測で埋めないよう、公開動画検索から中央表示・画面外・再表示時の再生、ミュート、loop、native controls、source、readyState、DOM接続を匿名観測するrunnerを追加した。
 
 ### Changed
 
 - X Web版の意味契約を全面的に取り込んでもTweetDeckとしての利用体験を失わないよう、自由追加・並べ替え可能な任意数カラム、カスタマイズ可能な左メインメニュー、複数アカウント保持・切替を製品不変条件としてカバレッジ台帳と検証手順へ固定した。
 - Xと同じ非modal menu状態を提供するため、デスクトップ版のポストoverflowとリポストを実button・`role=menu`・`menuitem`・`aria-expanded`へ統一し、全viewportで観測したEscape閉鎖を追加した。
+- Xの狭幅viewerを常時dialogとして扱わないよう、デスクトップ・タブレットではmodal dialog、電話幅では非modalの全画面regionへ切り替えるレスポンシブ意味契約をWeb版へ反映した。
+- Xの作成画面と同じviewport分岐にするため、Web版Composerをデスクトップ・タブレットではmodal dialog、電話幅では余白・枠・背景blurを持たない非modal全画面regionとして表示するよう変更した。
 
 ## [Android 0.1.1] - 2026-08-30
 

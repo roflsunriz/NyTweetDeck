@@ -763,11 +763,21 @@ await waitForCondition(`
   document.querySelector("[data-post-action=like]")?.classList.contains("like-active") === true &&
   document.querySelector(".post-action-error") !== null
 `);
-const optimisticRepostClicked = await client.evaluate<boolean>(`(() => {
+const optimisticRepostOpened = await client.evaluate<boolean>(`(() => {
   const menu = document.querySelector(".repost-menu");
-  const confirm = menu?.querySelector("[data-post-action=repost-confirm]");
-  if (!(menu instanceof HTMLDetailsElement) || !(confirm instanceof HTMLButtonElement)) return false;
-  menu.open = true;
+  const trigger = menu?.querySelector("[data-post-action=repost]");
+  if (!(menu instanceof HTMLElement) || !(trigger instanceof HTMLButtonElement)) return false;
+  trigger.click();
+  return true;
+})()`);
+if (!optimisticRepostOpened) throw new Error("リポストメニューを操作できませんでした。");
+await waitForCondition(`
+  document.querySelector("[data-post-action=repost]")?.getAttribute("aria-expanded") === "true" &&
+  document.querySelector(".repost-menu [role=menu]") !== null
+`);
+const optimisticRepostClicked = await client.evaluate<boolean>(`(() => {
+  const confirm = document.querySelector("[data-post-action=repost-confirm]");
+  if (!(confirm instanceof HTMLButtonElement)) return false;
   confirm.click();
   return true;
 })()`);

@@ -348,6 +348,24 @@ select:focus-visible {
   box-shadow: var(--shadow);
 }
 
+@media (max-width: 599px) {
+  .modal-backdrop.full-page {
+    place-items: stretch;
+    padding: 0;
+    background: var(--surface);
+    backdrop-filter: none;
+  }
+
+  .modal-backdrop.full-page .modal-panel {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 .modal-header {
   position: sticky;
   z-index: 1;

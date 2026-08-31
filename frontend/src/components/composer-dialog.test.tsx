@@ -75,4 +75,38 @@ describe("composer", () => {
     expect(payload.quotePostId).toBe("100");
     expect(payload).not.toHaveProperty("attachmentUrl");
   });
+
+  test("uses a non-modal full-page region at phone width", () => {
+    const originalMatchMedia = window.matchMedia;
+    try {
+      window.matchMedia = matchMediaResult(true);
+      render(
+        <ComposerDialog
+          translation={translate("ja")}
+          accountId="account-1"
+          onClose={() => undefined}
+        />,
+      );
+      expect(screen.queryByRole("dialog", { name: "ポストを作成" })).toBeNull();
+      const region = screen.getByRole("region", { name: "ポストを作成" });
+      expect(region.getAttribute("aria-modal")).toBeNull();
+      expect(region.getAttribute("data-presentation")).toBe("full-page");
+    } finally {
+      cleanup();
+      window.matchMedia = originalMatchMedia;
+    }
+  });
 });
+
+function matchMediaResult(matches: boolean): typeof window.matchMedia {
+  return ((query: string) => ({
+    addEventListener: () => undefined,
+    addListener: () => undefined,
+    dispatchEvent: () => true,
+    matches,
+    media: query,
+    onchange: null,
+    removeEventListener: () => undefined,
+    removeListener: () => undefined,
+  })) as typeof window.matchMedia;
+}

@@ -80,6 +80,20 @@ X Webが単一画面・単一アカウント前提で持つ状態は、NyTweetDe
 
 これらの契約とデスクトップ・Androidの反映状態は`x-observed-interaction-contracts.ts`で追跡する。特定タイムラインに対象画像や作者リンクがない場合の`actionPerformed=false`を機能欠落と断定せず、独立fixtureまたは別サンプルで再観測する。
 
+### インライン動画の可視範囲ライフサイクル
+
+公開検索条件から動画候補を取得し、動画URL、ポストID、作者、本文を保存せず、同じ表示位置の中央表示・画面外・再表示を観測した。
+
+- 中央表示ではvideo要素がDOMへ接続され、ミュート、再生中、inline、`readyState=4`、`networkState=2`、`volume=1`だった。
+- `autoplay`属性、`loop`属性、native `controls`属性はいずれもfalseだが、公式player制御により動画は再生中だった。
+- 画面外へ送ると元video要素はDOMから切り離され、pause、`readyState=0`、`networkState=0`、`currentTime=0`相当になった。
+- 元位置へ戻ると新しいvideo要素がDOMへ生成され、再びミュート再生、`readyState=4`、`networkState=2`になった。
+- player領域へhoverする前は可視controlが0件、hover後はbutton 5件・slider 2件になった。native controlsではなく公式custom UIが遅延表示される。
+
+NyTweetDeck Webは要素を維持して`src`を解除するため、通信資源解放という意味は近いがDOMライフサイクルが異なる。またnative controlsを表示しており、公式のcustom player UIとは明確に異なる。`loop`既定ONと保存音量はNyTweetDeckの明示要件なので、公式の`loop=false`を理由に削除しない。
+
+buttonのラベルやポスト内容は保存しない。各buttonを個別操作してpaused、muted、fullscreen、menu、sliderのどの状態が変化したかを次の観測で判定し、全controlの意味が揃うまでNyTweetDeckのnative controlsを先に削除しない。
+
 ## 意味契約の採用条件
 
 - 公式moduleの機能語出現だけで採用しない。

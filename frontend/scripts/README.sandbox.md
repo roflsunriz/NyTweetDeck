@@ -24,6 +24,7 @@ bun run sandbox:inventory-x-reference
 bun run sandbox:inventory-x-surfaces
 bun run sandbox:observe-x-dynamic
 bun run sandbox:observe-x-dynamic-matrix
+bun run sandbox:observe-x-video
 bun run sandbox:verify-x-offline
 bun run sandbox:run-x-url-contract
 ```
@@ -50,6 +51,8 @@ bun scripts/sandbox/capture-x-reference.ts `
 `sandbox:observe-x-dynamic`は、ホームを毎回読み直して状態を分離し、変更操作を行わずにタブ、メニュー、アカウント切替、作成画面、詳細、プロフィール、画像viewerを開きます。前後のroute形状、dialog・menu・modal・selected tab・video等の匿名件数と、遅延読込された許可済み公式JS/CSSだけを保存します。対象要素が現在のタイムラインにない場合も`actionPerformed=false`として残します。
 
 `sandbox:observe-x-dynamic-matrix`は同じ読み取りscenarioを1440x900、768x1024、390x844で繰り返し、route、menu、modal、expanded、selected tabの差を比較可能な1つのreportへ集約します。単一viewportの結果をデスクトップ・Android共通規則として採用しません。
+
+`sandbox:observe-x-video`は公開検索条件から動画候補を読み取り、中央表示・画面外・再表示におけるHTMLMediaElementの再生、ミュート、loop、volume、source、readyState、DOM接続を匿名の数値・真偽値だけで記録します。動画URL、ポストID、作者、本文は保存しません。
 
 一部契約だけを再確認する場合は、カンマ区切りのIDとviewportを指定できます。未知IDは拒否します。
 
