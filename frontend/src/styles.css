@@ -838,18 +838,13 @@ select:focus-visible {
   color: var(--danger);
 }
 
-.post-open-button {
-  display: block;
-  width: 100%;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
+.post-link {
+  color: var(--accent);
+  text-decoration: none;
 }
 
-.post-open-button:hover {
-  color: color-mix(in srgb, var(--text) 85%, var(--accent));
+.post-link:hover {
+  text-decoration: underline;
 }
 
 .quoted-post-card {

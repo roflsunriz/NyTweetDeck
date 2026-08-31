@@ -66,6 +66,13 @@ export const X_OBSERVED_INTERACTION_CONTRACTS: readonly ObservedInteractionContr
     viewports: ["desktop", "tablet", "phone"],
   },
   {
+    androidStatus: "implemented",
+    desktopStatus: "implemented",
+    id: "normalized-http-linkification",
+    rule: "正規化済みHTTPとHTTPSを末尾句読点・余分な閉じ括弧から分離して操作可能なリンクとして表示する",
+    viewports: ["desktop", "tablet", "phone"],
+  },
+  {
     androidStatus: "unassessed",
     desktopStatus: "known-gap",
     id: "inline-video-visibility-lifecycle",

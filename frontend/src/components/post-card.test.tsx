@@ -273,6 +273,26 @@ describe("post actions", () => {
     expect(screen.getByRole("heading", { name: "引用" })).toBeDefined();
   });
 
+  test("links normalized HTTP URLs without opening the post detail", async () => {
+    const onOpen = mock(() => undefined);
+    const user = userEvent.setup();
+    render(
+      <PostCard
+        post={{ ...post(), text: "参照 https://example.test/path). #NyTD" }}
+        accountId="account-1"
+        translation={translate("ja")}
+        onOpen={onOpen}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "https://example.test/path" });
+    expect(link.getAttribute("href")).toBe("https://example.test/path");
+    expect(link.nextSibling?.textContent).toContain("). ");
+    link.addEventListener("click", (event) => event.preventDefault(), { once: true });
+    await user.click(link);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   test("hides a trailing media redirect and opens an X Article inside NyTweetDeck", async () => {
     const user = userEvent.setup();
     render(

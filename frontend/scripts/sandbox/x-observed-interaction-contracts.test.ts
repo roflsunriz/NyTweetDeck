@@ -25,6 +25,10 @@ describe("X観測済み意味契約", () => {
       X_OBSERVED_INTERACTION_CONTRACTS.filter(
         ({ desktopStatus }) => desktopStatus === "implemented",
       ).map(({ id }) => id),
-    ).toEqual(["post-overflow-nonmodal-menu", "repost-nonmodal-menu"]);
+    ).toEqual([
+      "post-overflow-nonmodal-menu",
+      "repost-nonmodal-menu",
+      "normalized-http-linkification",
+    ]);
   });
 });

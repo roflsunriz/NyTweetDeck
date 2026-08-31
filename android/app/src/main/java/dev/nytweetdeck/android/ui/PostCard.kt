@@ -50,10 +50,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -361,7 +363,7 @@ private fun PostBody(text: String, tag: String) {
     val hashtagColor = MaterialTheme.colorScheme.primary
     Text(
         text = buildAnnotatedString {
-            appendHashtagStyledText(text, hashtagColor)
+            appendPostStyledText(text, hashtagColor)
         },
         modifier = Modifier.testTag(tag),
         style = MaterialTheme.typography.bodyMedium,
@@ -880,19 +882,23 @@ private fun engagementCount(value: Long): String {
     }
 }
 
-private fun androidx.compose.ui.text.AnnotatedString.Builder.appendHashtagStyledText(
+private fun androidx.compose.ui.text.AnnotatedString.Builder.appendPostStyledText(
     text: String,
-    hashtagColor: Color,
+    accentColor: Color,
 ) {
-    var cursor = 0
-    HASHTAG_PATTERN.findAll(text).forEach { match ->
-        append(text.substring(cursor, match.range.first))
-        withStyle(SpanStyle(color = hashtagColor, fontWeight = FontWeight.Medium)) {
-            append(match.value)
+    postTextSegments(text).forEach { segment ->
+        when (segment) {
+            is PostTextSegment.Plain -> append(segment.text)
+            is PostTextSegment.Hashtag -> withStyle(
+                SpanStyle(color = accentColor, fontWeight = FontWeight.Medium),
+            ) {
+                append(segment.text)
+            }
+            is PostTextSegment.Url -> withLink(LinkAnnotation.Url(segment.url)) {
+                withStyle(SpanStyle(color = accentColor)) {
+                    append(segment.text)
+                }
+            }
         }
-        cursor = match.range.last + 1
     }
-    append(text.substring(cursor))
 }
-
-private val HASHTAG_PATTERN = Regex("""#[\p{L}\p{N}_]+""")

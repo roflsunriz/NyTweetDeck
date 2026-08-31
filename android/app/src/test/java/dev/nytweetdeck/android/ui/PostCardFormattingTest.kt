@@ -27,4 +27,25 @@ class PostCardFormattingTest {
     fun replyActionUsesASpeechBubbleInsteadOfAReplyArrow() {
         assertSame(Icons.Outlined.ChatBubbleOutline, replyActionIcon())
     }
+
+    @Test
+    fun segmentsHttpLinksHashtagsAndTrailingPunctuation() {
+        assertEquals(
+            listOf(
+                PostTextSegment.Plain("参照 "),
+                PostTextSegment.Url("https://example.test/a(b)", "https://example.test/a(b)"),
+                PostTextSegment.Plain(")、 "),
+                PostTextSegment.Hashtag("#NyTD"),
+            ),
+            postTextSegments("参照 https://example.test/a(b))、 #NyTD"),
+        )
+    }
+
+    @Test
+    fun rejectsNonHttpAndMalformedLinks() {
+        assertEquals(
+            listOf(PostTextSegment.Plain("javascript:alert(1) https://")),
+            postTextSegments("javascript:alert(1) https://"),
+        )
+    }
 }

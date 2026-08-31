@@ -14,6 +14,7 @@ import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { useRelativeTime } from "../model/relative-time";
 import type { CommunityNote, EmbeddedPost, TimelinePost } from "../model/timeline";
+import { postTextSegments } from "../model/post-text-segments";
 import { ComposerDialog } from "./composer-dialog";
 import { ArticleCard } from "./article-card";
 import { usePostTranslationSettings } from "./post-translation-context";
@@ -275,13 +276,7 @@ export function PostCard({
             </span>
           </button>
         )}
-        {onOpen === undefined ? (
-          <p className="post-text">{renderPostText(visibleText)}</p>
-        ) : (
-          <button className="post-open-button post-text" type="button" onClick={onOpen}>
-            {renderPostText(visibleText)}
-          </button>
-        )}
+        <p className="post-text">{renderPostText(visibleText)}</p>
         <PostTranslationStatus state={postTranslation} translation={translation} />
         {post.communityNote != null && (
           <aside className="community-note-card" data-testid="community-note-card">
@@ -742,16 +737,31 @@ function RepostMenu({
 
 function renderPostText(text: string) {
   let offset = 0;
-  return text.split(/(#[\p{L}\p{N}_]+)/gu).map((segment) => {
+  return postTextSegments(text).map((segment) => {
     const start = offset;
-    offset += segment.length;
-    return segment.startsWith("#") ? (
-      <span className="hashtag" key={`${start}-${segment}`}>
-        {segment}
-      </span>
-    ) : (
-      segment
-    );
+    offset += segment.text.length;
+    if (segment.kind === "hashtag") {
+      return (
+        <span className="hashtag" key={`${start}-${segment.text}`}>
+          {segment.text}
+        </span>
+      );
+    }
+    if (segment.kind === "url") {
+      return (
+        <a
+          className="post-link"
+          href={segment.url}
+          key={`${start}-${segment.url}`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {segment.text}
+        </a>
+      );
+    }
+    return segment.text;
   });
 }
 
