@@ -276,7 +276,7 @@ export function PostCard({
             </span>
           </button>
         )}
-        <p className="post-text">{renderPostText(visibleText)}</p>
+        <p className="post-text">{renderPostText(visibleText, post.links)}</p>
         <PostTranslationStatus state={postTranslation} translation={translation} />
         {post.communityNote != null && (
           <aside className="community-note-card" data-testid="community-note-card">
@@ -644,7 +644,7 @@ function QuotedPostCard({
           )}
         </span>
         {visibleText.length > 0 && (
-          <span className="quoted-post-text">{renderPostText(visibleText)}</span>
+          <span className="quoted-post-text">{renderPostText(visibleText, post.links)}</span>
         )}
         {display.mediaPreview && post.media.length > 0 && (
           <span className="quoted-post-media">
@@ -735,7 +735,7 @@ function RepostMenu({
   );
 }
 
-function renderPostText(text: string) {
+function renderPostText(text: string, links: readonly { url: string; displayText: string }[] = []) {
   let offset = 0;
   return postTextSegments(text).map((segment) => {
     const start = offset;
@@ -748,6 +748,8 @@ function renderPostText(text: string) {
       );
     }
     if (segment.kind === "url") {
+      const displayText =
+        links.find((link) => link.url === segment.url)?.displayText ?? segment.text;
       return (
         <a
           className="post-link"
@@ -757,7 +759,7 @@ function renderPostText(text: string) {
           rel="noreferrer"
           onClick={(event) => event.stopPropagation()}
         >
-          {segment.text}
+          {displayText}
         </a>
       );
     }

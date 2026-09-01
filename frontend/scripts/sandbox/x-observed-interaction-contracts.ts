@@ -59,8 +59,8 @@ export const X_OBSERVED_INTERACTION_CONTRACTS: readonly ObservedInteractionContr
     viewports: ["desktop", "tablet", "phone"],
   },
   {
-    androidStatus: "unassessed",
-    desktopStatus: "unassessed",
+    androidStatus: "implemented",
+    desktopStatus: "implemented",
     id: "url-entity-nullish-completion",
     rule: "display URLとexpanded URLのnullish欠落を短縮URLで補完し、空文字と既存値は維持する",
     viewports: ["desktop", "tablet", "phone"],

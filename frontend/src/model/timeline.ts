@@ -1,6 +1,7 @@
 export interface TimelinePost {
   id: string;
   text: string;
+  links?: TimelineTextLink[];
   language: string | null;
   createdAt: string | null;
   author: TimelineAuthor;
@@ -55,6 +56,11 @@ export interface TimelineMedia {
   previewUrl: string;
 }
 
+export interface TimelineTextLink {
+  url: string;
+  displayText: string;
+}
+
 export interface PreTranslatedPost {
   text: string;
   sourceLanguage: string | null;
@@ -72,6 +78,7 @@ export interface CommunityNote {
 export interface EmbeddedPost {
   id: string;
   text: string;
+  links?: TimelineTextLink[];
   language: string | null;
   createdAt: string | null;
   author: TimelineAuthor;

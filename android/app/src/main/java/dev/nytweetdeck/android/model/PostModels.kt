@@ -31,6 +31,7 @@ data class Post(
     val preTranslated: Translation?,
     val article: Article?,
     val media: List<Media>,
+    val links: List<TextLink> = emptyList(),
 )
 
 data class Author(
@@ -50,6 +51,7 @@ data class EmbeddedPost(
     val preTranslated: Translation?,
     val article: Article?,
     val media: List<Media>,
+    val links: List<TextLink> = emptyList(),
 )
 
 data class CommunityNote(
@@ -79,4 +81,9 @@ data class Media(
     val type: String,
     val url: String?,
     val previewUrl: String?,
+)
+
+data class TextLink(
+    val url: String,
+    val displayText: String,
 )

@@ -64,7 +64,7 @@ X Webが単一画面・単一アカウント前提で持つ状態は、NyTweetDe
 
 この契約はURL entityの欠落補完までを対象とする。本文からのentity分割、`display_url`の表示、`expanded_url`への遷移、`unwound_url`の採用、メディア・記事URLの本文除去、クリック伝播は別の公式境界として追加観測する。
 
-NyTweetDeck WebとAndroidには、正規化後本文のHTTP(S) URLを末尾句読点・不釣り合いな閉じ括弧から分離してリンク化する共通規則を反映した。Webはリンク操作をカード詳細へ伝播させず、AndroidはCompose `LinkAnnotation.Url`を使用する。現行モデルはXの`display_url`を保持しないため展開URL全文を表示しており、表示名と遷移先を分離するentity保持は未実装である。
+NyTweetDeck WebとAndroidには、正規化後本文のHTTP(S) URLを末尾句読点・不釣り合いな閉じ括弧から分離してリンク化する共通規則を反映した。Webはリンク操作をカード詳細へ伝播させず、AndroidはCompose `LinkAnnotation.Url`を使用する。JavaとKotlinの通常ポスト・引用モデルは`display_url`と、`unwound_url`優先の安全な実遷移先を別々に保持し、表示名欠落時だけ実URLへフォールバックする。
 
 ### 複数surface・動的viewport matrix
 

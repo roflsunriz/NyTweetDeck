@@ -11,6 +11,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
     public record Post(
             String id,
             String text,
+            List<TextLink> links,
             String language,
             String createdAt,
             Author author,
@@ -35,6 +36,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             List<Media> media) {
 
         public Post {
+            links = List.copyOf(links);
             media = List.copyOf(media);
         }
     }
@@ -45,6 +47,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
     public record EmbeddedPost(
             String id,
             String text,
+            List<TextLink> links,
             String language,
             String createdAt,
             Author author,
@@ -53,6 +56,7 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             List<Media> media) {
 
         public EmbeddedPost {
+            links = List.copyOf(links);
             media = List.copyOf(media);
         }
     }
@@ -74,4 +78,6 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             String url) {}
 
     public record Media(String id, String type, String url, String previewUrl) {}
+
+    public record TextLink(String url, String displayText) {}
 }

@@ -3,6 +3,7 @@ package dev.nytweetdeck.timeline;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
+import dev.nytweetdeck.timeline.TimelinePage.TextLink;
 
 final class PostTextUrlNormalizer {
 
@@ -14,9 +15,15 @@ final class PostTextUrlNormalizer {
 
     record UrlEntity(
             String shortUrl,
+            String displayUrl,
             String expandedUrl,
             String unwoundUrl,
-            Kind kind) {}
+            Kind kind) {
+
+        UrlEntity(String shortUrl, String expandedUrl, String unwoundUrl, Kind kind) {
+            this(shortUrl, null, expandedUrl, unwoundUrl, kind);
+        }
+    }
 
     private PostTextUrlNormalizer() {}
 
@@ -53,6 +60,26 @@ final class PostTextUrlNormalizer {
                 .replaceAll("(?m)^[ \\t]+", "")
                 .replaceAll("\\R{3,}", "\n\n")
                 .strip();
+    }
+
+    static List<TextLink> links(List<UrlEntity> entities) {
+        var links = new LinkedHashMap<String, TextLink>();
+        for (var entity : entities) {
+            if (entity.kind() != Kind.LINK) {
+                continue;
+            }
+            var destination = firstHttpUrl(
+                    entity.unwoundUrl(), entity.expandedUrl(), entity.shortUrl());
+            if (destination == null) {
+                continue;
+            }
+            var display = entity.displayUrl();
+            if (display == null || display.isBlank()) {
+                display = destination;
+            }
+            links.putIfAbsent(destination + "\0" + display, new TextLink(destination, display));
+        }
+        return List.copyOf(links.values());
     }
 
     private static String firstHttpUrl(String... candidates) {

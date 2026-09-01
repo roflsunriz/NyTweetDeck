@@ -23,6 +23,7 @@
 - Xの作成画面と同じviewport分岐にするため、Web版Composerをデスクトップ・タブレットではmodal dialog、電話幅では余白・枠・背景blurを持たない非modal全画面regionとして表示するよう変更した。
 - 正規化済みURLを本文上で操作できるよう、HTTP(S) URLを末尾句読点・不釣り合いな閉じ括弧から分離して安全なリンクにし、クリック時にポスト詳細を誤って開かない本文セグメントrendererをWeb版へ追加した。
 - Androidでも同じURL意味契約を使えるよう、HTTP(S) URL・ハッシュタグ・通常文字列を分離する純粋parserとCompose `LinkAnnotation.Url`描画を追加した。
+- Xと同じ表示名と遷移先を使い分けるため、Java・TypeScript・Kotlinの通常ポストと引用へTextLinkモデルを追加し、`display_url`を表示しながら`unwound_url`優先の安全な実URLへ遷移するよう変更した。
 
 ## [Android 0.1.1] - 2026-08-30
 

@@ -70,6 +70,7 @@ import dev.nytweetdeck.android.model.PostTranslationUiState
 import dev.nytweetdeck.android.model.TranslationCandidate
 import dev.nytweetdeck.android.model.TranslationLoadStatus
 import dev.nytweetdeck.android.model.Translation
+import dev.nytweetdeck.android.model.TextLink
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -134,6 +135,7 @@ internal fun PostCard(
         TranslatablePostBody(
             postId = post.id,
             originalText = post.text,
+            links = post.links,
             sourceLanguage = post.language,
             preTranslated = post.preTranslated,
             translationStates = translationStates,
@@ -359,11 +361,11 @@ private fun ReplyContext(post: Post, onParentClick: (String) -> Unit) {
 }
 
 @Composable
-private fun PostBody(text: String, tag: String) {
+private fun PostBody(text: String, links: List<TextLink>, tag: String) {
     val hashtagColor = MaterialTheme.colorScheme.primary
     Text(
         text = buildAnnotatedString {
-            appendPostStyledText(text, hashtagColor)
+            appendPostStyledText(text, links, hashtagColor)
         },
         modifier = Modifier.testTag(tag),
         style = MaterialTheme.typography.bodyMedium,
@@ -374,6 +376,7 @@ private fun PostBody(text: String, tag: String) {
 private fun TranslatablePostBody(
     postId: String,
     originalText: String,
+    links: List<TextLink>,
     sourceLanguage: String?,
     preTranslated: Translation?,
     translationStates: Map<String, PostTranslationUiState>,
@@ -403,6 +406,7 @@ private fun TranslatablePostBody(
         translatedText != null
     PostBody(
         text = if (showTranslation) requireNotNull(translatedText) else originalText,
+        links = links,
         tag = tag,
     )
     when (translationState?.status) {
@@ -497,6 +501,7 @@ private fun QuoteCard(
         TranslatablePostBody(
             postId = quote.id,
             originalText = quote.text,
+            links = quote.links,
             sourceLanguage = quote.language,
             preTranslated = quote.preTranslated,
             translationStates = translationStates,
@@ -884,6 +889,7 @@ private fun engagementCount(value: Long): String {
 
 private fun androidx.compose.ui.text.AnnotatedString.Builder.appendPostStyledText(
     text: String,
+    links: List<TextLink>,
     accentColor: Color,
 ) {
     postTextSegments(text).forEach { segment ->
@@ -896,7 +902,7 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendPostStyledTex
             }
             is PostTextSegment.Url -> withLink(LinkAnnotation.Url(segment.url)) {
                 withStyle(SpanStyle(color = accentColor)) {
-                    append(segment.text)
+                    append(links.firstOrNull { it.url == segment.url }?.displayText ?: segment.text)
                 }
             }
         }

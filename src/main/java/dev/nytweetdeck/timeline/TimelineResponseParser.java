@@ -152,6 +152,7 @@ public class TimelineResponseParser {
         return new Post(
                 id,
                 PostTextUrlNormalizer.normalize(tweetText(content), urlEntities),
+                PostTextUrlNormalizer.links(urlEntities),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 author,
@@ -237,6 +238,7 @@ public class TimelineResponseParser {
         return new EmbeddedPost(
                 firstNonNull(text(node, "rest_id"), text(legacy, "id_str")),
                 PostTextUrlNormalizer.normalize(tweetText(node), urlEntities),
+                PostTextUrlNormalizer.links(urlEntities),
                 text(legacy, "lang"),
                 parseCreatedAt(text(legacy, "created_at")),
                 parseAuthor(node),
@@ -341,6 +343,7 @@ public class TimelineResponseParser {
             if (shortUrl != null && !shortUrl.isBlank()) {
                 entities.add(new UrlEntity(
                         shortUrl,
+                        firstNonNull(text(entity, "display_url"), text(entity, "displayUrl")),
                         expanded,
                         firstNonNull(text(entity, "unwound_url"), text(entity, "unwoundUrl")),
                         kind));

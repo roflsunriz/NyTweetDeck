@@ -125,6 +125,7 @@ class TimelineResponseParser(
         return Post(
             id = id,
             text = PostTextUrlNormalizer.normalize(tweetText(content).orEmpty(), urlEntities),
+            links = PostTextUrlNormalizer.links(urlEntities),
             language = legacy.text("lang"),
             createdAt = parseCreatedAt(legacy.text("created_at")),
             author = author,
@@ -195,6 +196,7 @@ class TimelineResponseParser(
         return EmbeddedPost(
             id = firstNonNull(tweet.text("rest_id"), legacy.text("id_str")).orEmpty(),
             text = PostTextUrlNormalizer.normalize(tweetText(tweet).orEmpty(), urlEntities),
+            links = PostTextUrlNormalizer.links(urlEntities),
             language = legacy.text("lang"),
             createdAt = parseCreatedAt(legacy.text("created_at")),
             author = parseAuthor(tweet),
@@ -299,6 +301,7 @@ class TimelineResponseParser(
                     expandedUrl = expanded,
                     unwoundUrl = firstNonNull(item.text("unwound_url"), item.text("unwoundUrl")),
                     kind = kind,
+                    displayUrl = firstNonNull(item.text("display_url"), item.text("displayUrl")),
                 )
             }
         }

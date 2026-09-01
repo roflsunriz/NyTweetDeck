@@ -293,6 +293,28 @@ describe("post actions", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  test("uses X display text while keeping the expanded link destination", () => {
+    render(
+      <PostCard
+        post={{
+          ...post(),
+          text: "参照 https://example.test/original?from=x",
+          links: [
+            {
+              url: "https://example.test/original?from=x",
+              displayText: "example.test/readable",
+            },
+          ],
+        }}
+        accountId="account-1"
+        translation={translate("ja")}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "example.test/readable" });
+    expect(link.getAttribute("href")).toBe("https://example.test/original?from=x");
+  });
+
   test("hides a trailing media redirect and opens an X Article inside NyTweetDeck", async () => {
     const user = userEvent.setup();
     render(

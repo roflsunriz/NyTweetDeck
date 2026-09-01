@@ -386,7 +386,8 @@ class TimelineResponseParserTest {
                 {"result":{"__typename":"Tweet","rest_id":"800",
                   "legacy":{"full_text":"本文 https://t.co/main","lang":"ja",
                     "created_at":"2019-01-02T00:00:00Z","entities":{"urls":[{
-                      "url":"https://t.co/main","expanded_url":"https://example.com/expanded",
+                      "url":"https://t.co/main","display_url":"example.com/readable",
+                      "expanded_url":"https://example.com/expanded",
                       "unwound_url":"https://example.com/original?from=x"}]}},
                   "grok_translated_post_with_availability":{"is_available":true,"data":{
                     "translation":"Body https://t.co/main","source_language":"ja",
@@ -406,6 +407,10 @@ class TimelineResponseParserTest {
         var notePost = parser.parse(noteBody).posts().get(0);
 
         assertThat(post.text()).isEqualTo("本文 https://example.com/original?from=x");
+        assertThat(post.links()).singleElement().satisfies(link -> {
+            assertThat(link.url()).isEqualTo("https://example.com/original?from=x");
+            assertThat(link.displayText()).isEqualTo("example.com/readable");
+        });
         assertThat(post.preTranslated().text())
                 .isEqualTo("Body https://example.com/original?from=x");
         assertThat(notePost.text()).isEqualTo("長文 https://docs.example.org/guide");

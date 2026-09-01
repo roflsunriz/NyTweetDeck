@@ -1,5 +1,6 @@
 package dev.nytweetdeck.android.xapi
 
+import dev.nytweetdeck.android.model.TextLink
 import java.net.URI
 
 internal enum class PostUrlEntityKind {
@@ -13,6 +14,7 @@ internal data class PostUrlEntity(
     val expandedUrl: String?,
     val unwoundUrl: String?,
     val kind: PostUrlEntityKind,
+    val displayUrl: String? = null,
 )
 
 internal object PostTextUrlNormalizer {
@@ -49,6 +51,19 @@ internal object PostTextUrlNormalizer {
             normalized
         }
     }
+
+    fun links(entities: List<PostUrlEntity>): List<TextLink> = entities
+        .asSequence()
+        .filter { it.kind == PostUrlEntityKind.LINK }
+        .mapNotNull { entity ->
+            val destination = sequenceOf(entity.unwoundUrl, entity.expandedUrl, entity.shortUrl)
+                .filterNotNull()
+                .firstOrNull { it.isHttpUrl() }
+                ?: return@mapNotNull null
+            TextLink(destination, entity.displayUrl?.takeIf(String::isNotBlank) ?: destination)
+        }
+        .distinct()
+        .toList()
 
     private fun String.isTcoUrl(): Boolean = isHttpUrl() &&
         runCatching { URI(this).host.equals("t.co", ignoreCase = true) }.getOrDefault(false)
