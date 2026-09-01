@@ -1,5 +1,4 @@
 package dev.nytweetdeck.android.ui
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nytweetdeck.android.data.DeckSettingsStore
@@ -60,7 +59,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import dev.nytweetdeck.android.xapi.XSessionVerifier
-
 class DeckViewModel(
     private val settingsStore: DeckSettingsStore? = null,
     private val accountStoreFile: File? = null,
@@ -165,6 +163,15 @@ class DeckViewModel(
         ::savedAccount,
         mutableState,
     )
+    internal val userProfileController = userDirectoryRepository?.let { repository ->
+        UserProfileController(
+            repository,
+            viewModelScope,
+            ioDispatcher,
+            ::savedAccount,
+            mutableState,
+        )
+    }
     @Volatile
     private var foreground = false
     @Volatile
@@ -373,6 +380,7 @@ class DeckViewModel(
                 }
                 withContext(Dispatchers.Main.immediate) {
                     postDetailController?.reset()
+                    userProfileController?.reset()
                     rememberSelectedAccountColumns()
                     val selectedId = store.selectedAccountId()
                     val restored = selectedId?.let(accountColumnCaches::get) ?: AccountColumnSnapshot()
@@ -426,6 +434,7 @@ class DeckViewModel(
                     }
                     withContext(Dispatchers.Main.immediate) {
                         postDetailController?.reset()
+                        userProfileController?.reset()
                         val restored = retainedSnapshot ?: AccountColumnSnapshot(timelines = diskTimelines)
                         mutableState.update {
                             it.copy(
@@ -779,7 +788,6 @@ class DeckViewModel(
     }
 
     fun loadMore(columnId: String) = columnPagingController.loadMore(columnId)
-
     fun clearNewPosts(columnId: String) {
         mutableState.update { current ->
             current.copy(
@@ -804,43 +812,33 @@ class DeckViewModel(
             )
         }
     }
-
     fun togglePostAction(postId: String, action: PostActionType) {
         postActionController?.toggle(postId, action)
     }
-
     fun clearPostActionFailure(postId: String, action: PostActionType) {
         postActionController?.clearFailure(postId, action)
     }
-
     fun openComposer(mode: ComposerMode, targetPostId: String? = null) {
         composerController?.open(mode, targetPostId)
     }
-
     fun closeComposer() {
         composerController?.close()
     }
-
     fun submitPost(text: String) {
         composerController?.submit(text)
     }
-
     fun openPostDetail(postId: String) {
         postDetailController?.open(postId)
     }
-
     fun closePostDetail() {
         postDetailController?.close()
     }
-
     fun retryPostDetail() {
         postDetailController?.reload()
     }
-
     fun loadMorePostDetail() {
         postDetailController?.loadMore()
     }
-
     fun toggleDeemphasizedReplies() {
         postDetailController?.toggleDeemphasizedReplies()
     }

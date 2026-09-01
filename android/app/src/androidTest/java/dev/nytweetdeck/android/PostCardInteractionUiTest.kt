@@ -30,6 +30,7 @@ class PostCardInteractionUiTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
     private var openedPost: String? = null
     private var openedQuote: String? = null
+    private var createdQuote: String? = null
     private var toggledTranslation: String? = null
     private var openedAuthor: String? = null
 
@@ -42,6 +43,7 @@ class PostCardInteractionUiTest {
                         post = fixturePost(),
                         onPostClick = { openedPost = it },
                     onQuoteClick = { openedQuote = it },
+                    onCreateQuoteClick = { createdQuote = it },
                     onAuthorClick = { openedAuthor = it.id },
                     translationStates = mapOf(
                         "101" to PostTranslationUiState(
@@ -87,6 +89,15 @@ class PostCardInteractionUiTest {
     fun authorHeaderUsesAnIndependentInternalTarget() {
         composeRule.onNodeWithTag("post-author-7", useUnmergedTree = true).performClick()
         assertEquals("7", openedAuthor)
+        assertNull(openedPost)
+    }
+
+    @Test
+    fun repostButtonOpensANonModalMenuWithQuoteCreation() {
+        composeRule.onNodeWithTag("post-action-repost-101").performClick()
+        composeRule.onNodeWithTag("repost-menu-101").assertIsDisplayed()
+        composeRule.onNodeWithTag("repost-menu-quote-101").performClick()
+        assertEquals("101", createdQuote)
         assertNull(openedPost)
     }
 

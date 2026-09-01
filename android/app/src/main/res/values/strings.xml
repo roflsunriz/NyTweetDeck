@@ -47,6 +47,15 @@
     <string name="history">履歴</string>
     <string name="for_you">おすすめ</string>
     <string name="following">フォロー中</string>
+    <string name="profile_followers">フォロワー</string>
+    <string name="profile_mutual">共通のフォロワー</string>
+    <string name="profile_load_failed">プロフィールを読み込めませんでした。</string>
+    <string name="profile_load_more">さらに読み込む</string>
+    <string name="profile_tab_all">すべて</string>
+    <string name="profile_tab_posts">ポスト</string>
+    <string name="profile_tab_highlights">ハイライト</string>
+    <string name="profile_tab_replies">返信</string>
+    <string name="profile_tab_media">メディア</string>
     <string name="user_timeline">ユーザー</string>
     <string name="list_timeline">リスト</string>
     <string name="x_login_renderer_failed">Xログイン画面が停止しました。画面を閉じて、もう一度ログインしてください。</string>
@@ -223,4 +232,5 @@
     <string name="x_api_metadata_current">X API定義：最新の検証済み定義</string>
     <string name="x_api_metadata_bundled">X API定義：同梱の検証済み定義</string>
     <string name="post_link_copied">共有先を開けなかったため、ポストのリンクをコピーしました。</string>
+    <string name="inline_video_fullscreen">動画を全画面表示</string>
 </resources>

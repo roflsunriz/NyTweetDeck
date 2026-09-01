@@ -11,5 +11,7 @@ class InlineVideoPlayerTest {
         assertEquals(0.5f, visibleFraction(100f, 300f, 200f, 500f), 0.001f)
         assertEquals(0f, visibleFraction(100f, 300f, 400f, 500f), 0.001f)
         assertEquals(0f, visibleFraction(100f, 100f, 0f, 500f), 0.001f)
+        assertEquals(true, shouldAttachInlineVideo(0.6f))
+        assertEquals(false, shouldAttachInlineVideo(0.599f))
     }
 }

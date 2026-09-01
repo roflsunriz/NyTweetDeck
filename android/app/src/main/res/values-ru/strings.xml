@@ -28,6 +28,15 @@
     <string name="history">History</string>
     <string name="for_you">Для вас</string>
     <string name="following">Читаемые</string>
+    <string name="profile_followers">Читатели</string>
+    <string name="profile_mutual">Общие читатели</string>
+    <string name="profile_load_failed">Не удалось загрузить профиль.</string>
+    <string name="profile_load_more">Загрузить ещё</string>
+    <string name="profile_tab_all">Все</string>
+    <string name="profile_tab_posts">Посты</string>
+    <string name="profile_tab_highlights">Лучшее</string>
+    <string name="profile_tab_replies">Ответы</string>
+    <string name="profile_tab_media">Медиа</string>
     <string name="user_timeline">Пользователь</string>
     <string name="list_timeline">Список</string>
     <string name="x_login_renderer_failed">The dedicated Chrome window was closed. Start sign-in again.</string>
@@ -224,4 +233,5 @@
     <string name="x_api_metadata_current">Метаданные X API: последняя проверенная версия</string>
     <string name="x_api_metadata_bundled">Метаданные X API: встроенная проверенная версия</string>
     <string name="post_link_copied">Приложение для отправки не найдено, поэтому ссылка на пост скопирована.</string>
+    <string name="inline_video_fullscreen">Открыть видео на весь экран</string>
 </resources>

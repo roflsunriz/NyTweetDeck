@@ -48,8 +48,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -78,16 +76,8 @@ internal fun MediaViewerDialog(
         mutableIntStateOf(photos.indexOfFirst { it.id == media.id }.coerceAtLeast(0))
     }
     val activeMedia = if (media.type == "photo") photos.getOrNull(photoIndex) ?: media else media
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("media-viewer"),
-            color = Color.Black,
-        ) {
+    FullScreenRoutePopup(tag = "media-viewer", onDismiss = onDismiss, color = Color.Black) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
             Box(Modifier.fillMaxSize()) {
                 if (activeMedia.type == "photo") {
                     PhotoViewer(

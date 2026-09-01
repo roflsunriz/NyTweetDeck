@@ -271,6 +271,7 @@ data class DeckUiState(
     val postDetail: PostDetailUiState = PostDetailUiState(),
     val articleReader: ArticleReaderUiState = ArticleReaderUiState(),
     val communityNote: CommunityNoteUiState = CommunityNoteUiState(),
+    val userProfile: UserProfileUiState = UserProfileUiState(),
     val postTranslations: Map<String, PostTranslationUiState> = emptyMap(),
     val translationHealth: TranslationHealth? = null,
     val hiddenPostIds: Set<String> = emptySet(),

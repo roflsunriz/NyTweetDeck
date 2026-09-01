@@ -1402,7 +1402,8 @@ const persistedVideoPositioned = await client.evaluate<boolean>(`(() => {
   player.scrollIntoView({ block: "start" });
   return true;
 })()`);
-if (!persistedVideoPositioned) throw new Error("設定永続化対象の動画を再生帯へ移動できませんでした。");
+if (!persistedVideoPositioned)
+  throw new Error("設定永続化対象の動画を再生帯へ移動できませんでした。");
 await waitForCondition('document.querySelector(".post-media video") !== null');
 await waitForCondition('document.querySelector(".post-media video")?.volume === 0.35');
 const persistedVideoMetrics = await client.evaluate<Record<string, unknown>>(`(() => {

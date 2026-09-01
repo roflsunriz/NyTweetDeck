@@ -45,8 +45,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Article
 import dev.nytweetdeck.android.model.Author
@@ -69,6 +67,7 @@ internal fun PostDetailDialog(
     onToggleDeemphasized: () -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
+    onCreateQuoteClick: (String) -> Unit = {},
     onAuthorClick: ((Author) -> Unit)? = null,
     onReplyClick: (String) -> Unit,
     onRepostClick: (String) -> Unit,
@@ -91,15 +90,9 @@ internal fun PostDetailDialog(
 ) {
     if (state.status == PostDetailStatus.CLOSED) return
     val detailScrollPositions = remember { mutableStateMapOf<String, Pair<Int, Int>>() }
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
+    FullScreenRouteSurface(tag = "post-detail", onDismiss = onDismiss) {
         Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .testTag("post-detail"),
+            modifier = Modifier.fillMaxSize().safeDrawingPadding(),
             color = MaterialTheme.colorScheme.background,
         ) {
             Column(Modifier.fillMaxSize()) {
@@ -117,6 +110,7 @@ internal fun PostDetailDialog(
                         onToggleDeemphasized = onToggleDeemphasized,
                         onPostClick = onPostClick,
                         onQuoteClick = onQuoteClick,
+                        onCreateQuoteClick = onCreateQuoteClick,
                         onAuthorClick = onAuthorClick,
                         onReplyClick = onReplyClick,
                         onRepostClick = onRepostClick,
@@ -211,6 +205,7 @@ private fun DetailReady(
     onToggleDeemphasized: () -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
+    onCreateQuoteClick: (String) -> Unit,
     onAuthorClick: ((Author) -> Unit)?,
     onReplyClick: (String) -> Unit,
     onRepostClick: (String) -> Unit,
@@ -274,6 +269,7 @@ private fun DetailReady(
                 post = page.post,
                 onPostClick = onPostClick,
                 onQuoteClick = onQuoteClick,
+                onCreateQuoteClick = onCreateQuoteClick,
                 onAuthorClick = onAuthorClick,
                 onReplyClick = onReplyClick,
                 onRepostClick = onRepostClick,
@@ -328,6 +324,7 @@ private fun DetailReady(
                                 post = reply.post,
                                 onPostClick = onPostClick,
                                 onQuoteClick = onQuoteClick,
+                                onCreateQuoteClick = onCreateQuoteClick,
                                 onAuthorClick = onAuthorClick,
                                 onReplyClick = onReplyClick,
                                 onRepostClick = onRepostClick,

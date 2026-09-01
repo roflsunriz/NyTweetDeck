@@ -28,6 +28,15 @@
     <string name="history">History</string>
     <string name="for_you">Pour vous</string>
     <string name="following">Abonnements</string>
+    <string name="profile_followers">Abonnés</string>
+    <string name="profile_mutual">Abonnés en commun</string>
+    <string name="profile_load_failed">Impossible de charger le profil.</string>
+    <string name="profile_load_more">Charger plus</string>
+    <string name="profile_tab_all">Tout</string>
+    <string name="profile_tab_posts">Posts</string>
+    <string name="profile_tab_highlights">Temps forts</string>
+    <string name="profile_tab_replies">Réponses</string>
+    <string name="profile_tab_media">Médias</string>
     <string name="user_timeline">Utilisateur</string>
     <string name="list_timeline">Liste</string>
     <string name="x_login_renderer_failed">The dedicated Chrome window was closed. Start sign-in again.</string>
@@ -223,4 +232,5 @@
     <string name="x_api_metadata_current">Métadonnées de l’API X : dernière version vérifiée</string>
     <string name="x_api_metadata_bundled">Métadonnées de l’API X : version vérifiée intégrée</string>
     <string name="post_link_copied">Aucune cible de partage n’était disponible. Le lien du post a été copié.</string>
+    <string name="inline_video_fullscreen">Ouvrir la vidéo en plein écran</string>
 </resources>

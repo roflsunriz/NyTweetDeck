@@ -86,6 +86,8 @@ NyTweetDeck WebとAndroidには、正規化後本文のHTTP(S) URLを末尾句�
 
 NyTweetDeck WebではComposer、プロフィール、ポスト詳細、画像viewerをhash route履歴へ接続した。入れ子の`post → media`を実Chromeで開き、Backで`media → post → 開始前hash`へ一段ずつ戻り、背後のカラムDOMと状態が維持されることを確認した。ポスト詳細とプロフィールは`aria-modal`を持たないroute regionへ変更し、Xの非modal route契約をNyTweetDeckのカラム保持構造へ適応した。
 
+NyTweetDeck Androidも同じ契約へ揃えた。ポストメニューはfocus可能な非modal Popup、リポストはリポスト／引用を選べるDropdownMenuとし、ポスト詳細・プロフィール・composerは既存カラムを破棄しない同一Compose階層のroute surface、画像viewerは全画面Popup、アカウント切替はhomeを維持するbottom popupとして表示する。プロフィールとポスト詳細は各controllerが最大20段の履歴を保持し、Android Backで直前routeへ戻る。作者選択はユーザーカラム追加ではなく、プロフィール本体と全件・ポスト・ハイライト・返信・メディアの専用timelineを持つ内部プロフィールへ遷移する。
+
 ### インライン動画の可視範囲ライフサイクル
 
 公開検索条件から動画候補を取得し、動画URL、ポストID、作者、本文を保存せず、同じ表示位置の中央表示・画面外・再表示を観測した。
@@ -97,6 +99,8 @@ NyTweetDeck WebではComposer、プロフィール、ポスト詳細、画像vie
 - player領域へhoverする前は可視controlが0件、hover後はbutton 5件・slider 2件になった。native controlsではなく公式custom UIが遅延表示される。
 
 NyTweetDeck Webは固定の観測用wrapperだけを維持し、再生範囲外ではvideo要素を停止・source初期化後にDOMから破棄し、再入場時は新しいミュート済みvideo要素を生成する方式へ変更した。native controlsは表示せず、hover・keyboard focus・touchで操作できるcustom controlsへ切り替えた。`loop`既定ONと保存音量はNyTweetDeckの明示要件なので、公式の`loop=false`を理由に削除しない。
+
+NyTweetDeck AndroidのインラインMedia3 playerも、表示率60%以上だけplayerを生成し、範囲外では停止・media item消去・releaseして参照を切り、再入場時は別playerを初期ミュートで生成する。PlayerViewのnative controllerは使わず、再生、一時停止、seek、mute、音量、loop、全画面viewer遷移をCompose UIとして表示する。
 
 buttonのラベルやポスト内容は保存しない。各buttonを個別操作し、paused、muted、dialog、Picture-in-Pictureの状態差とslider 2件を匿名観測した。NyTweetDeck側では再生・一時停止、seek、mute、音量、loop、fullscreenを独立操作とし、Picture-in-Pictureはブラウザー能力を検出できる場合だけ表示する。
 

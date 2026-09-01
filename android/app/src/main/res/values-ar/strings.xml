@@ -28,6 +28,15 @@
     <string name="history">History</string>
     <string name="for_you">لك</string>
     <string name="following">المتابَعون</string>
+    <string name="profile_followers">المتابِعون</string>
+    <string name="profile_mutual">متابعون مشتركون</string>
+    <string name="profile_load_failed">تعذّر تحميل الملف الشخصي.</string>
+    <string name="profile_load_more">تحميل المزيد</string>
+    <string name="profile_tab_all">الكل</string>
+    <string name="profile_tab_posts">المنشورات</string>
+    <string name="profile_tab_highlights">الأبرز</string>
+    <string name="profile_tab_replies">الردود</string>
+    <string name="profile_tab_media">الوسائط</string>
     <string name="user_timeline">المستخدم</string>
     <string name="list_timeline">القائمة</string>
     <string name="x_login_renderer_failed">The dedicated Chrome window was closed. Start sign-in again.</string>
@@ -226,4 +235,5 @@
     <string name="x_api_metadata_current">بيانات X API الوصفية: أحدث إصدار تم التحقق منه</string>
     <string name="x_api_metadata_bundled">بيانات X API الوصفية: الإصدار المرفق المتحقق منه</string>
     <string name="post_link_copied">لم تتوفر وجهة للمشاركة، لذا تم نسخ رابط المنشور.</string>
+    <string name="inline_video_fullscreen">فتح الفيديو بملء الشاشة</string>
 </resources>

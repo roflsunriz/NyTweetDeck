@@ -28,6 +28,15 @@
     <string name="history">History</string>
     <string name="for_you">آپ کے لیے</string>
     <string name="following">فالو کر رہے ہیں</string>
+    <string name="profile_followers">فالوورز</string>
+    <string name="profile_mutual">مشترکہ فالوورز</string>
+    <string name="profile_load_failed">پروفائل لوڈ نہیں ہو سکا۔</string>
+    <string name="profile_load_more">مزید لوڈ کریں</string>
+    <string name="profile_tab_all">سب</string>
+    <string name="profile_tab_posts">پوسٹس</string>
+    <string name="profile_tab_highlights">نمایاں</string>
+    <string name="profile_tab_replies">جوابات</string>
+    <string name="profile_tab_media">میڈیا</string>
     <string name="user_timeline">صارف</string>
     <string name="list_timeline">فہرست</string>
     <string name="x_login_renderer_failed">The dedicated Chrome window was closed. Start sign-in again.</string>
@@ -222,4 +231,5 @@
     <string name="x_api_metadata_current">X API میٹا ڈیٹا: تازہ ترین تصدیق شدہ ورژن</string>
     <string name="x_api_metadata_bundled">X API میٹا ڈیٹا: شامل تصدیق شدہ ورژن</string>
     <string name="post_link_copied">شیئر کرنے کی کوئی منزل دستیاب نہیں تھی، اس لیے پوسٹ کا لنک کاپی کر دیا گیا۔</string>
+    <string name="inline_video_fullscreen">ویڈیو فل اسکرین میں کھولیں</string>
 </resources>

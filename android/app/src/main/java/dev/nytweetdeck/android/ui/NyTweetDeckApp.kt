@@ -268,10 +268,13 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         viewModel.openComposer(ComposerMode.REPLY, postId)
         openDialog = OpenDialog.COMPOSER
     }
-    val openAuthorColumn: (Author) -> Unit = { author ->
+    val quotePost: (String) -> Unit = { postId ->
+        viewModel.openComposer(ComposerMode.QUOTE, postId)
+        openDialog = OpenDialog.COMPOSER
+    }
+    val openAuthorProfile: (Author) -> Unit = { author ->
         if (author.id.matches(Regex("[0-9]{1,24}"))) {
-            val title = author.displayName.ifBlank { "@" + author.username }
-            viewModel.addColumn(ColumnKind.USER, title, author.id)
+            viewModel.userProfileController?.open(author.id)
         }
     }
     val downloadPostMedia: (String) -> Unit = { postId ->
@@ -341,7 +344,8 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     onReplyClick = replyToPost,
                     onPostClick = viewModel::openPostDetail,
                     onQuoteClick = viewModel::openPostDetail,
-                    onAuthorClick = openAuthorColumn,
+                    onCreateQuoteClick = quotePost,
+                    onAuthorClick = openAuthorProfile,
                     onLikeClick = { postId ->
                         viewModel.togglePostAction(postId, PostActionType.LIKE)
                     },
@@ -456,6 +460,34 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 viewModel.refreshVisibleColumns()
             }
         }
+        UserProfileRoute(
+            state = state.userProfile,
+            onDismiss = { viewModel.userProfileController?.close() },
+            onRetry = { viewModel.userProfileController?.retry() },
+            onTabSelected = { viewModel.userProfileController?.selectTab(it) },
+            onLoadMore = { viewModel.userProfileController?.loadMore() },
+            onPostClick = viewModel::openPostDetail,
+            onQuoteClick = viewModel::openPostDetail,
+            onCreateQuoteClick = quotePost,
+            onAuthorClick = openAuthorProfile,
+            onReplyClick = replyToPost,
+            onRepostClick = { viewModel.togglePostAction(it, PostActionType.REPOST) },
+            onLikeClick = { viewModel.togglePostAction(it, PostActionType.LIKE) },
+            onBookmarkClick = { viewModel.togglePostAction(it, PostActionType.BOOKMARK) },
+            onShareClick = sharePost,
+            onDownloadClick = downloadPostMedia,
+            onArticleClick = viewModel::openArticle,
+            onPostMenuClick = { postMenuPost = it },
+            translationStates = state.postTranslations,
+            autoTranslatePosts = state.autoTranslatePosts,
+            onTranslationNeeded = viewModel::requestPostTranslation,
+            onTranslationRetry = viewModel::retryPostTranslation,
+            onToggleOriginal = viewModel::togglePostOriginal,
+            mediaPreview = state.mediaPreview,
+            videoAutoplay = state.videoAutoplay,
+            videoLoop = state.videoLoop,
+            videoVolume = state.videoVolume,
+        )
         PostDetailDialog(
             state = state.postDetail,
             replySort = state.replySort,
@@ -466,7 +498,11 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onToggleDeemphasized = viewModel::toggleDeemphasizedReplies,
             onPostClick = viewModel::openPostDetail,
             onQuoteClick = viewModel::openPostDetail,
-            onAuthorClick = openAuthorColumn,
+            onCreateQuoteClick = quotePost,
+            onAuthorClick = { author ->
+                viewModel.closePostDetail()
+                openAuthorProfile(author)
+            },
             onReplyClick = replyToPost,
             onRepostClick = { postId ->
                 viewModel.togglePostAction(postId, PostActionType.REPOST)
@@ -516,9 +552,19 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     )
                 }
             },
-            onPostClick = viewModel::openPostDetail,
-            onQuoteClick = viewModel::openPostDetail,
-            onAuthorClick = openAuthorColumn,
+            onPostClick = { postId ->
+                viewModel.closeCommunityNote()
+                viewModel.openPostDetail(postId)
+            },
+            onQuoteClick = { postId ->
+                viewModel.closeCommunityNote()
+                viewModel.openPostDetail(postId)
+            },
+            onCreateQuoteClick = quotePost,
+            onAuthorClick = { author ->
+                viewModel.closeCommunityNote()
+                openAuthorProfile(author)
+            },
             onReplyClick = replyToPost,
             onRepostClick = { viewModel.togglePostAction(it, PostActionType.REPOST) },
             onLikeClick = { viewModel.togglePostAction(it, PostActionType.LIKE) },

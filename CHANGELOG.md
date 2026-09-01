@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+## [Android 0.1.2] - 2026-09-01
+
+### Added
+
+- X Webで観測した12件の意味契約をAndroidにも適用するため、非modalのポスト／リポストメニュー、カラムを保持する詳細・プロフィール・composer・画像・アカウント経路、Back履歴、画面外でplayerを破棄・再生成する独自動画操作UIを追加した。
+
+### Fixed
+
+- ユーザープロフィールの返信タブが廃止済みGraphQL operationの404で読み込めない問題を解消するため、公式Webが現在使用する`UserRepliesTimeline`へWeb・Android共通定義を更新した。
+
+## [1.3.2] - 2026-09-01
+
 ### Added
 
 - X Webの動画操作と資源解放を独自実装へ取り込むため、画面外でvideo要素を初期化・破棄して再入場時にミュート状態で再生成し、再生、一時停止、seek、mute、音量、loop、Picture-in-Picture、fullscreenを提供する多言語custom playerを追加した。
@@ -29,6 +41,10 @@
 - Xと同じBack操作でoverlayから戻れるよう、Composer、画像viewer、ポスト詳細、プロフィールをhash route履歴へ接続し、閉じる操作とブラウザーBackで背後のカラムへ復帰する共通hookを追加した。
 - Xの詳細surfaceをmodalとして読み上げないよう、Web版のポスト詳細とプロフィールを`aria-modal`を持たないroute regionへ変更した。
 - Xのviewport別アカウント導線に合わせ、Web版アカウント切替を広幅では左メニュー近傍の非modal group、電話幅では非modal dialogとして表示するよう変更した。
+
+### Fixed
+
+- ユーザープロフィールの返信タブが廃止済みGraphQL operationの404で読み込めない問題を解消するため、公式Webが現在使用する`UserRepliesTimeline`へWeb・Android共通定義を更新した。
 
 ## [Android 0.1.1] - 2026-08-30
 

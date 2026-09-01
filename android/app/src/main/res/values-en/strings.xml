@@ -47,6 +47,15 @@
     <string name="history">History</string>
     <string name="for_you">For You</string>
     <string name="following">Following</string>
+    <string name="profile_followers">Followers</string>
+    <string name="profile_mutual">Mutual followers</string>
+    <string name="profile_load_failed">Could not load the profile.</string>
+    <string name="profile_load_more">Load more</string>
+    <string name="profile_tab_all">All</string>
+    <string name="profile_tab_posts">Posts</string>
+    <string name="profile_tab_highlights">Highlights</string>
+    <string name="profile_tab_replies">Replies</string>
+    <string name="profile_tab_media">Media</string>
     <string name="user_timeline">User</string>
     <string name="list_timeline">List</string>
     <string name="x_login_renderer_failed">The X sign-in page stopped. Close this screen and try signing in again.</string>
@@ -224,4 +233,5 @@
     <string name="x_api_metadata_current">X API metadata: latest verified version</string>
     <string name="x_api_metadata_bundled">X API metadata: bundled verified version</string>
     <string name="post_link_copied">No share target was available, so the post link was copied.</string>
+    <string name="inline_video_fullscreen">Open video fullscreen</string>
 </resources>

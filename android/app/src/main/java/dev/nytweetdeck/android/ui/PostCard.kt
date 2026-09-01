@@ -31,6 +31,8 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +90,7 @@ internal fun PostCard(
     post: Post,
     onPostClick: (String) -> Unit = {},
     onQuoteClick: (String) -> Unit = {},
+    onCreateQuoteClick: (String) -> Unit = {},
     onParentClick: (String) -> Unit = onPostClick,
     onAuthorClick: ((Author) -> Unit)? = null,
     onReplyClick: (String) -> Unit = {},
@@ -153,6 +156,7 @@ internal fun PostCard(
                 compact = false,
                 videoAutoplay = videoAutoplay && selectedMedia == null,
                 videoLoop = videoLoop,
+                videoVolume = videoVolume,
                 onMediaClick = { selectedMedia = SelectedMedia(it, post.media) },
             )
         } else if (post.media.isNotEmpty()) {
@@ -192,6 +196,7 @@ internal fun PostCard(
                 onToggleOriginal = onToggleOriginal,
                 videoAutoplay = videoAutoplay && selectedMedia == null,
                 videoLoop = videoLoop,
+                videoVolume = videoVolume,
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -199,6 +204,7 @@ internal fun PostCard(
             post = post,
             onReplyClick = onReplyClick,
             onRepostClick = onRepostClick,
+            onCreateQuoteClick = onCreateQuoteClick,
             onLikeClick = onLikeClick,
             onImpressionClick = onImpressionClick,
             onBookmarkClick = onBookmarkClick,
@@ -473,6 +479,7 @@ private fun QuoteCard(
     onToggleOriginal: (String) -> Unit,
     videoAutoplay: Boolean,
     videoLoop: Boolean,
+    videoVolume: Int,
 ) {
     Column(
         modifier = Modifier
@@ -519,6 +526,7 @@ private fun QuoteCard(
                 compact = true,
                 videoAutoplay = videoAutoplay,
                 videoLoop = videoLoop,
+                videoVolume = videoVolume,
                 onMediaClick = onMediaClick,
             )
         }
@@ -541,6 +549,7 @@ private fun MediaPreview(
     compact: Boolean,
     videoAutoplay: Boolean,
     videoLoop: Boolean,
+    videoVolume: Int,
     onMediaClick: (Media) -> Unit,
 ) {
     val visibleMedia = media.take(4)
@@ -552,6 +561,7 @@ private fun MediaPreview(
             modifier = Modifier.fillMaxWidth(),
             videoAutoplay = videoAutoplay,
             videoLoop = videoLoop,
+            videoVolume = videoVolume,
             onMediaClick = onMediaClick,
         )
         return
@@ -573,6 +583,7 @@ private fun MediaPreview(
                         modifier = Modifier.weight(1f),
                         videoAutoplay = videoAutoplay,
                         videoLoop = videoLoop,
+                        videoVolume = videoVolume,
                         onMediaClick = onMediaClick,
                     )
                 }
@@ -590,9 +601,10 @@ private fun MediaTile(
     modifier: Modifier,
     videoAutoplay: Boolean,
     videoLoop: Boolean,
+    videoVolume: Int,
     onMediaClick: (Media) -> Unit,
 ) {
-    val showInlineVideo = media.type != "photo" && videoAutoplay && safeMediaUri(media.url) != null
+    val showInlineVideo = media.type != "photo" && safeMediaUri(media.url) != null
     Box(
         modifier = modifier
             .height(height)
@@ -609,7 +621,13 @@ private fun MediaTile(
             contentScale = ContentScale.Crop,
         )
         if (showInlineVideo) {
-            InlineVideoPlayer(media = media, loop = videoLoop)
+            InlineVideoPlayer(
+                media = media,
+                autoPlay = videoAutoplay,
+                loop = videoLoop,
+                volume = videoVolume,
+                onFullscreen = { onMediaClick(media) },
+            )
         } else if (media.type != "photo") {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
@@ -683,6 +701,7 @@ private fun PostActions(
     post: Post,
     onReplyClick: (String) -> Unit,
     onRepostClick: (String) -> Unit,
+    onCreateQuoteClick: (String) -> Unit,
     onLikeClick: (String) -> Unit,
     onImpressionClick: (String) -> Unit,
     onBookmarkClick: (String) -> Unit,
@@ -703,17 +722,13 @@ private fun PostActions(
                 modifier = Modifier.weight(1f),
                 onClick = { onReplyClick(post.id) },
             )
-            PostActionButton(
-                tag = "post-action-repost-" + post.id,
-                label = stringResource(R.string.post_repost),
-                icon = Icons.Default.Repeat,
-                count = post.repostCount + post.quoteCount,
-                active = post.reposted,
-                activeColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
-                onClick = { onRepostClick(post.id) },
+            RepostMenuButton(
+                post = post,
                 pending = PostActionType.REPOST in pendingActions,
                 failed = PostActionType.REPOST in failedActions,
+                modifier = Modifier.weight(1f),
+                onRepostClick = onRepostClick,
+                onQuoteClick = onCreateQuoteClick,
             )
             PostActionButton(
                 tag = "post-action-like-" + post.id,
@@ -773,6 +788,54 @@ private fun PostActions(
                 onClick = { onDownloadClick(post.id) },
             )
             Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun RepostMenuButton(
+    post: Post,
+    pending: Boolean,
+    failed: Boolean,
+    modifier: Modifier,
+    onRepostClick: (String) -> Unit,
+    onQuoteClick: (String) -> Unit,
+) {
+    var expanded by remember(post.id) { mutableStateOf(false) }
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        PostActionButton(
+            tag = "post-action-repost-" + post.id,
+            label = stringResource(R.string.post_repost),
+            icon = Icons.Default.Repeat,
+            count = post.repostCount + post.quoteCount,
+            active = post.reposted,
+            activeColor = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { expanded = true },
+            pending = pending,
+            failed = failed,
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag("repost-menu-" + post.id),
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.post_repost)) },
+                onClick = {
+                    expanded = false
+                    onRepostClick(post.id)
+                },
+                modifier = Modifier.testTag("repost-menu-repost-" + post.id),
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.post_quote)) },
+                onClick = {
+                    expanded = false
+                    onQuoteClick(post.id)
+                },
+                modifier = Modifier.testTag("repost-menu-quote-" + post.id),
+            )
         }
     }
 }

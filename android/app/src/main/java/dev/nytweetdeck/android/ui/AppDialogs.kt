@@ -10,15 +10,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -42,6 +45,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,6 +64,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.AccentColor
@@ -275,11 +281,23 @@ internal fun SimpleComposerDialog(
         isTooLong -> stringResource(R.string.composer_text_too_long, MAX_COMPOSER_CHARACTERS)
         else -> null
     }
-    AlertDialog(
-        onDismissRequest = {
-            if (!isSending) onDismiss()
-        },
-        title = {
+    FullScreenRouteSurface(
+        tag = "composer-route",
+        onDismiss = { if (!isSending) onDismiss() },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             Column {
                 Text(composerModeLabel(state.mode))
                 if (requiresTarget) {
@@ -296,58 +314,43 @@ internal fun SimpleComposerDialog(
                     )
                 }
             }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 360.dp)
-                    .verticalScroll(rememberScrollState())
-                    .imePadding()
-                    .navigationBarsPadding(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = keepComposerInput(it) },
-                    modifier = Modifier.fillMaxWidth().testTag("composer-text"),
-                    label = { Text(stringResource(R.string.post_text)) },
-                    isError = validationMessage != null,
-                    enabled = canEdit,
-                    minLines = 4,
-                    maxLines = 10,
-                )
-                Text(
-                    text = stringResource(
-                        R.string.composer_character_count,
-                        characterCount,
-                        MAX_COMPOSER_CHARACTERS,
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isTooLong) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-                validationMessage?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                ComposerStatusText(state.status)
+                Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = onDismiss,
+                    enabled = !isSending,
+                    modifier = Modifier.testTag("close-composer"),
+                ) { Text(stringResource(R.string.close)) }
             }
-        },
-        confirmButton = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = keepComposerInput(it) },
+                modifier = Modifier.fillMaxWidth().weight(1f).testTag("composer-text"),
+                label = { Text(stringResource(R.string.post_text)) },
+                isError = validationMessage != null,
+                enabled = canEdit,
+                minLines = 6,
+            )
+            Text(
+                text = stringResource(
+                    R.string.composer_character_count,
+                    characterCount,
+                    MAX_COMPOSER_CHARACTERS,
+                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isTooLong) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            validationMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+            ComposerStatusText(state.status)
             Button(
                 onClick = {
                     if (canSubmit) onSubmit(text)
                 },
                 enabled = canSubmit,
                 modifier = Modifier
-                    .imePadding()
+                    .fillMaxWidth()
                     .testTag("send-composer"),
             ) {
                 if (isSending) {
@@ -364,19 +367,8 @@ internal fun SimpleComposerDialog(
                     },
                 )
             }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isSending,
-                modifier = Modifier
-                    .imePadding()
-                    .testTag("close-composer"),
-            ) {
-                Text(stringResource(R.string.close))
-            }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -430,11 +422,45 @@ internal fun AccountsDialog(
     onLogin: () -> Unit,
     onSelectAccount: (String) -> Unit,
 ) {
-    AlertDialog(
+    Popup(
+        alignment = Alignment.BottomCenter,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.accounts)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        properties = PopupProperties(
+            focusable = true,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+        ),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp).testTag("accounts-route"),
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shadowElevation = 12.dp,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.accounts),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                TextButton(onClick = onDismiss, modifier = Modifier.testTag("close-accounts")) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 state.accounts.forEach { account ->
                     Row(
                         modifier = Modifier
@@ -475,13 +501,9 @@ internal fun AccountsDialog(
                     Text(stringResource(R.string.login_to_x))
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("close-accounts")) {
-                Text(stringResource(R.string.close))
-            }
-        },
-    )
+        }
+    }
+}
 }
 
 @Composable

@@ -14,18 +14,8 @@ describe("X観測済み意味契約", () => {
     ).toBeTrue();
   });
 
-  test("未比較を実装済みとして扱わず、既知gapを追跡する", () => {
-    expect(
-      X_OBSERVED_INTERACTION_CONTRACTS.some(
-        ({ androidStatus, desktopStatus }) =>
-          androidStatus === "known-gap" || desktopStatus === "known-gap",
-      ),
-    ).toBeTrue();
-    expect(
-      X_OBSERVED_INTERACTION_CONTRACTS.filter(
-        ({ desktopStatus }) => desktopStatus === "implemented",
-      ).map(({ id }) => id),
-    ).toEqual([
+  test("観測済み契約をWebとAndroidの両方へ取り込む", () => {
+    const expected = [
       "post-overflow-nonmodal-menu",
       "repost-nonmodal-menu",
       "post-detail-route",
@@ -38,6 +28,16 @@ describe("X観測済み意味契約", () => {
       "normalized-http-linkification",
       "inline-video-visibility-lifecycle",
       "inline-video-custom-controls",
-    ]);
+    ];
+    expect(
+      X_OBSERVED_INTERACTION_CONTRACTS.filter(
+        ({ desktopStatus }) => desktopStatus === "implemented",
+      ).map(({ id }) => id),
+    ).toEqual(expected);
+    expect(
+      X_OBSERVED_INTERACTION_CONTRACTS.filter(
+        ({ androidStatus }) => androidStatus === "implemented",
+      ).map(({ id }) => id),
+    ).toEqual(expected);
   });
 });

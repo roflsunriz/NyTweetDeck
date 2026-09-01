@@ -69,7 +69,11 @@ class MediaViewerUiTest {
                 )
             }
         }
-        composeRule.onNodeWithTag("inline-video-video-1").assertDoesNotExist()
+        composeRule.onNodeWithTag("inline-video-video-1").assertIsDisplayed()
+        composeRule.onNodeWithTag("inline-video-play").assertIsDisplayed()
+        composeRule.onNodeWithTag("inline-video-seek").assertIsDisplayed()
+        composeRule.onNodeWithTag("inline-video-volume").assertIsDisplayed()
+        composeRule.onNodeWithTag("inline-video-fullscreen").assertIsDisplayed()
         composeRule.onNodeWithTag("post-media-1-video-1").performClick()
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-video").assertIsDisplayed()

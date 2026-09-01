@@ -37,3 +37,29 @@ data class RelatedUser(
     val displayName: String?,
     val avatarUrl: String?,
 )
+
+enum class UserProfileTab {
+    ALL,
+    POSTS,
+    HIGHLIGHTS,
+    REPLIES,
+    MEDIA,
+}
+
+enum class UserProfileStatus {
+    CLOSED,
+    LOADING,
+    READY,
+    FAILED,
+}
+
+data class UserProfileUiState(
+    val status: UserProfileStatus = UserProfileStatus.CLOSED,
+    val userId: String? = null,
+    val profile: UserProfilePage? = null,
+    val tab: UserProfileTab = UserProfileTab.ALL,
+    val posts: List<Post> = emptyList(),
+    val nextCursor: String? = null,
+    val isLoadingMore: Boolean = false,
+    val loadMoreFailed: Boolean = false,
+)
