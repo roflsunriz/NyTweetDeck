@@ -4,6 +4,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -69,11 +70,17 @@ class MediaViewerUiTest {
                 )
             }
         }
-        composeRule.onNodeWithTag("inline-video-video-1").assertIsDisplayed()
-        composeRule.onNodeWithTag("inline-video-play").assertIsDisplayed()
-        composeRule.onNodeWithTag("inline-video-seek").assertIsDisplayed()
-        composeRule.onNodeWithTag("inline-video-volume").assertIsDisplayed()
-        composeRule.onNodeWithTag("inline-video-fullscreen").assertIsDisplayed()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTag(
+                "inline-video-connected",
+                useUnmergedTree = true,
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("inline-video-video-1", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("inline-video-play", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("inline-video-seek", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("inline-video-volume", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("inline-video-fullscreen", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("post-media-1-video-1").performClick()
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-video").assertIsDisplayed()
@@ -105,7 +112,16 @@ class MediaViewerUiTest {
             }
         }
 
-        composeRule.onNodeWithTag("inline-video-autoplay-video").assertIsDisplayed()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTag(
+                "inline-video-connected",
+                useUnmergedTree = true,
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag(
+            "inline-video-autoplay-video",
+            useUnmergedTree = true,
+        ).assertIsDisplayed()
     }
 
     private fun photoPost() = Post(
