@@ -132,7 +132,9 @@ export async function waitForPageCondition(
       columnCount: document.querySelectorAll(".deck-column").length,
       dialogCount: document.querySelectorAll('[role="dialog"]').length,
       addColumnButtonCount: document.querySelectorAll('[data-action="add-column"]').length,
-      homeChoiceCount: document.querySelectorAll('[role="dialog"] [data-column-kind="home"]').length
+      homeChoiceCount: document.querySelectorAll('[role="dialog"] [data-column-kind="home"]').length,
+      locationHash: location.hash,
+      overlayTokenPresent: typeof history.state?.nytdOverlayToken === "string"
   }))()`);
   throw new Error(
     `DOM状態の待機がタイムアウトしました: ${expression}; ${JSON.stringify(diagnostics)}`,

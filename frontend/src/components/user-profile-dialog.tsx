@@ -7,6 +7,7 @@ import { PostCard, type TimelinePost } from "./post-card";
 import { usePostTranslationSettings } from "./post-translation-context";
 import { PostDetailDialog } from "./post-detail-dialog";
 import { filterPosts, type PostTypeFilter } from "./post-filter";
+import { useOverlayRoute } from "../model/use-overlay-route";
 
 type ProfileTab = "all" | "posts" | "highlights" | "replies" | "media";
 
@@ -54,6 +55,7 @@ export function UserProfileDialog({
   onClose: () => void;
   display?: DisplayPreferences;
 }) {
+  const close = useOverlayRoute(`user/${encodeURIComponent(userId)}`, onClose);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [tab, setTab] = useState<ProfileTab>("all");
   const [posts, setPosts] = useState<TimelinePost[]>([]);
@@ -121,7 +123,7 @@ export function UserProfileDialog({
     <Modal
       title={profile?.displayName ?? translation.userProfile}
       closeLabel={translation.close}
-      onClose={onClose}
+      onClose={close}
     >
       <div className="user-profile">
         {profile !== null && <ProfileHeader profile={profile} translation={translation} />}

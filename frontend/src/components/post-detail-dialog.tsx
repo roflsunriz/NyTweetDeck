@@ -9,6 +9,7 @@ import {
 import { loadPostDetail, type PostDetail } from "../model/post-detail";
 import { buildReplyThreadLayout, type ReplyThreadLayoutItem } from "../model/reply-thread-layout";
 import type { TimelinePost } from "../model/timeline";
+import { useOverlayRoute } from "../model/use-overlay-route";
 import { ComposerDialog } from "./composer-dialog";
 import { Modal } from "./modal";
 import { PostCard } from "./post-card";
@@ -42,6 +43,7 @@ export function PostDetailDialog({
   onOpenPost,
   onOpenUser,
 }: PostDetailDialogProps) {
+  const close = useOverlayRoute(`post/${encodeURIComponent(postId)}`, onClose);
   const [detail, setDetail] = useState<PostDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
@@ -84,7 +86,7 @@ export function PostDetailDialog({
 
   return (
     <>
-      <Modal title={translation.postDetail} closeLabel={translation.closeDetail} onClose={onClose}>
+      <Modal title={translation.postDetail} closeLabel={translation.closeDetail} onClose={close}>
         <div className="post-detail-content">
           {error !== null ? (
             <p className="setup-error">{error}</p>
@@ -186,7 +188,7 @@ export function PostDetailDialog({
           accountId={accountId}
           inReplyToPostId={postId}
           onClose={() => setReplying(false)}
-          onPublished={onClose}
+          onPublished={close}
         />
       )}
       {imageSelection !== null && (

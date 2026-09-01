@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { Translation } from "../i18n/translations";
 import { useMediaQuery } from "../model/use-media-query";
+import { useOverlayRoute } from "../model/use-overlay-route";
 
 interface ImageViewerProps {
   src: string;
@@ -35,6 +36,7 @@ const EDGE_SWITCH_SWIPE_FRACTION = 0.49;
 
 export function ImageViewer({ src, sources, translation, onClose }: ImageViewerProps) {
   const compactPresentation = useMediaQuery("(max-width: 599px)");
+  const close = useOverlayRoute("media", onClose);
   const viewerRef = useRef<HTMLElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
@@ -99,7 +101,7 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        onClose();
+        close();
       } else if (event.key === "ArrowLeft") {
         event.preventDefault();
         navigate(-1);
@@ -120,7 +122,7 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
     };
     window.addEventListener("keydown", handleKeyboard, true);
     return () => window.removeEventListener("keydown", handleKeyboard, true);
-  }, [navigate, onClose, reset, setZoomAround, stopActiveDrag, zoom]);
+  }, [close, navigate, reset, setZoomAround, stopActiveDrag, zoom]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -275,7 +277,7 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
           <button type="button" aria-label={translation.resetImageView} onClick={reset}>
             <RotateCcw aria-hidden="true" size={18} />
           </button>
-          <button type="button" aria-label={translation.closeImage} onClick={onClose}>
+          <button type="button" aria-label={translation.closeImage} onClick={close}>
             <X aria-hidden="true" size={21} />
           </button>
         </header>

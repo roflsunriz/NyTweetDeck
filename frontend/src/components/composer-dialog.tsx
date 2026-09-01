@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { useMediaQuery } from "../model/use-media-query";
+import { useOverlayRoute } from "../model/use-overlay-route";
 import { Modal } from "./modal";
 
 interface ComposerDialogProps {
@@ -23,6 +24,7 @@ export function ComposerDialog({
   onPublished,
 }: ComposerDialogProps) {
   const compactPresentation = useMediaQuery("(max-width: 599px)");
+  const close = useOverlayRoute("compose", onClose);
   const [text, setText] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function ComposerDialog({
       }
       setText("");
       onPublished?.();
-      onClose();
+      close();
     } catch {
       setError(translation.postFailed);
     } finally {
@@ -63,7 +65,7 @@ export function ComposerDialog({
             : translation.composeTitle
       }
       closeLabel={translation.close}
-      onClose={onClose}
+      onClose={close}
       presentation={compactPresentation ? "full-page" : "modal"}
     >
       {accountId === null ? (

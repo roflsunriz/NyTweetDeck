@@ -38,6 +38,13 @@ export const X_OBSERVED_INTERACTION_CONTRACTS: readonly ObservedInteractionContr
     viewports: ["desktop", "tablet", "phone"],
   },
   {
+    androidStatus: "unassessed",
+    desktopStatus: "implemented",
+    id: "overlay-history-back",
+    rule: "Composer、プロフィール、ポスト詳細、mediaを履歴へ積み、Backで一段ずつ背後のカラム状態へ復帰する",
+    viewports: ["desktop", "tablet", "phone"],
+  },
+  {
     androidStatus: "known-gap",
     desktopStatus: "known-gap",
     id: "image-viewer-responsive-presentation",

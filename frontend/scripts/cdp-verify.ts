@@ -1069,9 +1069,10 @@ await client.evaluate(
 await waitForCondition('document.querySelector(".article-reader") === null');
 results.push({ view: "article-reader", ...articleMetrics, screenshotPath: articleScreenshotPath });
 
+const hashBeforePostDetail = await client.evaluate<string>("location.hash");
 const postDetailOpened = await client.evaluate<boolean>(`(() => {
-  const post = document.querySelector('[data-post-id="100"] .post-open-button');
-  if (!(post instanceof HTMLButtonElement)) return false;
+  const post = document.querySelector('[data-post-id="100"]');
+  if (!(post instanceof HTMLElement)) return false;
   post.click();
   return true;
 })()`);
@@ -1164,6 +1165,10 @@ results.push({
   ...replySortingMetrics,
   screenshotPath: replySortingScreenshotPath,
 });
+const detailHash = await client.evaluate<string>("location.hash");
+if (!detailHash.startsWith("#/post/")) {
+  throw new Error(`ポスト詳細のhash routeが不正です: ${detailHash}`);
+}
 const imageOpened = await client.evaluate<boolean>(`(() => {
   const image = document.querySelector(".post-detail-content .post-image-open");
   if (!(image instanceof HTMLButtonElement)) return false;
@@ -1336,6 +1341,8 @@ const imageViewerMetrics = await client.evaluate<Record<string, unknown>>(`({
   zoom: document.querySelector(".image-viewer-viewport")?.getAttribute("data-zoom"),
   transform: document.querySelector(".image-viewer-viewport img")?.style.transform,
   detailBehindViewer: document.querySelector(".post-detail-content") !== null,
+  detailHash: ${JSON.stringify(detailHash)},
+  mediaHash: location.hash,
   documentOverflow: document.documentElement.scrollWidth > innerWidth
 })`);
 const imageScreenshot = await client.call<{ data: string }>("Page.captureScreenshot", {
@@ -1348,12 +1355,14 @@ await client.evaluate(
   'document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
 );
 await waitForCondition(
-  'document.querySelector(".image-viewer") === null && document.querySelector(".post-detail-content") !== null',
+  'document.querySelector(".image-viewer") === null && document.querySelector(".post-detail-content") !== null && location.hash.startsWith("#/post/")',
 );
 await client.evaluate(
   'document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
 );
-await waitForCondition('document.querySelector(".post-detail-content") === null');
+await waitForCondition(
+  `document.querySelector(".post-detail-content") === null && location.hash === ${JSON.stringify(hashBeforePostDetail)}`,
+);
 results.push({ view: "image-viewer", ...imageViewerMetrics, screenshotPath: imageScreenshotPath });
 
 await updateSharedLayout(

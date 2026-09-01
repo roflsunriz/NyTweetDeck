@@ -28,6 +28,7 @@ describe("X観測済み意味契約", () => {
     ).toEqual([
       "post-overflow-nonmodal-menu",
       "repost-nonmodal-menu",
+      "overlay-history-back",
       "url-entity-nullish-completion",
       "normalized-http-linkification",
     ]);
