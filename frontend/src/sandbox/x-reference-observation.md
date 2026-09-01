@@ -82,7 +82,7 @@ NyTweetDeck WebとAndroidには、正規化後本文のHTTP(S) URLを末尾句�
 
 これらの契約とデスクトップ・Androidの反映状態は`x-observed-interaction-contracts.ts`で追跡する。特定タイムラインに対象画像や作者リンクがない場合の`actionPerformed=false`を機能欠落と断定せず、独立fixtureまたは別サンプルで再観測する。
 
-NyTweetDeck WebではComposer、プロフィール、ポスト詳細、画像viewerをhash route履歴へ接続した。入れ子の`post → media`を実Chromeで開き、Backで`media → post → 開始前hash`へ一段ずつ戻り、背後のカラムDOMと状態が維持されることを確認した。ポスト詳細とプロフィールはまだmodal表示なので、Xの非modal route表示とのgapは別契約として残す。
+NyTweetDeck WebではComposer、プロフィール、ポスト詳細、画像viewerをhash route履歴へ接続した。入れ子の`post → media`を実Chromeで開き、Backで`media → post → 開始前hash`へ一段ずつ戻り、背後のカラムDOMと状態が維持されることを確認した。ポスト詳細とプロフィールは`aria-modal`を持たないroute regionへ変更し、Xの非modal route契約をNyTweetDeckのカラム保持構造へ適応した。
 
 ### インライン動画の可視範囲ライフサイクル
 

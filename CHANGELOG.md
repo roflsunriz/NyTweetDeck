@@ -25,6 +25,7 @@
 - Androidでも同じURL意味契約を使えるよう、HTTP(S) URL・ハッシュタグ・通常文字列を分離する純粋parserとCompose `LinkAnnotation.Url`描画を追加した。
 - Xと同じ表示名と遷移先を使い分けるため、Java・TypeScript・Kotlinの通常ポストと引用へTextLinkモデルを追加し、`display_url`を表示しながら`unwound_url`優先の安全な実URLへ遷移するよう変更した。
 - Xと同じBack操作でoverlayから戻れるよう、Composer、画像viewer、ポスト詳細、プロフィールをhash route履歴へ接続し、閉じる操作とブラウザーBackで背後のカラムへ復帰する共通hookを追加した。
+- Xの詳細surfaceをmodalとして読み上げないよう、Web版のポスト詳細とプロフィールを`aria-modal`を持たないroute regionへ変更した。
 
 ## [Android 0.1.1] - 2026-08-30
 

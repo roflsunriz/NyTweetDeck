@@ -86,7 +86,12 @@ export function PostDetailDialog({
 
   return (
     <>
-      <Modal title={translation.postDetail} closeLabel={translation.closeDetail} onClose={close}>
+      <Modal
+        title={translation.postDetail}
+        closeLabel={translation.closeDetail}
+        onClose={close}
+        presentation="route"
+      >
         <div className="post-detail-content">
           {error !== null ? (
             <p className="setup-error">{error}</p>

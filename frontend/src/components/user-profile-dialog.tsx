@@ -124,6 +124,7 @@ export function UserProfileDialog({
       title={profile?.displayName ?? translation.userProfile}
       closeLabel={translation.close}
       onClose={close}
+      presentation="route"
     >
       <div className="user-profile">
         {profile !== null && <ProfileHeader profile={profile} translation={translation} />}

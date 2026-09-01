@@ -6,7 +6,7 @@ interface ModalProps {
   closeLabel: string;
   onClose: () => void;
   children: ReactNode;
-  presentation?: "modal" | "full-page";
+  presentation?: "modal" | "full-page" | "route";
 }
 
 export function Modal({
@@ -18,7 +18,7 @@ export function Modal({
 }: ModalProps) {
   const titleId = useId();
   const presentationProps =
-    presentation === "full-page"
+    presentation !== "modal"
       ? ({ role: "region" } as const)
       : ({ "aria-modal": "true", role: "dialog" } as const);
 
@@ -33,7 +33,7 @@ export function Modal({
   }, [onClose]);
 
   return (
-    <div className={`modal-backdrop${presentation === "full-page" ? " full-page" : ""}`}>
+    <div className={`modal-backdrop${presentation === "modal" ? "" : ` ${presentation}`}`}>
       <section
         aria-labelledby={titleId}
         className="modal-panel"

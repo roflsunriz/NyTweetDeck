@@ -60,6 +60,9 @@ describe("internal user profile", () => {
     );
 
     expect(await screen.findByText("Profile description")).toBeDefined();
+    const profileRegion = screen.getByRole("region", { name: "Alice" });
+    expect(profileRegion.getAttribute("aria-modal")).toBeNull();
+    expect(profileRegion.getAttribute("data-presentation")).toBe("route");
     expect(screen.getByText("@alice", { selector: ".profile-identity p" })).toBeDefined();
     expect(screen.queryByText("ユーザーID: 42")).toBeNull();
     expect(screen.getByText("20", { selector: ".profile-counts strong" })).toBeDefined();

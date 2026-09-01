@@ -74,6 +74,9 @@ test("opens a detail image viewer with sub-100% zoom, held-button pan, and one-l
     />,
   );
   await screen.findByText("画像ポスト");
+  const detailRegion = screen.getByRole("region", { name: "ポストの詳細" });
+  expect(detailRegion.getAttribute("aria-modal")).toBeNull();
+  expect(detailRegion.getAttribute("data-presentation")).toBe("route");
   const firstImageButton = screen.getAllByRole("button", {
     name: "画像をフルサイズで表示",
   })[0];

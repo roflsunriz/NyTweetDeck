@@ -25,14 +25,14 @@ export const X_OBSERVED_INTERACTION_CONTRACTS: readonly ObservedInteractionContr
   },
   {
     androidStatus: "unassessed",
-    desktopStatus: "known-gap",
+    desktopStatus: "implemented",
     id: "post-detail-route",
     rule: "modalを増やさずポスト固有routeへ遷移する",
     viewports: ["desktop", "tablet", "phone"],
   },
   {
     androidStatus: "unassessed",
-    desktopStatus: "known-gap",
+    desktopStatus: "implemented",
     id: "author-profile-route",
     rule: "modalを増やさず作者固有routeへ遷移する",
     viewports: ["desktop", "tablet", "phone"],
