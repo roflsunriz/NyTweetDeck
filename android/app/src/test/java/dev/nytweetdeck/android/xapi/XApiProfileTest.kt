@@ -17,6 +17,8 @@ class XApiProfileTest {
             setOf("homeForYou", "homeFollowing", "userByRestId", "createPost", "bookmark"),
         ))
         assertTrue(profile.featuresFor(profile.requireOperation("homeForYou")).isNotEmpty())
+        assertEquals("UserRepliesTimeline", profile.requireOperation("userReplies").operationName)
+        assertEquals("dRUXRSlEIPlVmPgOQ8Z43g", profile.requireOperation("userReplies").operationId)
     }
 
     @Test(expected = IllegalArgumentException::class)

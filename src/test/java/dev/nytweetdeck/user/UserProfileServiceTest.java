@@ -41,6 +41,8 @@ class UserProfileServiceTest {
         assertThat(purpose.get()).isEqualTo("userHighlights");
         service.timeline("account", "42", "media", null);
         assertThat(purpose.get()).isEqualTo("userMedia");
+        service.timeline("account", "42", "replies", null);
+        assertThat(purpose.get()).isEqualTo("userReplies");
     }
 
     private static AuthenticatedGraphQlClient fakeClient(AtomicReference<String> purpose) {

@@ -53,6 +53,14 @@ class XApiProfileServiceTest {
     }
 
     @Test
+    void usesTheCurrentProfileRepliesTimelineOperation() {
+        var operation = service.requireOperation("userReplies");
+
+        assertThat(operation.operationName()).isEqualTo("UserRepliesTimeline");
+        assertThat(operation.operationId()).isEqualTo("dRUXRSlEIPlVmPgOQ8Z43g");
+    }
+
+    @Test
     void rejectsUnknownOperationPurpose() {
         assertThatThrownBy(() -> service.requireOperation("not-defined"))
                 .isInstanceOf(IllegalArgumentException.class)

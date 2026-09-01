@@ -94,9 +94,9 @@
       "type": "QUERY"
     },
     "userReplies": {
-      "key": "user_with_profile_tweets_and_replies_query_v2",
-      "operationId": "qUpkZU6eN8MbtQb7rC_pYg",
-      "operationName": "UserTweetsAndReplies",
+      "key": "user_replies_timeline",
+      "operationId": "dRUXRSlEIPlVmPgOQ8Z43g",
+      "operationName": "UserRepliesTimeline",
       "type": "QUERY"
     },
     "list": {
