@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- GitHub ActionsのNode.js 20廃止後もAndroid成果物を公開できるよう、公式`actions/upload-artifact`をNode.js 24対応のv6へ更新した。
+
 ## [Android 0.1.2] - 2026-09-01
 
 ### Added

@@ -106,7 +106,7 @@ jobs:
           -OutputPath target/android-release-notes.md
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: NyTweetDeck-${{ env.RELEASE_TAG }}
           path: |
