@@ -233,4 +233,5 @@
     <string name="x_api_metadata_bundled">Metadatos de X API: versión verificada incluida</string>
     <string name="post_link_copied">No había un destino para compartir, así que se copió el enlace del post.</string>
     <string name="inline_video_fullscreen">Abrir vídeo en pantalla completa</string>
+    <string name="media_viewer_rotate_landscape">Girar a horizontal</string>
 </resources>

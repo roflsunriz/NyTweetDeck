@@ -234,4 +234,5 @@
     <string name="x_api_metadata_bundled">X API metadata: bundled verified version</string>
     <string name="post_link_copied">No share target was available, so the post link was copied.</string>
     <string name="inline_video_fullscreen">Open video fullscreen</string>
+    <string name="media_viewer_rotate_landscape">Rotate to landscape</string>
 </resources>

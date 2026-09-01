@@ -234,4 +234,5 @@
     <string name="x_api_metadata_bundled">Метаданные X API: встроенная проверенная версия</string>
     <string name="post_link_copied">Приложение для отправки не найдено, поэтому ссылка на пост скопирована.</string>
     <string name="inline_video_fullscreen">Открыть видео на весь экран</string>
+    <string name="media_viewer_rotate_landscape">Повернуть в альбомный режим</string>
 </resources>

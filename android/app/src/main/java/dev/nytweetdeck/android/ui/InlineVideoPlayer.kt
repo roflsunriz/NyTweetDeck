@@ -2,21 +2,26 @@ package dev.nytweetdeck.android.ui
 
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -25,6 +30,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,8 +60,8 @@ import kotlin.math.min
 import kotlinx.coroutines.delay
 
 private const val INLINE_PLAYBACK_VISIBLE_FRACTION = 0.6f
+internal const val VIDEO_CONTROLS_HIDE_DELAY_MILLIS = 3_000L
 
-@OptIn(UnstableApi::class)
 @Composable
 internal fun InlineVideoPlayer(
     media: Media,
@@ -65,10 +71,63 @@ internal fun InlineVideoPlayer(
     onFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    VideoPlayer(
+        media = media,
+        autoPlay = autoPlay,
+        loop = loop,
+        volume = volume,
+        onFullscreen = onFullscreen,
+        modifier = modifier,
+        attachOnlyWhenVisible = true,
+        fullscreen = false,
+        controlTagPrefix = "inline-video",
+    )
+}
+
+@Composable
+internal fun FullscreenVideoPlayer(
+    media: Media,
+    autoPlay: Boolean,
+    loop: Boolean,
+    volume: Int,
+    onExitFullscreen: () -> Unit,
+    onRotateToLandscape: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    VideoPlayer(
+        media = media,
+        autoPlay = autoPlay,
+        loop = loop,
+        volume = volume,
+        onFullscreen = onExitFullscreen,
+        onRotateToLandscape = onRotateToLandscape,
+        modifier = modifier,
+        attachOnlyWhenVisible = false,
+        fullscreen = true,
+        controlTagPrefix = "media-video",
+    )
+}
+
+@OptIn(UnstableApi::class)
+@Composable
+private fun VideoPlayer(
+    media: Media,
+    autoPlay: Boolean,
+    loop: Boolean,
+    volume: Int,
+    onFullscreen: () -> Unit,
+    modifier: Modifier,
+    attachOnlyWhenVisible: Boolean,
+    fullscreen: Boolean,
+    controlTagPrefix: String,
+    onRotateToLandscape: (() -> Unit)? = null,
+) {
     val uri = remember(media.url) { safeMediaUri(media.url) }
     val context = LocalContext.current
     val rootView = LocalView.current
-    var visible by remember(media.id) { mutableStateOf(false) }
+    var visible by remember(media.id, attachOnlyWhenVisible) {
+        mutableStateOf(!attachOnlyWhenVisible)
+    }
     var player by remember(media.id) { mutableStateOf<ExoPlayer?>(null) }
     var playing by remember(media.id) { mutableStateOf(false) }
     var muted by remember(media.id) { mutableStateOf(true) }
@@ -78,6 +137,13 @@ internal fun InlineVideoPlayer(
     }
     var position by remember(media.id) { mutableLongStateOf(0L) }
     var duration by remember(media.id) { mutableLongStateOf(0L) }
+    var controlsVisible by remember(media.id) { mutableStateOf(true) }
+    var controlsInteraction by remember(media.id) { mutableIntStateOf(0) }
+
+    fun revealControls() {
+        controlsVisible = true
+        controlsInteraction += 1
+    }
 
     LaunchedEffect(uri, visible) {
         if (visible && uri != null && player == null) {
@@ -116,6 +182,15 @@ internal fun InlineVideoPlayer(
             delay(if (playing) 250L else 750L)
         }
     }
+    LaunchedEffect(player, controlsInteraction) {
+        if (player == null) {
+            controlsVisible = false
+            return@LaunchedEffect
+        }
+        controlsVisible = true
+        delay(VIDEO_CONTROLS_HIDE_DELAY_MILLIS)
+        controlsVisible = false
+    }
     DisposableEffect(player) {
         val activePlayer = player
         val listener = object : Player.Listener {
@@ -141,12 +216,13 @@ internal fun InlineVideoPlayer(
         modifier = modifier
             .fillMaxSize()
             .onGloballyPositioned { coordinates ->
+                if (!attachOnlyWhenVisible) return@onGloballyPositioned
                 val bounds = coordinates.boundsInWindow()
                 visible = shouldAttachInlineVideo(
                     visibleFraction(bounds.top, bounds.bottom, 0f, rootView.height.toFloat()),
                 )
             }
-            .testTag("inline-video-" + media.id),
+            .testTag("$controlTagPrefix-${media.id}"),
     ) {
         AndroidView(
             factory = { viewContext ->
@@ -159,21 +235,41 @@ internal fun InlineVideoPlayer(
             update = { it.player = player },
             modifier = Modifier
                 .fillMaxSize()
-                .testTag(if (player == null) "inline-video-disconnected" else "inline-video-connected"),
+                .testTag(
+                    if (player == null) "$controlTagPrefix-disconnected"
+                    else "$controlTagPrefix-connected",
+                ),
         )
         if (player != null) {
-            Column(
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.62f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = ::revealControls,
+                    )
+                    .testTag("$controlTagPrefix-surface"),
+            )
+        }
+        if (player != null && controlsVisible) {
+            var controlsModifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.62f))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+            if (fullscreen) controlsModifier = controlsModifier.navigationBarsPadding()
+            Column(
+                modifier = controlsModifier.testTag("$controlTagPrefix-controls"),
             ) {
                 Slider(
                     value = if (duration > 0L) position.coerceAtMost(duration).toFloat() else 0f,
-                    onValueChange = { player?.seekTo(it.toLong()) },
+                    onValueChange = {
+                        revealControls()
+                        player?.seekTo(it.toLong())
+                    },
                     valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
-                    modifier = Modifier.fillMaxWidth().testTag("inline-video-seek"),
+                    modifier = Modifier.fillMaxWidth().testTag("$controlTagPrefix-seek"),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -181,8 +277,11 @@ internal fun InlineVideoPlayer(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
-                        onClick = { player?.let { if (it.isPlaying) it.pause() else it.play() } },
-                        modifier = Modifier.size(34.dp).testTag("inline-video-play"),
+                        onClick = {
+                            revealControls()
+                            player?.let { if (it.isPlaying) it.pause() else it.play() }
+                        },
+                        modifier = Modifier.size(34.dp).testTag("$controlTagPrefix-play"),
                     ) {
                         Icon(
                             if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -191,8 +290,11 @@ internal fun InlineVideoPlayer(
                         )
                     }
                     IconButton(
-                        onClick = { muted = !muted },
-                        modifier = Modifier.size(34.dp).testTag("inline-video-mute"),
+                        onClick = {
+                            revealControls()
+                            muted = !muted
+                        },
+                        modifier = Modifier.size(34.dp).testTag("$controlTagPrefix-mute"),
                     ) {
                         Icon(
                             if (muted) Icons.AutoMirrored.Filled.VolumeOff
@@ -204,25 +306,54 @@ internal fun InlineVideoPlayer(
                     Slider(
                         value = playbackVolume,
                         onValueChange = {
+                            revealControls()
                             playbackVolume = it.coerceIn(0f, 1f)
                             if (playbackVolume > 0f) muted = false
                         },
-                        modifier = Modifier.weight(1f).testTag("inline-video-volume"),
+                        modifier = Modifier.weight(1f).testTag("$controlTagPrefix-volume"),
                     )
                     IconButton(
-                        onClick = { loopActive = !loopActive },
+                        onClick = {
+                            revealControls()
+                            loopActive = !loopActive
+                        },
                         modifier = Modifier
                             .size(34.dp)
                             .semantics { selected = loopActive }
-                            .testTag("inline-video-loop"),
+                            .testTag("$controlTagPrefix-loop"),
                     ) {
                         Icon(Icons.Default.Repeat, stringResource(R.string.setting_video_loop), tint = Color.White)
                     }
                     IconButton(
-                        onClick = onFullscreen,
-                        modifier = Modifier.size(34.dp).testTag("inline-video-fullscreen"),
+                        onClick = {
+                            revealControls()
+                            onFullscreen()
+                        },
+                        modifier = Modifier.size(34.dp).testTag("$controlTagPrefix-fullscreen"),
                     ) {
-                        Icon(Icons.Default.Fullscreen, stringResource(R.string.inline_video_fullscreen), tint = Color.White)
+                        Icon(
+                            if (fullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                            stringResource(
+                                if (fullscreen) R.string.media_viewer_close
+                                else R.string.inline_video_fullscreen,
+                            ),
+                            tint = Color.White,
+                        )
+                    }
+                    onRotateToLandscape?.let { rotate ->
+                        IconButton(
+                            onClick = {
+                                revealControls()
+                                rotate()
+                            },
+                            modifier = Modifier.size(34.dp).testTag("$controlTagPrefix-rotate"),
+                        ) {
+                            Icon(
+                                Icons.Default.ScreenRotation,
+                                stringResource(R.string.media_viewer_rotate_landscape),
+                                tint = Color.White,
+                            )
+                        }
                     }
                 }
             }

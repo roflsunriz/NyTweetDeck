@@ -8,8 +8,10 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
+
+export const VIDEO_CONTROLS_HIDE_DELAY_MS = 3_000;
 
 interface ConfiguredVideoProps {
   mediaId: string;
@@ -35,6 +37,7 @@ export function ConfiguredVideo({
   const loopRef = useRef(loop);
   const intersectionActiveRef = useRef(false);
   const pictureInPictureRef = useRef(false);
+  const controlsTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const [inPlaybackZone, setInPlaybackZone] = useState(
     () => typeof globalThis.IntersectionObserver === "undefined",
   );
@@ -48,6 +51,23 @@ export function ConfiguredVideo({
   const [pictureInPicture, setPictureInPicture] = useState(false);
   const [pictureInPictureAvailable, setPictureInPictureAvailable] = useState(false);
   const [controlError, setControlError] = useState<string | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(true);
+
+  const hideControlsIfKeyboardIdle = useCallback(() => {
+    controlsTimerRef.current = null;
+    if (playerRef.current?.querySelector(":focus-visible") !== null) return;
+    setControlsVisible(false);
+  }, []);
+
+  const revealControls = useCallback(() => {
+    if (controlsTimerRef.current !== null) globalThis.clearTimeout(controlsTimerRef.current);
+    setControlsVisible(true);
+    if (!inPlaybackZone) return;
+    controlsTimerRef.current = globalThis.setTimeout(
+      hideControlsIfKeyboardIdle,
+      VIDEO_CONTROLS_HIDE_DELAY_MS,
+    );
+  }, [hideControlsIfKeyboardIdle, inPlaybackZone]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -78,6 +98,24 @@ export function ConfiguredVideo({
     observer.observe(player);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (controlsTimerRef.current !== null) globalThis.clearTimeout(controlsTimerRef.current);
+    if (!inPlaybackZone) {
+      controlsTimerRef.current = null;
+      setControlsVisible(false);
+      return;
+    }
+    setControlsVisible(true);
+    controlsTimerRef.current = globalThis.setTimeout(
+      hideControlsIfKeyboardIdle,
+      VIDEO_CONTROLS_HIDE_DELAY_MS,
+    );
+    return () => {
+      if (controlsTimerRef.current !== null) globalThis.clearTimeout(controlsTimerRef.current);
+      controlsTimerRef.current = null;
+    };
+  }, [hideControlsIfKeyboardIdle, inPlaybackZone]);
 
   useEffect(() => {
     const normalized = normalizeVolume(volume);
@@ -224,6 +262,11 @@ export function ConfiguredVideo({
       aria-label={translation.videoPlayer}
       data-media-id={mediaId}
       data-viewport-active={inPlaybackZone}
+      data-controls-visible={controlsVisible}
+      onPointerMove={revealControls}
+      onPointerDown={revealControls}
+      onFocusCapture={revealControls}
+      onBlurCapture={revealControls}
     >
       {inPlaybackZone ? (
         <video
@@ -235,7 +278,13 @@ export function ConfiguredVideo({
           preload="metadata"
           poster={poster || undefined}
           src={src || undefined}
-          onClick={togglePlayback}
+          onClick={() => {
+            if (!controlsVisible) {
+              revealControls();
+              return;
+            }
+            togglePlayback();
+          }}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onLoadedMetadata={(event) => {
@@ -258,7 +307,11 @@ export function ConfiguredVideo({
         <span className="configured-video-poster" aria-hidden="true" />
       )}
       {inPlaybackZone && (
-        <div className="configured-video-controls" data-playing={playing}>
+        <div
+          className="configured-video-controls"
+          data-playing={playing}
+          data-visible={controlsVisible}
+        >
           <button
             type="button"
             aria-label={playing ? translation.pauseVideo : translation.playVideo}

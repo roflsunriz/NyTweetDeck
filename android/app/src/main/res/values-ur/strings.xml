@@ -232,4 +232,5 @@
     <string name="x_api_metadata_bundled">X API میٹا ڈیٹا: شامل تصدیق شدہ ورژن</string>
     <string name="post_link_copied">شیئر کرنے کی کوئی منزل دستیاب نہیں تھی، اس لیے پوسٹ کا لنک کاپی کر دیا گیا۔</string>
     <string name="inline_video_fullscreen">ویڈیو فل اسکرین میں کھولیں</string>
+    <string name="media_viewer_rotate_landscape">لینڈ اسکیپ میں گھمائیں</string>
 </resources>

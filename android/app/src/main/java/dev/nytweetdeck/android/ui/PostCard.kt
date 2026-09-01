@@ -43,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,7 +115,13 @@ internal fun PostCard(
     videoLoop: Boolean = true,
     videoVolume: Int = 100,
 ) {
-    var selectedMedia by remember { mutableStateOf<SelectedMedia?>(null) }
+    var selectedMediaId by rememberSaveable(post.id) { mutableStateOf<String?>(null) }
+    val selectedMedia = selectedMediaId?.let { mediaId ->
+        post.media.firstOrNull { it.id == mediaId }?.let { SelectedMedia(it, post.media) }
+            ?: post.quotedPost?.media?.let { siblings ->
+                siblings.firstOrNull { it.id == mediaId }?.let { SelectedMedia(it, siblings) }
+            }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -157,7 +164,7 @@ internal fun PostCard(
                 videoAutoplay = videoAutoplay && selectedMedia == null,
                 videoLoop = videoLoop,
                 videoVolume = videoVolume,
-                onMediaClick = { selectedMedia = SelectedMedia(it, post.media) },
+                onMediaClick = { selectedMediaId = it.id },
             )
         } else if (post.media.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
@@ -187,7 +194,7 @@ internal fun PostCard(
                 quote = quote,
                 onQuoteClick = onQuoteClick,
                 onAuthorClick = onAuthorClick,
-                onMediaClick = { selectedMedia = SelectedMedia(it, quote.media) },
+                onMediaClick = { selectedMediaId = it.id },
                 onArticleClick = onArticleClick,
                 translationStates = translationStates,
                 autoTranslatePosts = autoTranslatePosts,
@@ -223,7 +230,7 @@ internal fun PostCard(
             videoAutoplay = videoAutoplay,
             videoLoop = videoLoop,
             videoVolume = videoVolume,
-            onDismiss = { selectedMedia = null },
+            onDismiss = { selectedMediaId = null },
         )
     }
 }

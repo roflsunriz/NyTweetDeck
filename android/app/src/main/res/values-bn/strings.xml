@@ -232,4 +232,5 @@
     <string name="x_api_metadata_bundled">X API মেটাডেটা: সংযুক্ত যাচাইকৃত সংস্করণ</string>
     <string name="post_link_copied">শেয়ারের কোনো গন্তব্য পাওয়া যায়নি, তাই পোস্টের লিংক কপি করা হয়েছে।</string>
     <string name="inline_video_fullscreen">ভিডিও পূর্ণ স্ক্রিনে খুলুন</string>
+    <string name="media_viewer_rotate_landscape">ল্যান্ডস্কেপে ঘোরান</string>
 </resources>

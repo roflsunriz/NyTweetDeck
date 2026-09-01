@@ -56,14 +56,14 @@
   gap: 4px;
   padding: 18px 7px 6px;
   opacity: 0;
+  pointer-events: none;
   background: linear-gradient(transparent, rgb(0 0 0 / 82%));
   transition: opacity 160ms ease;
 }
 
-.configured-video:hover .configured-video-controls,
-.configured-video:focus-within .configured-video-controls,
-.configured-video-controls[data-playing="false"] {
+.configured-video-controls[data-visible="true"] {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .configured-video-controls button {
@@ -117,12 +117,6 @@
   color: #ffd4d4;
   font-size: 0.66rem;
   text-align: center;
-}
-
-@media (hover: none) {
-  .configured-video-controls {
-    opacity: 1;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

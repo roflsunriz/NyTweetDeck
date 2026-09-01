@@ -1,23 +1,24 @@
 package dev.nytweetdeck.android.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.net.Uri
-import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.transformable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,16 +44,18 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import coil3.compose.AsyncImage
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.PlayerView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Media
 import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
@@ -76,46 +79,100 @@ internal fun MediaViewerDialog(
         mutableIntStateOf(photos.indexOfFirst { it.id == media.id }.coerceAtLeast(0))
     }
     val activeMedia = if (media.type == "photo") photos.getOrNull(photoIndex) ?: media else media
-    FullScreenRoutePopup(tag = "media-viewer", onDismiss = onDismiss, color = Color.Black) {
-        Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
-            Box(Modifier.fillMaxSize()) {
-                if (activeMedia.type == "photo") {
-                    PhotoViewer(
-                        media = activeMedia,
-                        index = photoIndex,
-                        count = photos.size,
-                        onNext = {
-                            if (photos.size > 1) photoIndex = (photoIndex + 1) % photos.size
-                        },
-                        onPrevious = {
-                            if (photos.size > 1) {
-                                photoIndex = (photoIndex - 1 + photos.size) % photos.size
-                            }
-                        },
-                    )
-                } else {
-                    VideoViewer(
-                        media = activeMedia,
-                        videoAutoplay = videoAutoplay,
-                        videoLoop = videoLoop,
-                        videoVolume = videoVolume,
-                    )
-                }
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .testTag("media-close"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.media_viewer_close),
-                        tint = Color.White,
-                    )
+    val activity = LocalContext.current.findActivity()
+    val dismissViewer = {
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        onDismiss()
+    }
+    DisposableEffect(activity) {
+        onDispose {
+            if (activity?.isChangingConfigurations != true) {
+                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        }
+    }
+    Dialog(
+        onDismissRequest = dismissViewer,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        ImmersiveMediaWindow()
+        FullScreenRouteSurface(
+            tag = "media-viewer",
+            onDismiss = dismissViewer,
+            color = Color.Black,
+        ) {
+            Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+                Box(Modifier.fillMaxSize()) {
+                    if (activeMedia.type == "photo") {
+                        PhotoViewer(
+                            media = activeMedia,
+                            index = photoIndex,
+                            count = photos.size,
+                            onNext = {
+                                if (photos.size > 1) photoIndex = (photoIndex + 1) % photos.size
+                            },
+                            onPrevious = {
+                                if (photos.size > 1) {
+                                    photoIndex = (photoIndex - 1 + photos.size) % photos.size
+                                }
+                            },
+                        )
+                    } else {
+                        FullscreenVideoPlayer(
+                            media = activeMedia,
+                            autoPlay = videoAutoplay,
+                            loop = videoLoop,
+                            volume = videoVolume,
+                            onExitFullscreen = dismissViewer,
+                            onRotateToLandscape = {
+                                activity?.requestedOrientation =
+                                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            },
+                            modifier = Modifier.fillMaxSize().testTag("media-video"),
+                        )
+                    }
+                    IconButton(
+                        onClick = dismissViewer,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .windowInsetsPadding(
+                                WindowInsets.safeDrawing.only(
+                                    WindowInsetsSides.Top + WindowInsetsSides.End,
+                                ),
+                            )
+                            .padding(12.dp)
+                            .testTag("media-close"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.media_viewer_close),
+                            tint = Color.White,
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ImmersiveMediaWindow() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val window = (view.parent as? DialogWindowProvider)?.window
+        val controller = window?.let {
+            WindowCompat.setDecorFitsSystemWindows(it, false)
+            WindowCompat.getInsetsController(it, it.decorView)
+        }
+        controller?.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller?.hide(WindowInsetsCompat.Type.systemBars())
+        onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 }
 
@@ -222,131 +279,14 @@ private fun PhotoViewer(
     }
 }
 
-@OptIn(UnstableApi::class)
-@Composable
-private fun VideoViewer(
-    media: Media,
-    videoAutoplay: Boolean,
-    videoLoop: Boolean,
-    videoVolume: Int,
-) {
-    val videoUri = remember(media.url) { safeMediaUri(media.url) }
-    val context = LocalContext.current
-    val player = remember(media.id, videoUri) {
-        videoUri?.let {
-            CachedVideoPlayback.createPlayer(context).apply {
-                setMediaItem(MediaItem.fromUri(it))
-                playWhenReady = videoAutoplay
-                prepare()
-            }
-        }
-    }
-    var isPlaying by remember { mutableStateOf(false) }
-    var muted by remember { mutableStateOf(true) }
-    val volume = (videoVolume.coerceIn(0, 100) / 100f).takeIf { !muted } ?: 0f
-
-    LaunchedEffect(player, videoLoop, volume) {
-        player ?: return@LaunchedEffect
-        player.repeatMode = if (videoLoop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-        player.volume = volume
-    }
-    DisposableEffect(player) {
-        val listener = object : Player.Listener {
-            override fun onIsPlayingChanged(value: Boolean) {
-                isPlaying = value
-            }
-        }
-        player?.addListener(listener)
-        isPlaying = player?.isPlaying == true
-        onDispose {
-            player?.removeListener(listener)
-            player?.release()
-        }
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (videoUri == null) {
-            Text(
-                text = stringResource(R.string.media_viewer_unavailable),
-                color = Color.White,
-            )
-        } else {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .testTag("media-video"),
-            ) {
-                AndroidView(
-                    factory = { viewContext ->
-                        PlayerView(viewContext).apply {
-                            useController = false
-                            this.player = player
-                            setKeepContentOnPlayerReset(true)
-                        }
-                    },
-                    update = { it.player = player },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag(if (isPlaying) "media-video-playing" else "media-video-paused"),
-                )
-            }
-        }
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            IconButton(
-                onClick = {
-                    val activePlayer = player ?: return@IconButton
-                    if (activePlayer.playWhenReady) {
-                        activePlayer.pause()
-                    } else {
-                        if (activePlayer.playbackState == Player.STATE_ENDED) {
-                            activePlayer.seekToDefaultPosition()
-                        }
-                        activePlayer.play()
-                    }
-                },
-                enabled = videoUri != null,
-                modifier = Modifier.testTag("media-play"),
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = stringResource(
-                        if (isPlaying) R.string.media_viewer_pause else R.string.media_viewer_play,
-                    ),
-                    tint = Color.White,
-                )
-            }
-            IconButton(
-                onClick = { muted = !muted },
-                enabled = videoUri != null,
-                modifier = Modifier.testTag("media-mute"),
-            ) {
-                Icon(
-                    imageVector = if (muted) {
-                        Icons.AutoMirrored.Filled.VolumeOff
-                    } else {
-                        Icons.AutoMirrored.Filled.VolumeUp
-                    },
-                    contentDescription = stringResource(
-                        if (muted) R.string.media_viewer_unmute else R.string.media_viewer_mute,
-                    ),
-                    tint = Color.White,
-                )
-            }
-        }
-    }
-}
-
 internal fun safeMediaUri(value: String?): Uri? {
     if (value.isNullOrBlank()) return null
     val verified = verifiedExternalHttpsUrl(value, setOf("twimg.com")) ?: return null
     return Uri.parse(verified)
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

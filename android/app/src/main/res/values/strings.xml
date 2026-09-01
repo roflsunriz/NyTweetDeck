@@ -233,4 +233,5 @@
     <string name="x_api_metadata_bundled">X API定義：同梱の検証済み定義</string>
     <string name="post_link_copied">共有先を開けなかったため、ポストのリンクをコピーしました。</string>
     <string name="inline_video_fullscreen">動画を全画面表示</string>
+    <string name="media_viewer_rotate_landscape">横向きに回転</string>
 </resources>

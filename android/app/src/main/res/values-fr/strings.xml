@@ -233,4 +233,5 @@
     <string name="x_api_metadata_bundled">Métadonnées de l’API X : version vérifiée intégrée</string>
     <string name="post_link_copied">Aucune cible de partage n’était disponible. Le lien du post a été copié.</string>
     <string name="inline_video_fullscreen">Ouvrir la vidéo en plein écran</string>
+    <string name="media_viewer_rotate_landscape">Pivoter en paysage</string>
 </resources>

@@ -763,6 +763,12 @@ describe("post actions", () => {
       if (videoObserver === undefined) throw new Error("動画用の監視が作成されませんでした。");
       act(() => videoObserver.notify(player, true));
       await waitFor(() => expect(view.container.querySelector("video")).not.toBeNull());
+      expect(player.getAttribute("data-controls-visible")).toBe("true");
+      await waitFor(() => expect(player.getAttribute("data-controls-visible")).toBe("false"), {
+        timeout: 4_000,
+      });
+      fireEvent.pointerMove(player);
+      expect(player.getAttribute("data-controls-visible")).toBe("true");
 
       await user.click(screen.getByRole("button", { name: "全画面表示にする" }));
       expect(screen.getByRole("button", { name: "全画面表示を終了" })).toBeDefined();

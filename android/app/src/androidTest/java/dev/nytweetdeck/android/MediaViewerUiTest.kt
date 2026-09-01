@@ -50,7 +50,7 @@ class MediaViewerUiTest {
     }
 
     @Test
-    fun videoViewerUsesDedicatedPlayerControlsOnAquos() {
+    fun videoViewerUsesTheInlineControlsFullscreenAndAutoHidesOnAquos() {
         composeRule.activity.setContent {
             NyTweetDeckTheme {
                 PostCard(
@@ -81,13 +81,38 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("inline-video-seek", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("inline-video-volume", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("inline-video-fullscreen", useUnmergedTree = true).assertIsDisplayed()
-        composeRule.onNodeWithTag("post-media-1-video-1").performClick()
+        composeRule.onNodeWithTag(
+            "inline-video-fullscreen",
+            useUnmergedTree = true,
+        ).performClick()
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-video").assertIsDisplayed()
-        composeRule.onNodeWithTag("media-play").assertIsDisplayed()
-        composeRule.onNodeWithTag("media-play").assertIsEnabled()
-        composeRule.onNodeWithTag("media-mute").assertIsDisplayed()
-        composeRule.onNodeWithTag("media-mute").assertIsEnabled()
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTag(
+                "media-video-connected",
+                useUnmergedTree = true,
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("media-video-play", useUnmergedTree = true)
+            .assertIsDisplayed().assertIsEnabled()
+        composeRule.onNodeWithTag("media-video-mute", useUnmergedTree = true)
+            .assertIsDisplayed().assertIsEnabled()
+        composeRule.onNodeWithTag("media-video-seek", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-video-volume", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-video-loop", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-video-fullscreen", useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("media-video-rotate", useUnmergedTree = true).assertIsDisplayed()
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.mainClock.advanceTimeBy(3_100)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("media-video-controls", useUnmergedTree = true)
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag("media-video-surface", useUnmergedTree = true).performClick()
+        composeRule.onNodeWithTag("media-video-controls", useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.mainClock.autoAdvance = true
         composeRule.onNodeWithTag("media-close").performClick()
     }
 

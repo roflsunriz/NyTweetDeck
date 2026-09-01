@@ -236,4 +236,5 @@
     <string name="x_api_metadata_bundled">بيانات X API الوصفية: الإصدار المرفق المتحقق منه</string>
     <string name="post_link_copied">لم تتوفر وجهة للمشاركة، لذا تم نسخ رابط المنشور.</string>
     <string name="inline_video_fullscreen">فتح الفيديو بملء الشاشة</string>
+    <string name="media_viewer_rotate_landscape">التدوير إلى الوضع الأفقي</string>
 </resources>
