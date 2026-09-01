@@ -8,6 +8,8 @@
 
 ### Added
 
+- X Webの動画操作と資源解放を独自実装へ取り込むため、画面外でvideo要素を初期化・破棄して再入場時にミュート状態で再生成し、再生、一時停止、seek、mute、音量、loop、Picture-in-Picture、fullscreenを提供する多言語custom playerを追加した。
+
 - X公式Webをコードコピーではなく挙動リファレンスとして独自実装へ反映できるよう、ログイン済み専用Chromeから許可済み公式JS/CSSだけをGit管理外へ採取し、Cookie・header・HTML・DOM・実ユーザーデータを保存せずメモリー上でde-minifyする研究sandboxを追加した。
 - 動画、画像ビューア、返信ツリー、URL正規化、プロフィール遷移の合成mockを安全に公式moduleへ与える前提を固定するため、CookieとWeb Storageを持たない新規BrowserContextでloopback以外のHTTP・HTTPS・WebSocket・FTPを遮断し、mock搬送を実測する自動検証を追加した。
 - URL正規化の独自実装へ観測事実を反映できるよう、公式資産からURL entity補完関数だけをメモリー抽出し、外部通信を全面遮断した環境で欠落・片側欠落・空文字を含む合成5ケースを実行して意味契約だけを記録するrunnerを追加した。

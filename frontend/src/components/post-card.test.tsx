@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { translate } from "../i18n/translations";
@@ -11,6 +11,7 @@ const originalFetch = globalThis.fetch;
 const originalIntersectionObserver = globalThis.IntersectionObserver;
 const originalVideoPlay = globalThis.HTMLMediaElement.prototype.play;
 const originalVideoPause = globalThis.HTMLMediaElement.prototype.pause;
+const originalVideoLoad = globalThis.HTMLMediaElement.prototype.load;
 
 beforeEach(() => {
   globalThis.IntersectionObserver = undefined as unknown as typeof IntersectionObserver;
@@ -22,6 +23,7 @@ afterEach(() => {
   globalThis.IntersectionObserver = originalIntersectionObserver;
   globalThis.HTMLMediaElement.prototype.play = originalVideoPlay;
   globalThis.HTMLMediaElement.prototype.pause = originalVideoPause;
+  globalThis.HTMLMediaElement.prototype.load = originalVideoLoad;
 });
 
 describe("post actions", () => {
@@ -526,10 +528,13 @@ describe("post actions", () => {
 
   test("defers video loading and autoplay to the upper viewport while honoring settings", async () => {
     const observers = installIntersectionObserverMock();
+    const user = userEvent.setup();
     const play = mock(async () => undefined);
     const pause = mock(() => undefined);
+    const load = mock(() => undefined);
     globalThis.HTMLMediaElement.prototype.play = play as typeof HTMLMediaElement.prototype.play;
     globalThis.HTMLMediaElement.prototype.pause = pause as typeof HTMLMediaElement.prototype.pause;
+    globalThis.HTMLMediaElement.prototype.load = load as typeof HTMLMediaElement.prototype.load;
     const mediaPost = {
       ...post(),
       media: [
@@ -564,38 +569,74 @@ describe("post actions", () => {
         display={{ ...defaultDisplayPreferences, videoAutoplay: true }}
       />,
     );
-    const video = second.container.querySelector("video");
-    if (video === null) throw new Error("動画が表示されませんでした。");
+    const player = screen.getByRole("group", { name: "動画プレイヤー" });
     const videoObserver = observers.find(
       (observer) => observer.options.rootMargin === "0px 0px -50% 0px",
     );
     if (videoObserver === undefined) throw new Error("動画用の監視が作成されませんでした。");
     expect(videoObserver.options.root).toBeNull();
     expect(videoObserver.options.threshold).toBe(0);
-    expect(videoObserver.targets).toEqual([video]);
-    expect(video.getAttribute("src")).toBeNull();
-    expect(video.autoplay).toBe(false);
-    expect(video.preload).toBe("none");
-    expect(video?.loop).toBe(true);
-    expect(video?.volume).toBe(1);
-    expect(video?.muted).toBe(true);
+    expect(videoObserver.targets).toEqual([player]);
+    expect(second.container.querySelector("video")).toBeNull();
+    expect(player.querySelector(".configured-video-poster")).toBeDefined();
     expect(play).toHaveBeenCalledTimes(0);
 
-    act(() => videoObserver.notify(video, true));
-    await waitFor(() => expect(video.getAttribute("src")).toBe(videoUrl));
-    expect(video.autoplay).toBe(true);
-    expect(video.preload).toBe("metadata");
+    act(() => videoObserver.notify(player, true));
+    await waitFor(() => expect(second.container.querySelector("video")).not.toBeNull());
+    const firstVideo = second.container.querySelector("video");
+    if (firstVideo === null) throw new Error("動画が表示されませんでした。");
+    expect(firstVideo.getAttribute("src")).toBe(videoUrl);
+    expect(firstVideo.controls).toBe(false);
+    expect(firstVideo.hasAttribute("playsinline")).toBe(true);
+    expect(firstVideo.loop).toBe(true);
+    expect(firstVideo.volume).toBe(1);
+    expect(firstVideo.muted).toBe(true);
+    expect(firstVideo.autoplay).toBe(true);
+    expect(firstVideo.preload).toBe("metadata");
     expect(play).toHaveBeenCalledTimes(1);
 
-    act(() => videoObserver.notify(video, false));
-    await waitFor(() => expect(video.autoplay).toBe(false));
-    expect(video.preload).toBe("none");
-    expect(video.getAttribute("src")).toBeNull();
+    act(() => videoObserver.notify(player, false));
+    await waitFor(() => expect(second.container.querySelector("video")).toBeNull());
     expect(pause).toHaveBeenCalled();
+    expect(load).toHaveBeenCalled();
 
-    act(() => videoObserver.notify(video, true));
+    act(() => videoObserver.notify(player, true));
     await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
-    expect(video.getAttribute("src")).toBe(videoUrl);
+    const replacementVideo = second.container.querySelector("video");
+    if (replacementVideo === null) throw new Error("動画が再生成されませんでした。");
+    expect(replacementVideo).not.toBe(firstVideo);
+    expect(replacementVideo.getAttribute("src")).toBe(videoUrl);
+    expect(replacementVideo.muted).toBe(true);
+
+    Object.defineProperty(replacementVideo, "duration", { configurable: true, value: 125 });
+    fireEvent.loadedMetadata(replacementVideo);
+    expect(screen.getByText("0:00 / 2:05")).toBeDefined();
+    const seek = screen.getByRole("slider", { name: "動画の再生位置" });
+    fireEvent.change(seek, { target: { value: "30" } });
+    expect(replacementVideo.currentTime).toBe(30);
+    expect((seek as HTMLInputElement).value).toBe("30");
+
+    await user.click(screen.getByRole("button", { name: "動画を再生" }));
+    expect(play).toHaveBeenCalledTimes(3);
+    fireEvent.play(replacementVideo);
+    await user.click(screen.getByRole("button", { name: "動画を一時停止" }));
+    fireEvent.pause(replacementVideo);
+    expect(screen.getByRole("button", { name: "動画を再生" })).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "動画のミュートを解除" }));
+    expect(replacementVideo.muted).toBe(false);
+    const volumeControl = screen.getByRole("slider", { name: "動画の音量" });
+    fireEvent.change(volumeControl, { target: { value: "25" } });
+    expect(replacementVideo.volume).toBe(0.25);
+    await user.click(screen.getByRole("button", { name: "動画をミュート" }));
+    expect(replacementVideo.muted).toBe(true);
+
+    const loopControl = screen.getByRole("button", { name: "動画をループ再生" });
+    expect(loopControl.getAttribute("aria-pressed")).toBe("true");
+    await user.click(loopControl);
+    expect(replacementVideo.loop).toBe(false);
+    await user.click(loopControl);
+    expect(replacementVideo.loop).toBe(true);
 
     second.rerender(
       <PostCard
@@ -624,6 +665,142 @@ describe("post actions", () => {
     );
     await waitFor(() => expect(second.container.querySelector("video")?.muted).toBe(true));
     expect(second.container.querySelector("video")?.volume).toBe(0);
+  });
+
+  test("offers fullscreen and picture-in-picture through feature-detected custom controls", async () => {
+    const observers = installIntersectionObserverMock();
+    let fullscreenElement: Element | null = null;
+    let pictureInPictureElement: Element | null = null;
+    let pictureInPictureRequests = 0;
+    const fullscreenElementDescriptor = Object.getOwnPropertyDescriptor(
+      document,
+      "fullscreenElement",
+    );
+    const exitFullscreenDescriptor = Object.getOwnPropertyDescriptor(document, "exitFullscreen");
+    const pictureInPictureEnabledDescriptor = Object.getOwnPropertyDescriptor(
+      document,
+      "pictureInPictureEnabled",
+    );
+    const pictureInPictureElementDescriptor = Object.getOwnPropertyDescriptor(
+      document,
+      "pictureInPictureElement",
+    );
+    const exitPictureInPictureDescriptor = Object.getOwnPropertyDescriptor(
+      document,
+      "exitPictureInPicture",
+    );
+    const requestPictureInPictureDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLVideoElement.prototype,
+      "requestPictureInPicture",
+    );
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => fullscreenElement,
+    });
+    Object.defineProperty(document, "exitFullscreen", {
+      configurable: true,
+      value: async () => {
+        fullscreenElement = null;
+        document.dispatchEvent(new Event("fullscreenchange"));
+      },
+    });
+    Object.defineProperty(document, "pictureInPictureEnabled", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(document, "pictureInPictureElement", {
+      configurable: true,
+      get: () => pictureInPictureElement,
+    });
+    Object.defineProperty(document, "exitPictureInPicture", {
+      configurable: true,
+      value: async () => {
+        const video = pictureInPictureElement;
+        pictureInPictureElement = null;
+        video?.dispatchEvent(new Event("leavepictureinpicture"));
+      },
+    });
+    Object.defineProperty(HTMLVideoElement.prototype, "requestPictureInPicture", {
+      configurable: true,
+      value: async function (this: HTMLVideoElement) {
+        pictureInPictureRequests += 1;
+        pictureInPictureElement = this;
+        this.dispatchEvent(new Event("enterpictureinpicture"));
+        return {} as PictureInPictureWindow;
+      },
+    });
+    const view = render(
+      <PostCard
+        post={{
+          ...post(),
+          media: [
+            {
+              id: "video-controls",
+              type: "video",
+              url: "https://video.example/controls.mp4",
+              previewUrl: "https://video.example/controls.jpg",
+            },
+          ],
+        }}
+        accountId="account-1"
+        translation={translate("ja")}
+        display={{ ...defaultDisplayPreferences, videoAutoplay: false }}
+      />,
+    );
+    try {
+      const user = userEvent.setup();
+      const player = screen.getByRole("group", { name: "動画プレイヤー" });
+      Object.defineProperty(player, "requestFullscreen", {
+        configurable: true,
+        value: async () => {
+          fullscreenElement = player;
+          document.dispatchEvent(new Event("fullscreenchange"));
+        },
+      });
+      const videoObserver = observers.find(
+        (observer) => observer.options.rootMargin === "0px 0px -50% 0px",
+      );
+      if (videoObserver === undefined) throw new Error("動画用の監視が作成されませんでした。");
+      act(() => videoObserver.notify(player, true));
+      await waitFor(() => expect(view.container.querySelector("video")).not.toBeNull());
+
+      await user.click(screen.getByRole("button", { name: "全画面表示にする" }));
+      expect(screen.getByRole("button", { name: "全画面表示を終了" })).toBeDefined();
+      await user.click(screen.getByRole("button", { name: "全画面表示を終了" }));
+      expect(screen.getByRole("button", { name: "全画面表示にする" })).toBeDefined();
+      Object.defineProperty(player, "requestFullscreen", {
+        configurable: true,
+        value: async () => Promise.reject(new Error("fullscreen unavailable")),
+      });
+      await user.click(screen.getByRole("button", { name: "全画面表示にする" }));
+      await waitFor(() =>
+        expect(player.querySelector(".configured-video-error")?.textContent).toBe(
+          "動画操作に失敗しました。",
+        ),
+      );
+
+      await user.click(
+        await screen.findByRole("button", { name: "ピクチャーインピクチャーにする" }),
+      );
+      expect(pictureInPictureRequests).toBe(1);
+      expect(screen.getByRole("button", { name: "ピクチャーインピクチャーを終了" })).toBeDefined();
+      act(() => videoObserver.notify(player, false));
+      expect(view.container.querySelector("video")).not.toBeNull();
+      await user.click(screen.getByRole("button", { name: "ピクチャーインピクチャーを終了" }));
+      await waitFor(() => expect(view.container.querySelector("video")).toBeNull());
+    } finally {
+      view.unmount();
+      restoreProperty(document, "fullscreenElement", fullscreenElementDescriptor);
+      restoreProperty(document, "exitFullscreen", exitFullscreenDescriptor);
+      restoreProperty(document, "pictureInPictureEnabled", pictureInPictureEnabledDescriptor);
+      restoreProperty(document, "pictureInPictureElement", pictureInPictureElementDescriptor);
+      restoreProperty(document, "exitPictureInPicture", exitPictureInPictureDescriptor);
+      restoreProperty(
+        HTMLVideoElement.prototype,
+        "requestPictureInPicture",
+        requestPictureInPictureDescriptor,
+      );
+    }
   });
 
   test("completes independent user menu actions immediately while requests remain pending", async () => {
@@ -1005,6 +1182,15 @@ function installIntersectionObserverMock(): RecordedIntersectionObserver[] {
     }
   } as unknown as typeof IntersectionObserver;
   return observers;
+}
+
+function restoreProperty(
+  target: object,
+  key: PropertyKey,
+  descriptor: PropertyDescriptor | undefined,
+) {
+  if (descriptor === undefined) Reflect.deleteProperty(target, key);
+  else Object.defineProperty(target, key, descriptor);
 }
 
 function post(): TimelinePost {

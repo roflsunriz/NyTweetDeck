@@ -96,13 +96,13 @@ NyTweetDeck WebではComposer、プロフィール、ポスト詳細、画像vie
 - 元位置へ戻ると新しいvideo要素がDOMへ生成され、再びミュート再生、`readyState=4`、`networkState=2`になった。
 - player領域へhoverする前は可視controlが0件、hover後はbutton 5件・slider 2件になった。native controlsではなく公式custom UIが遅延表示される。
 
-NyTweetDeck Webは要素を維持して`src`を解除するため、通信資源解放という意味は近いがDOMライフサイクルが異なる。またnative controlsを表示しており、公式のcustom player UIとは明確に異なる。`loop`既定ONと保存音量はNyTweetDeckの明示要件なので、公式の`loop=false`を理由に削除しない。
+NyTweetDeck Webは固定の観測用wrapperだけを維持し、再生範囲外ではvideo要素を停止・source初期化後にDOMから破棄し、再入場時は新しいミュート済みvideo要素を生成する方式へ変更した。native controlsは表示せず、hover・keyboard focus・touchで操作できるcustom controlsへ切り替えた。`loop`既定ONと保存音量はNyTweetDeckの明示要件なので、公式の`loop=false`を理由に削除しない。
 
-buttonのラベルやポスト内容は保存しない。各buttonを個別操作してpaused、muted、fullscreen、menu、sliderのどの状態が変化したかを次の観測で判定し、全controlの意味が揃うまでNyTweetDeckのnative controlsを先に削除しない。
+buttonのラベルやポスト内容は保存しない。各buttonを個別操作し、paused、muted、dialog、Picture-in-Pictureの状態差とslider 2件を匿名観測した。NyTweetDeck側では再生・一時停止、seek、mute、音量、loop、fullscreenを独立操作とし、Picture-in-Pictureはブラウザー能力を検出できる場合だけ表示する。
 
 個別クリックではmediaごとに可視button数が4〜5件へ変動した。左端（動画幅の約4%）は`paused`だけを反転し、再生／一時停止と確認できた。約72%位置のbuttonはvideo状態を変えずdialogを1件増やし、player設定系と確認できた。約75%位置ではmuteが反転した。約89%位置ではPicture-in-Pictureへ移行したが、同時に保持中videoのmuteも変わったため、副作用か参照差かを追加サンプルで分離する。fullscreenはheadless実行で成立しない可能性があり、falseだけでcontrol不在と判断しない。
 
-controlの順序と個数はmedia能力によって変わるため、固定indexではなく、状態差・相対位置・optional能力から意味を決める。再生、一時停止、mute、進捗、音量、設定、Picture-in-Picture、fullscreenの全契約が独立して確認できるまでcustom player置換は未実装とする。
+controlの順序と個数はmedia能力によって変わるため、固定indexではなく、状態差・相対位置・optional能力から意味を決める。NyTweetDeckの自動テストもnative controls不使用、再生成時の別video要素と初期ミュート、2 slider、全controlの状態遷移、能力検出後のPicture-in-Picture、fullscreenをそれぞれ検証する。
 
 ## 意味契約の採用条件
 

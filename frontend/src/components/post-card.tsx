@@ -17,6 +17,7 @@ import type { CommunityNote, EmbeddedPost, TimelinePost } from "../model/timelin
 import { postTextSegments } from "../model/post-text-segments";
 import { ComposerDialog } from "./composer-dialog";
 import { ArticleCard } from "./article-card";
+import { ConfiguredVideo } from "./configured-video";
 import { usePostTranslationSettings } from "./post-translation-context";
 import { PostMenu } from "./post-menu";
 import { useOptimisticToggle } from "./use-optimistic-toggle";
@@ -299,6 +300,7 @@ export function PostCard({
                   volume={display.videoVolume}
                   poster={media.previewUrl}
                   src={media.url}
+                  translation={translation}
                 />
               ) : onOpenImage === undefined ? (
                 <img key={media.id} loading="lazy" src={media.url} alt="" />
@@ -454,97 +456,6 @@ export function PostCard({
         />
       )}
     </>
-  );
-}
-
-function ConfiguredVideo({
-  mediaId,
-  autoPlay,
-  loop,
-  volume,
-  poster,
-  src,
-}: {
-  mediaId: string;
-  autoPlay: boolean;
-  loop: boolean;
-  volume: number;
-  poster: string;
-  src: string;
-}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [activeSource, setActiveSource] = useState<string | null>(null);
-  const [inPlaybackZone, setInPlaybackZone] = useState(false);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video === null) return;
-    setInPlaybackZone(false);
-    setActiveSource(null);
-    if (typeof globalThis.IntersectionObserver === "undefined") {
-      setActiveSource(src);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const active = entries.some((entry) => entry.target === video && entry.isIntersecting);
-        if (!active) {
-          video.pause();
-          video.removeAttribute("src");
-          video.load();
-        }
-        setInPlaybackZone(active);
-        setActiveSource(active ? src : null);
-      },
-      {
-        root: null,
-        rootMargin: "0px 0px -50% 0px",
-        threshold: 0,
-      },
-    );
-    observer.observe(video);
-    return () => observer.disconnect();
-  }, [src]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video === null) return;
-    const normalizedVolume = Math.min(100, Math.max(0, volume)) / 100;
-    video.volume = normalizedVolume;
-  }, [volume]);
-
-  const sourceActive = activeSource === src;
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video === null) return;
-    if (!autoPlay || !inPlaybackZone || !sourceActive) {
-      video.pause();
-      return;
-    }
-    void video.play().catch((error: unknown) => {
-      if (
-        !(error instanceof DOMException) ||
-        (error.name !== "AbortError" && error.name !== "NotAllowedError")
-      ) {
-        video.pause();
-      }
-    });
-    return () => video.pause();
-  }, [autoPlay, inPlaybackZone, sourceActive]);
-
-  return (
-    <video
-      ref={videoRef}
-      data-media-id={mediaId}
-      data-viewport-active={inPlaybackZone}
-      controls
-      muted
-      autoPlay={autoPlay && inPlaybackZone && sourceActive}
-      loop={loop}
-      preload={inPlaybackZone ? "metadata" : "none"}
-      poster={poster}
-      src={sourceActive ? src : undefined}
-    />
   );
 }
 

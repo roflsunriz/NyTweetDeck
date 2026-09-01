@@ -81,14 +81,14 @@ export const X_OBSERVED_INTERACTION_CONTRACTS: readonly ObservedInteractionContr
   },
   {
     androidStatus: "unassessed",
-    desktopStatus: "known-gap",
+    desktopStatus: "implemented",
     id: "inline-video-visibility-lifecycle",
     rule: "表示中はミュート再生し、画面外でvideo要素を切断・初期化し、再入場時に新要素でミュート再生を再開する",
     viewports: ["desktop"],
   },
   {
     androidStatus: "unassessed",
-    desktopStatus: "known-gap",
+    desktopStatus: "implemented",
     id: "inline-video-custom-controls",
     rule: "native controlsを表示せず、再生・音量・seek・fullscreen等を独自UIとして提供する",
     viewports: ["desktop"],

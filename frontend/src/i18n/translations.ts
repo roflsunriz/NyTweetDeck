@@ -157,6 +157,17 @@ export interface Translation {
   videoAutoplay: string;
   videoLoop: string;
   videoVolume: string;
+  videoPlayer: string;
+  playVideo: string;
+  pauseVideo: string;
+  muteVideo: string;
+  unmuteVideo: string;
+  videoSeek: string;
+  enterFullscreen: string;
+  exitFullscreen: string;
+  pictureInPicture: string;
+  exitPictureInPicture: string;
+  videoControlFailed: string;
   apiMetadata: string;
   apiMetadataDescription: string;
   apiMetadataUpdate: string;
@@ -352,6 +363,17 @@ const translations: Partial<Record<Locale, Translation>> = {
     videoAutoplay: "動画を自動再生",
     videoLoop: "動画をループ再生",
     videoVolume: "動画の音量",
+    videoPlayer: "動画プレイヤー",
+    playVideo: "動画を再生",
+    pauseVideo: "動画を一時停止",
+    muteVideo: "動画をミュート",
+    unmuteVideo: "動画のミュートを解除",
+    videoSeek: "動画の再生位置",
+    enterFullscreen: "全画面表示にする",
+    exitFullscreen: "全画面表示を終了",
+    pictureInPicture: "ピクチャーインピクチャーにする",
+    exitPictureInPicture: "ピクチャーインピクチャーを終了",
+    videoControlFailed: "動画操作に失敗しました。",
     apiMetadata: "X Web API定義",
     apiMetadataDescription:
       "queryIdとFeature定義はX公式Webから定期的に自動更新されます。失敗時は直前の検証済み定義を維持します。",
@@ -597,6 +619,17 @@ const translations: Partial<Record<Locale, Translation>> = {
     videoAutoplay: "Autoplay videos",
     videoLoop: "Loop videos",
     videoVolume: "Video volume",
+    videoPlayer: "Video player",
+    playVideo: "Play video",
+    pauseVideo: "Pause video",
+    muteVideo: "Mute video",
+    unmuteVideo: "Unmute video",
+    videoSeek: "Video seek",
+    enterFullscreen: "Enter fullscreen",
+    exitFullscreen: "Exit fullscreen",
+    pictureInPicture: "Enter picture-in-picture",
+    exitPictureInPicture: "Exit picture-in-picture",
+    videoControlFailed: "The video control failed.",
     apiMetadata: "X Web API metadata",
     apiMetadataDescription:
       "Query IDs and feature definitions update periodically from X's official web assets. The last verified definitions remain active if an update fails.",

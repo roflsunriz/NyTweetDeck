@@ -49,7 +49,10 @@ const waitForCondition = (expression: string, timeoutMilliseconds?: number) =>
 await navigate();
 await waitForCondition('document.querySelector(".app-shell") !== null');
 await client.evaluate("localStorage.clear()");
-await updateSharedLayout(client, "layout => ({ ...layout, columns: [], activeAccountId: null })");
+await updateSharedLayout(
+  client,
+  "layout => ({ ...layout, columns: [], activeAccountId: null, replySort: 'relevance', display: { ...layout.display, videoLoop: true, videoVolume: 100 } })",
+);
 await reload();
 
 const viewports = [
@@ -825,26 +828,33 @@ if (!quotedOriginalClicked) {
 await waitForCondition(
   'document.querySelector(".quoted-post-text")?.textContent === "Quoted original"',
 );
-await waitForCondition('document.querySelectorAll(".post-media video").length === 2');
+await waitForCondition('document.querySelectorAll(".configured-video").length === 2');
 const firstVideoPositioned = await client.evaluate<boolean>(`(() => {
-  const video = document.querySelector('[data-media-id="video-qa"]');
-  if (!(video instanceof HTMLVideoElement)) return false;
-  video.scrollIntoView({ block: "center" });
+  const player = document.querySelector('[data-media-id="video-qa"]');
+  if (!(player instanceof HTMLElement)) return false;
+  player.scrollIntoView({ block: "start" });
   return true;
 })()`);
 if (!firstVideoPositioned) throw new Error("先頭動画を再生帯へ移動できませんでした。");
 await waitForCondition(
-  'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("src") !== null',
+  'document.querySelector(\'[data-media-id="video-qa"]\')?.querySelector("video") !== null',
+);
+await client.evaluate(
+  '(() => { window.__qaFirstVideoElement = document.querySelector(\'[data-media-id="video-qa"]\')?.querySelector("video"); return true; })()',
 );
 const deferredVideoMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const active = document.querySelector('[data-media-id="video-qa"]');
   const deferred = document.querySelector('[data-media-id="video-offscreen-qa"]');
+  const activeVideo = active?.querySelector("video");
+  const deferredVideo = deferred?.querySelector("video");
   return {
-    activeSource: active?.getAttribute("src"),
-    activeAutoplay: active instanceof HTMLVideoElement ? active.autoplay : null,
+    activeSource: activeVideo?.getAttribute("src"),
+    activeAutoplay: activeVideo instanceof HTMLVideoElement ? activeVideo.autoplay : null,
     activeInPlaybackZone: active?.getAttribute("data-viewport-active"),
-    deferredSource: deferred?.getAttribute("src"),
-    deferredAutoplay: deferred instanceof HTMLVideoElement ? deferred.autoplay : null,
+    activeNativeControls: activeVideo instanceof HTMLVideoElement ? activeVideo.controls : null,
+    activeControlButtons: active?.querySelectorAll(".configured-video-controls button").length,
+    activeControlSliders: active?.querySelectorAll('.configured-video-controls input[type="range"]').length,
+    deferredVideoConnected: deferredVideo !== null,
     deferredInPlaybackZone: deferred?.getAttribute("data-viewport-active"),
     deferredTop: deferred instanceof Element ? deferred.getBoundingClientRect().top : null,
     playbackZoneBottom: innerHeight / 2
@@ -854,8 +864,10 @@ if (
   deferredVideoMetrics.activeSource === null ||
   deferredVideoMetrics.activeAutoplay !== true ||
   deferredVideoMetrics.activeInPlaybackZone !== "true" ||
-  deferredVideoMetrics.deferredSource !== null ||
-  deferredVideoMetrics.deferredAutoplay !== false ||
+  deferredVideoMetrics.activeNativeControls !== false ||
+  Number(deferredVideoMetrics.activeControlButtons) < 4 ||
+  deferredVideoMetrics.activeControlSliders !== 2 ||
+  deferredVideoMetrics.deferredVideoConnected !== false ||
   deferredVideoMetrics.deferredInPlaybackZone !== "false" ||
   Number(deferredVideoMetrics.deferredTop) <= Number(deferredVideoMetrics.playbackZoneBottom)
 ) {
@@ -864,14 +876,14 @@ if (
   );
 }
 const deferredVideoPositioned = await client.evaluate<boolean>(`(() => {
-  const video = document.querySelector('[data-media-id="video-offscreen-qa"]');
-  if (!(video instanceof HTMLVideoElement)) return false;
-  video.scrollIntoView({ block: "center" });
+  const player = document.querySelector('[data-media-id="video-offscreen-qa"]');
+  if (!(player instanceof HTMLElement)) return false;
+  player.scrollIntoView({ block: "start" });
   return true;
 })()`);
 if (!deferredVideoPositioned) throw new Error("遅延動画を再生帯へ移動できませんでした。");
 await waitForCondition(
-  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("src") !== null',
+  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.querySelector("video") !== null',
 );
 await waitForCondition(
   'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("data-viewport-active") === "true"',
@@ -880,12 +892,12 @@ await waitForCondition(
   'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("data-viewport-active") === "false"',
 );
 await waitForCondition(
-  'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("src") === null',
+  'document.querySelector(\'[data-media-id="video-qa"]\')?.querySelector("video") === null',
 );
 const replayVideoPositioned = await client.evaluate<boolean>(`(() => {
-  const video = document.querySelector('[data-media-id="video-qa"]');
-  if (!(video instanceof HTMLVideoElement)) return false;
-  video.scrollIntoView({ block: "center" });
+  const player = document.querySelector('[data-media-id="video-qa"]');
+  if (!(player instanceof HTMLElement)) return false;
+  player.scrollIntoView({ block: "start" });
   return true;
 })()`);
 if (!replayVideoPositioned) throw new Error("先頭動画を再生帯へ戻せませんでした。");
@@ -893,7 +905,10 @@ await waitForCondition(
   'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("data-viewport-active") === "true"',
 );
 await waitForCondition(
-  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("src") === null',
+  'document.querySelector(\'[data-media-id="video-qa"]\')?.querySelector("video") !== window.__qaFirstVideoElement',
+);
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.querySelector("video") === null',
 );
 const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const like = document.querySelector("[data-post-action=like]");
@@ -901,6 +916,7 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
   const bookmark = document.querySelector("[data-post-action=bookmark]");
   const heart = like?.querySelector("svg");
   const video = document.querySelector(".post-media video");
+  const player = video?.closest(".configured-video");
   return {
     likeColor: like instanceof HTMLElement ? getComputedStyle(like).color : null,
     likeFilled: heart?.getAttribute("fill"),
@@ -911,7 +927,10 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
     videoVolume: video instanceof HTMLVideoElement ? video.volume : null,
     videoMuted: video instanceof HTMLVideoElement ? video.muted : null,
     videoAutoplay: video instanceof HTMLVideoElement ? video.autoplay : null,
-    videoInPlaybackZone: video?.getAttribute("data-viewport-active"),
+    videoInPlaybackZone: player?.getAttribute("data-viewport-active"),
+    videoNativeControls: video instanceof HTMLVideoElement ? video.controls : null,
+    videoCustomButtons: player?.querySelectorAll(".configured-video-controls button").length,
+    videoCustomSliders: player?.querySelectorAll('.configured-video-controls input[type="range"]').length,
     translationRequests: window.__qaTranslationRequests,
     translatedPostCount: new Set(window.__qaTranslationPostIds).size,
     translationMaximumActive: window.__qaTranslationMaximumActive,
@@ -933,6 +952,9 @@ if (
   engagementMetrics.videoMuted !== true ||
   engagementMetrics.videoAutoplay !== true ||
   engagementMetrics.videoInPlaybackZone !== "true" ||
+  engagementMetrics.videoNativeControls !== false ||
+  Number(engagementMetrics.videoCustomButtons) < 4 ||
+  engagementMetrics.videoCustomSliders !== 2 ||
   Number(engagementMetrics.translatedPostCount) >= 14 ||
   engagementMetrics.translationMaximumActive !== 2 ||
   engagementMetrics.firstPostTranslationAttempts !== 2 ||
@@ -1373,6 +1395,14 @@ await updateSharedLayout(
   })`,
 );
 await reload();
+await waitForCondition('document.querySelector(".configured-video") !== null');
+const persistedVideoPositioned = await client.evaluate<boolean>(`(() => {
+  const player = document.querySelector(".configured-video");
+  if (!(player instanceof HTMLElement)) return false;
+  player.scrollIntoView({ block: "start" });
+  return true;
+})()`);
+if (!persistedVideoPositioned) throw new Error("設定永続化対象の動画を再生帯へ移動できませんでした。");
 await waitForCondition('document.querySelector(".post-media video") !== null');
 await waitForCondition('document.querySelector(".post-media video")?.volume === 0.35');
 const persistedVideoMetrics = await client.evaluate<Record<string, unknown>>(`(() => {

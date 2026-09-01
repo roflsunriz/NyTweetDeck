@@ -24,6 +24,10 @@ describe("translation coverage", () => {
         expect(translate(locale).communityNoteDetails).not.toBe(english.communityNoteDetails);
         expect(translate(locale).videoLoop).not.toBe(english.videoLoop);
         expect(translate(locale).videoVolume).not.toBe(english.videoVolume);
+        expect(translate(locale).videoPlayer).not.toBe(english.videoPlayer);
+        expect(translate(locale).playVideo).not.toBe(english.playVideo);
+        expect(translate(locale).enterFullscreen).not.toBe(english.enterFullscreen);
+        expect(translate(locale).pictureInPicture).not.toBe(english.pictureInPicture);
         expect(translate(locale).sharedSettingsLoadError).not.toBe(english.sharedSettingsLoadError);
         expect(translate(locale).sharedSettingsSaveError).not.toBe(english.sharedSettingsSaveError);
         expect(translate(locale).sharedSettingsConflict).not.toBe(english.sharedSettingsConflict);

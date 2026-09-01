@@ -16,6 +16,121 @@
   cursor: zoom-in;
 }
 
+.configured-video {
+  position: relative;
+  container-type: inline-size;
+  display: grid;
+  min-inline-size: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 0;
+  place-items: center;
+  background: #000;
+  color: #fff;
+}
+
+.configured-video video,
+.configured-video-poster {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 360px;
+  background: #000;
+  object-fit: contain;
+}
+
+.configured-video video {
+  cursor: pointer;
+}
+
+.configured-video-controls {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 7px 6px;
+  opacity: 0;
+  background: linear-gradient(transparent, rgb(0 0 0 / 82%));
+  transition: opacity 160ms ease;
+}
+
+.configured-video:hover .configured-video-controls,
+.configured-video:focus-within .configured-video-controls,
+.configured-video-controls[data-playing="false"] {
+  opacity: 1;
+}
+
+.configured-video-controls button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  place-items: center;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.configured-video-controls button:hover,
+.configured-video-controls button:focus-visible,
+.configured-video-controls button[aria-pressed="true"] {
+  background: rgb(255 255 255 / 18%);
+}
+
+.configured-video-time {
+  flex: 0 0 auto;
+  min-width: 64px;
+  color: #fff;
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.configured-video-controls input[type="range"] {
+  min-width: 0;
+  height: 24px;
+  margin: 0;
+  accent-color: #fff;
+  cursor: pointer;
+}
+
+.configured-video-seek {
+  order: -1;
+  flex: 1 0 100%;
+}
+
+.configured-video-volume {
+  flex: 1 1 48px;
+  max-width: 72px;
+}
+
+.configured-video-error {
+  flex: 1 0 100%;
+  color: #ffd4d4;
+  font-size: 0.66rem;
+  text-align: center;
+}
+
+@media (hover: none) {
+  .configured-video-controls {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .configured-video-controls {
+    transition: none;
+  }
+}
+
 .x-article-card {
   display: grid;
   width: 100%;

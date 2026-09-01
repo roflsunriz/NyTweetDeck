@@ -36,6 +36,8 @@ describe("X観測済み意味契約", () => {
       "account-switcher-responsive-presentation",
       "url-entity-nullish-completion",
       "normalized-http-linkification",
+      "inline-video-visibility-lifecycle",
+      "inline-video-custom-controls",
     ]);
   });
 });
