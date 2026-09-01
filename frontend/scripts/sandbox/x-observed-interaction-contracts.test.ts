@@ -31,6 +31,9 @@ describe("X観測済み意味契約", () => {
       "post-detail-route",
       "author-profile-route",
       "overlay-history-back",
+      "image-viewer-responsive-presentation",
+      "composer-responsive-presentation",
+      "account-switcher-responsive-presentation",
       "url-entity-nullish-completion",
       "normalized-http-linkification",
     ]);

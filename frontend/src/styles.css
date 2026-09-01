@@ -487,6 +487,39 @@ select:focus-visible {
   padding: 18px 20px 22px;
 }
 
+.account-switcher-layer {
+  position: fixed;
+  z-index: 22;
+  inset: 0;
+  pointer-events: none;
+}
+
+.account-switcher-surface {
+  position: absolute;
+  inset-block-end: 16px;
+  inset-inline-start: 72px;
+  width: min(390px, calc(100vw - 88px));
+  max-height: min(720px, calc(100vh - 32px));
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+}
+
+@media (max-width: 599px) {
+  .account-switcher-surface {
+    inset-block: auto 58px;
+    inset-inline: 0;
+    width: 100%;
+    max-height: calc(100vh - 58px);
+    border-inline: 0;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+  }
+}
+
 .account-switcher-list > p {
   margin: 0;
   color: var(--text-muted);

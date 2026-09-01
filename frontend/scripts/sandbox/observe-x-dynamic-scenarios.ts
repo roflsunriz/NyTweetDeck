@@ -44,6 +44,7 @@ interface SafeSnapshot {
   modalCount: number;
   navigationTestIds: Record<string, number>;
   progressCount: number;
+  roleCounts: Record<string, number>;
   routeShape: string;
   selectedTabCount: number;
   videoCount: number;
@@ -214,6 +215,11 @@ async function safeSnapshot(client: CdpClient): Promise<SafeSnapshot> {
           y: Math.round(rect.y)
         };
       });
+    const roleCounts = [...document.querySelectorAll('[role]')].reduce((counts, node) => {
+      const role = node.getAttribute('role') ?? '';
+      if (/^[a-z][a-z0-9-]{1,40}$/.test(role)) counts[role] = (counts[role] ?? 0) + 1;
+      return counts;
+    }, {});
     return {
       articleCount: document.querySelectorAll('article[data-testid="tweet"]').length,
       dialogCount: document.querySelectorAll('[role="dialog"]').length,
@@ -223,6 +229,7 @@ async function safeSnapshot(client: CdpClient): Promise<SafeSnapshot> {
       modalCount: document.querySelectorAll('[aria-modal="true"]').length,
       navigationTestIds,
       progressCount: document.querySelectorAll('[role="progressbar"]').length,
+      roleCounts,
       routeShape,
       selectedTabCount: document.querySelectorAll('[role="tab"][aria-selected="true"]').length,
       videoCount: document.querySelectorAll('video').length
