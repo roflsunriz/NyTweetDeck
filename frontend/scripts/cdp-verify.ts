@@ -1038,7 +1038,7 @@ results.push({
 const newPostRequestBaseline = await client.evaluate<number>("window.__qaTimelineRequests");
 const readingPositionBeforeUpdate = await client.evaluate<Record<string, unknown>>(`(async () => {
   const timeline = document.querySelector("[data-testid=timeline-scroll]");
-  const anchor = document.querySelector('[data-post-id="fresh-4"]');
+  const anchor = document.querySelector('[data-post-id="fresh-1"]');
   if (!(timeline instanceof HTMLElement) || !(anchor instanceof HTMLElement)) return { found: false };
   anchor.scrollIntoView({ block: "center" });
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -1046,7 +1046,10 @@ const readingPositionBeforeUpdate = await client.evaluate<Record<string, unknown
     found: true,
     postId: anchor.dataset.postId,
     postTop: anchor.getBoundingClientRect().top,
-    scrollTop: timeline.scrollTop
+    scrollTop: timeline.scrollTop,
+    scrollHeight: timeline.scrollHeight,
+    clientHeight: timeline.clientHeight,
+    remainingScroll: timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight
   };
 })()`);
 if (readingPositionBeforeUpdate.found !== true) {
@@ -1063,13 +1066,17 @@ await waitForCondition(`
 `);
 const newPostMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const timeline = document.querySelector("[data-testid=timeline-scroll]");
-  const anchor = document.querySelector('[data-post-id="fresh-4"]');
+  const anchor = document.querySelector('[data-post-id="fresh-1"]');
   const notification = document.querySelector(".new-post-notification");
   return {
     anchorTopBefore: ${Number(readingPositionBeforeUpdate.postTop)},
     anchorTopAfter: anchor?.getBoundingClientRect().top,
     scrollTopBefore: ${Number(readingPositionBeforeUpdate.scrollTop)},
     scrollTopAfter: timeline instanceof HTMLElement ? timeline.scrollTop : null,
+    remainingScrollBefore: ${Number(readingPositionBeforeUpdate.remainingScroll)},
+    remainingScrollAfter: timeline instanceof HTMLElement
+      ? timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight
+      : null,
     overflowAnchor: timeline instanceof HTMLElement ? getComputedStyle(timeline).overflowAnchor : null,
     notificationText: notification?.textContent,
     notificationLabel: notification?.getAttribute("aria-label"),

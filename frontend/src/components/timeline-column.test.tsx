@@ -427,17 +427,16 @@ describe("timeline column", () => {
     const timeline = screen.getByTestId("timeline-scroll");
     expect(oldCard).not.toBeNull();
     timeline.scrollTop = 0;
-    timeline.getBoundingClientRect = () =>
-      rectangle(screen.queryByText("new post 0") === null ? 0 : 26, 600);
+    timeline.getBoundingClientRect = () => rectangle(0, 600);
     if (oldCard !== null) {
       oldCard.getBoundingClientRect = () =>
-        rectangle(screen.queryByText("new post 0") === null ? 100 : 326, 180);
+        rectangle(screen.queryByText("new post 0") === null ? 100 : 300, 180);
     }
 
     act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "new-0" }));
 
     const notification = await screen.findByRole("button", { name: "6件の新規投稿を表示" });
-    await waitFor(() => expect(timeline.scrollTop).toBe(226));
+    await waitFor(() => expect(timeline.scrollTop).toBe(200));
     expect(notification.textContent).toContain("新規投稿:");
     expect(notification.querySelectorAll(".new-post-avatar")).toHaveLength(5);
     expect(screen.getByText("post being read")).toBeDefined();
