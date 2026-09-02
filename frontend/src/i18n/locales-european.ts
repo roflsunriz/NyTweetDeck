@@ -103,6 +103,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "Idioma",
     theme: "Tema",
     displayAndAccessibility: "Accesibilidad, pantalla y uso de datos",
+    showMainNavigation: "Mostrar siempre la navegación principal",
+    showMainNavigationDescription:
+      "Desactívalo para ocultarla automáticamente. Lleva el puntero al borde de la pantalla o usa el botón de menú para mostrarla; se oculta tres segundos después de retirar el puntero.",
+    revealMainNavigation: "Mostrar la navegación principal",
     fontSize: "Tamaño del texto",
     accentColor: "Color",
     density: "Densidad de visualización",
@@ -270,6 +274,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "Langue",
     theme: "Thème",
     displayAndAccessibility: "Accessibilité, affichage et utilisation des données",
+    showMainNavigation: "Toujours afficher la navigation principale",
+    showMainNavigationDescription:
+      "Désactivez cette option pour la masquer automatiquement. Placez le pointeur au bord de l’écran ou utilisez le bouton de menu pour l’afficher ; elle se masque trois secondes après le départ du pointeur.",
+    revealMainNavigation: "Afficher la navigation principale",
     fontSize: "Taille du texte",
     accentColor: "Couleur",
     density: "Densité d’affichage",
@@ -438,6 +446,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "Idioma",
     theme: "Tema",
     displayAndAccessibility: "Acessibilidade, exibição e uso de dados",
+    showMainNavigation: "Mostrar sempre a navegação principal",
+    showMainNavigationDescription:
+      "Desative para ocultá-la automaticamente. Leve o ponteiro até a borda da tela ou use o botão de menu para mostrá-la; ela se oculta três segundos após o ponteiro sair.",
+    revealMainNavigation: "Mostrar a navegação principal",
     fontSize: "Tamanho do texto",
     accentColor: "Cor",
     density: "Densidade de exibição",
@@ -602,6 +614,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "Язык",
     theme: "Тема",
     displayAndAccessibility: "Специальные возможности, отображение и данные",
+    showMainNavigation: "Всегда показывать основную навигацию",
+    showMainNavigationDescription:
+      "Отключите, чтобы скрывать её автоматически. Подведите указатель к краю экрана или нажмите кнопку меню; панель скроется через три секунды после ухода указателя.",
+    revealMainNavigation: "Показать основную навигацию",
     fontSize: "Размер текста",
     accentColor: "Цвет",
     density: "Плотность отображения",

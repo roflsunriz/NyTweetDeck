@@ -212,8 +212,7 @@ export function SettingsDialog({
             onChange={(event) =>
               onDisplayChange({
                 ...display,
-                navigationPosition:
-                  event.target.value as DisplayPreferences["navigationPosition"],
+                navigationPosition: event.target.value as DisplayPreferences["navigationPosition"],
               })
             }
           >
@@ -225,9 +224,7 @@ export function SettingsDialog({
           id="show-main-navigation"
           label={translation.showMainNavigation}
           checked={display.showMainNavigation}
-          onChange={(checked) =>
-            onDisplayChange({ ...display, showMainNavigation: checked })
-          }
+          onChange={(checked) => onDisplayChange({ ...display, showMainNavigation: checked })}
         />
         <p className="inline-warning" style={{ gridColumn: "1 / -1", marginTop: "-8px" }}>
           {translation.showMainNavigationDescription}

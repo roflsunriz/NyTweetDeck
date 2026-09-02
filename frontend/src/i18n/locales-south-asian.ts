@@ -100,6 +100,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "显示语言",
     theme: "主题",
     displayAndAccessibility: "无障碍、显示和数据使用",
+    showMainNavigation: "始终显示主导航",
+    showMainNavigationDescription:
+      "关闭后会自动隐藏。将指针移到屏幕边缘或使用菜单按钮即可显示；指针移开三秒后会再次隐藏。",
+    revealMainNavigation: "显示主导航",
     fontSize: "字体大小",
     accentColor: "颜色",
     density: "显示密度",
@@ -263,6 +267,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "भाषा",
     theme: "थीम",
     displayAndAccessibility: "सुलभता, डिस्प्ले और डेटा उपयोग",
+    showMainNavigation: "मुख्य नेविगेशन हमेशा दिखाएँ",
+    showMainNavigationDescription:
+      "इसे बंद करने पर नेविगेशन अपने-आप छिपेगा। दिखाने के लिए पॉइंटर को स्क्रीन किनारे पर ले जाएँ या मेनू बटन दबाएँ; पॉइंटर हटने के तीन सेकंड बाद यह छिप जाएगा।",
+    revealMainNavigation: "मुख्य नेविगेशन दिखाएँ",
     fontSize: "टेक्स्ट का आकार",
     accentColor: "रंग",
     density: "डिस्प्ले घनत्व",
@@ -425,6 +433,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "ভাষা",
     theme: "থিম",
     displayAndAccessibility: "অ্যাক্সেসিবিলিটি, প্রদর্শন ও ডেটা ব্যবহার",
+    showMainNavigation: "প্রধান নেভিগেশন সবসময় দেখান",
+    showMainNavigationDescription:
+      "স্বয়ংক্রিয়ভাবে লুকাতে এটি বন্ধ করুন। দেখাতে পয়েন্টারটি স্ক্রিনের প্রান্তে নিন বা মেনু বোতাম ব্যবহার করুন; পয়েন্টার সরে যাওয়ার তিন সেকেন্ড পরে এটি লুকাবে।",
+    revealMainNavigation: "প্রধান নেভিগেশন দেখান",
     fontSize: "লেখার আকার",
     accentColor: "রং",
     density: "প্রদর্শন ঘনত্ব",

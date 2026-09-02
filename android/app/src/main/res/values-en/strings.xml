@@ -238,6 +238,9 @@
     <string name="setting_translation_language">Post translation language</string>
     <string name="setting_auto_refresh">Automatically refresh timelines</string>
     <string name="setting_video_quality">Default video quality</string>
+    <string name="show_main_navigation">Always show main navigation</string>
+    <string name="show_main_navigation_desc">Turn this off to auto-hide it. Swipe right from the left edge or use the menu button to reveal it temporarily; it hides after three seconds.</string>
+    <string name="reveal_main_navigation">Reveal main navigation</string>
     <string name="video_quality_menu">Video quality</string>
     <string name="video_quality_auto">Auto (highest)</string>
     <string name="video_quality_low">Low</string>

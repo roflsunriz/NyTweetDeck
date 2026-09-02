@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./app";
 import { type AppLayout, createDefaultLayout, layoutStorageKey } from "./model/layout";
@@ -142,7 +142,7 @@ describe("NyTweetDeck shell", () => {
     expect(document.documentElement.dataset.density).toBe("compact");
     expect(document.documentElement.dataset.reduceMotion).toBe("true");
     await waitFor(() => expect(sharedSnapshot?.layout.display.videoVolume).toBe(35));
-    expect(sharedSnapshot?.layout.version).toBe(10);
+    expect(sharedSnapshot?.layout.version).toBe(11);
     expect(sharedSnapshot?.layout.display.accentColor).toBe("purple");
     expect(sharedSnapshot?.layout.display.reduceMotion).toBe(true);
     expect(sharedSnapshot?.layout.display.autoTranslatePosts).toBe(false);
@@ -526,6 +526,42 @@ describe("NyTweetDeck shell", () => {
     );
     expect(sharedSnapshot?.layout.navItems.slice(0, 2)).toEqual(["search", "compose"]);
   });
+
+  test("reveals an auto-hidden navigation from the desktop edge and hides it after three seconds", async () => {
+    sharedSnapshot = {
+      revision: 1,
+      layout: {
+        ...createDefaultLayout(),
+        display: { ...createDefaultLayout().display, showMainNavigation: false },
+      },
+    };
+    const firstView = render(<App />);
+
+    await screen.findByTestId("show-main-navigation");
+    expect(screen.queryByRole("button", { name: "設定" })).toBeNull();
+
+    fireEvent.mouseEnter(screen.getByTestId("navigation-hover-zone"));
+    expect(await screen.findByRole("button", { name: "設定" })).toBeDefined();
+
+    firstView.unmount();
+    render(<App />);
+    const revealButton = await screen.findByTestId("show-main-navigation");
+    fireEvent.click(revealButton);
+    expect(await screen.findByRole("button", { name: "設定" })).toBeDefined();
+    await act(async () => {
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 3_100));
+    });
+    const shell = document.querySelector(".app-shell");
+    expect(
+      `${shell?.getAttribute("data-main-navigation-mode")}/${shell?.getAttribute(
+        "data-main-navigation-visible",
+      )}/${shell?.getAttribute("data-navigation-interaction-active")}`,
+    ).toBe("auto-hide/false/false");
+    expect(screen.queryByRole("button", { name: "設定" })).toBeNull();
+    expect(revealButton.isConnected).toBe(false);
+    expect(screen.getByTestId("show-main-navigation")).toBeDefined();
+    expect(sharedSnapshot?.layout.display.showMainNavigation).toBe(false);
+  }, 8_000);
 
   test("activates optional following and official web menu destinations", async () => {
     let openedUrl = "";

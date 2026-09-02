@@ -235,6 +235,9 @@
     <string name="setting_translation_language">帖子翻译语言</string>
     <string name="setting_auto_refresh">自动刷新时间线</string>
     <string name="setting_video_quality">默认视频画质</string>
+    <string name="show_main_navigation">始终显示主导航</string>
+    <string name="show_main_navigation_desc">关闭后会自动隐藏。从左边缘向右滑动或使用菜单按钮可暂时显示，三秒后会再次隐藏。</string>
+    <string name="reveal_main_navigation">暂时显示主导航</string>
     <string name="video_quality_menu">视频画质</string>
     <string name="video_quality_auto">自动（最高）</string>
     <string name="video_quality_low">低</string>

@@ -102,6 +102,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "اللغة",
     theme: "المظهر",
     displayAndAccessibility: "إمكانية الوصول والعرض واستخدام البيانات",
+    showMainNavigation: "إظهار شريط التنقل الرئيسي دائمًا",
+    showMainNavigationDescription:
+      "أوقف هذا الخيار لإخفائه تلقائيًا. حرّك المؤشر إلى حافة الشاشة أو استخدم زر القائمة لإظهاره؛ وسيختفي بعد ثلاث ثوانٍ من ابتعاد المؤشر.",
+    revealMainNavigation: "إظهار شريط التنقل الرئيسي",
     fontSize: "حجم النص",
     accentColor: "اللون",
     density: "كثافة العرض",
@@ -268,6 +272,10 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     language: "زبان",
     theme: "تھیم",
     displayAndAccessibility: "رسائی، ڈسپلے اور ڈیٹا کا استعمال",
+    showMainNavigation: "مرکزی نیویگیشن ہمیشہ دکھائیں",
+    showMainNavigationDescription:
+      "خودکار طور پر چھپانے کے لیے اسے بند کریں۔ دکھانے کے لیے پوائنٹر کو اسکرین کے کنارے پر لے جائیں یا مینو بٹن استعمال کریں؛ پوائنٹر ہٹنے کے تین سیکنڈ بعد یہ چھپ جائے گی۔",
+    revealMainNavigation: "مرکزی نیویگیشن دکھائیں",
     fontSize: "متن کا سائز",
     accentColor: "رنگ",
     density: "ڈسپلے کثافت",

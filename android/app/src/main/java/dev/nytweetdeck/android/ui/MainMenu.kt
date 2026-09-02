@@ -1,5 +1,7 @@
 package dev.nytweetdeck.android.ui
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -75,6 +78,34 @@ internal val externalMenuUrls = mapOf(
     MainMenuItemId.ADS to "https://ads.x.com",
     MainMenuItemId.SPACES to "https://x.com/i/spaces/start",
 )
+
+@Composable
+internal fun MainMenuRevealEdge(
+    onReveal: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(28.dp)
+            .pointerInput(onReveal) {
+                val revealThreshold = 48.dp.toPx()
+                var horizontalDrag = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { horizontalDrag = 0f },
+                    onDragCancel = { horizontalDrag = 0f },
+                    onDragEnd = {
+                        if (horizontalDrag >= revealThreshold) onReveal()
+                        horizontalDrag = 0f
+                    },
+                ) { change, dragAmount ->
+                    if (dragAmount > 0f) horizontalDrag += dragAmount
+                    change.consume()
+                }
+            }
+            .testTag("navigation-swipe-edge"),
+    )
+}
 
 @Composable
 internal fun MainMenu(

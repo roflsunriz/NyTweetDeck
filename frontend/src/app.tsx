@@ -102,6 +102,8 @@ function isTimelineColumn(kind: ColumnKind): boolean {
   return kind !== "messages" && kind !== "notifications" && kind !== "trends";
 }
 
+const navigationAutoHideDelayMilliseconds = 3_000;
+
 export function App() {
   return (
     <TimelineCacheProvider>
@@ -123,10 +125,37 @@ function AppContent() {
   const [dialog, setDialog] = useState<
     "accounts" | "columns" | "composer" | "login" | "menu" | "search" | "settings" | null
   >(null);
+  const [temporaryNavigationVisible, setTemporaryNavigationVisible] = useState(false);
+  const [navigationInteractionActive, setNavigationInteractionActive] = useState(false);
   const translation = useMemo(
     () => translate(layout?.locale ?? browserLocale),
     [browserLocale, layout?.locale],
   );
+
+  const revealNavigation = () => {
+    setTemporaryNavigationVisible(true);
+  };
+
+  useEffect(() => {
+    if (layout?.display.showMainNavigation === true) {
+      setTemporaryNavigationVisible(false);
+    }
+  }, [layout?.display.showMainNavigation]);
+
+  useEffect(() => {
+    if (
+      layout?.display.showMainNavigation !== false ||
+      !temporaryNavigationVisible ||
+      navigationInteractionActive
+    ) {
+      return;
+    }
+    const timer = globalThis.setTimeout(
+      () => setTemporaryNavigationVisible(false),
+      navigationAutoHideDelayMilliseconds,
+    );
+    return () => globalThis.clearTimeout(timer);
+  }, [layout?.display.showMainNavigation, navigationInteractionActive, temporaryNavigationVisible]);
 
   useEffect(() => {
     if (layout === null) return;
@@ -138,8 +167,10 @@ function AppContent() {
     document.documentElement.dataset.density = layout.display.density;
     document.documentElement.dataset.reduceMotion = String(layout.display.reduceMotion);
     document.documentElement.dataset.navigationPosition = layout.display.navigationPosition;
-    document.documentElement.dataset.mainNavigationVisible = String(layout.display.showMainNavigation);
-  }, [layout]);
+    document.documentElement.dataset.mainNavigationVisible = String(
+      layout.display.showMainNavigation || temporaryNavigationVisible,
+    );
+  }, [layout, temporaryNavigationVisible]);
 
   const layoutTheme = layout?.theme;
   useEffect(() => {
@@ -362,6 +393,8 @@ function AppContent() {
     );
   }
 
+  const navigationVisible = layout.display.showMainNavigation || temporaryNavigationVisible;
+
   return (
     <PostTranslationProvider
       value={{
@@ -376,7 +409,9 @@ function AppContent() {
       <div
         className="app-shell"
         data-navigation-position={layout.display.navigationPosition}
-        data-main-navigation-visible={String(layout.display.showMainNavigation)}
+        data-main-navigation-mode={layout.display.showMainNavigation ? "always" : "auto-hide"}
+        data-main-navigation-visible={String(navigationVisible)}
+        data-navigation-interaction-active={String(navigationInteractionActive)}
       >
         {sharedLayoutError !== null && (
           <div className="shared-settings-warning" role="alert">
@@ -390,75 +425,96 @@ function AppContent() {
             </button>
           </div>
         )}
-        {layout.display.showMainNavigation ? (
-          <aside className="main-navigation" aria-label={translation.appName}>
-          <nav className="primary-actions">
-            {layout.navItems.map((item) => {
-              const Icon = navIcons[item];
-              return (
-                <button
-                  className="nav-button"
-                  data-nav-item={item}
-                  type="button"
-                  key={item}
-                  draggable
-                  aria-label={translation.nav[item]}
-                  onClick={() => activateNavigation(item)}
-                  onDragStart={(event) => event.dataTransfer.setData("text/plain", `nav:${item}`)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => {
-                    const source = event.dataTransfer.getData("text/plain");
-                    if (source.startsWith("nav:")) {
-                      moveNavigation(source.slice(4) as NavItemId, item);
-                    }
-                  }}
-                >
-                  <Icon aria-hidden="true" size={21} strokeWidth={1.9} />
-                </button>
-              );
-            })}
-            <button
-              className="nav-button add-nav-button"
-              data-action="edit-menu"
-              type="button"
-              aria-label={translation.addColumn}
-              onClick={() => setDialog("menu")}
-            >
-              <Plus aria-hidden="true" size={22} />
-            </button>
-          </nav>
-          <div className="secondary-actions">
-            <button
-              className="nav-button"
-              data-action="switch-account"
-              type="button"
-              aria-label={translation.accountSwitcher}
-              onClick={() => setDialog("accounts")}
-            >
-              <CircleUserRound aria-hidden="true" size={22} />
-            </button>
-            <button
-              className="nav-button"
-              data-action="open-settings"
-              type="button"
-              aria-label={translation.settings}
-              onClick={() => setDialog("settings")}
-            >
-              <Settings aria-hidden="true" size={21} />
-            </button>
-          </div>
-        </aside>
-        ) : null}
-        {!layout.display.showMainNavigation && (
-          <button
-            className="show-navigation-fab"
-            type="button"
-            aria-label={translation.showMainNavigation}
-            onClick={() => setDisplay({ ...layout.display, showMainNavigation: true })}
-            data-testid="show-main-navigation"
+        {navigationVisible ? (
+          <aside
+            className="main-navigation"
+            aria-label={translation.appName}
+            onMouseEnter={() => setNavigationInteractionActive(true)}
+            onMouseMove={() => setNavigationInteractionActive(true)}
+            onMouseLeave={() => setNavigationInteractionActive(false)}
+            onFocus={() => setNavigationInteractionActive(true)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setNavigationInteractionActive(false);
+              }
+            }}
           >
-            <Menu aria-hidden="true" size={18} />
-          </button>
+            <nav className="primary-actions">
+              {layout.navItems.map((item) => {
+                const Icon = navIcons[item];
+                return (
+                  <button
+                    className="nav-button"
+                    data-nav-item={item}
+                    type="button"
+                    key={item}
+                    draggable
+                    aria-label={translation.nav[item]}
+                    onClick={() => activateNavigation(item)}
+                    onDragStart={(event) => event.dataTransfer.setData("text/plain", `nav:${item}`)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      const source = event.dataTransfer.getData("text/plain");
+                      if (source.startsWith("nav:")) {
+                        moveNavigation(source.slice(4) as NavItemId, item);
+                      }
+                    }}
+                  >
+                    <Icon aria-hidden="true" size={21} strokeWidth={1.9} />
+                  </button>
+                );
+              })}
+              <button
+                className="nav-button add-nav-button"
+                data-action="edit-menu"
+                type="button"
+                aria-label={translation.addColumn}
+                onClick={() => setDialog("menu")}
+              >
+                <Plus aria-hidden="true" size={22} />
+              </button>
+            </nav>
+            <div className="secondary-actions">
+              <button
+                className="nav-button"
+                data-action="switch-account"
+                type="button"
+                aria-label={translation.accountSwitcher}
+                onClick={() => setDialog("accounts")}
+              >
+                <CircleUserRound aria-hidden="true" size={22} />
+              </button>
+              <button
+                className="nav-button"
+                data-action="open-settings"
+                type="button"
+                aria-label={translation.settings}
+                onClick={() => setDialog("settings")}
+              >
+                <Settings aria-hidden="true" size={21} />
+              </button>
+            </div>
+          </aside>
+        ) : null}
+        {!layout.display.showMainNavigation && !navigationVisible && (
+          <>
+            <div
+              className="navigation-hover-zone"
+              data-testid="navigation-hover-zone"
+              aria-hidden="true"
+              onMouseEnter={revealNavigation}
+            />
+            <button
+              className="show-navigation-fab"
+              type="button"
+              aria-label={translation.revealMainNavigation}
+              onClick={revealNavigation}
+              onMouseEnter={revealNavigation}
+              data-testid="show-main-navigation"
+            >
+              <Menu aria-hidden="true" size={18} />
+            </button>
+          </>
         )}
 
         <main className="deck" aria-live="polite">

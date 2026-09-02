@@ -36,6 +36,7 @@ import org.junit.Assert.assertEquals
 import androidx.activity.compose.setContent
 import dev.nytweetdeck.android.ui.DeckViewModel
 import dev.nytweetdeck.android.ui.NyTweetDeckApp
+import dev.nytweetdeck.android.ui.displaySettings
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -76,6 +77,7 @@ class DeckUiTest {
         composeRule.onNodeWithTag("setting-auto-translate").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-translation-language-fr").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-quality-low").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-show-main-navigation").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-volume").performScrollTo().performSemanticsAction(
             SemanticsActions.SetProgress,
         ) { it(42f) }
@@ -94,9 +96,39 @@ class DeckUiTest {
         assertEquals(false, state.autoRefreshTimelines)
         assertEquals("fr", state.translationLanguageTag)
         assertEquals(VideoQuality.LOW, state.videoQuality)
+        assertEquals(false, state.showMainNavigation)
         if (InstrumentationRegistry.getArguments().getString("capture") == "true") {
             Thread.sleep(5_000)
         }
+    }
+
+    @Test
+    fun autoHiddenMainMenuRevealsFromTheLeftEdgeAndHidesAfterThreeSeconds() {
+        isolatedViewModel.setDisplaySettings(
+            isolatedViewModel.state.value.displaySettings().copy(showMainNavigation = false),
+        )
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("settings").assertDoesNotExist()
+        composeRule.onNodeWithTag("navigation-swipe-edge").assertIsDisplayed().performTouchInput {
+            val start = center
+            down(start)
+            moveTo(Offset(start.x + 240f, start.y), 300)
+            up()
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("settings").assertIsDisplayed()
+
+        composeRule.mainClock.advanceTimeBy(3_100)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("settings").assertDoesNotExist()
+        assertEquals(false, isolatedViewModel.state.value.showMainNavigation)
+
+        isolatedViewModel.setDisplaySettings(
+            isolatedViewModel.state.value.displaySettings().copy(showMainNavigation = true),
+        )
+        composeRule.mainClock.advanceTimeBy(3_100)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("settings").assertIsDisplayed()
     }
 
     @Test

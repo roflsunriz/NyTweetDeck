@@ -76,6 +76,7 @@ import dev.nytweetdeck.android.xapi.XApiEnvironment
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -125,6 +126,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     var transferStatus by remember { mutableStateOf(TransferStatus.NONE) }
     var followNotification by remember { mutableStateOf<DeckNotification?>(null) }
     var postMenuPost by remember { mutableStateOf<Post?>(null) }
+    var temporaryMainNavigationVisible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(state.isInitializing, state.appLanguageTag) {
@@ -316,6 +318,15 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
+    val mainNavigationVisible = state.showMainNavigation || temporaryMainNavigationVisible
+    LaunchedEffect(state.showMainNavigation, temporaryMainNavigationVisible) {
+        if (state.showMainNavigation) {
+            temporaryMainNavigationVisible = false
+        } else if (temporaryMainNavigationVisible) {
+            delay(3_000)
+            temporaryMainNavigationVisible = false
+        }
+    }
     NyTweetDeckTheme(
         darkTheme = darkTheme,
         accentColor = state.accentColor,
@@ -328,7 +339,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     .safeDrawingPadding()
                     .navigationBarsPadding(),
             ) {
-                if (state.showMainNavigation) {
+                if (mainNavigationVisible) {
                     MainMenu(
                         menuItems = state.mainMenuItems,
                         onActivate = activateMenuItem,
@@ -337,70 +348,70 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                         onSettings = { openDialog = OpenDialog.SETTINGS },
                     )
                 }
-                Box(modifier = androidx.compose.ui.Modifier.weight(1f).fillMaxSize()) {
+                Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                     DeckContent(
-                    state = state,
-                    columnScrollPositions = state.columnScrollPositions,
-                    onRemoveColumn = viewModel::removeColumn,
-                    onAddColumn = { openDialog = OpenDialog.ADD_COLUMN },
-                    onOpenAccounts = { openDialog = OpenDialog.ACCOUNTS },
-                    onRefreshColumn = viewModel::refreshColumn,
-                    onLoadMoreColumn = viewModel::loadMore,
-                    onClearNewPostsColumn = viewModel::clearNewPosts,
-                    onVisibleColumnsChanged = viewModel::setVisibleColumns,
-                    onMoveColumn = viewModel::moveColumn,
-                    onSaveColumnScrollPosition = viewModel::saveColumnScrollPosition,
-                    onRepostClick = { postId ->
-                        viewModel.togglePostAction(postId, PostActionType.REPOST)
-                    },
-                    onReplyClick = replyToPost,
-                    onPostClick = viewModel::openPostDetail,
-                    onQuoteClick = viewModel::openPostDetail,
-                    onCreateQuoteClick = quotePost,
-                    onAuthorClick = openAuthorProfile,
-                    onLikeClick = { postId ->
-                        viewModel.togglePostAction(postId, PostActionType.LIKE)
-                    },
-                    onBookmarkClick = { postId ->
-                        viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
-                    },
-                    onShareClick = sharePost,
-                    onDownloadClick = downloadPostMedia,
-                    videoAutoplay = state.videoAutoplay,
-                    videoLoop = state.videoLoop,
-                    videoVolume = state.videoVolume,
-                    onTrendSelected = viewModel::openTrendSearch,
-                    onTrendQueryCommitted = viewModel::recordTrendSearch,
-                    onClearTrendHistory = viewModel::clearTrendSearchHistory,
-                    onArticleClick = viewModel::openArticle,
-                    onPostMenuClick = { postMenuPost = it },
-                    onNotificationClick = { notification ->
-                        when {
-                            notification.kind == "follow" && notification.actors.isNotEmpty() -> {
-                                followNotification = notification
+                        state = state,
+                        columnScrollPositions = state.columnScrollPositions,
+                        onRemoveColumn = viewModel::removeColumn,
+                        onAddColumn = { openDialog = OpenDialog.ADD_COLUMN },
+                        onOpenAccounts = { openDialog = OpenDialog.ACCOUNTS },
+                        onRefreshColumn = viewModel::refreshColumn,
+                        onLoadMoreColumn = viewModel::loadMore,
+                        onClearNewPostsColumn = viewModel::clearNewPosts,
+                        onVisibleColumnsChanged = viewModel::setVisibleColumns,
+                        onMoveColumn = viewModel::moveColumn,
+                        onSaveColumnScrollPosition = viewModel::saveColumnScrollPosition,
+                        onRepostClick = { postId ->
+                            viewModel.togglePostAction(postId, PostActionType.REPOST)
+                        },
+                        onReplyClick = replyToPost,
+                        onPostClick = viewModel::openPostDetail,
+                        onQuoteClick = viewModel::openPostDetail,
+                        onCreateQuoteClick = quotePost,
+                        onAuthorClick = openAuthorProfile,
+                        onLikeClick = { postId ->
+                            viewModel.togglePostAction(postId, PostActionType.LIKE)
+                        },
+                        onBookmarkClick = { postId ->
+                            viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
+                        },
+                        onShareClick = sharePost,
+                        onDownloadClick = downloadPostMedia,
+                        videoAutoplay = state.videoAutoplay,
+                        videoLoop = state.videoLoop,
+                        videoVolume = state.videoVolume,
+                        onTrendSelected = viewModel::openTrendSearch,
+                        onTrendQueryCommitted = viewModel::recordTrendSearch,
+                        onClearTrendHistory = viewModel::clearTrendSearchHistory,
+                        onArticleClick = viewModel::openArticle,
+                        onPostMenuClick = { postMenuPost = it },
+                        onNotificationClick = { notification ->
+                            when {
+                                notification.kind == "follow" && notification.actors.isNotEmpty() -> {
+                                    followNotification = notification
+                                }
+                                notification.noteId != null -> viewModel.openCommunityNote(notification.noteId)
+                                notification.postId != null -> viewModel.openPostDetail(notification.postId)
                             }
-                            notification.noteId != null -> viewModel.openCommunityNote(notification.noteId)
-                            notification.postId != null -> viewModel.openPostDetail(notification.postId)
-                        }
-                    },
-                    translationStates = state.postTranslations,
-                    autoTranslatePosts = state.autoTranslatePosts,
-                    onTranslationNeeded = viewModel::requestPostTranslation,
-                    onTranslationRetry = viewModel::retryPostTranslation,
-                                         onToggleOriginal = viewModel::togglePostOriginal,
-            )
-                    if (!state.showMainNavigation) {
-                        androidx.compose.material3.FloatingActionButton(
-                            onClick = {
-                                viewModel.setDisplaySettings(
-                                    state.displaySettings().copy(showMainNavigation = true),
-                                )
-                            },
+                        },
+                        translationStates = state.postTranslations,
+                        autoTranslatePosts = state.autoTranslatePosts,
+                        onTranslationNeeded = viewModel::requestPostTranslation,
+                        onTranslationRetry = viewModel::retryPostTranslation,
+                        onToggleOriginal = viewModel::togglePostOriginal,
+                    )
+                    if (!mainNavigationVisible) {
+                        MainMenuRevealEdge(
+                            onReveal = { temporaryMainNavigationVisible = true },
+                            modifier = Modifier.align(Alignment.CenterStart),
+                        )
+                        FloatingActionButton(
+                            onClick = { temporaryMainNavigationVisible = true },
                             modifier = Modifier.align(Alignment.TopStart).padding(12.dp).testTag("show-main-navigation"),
                         ) {
-                            androidx.compose.material3.Icon(
-                                androidx.compose.material.icons.Icons.Default.Menu,
-                                contentDescription = stringResource(R.string.show_main_navigation),
+                            Icon(
+                                Icons.Default.Menu,
+                                contentDescription = stringResource(R.string.reveal_main_navigation),
                             )
                         }
                     }

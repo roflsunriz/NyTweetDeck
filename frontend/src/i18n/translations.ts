@@ -174,6 +174,7 @@ export interface Translation {
   navigationPositionBottom: string;
   showMainNavigation: string;
   showMainNavigationDescription: string;
+  revealMainNavigation: string;
   videoPlayer: string;
   playVideo: string;
   pauseVideo: string;
@@ -395,8 +396,10 @@ const translations: Partial<Record<Locale, Translation>> = {
     navigationPosition: "ナビゲーションの位置",
     navigationPositionLeft: "左側",
     navigationPositionBottom: "下側",
-    showMainNavigation: "メインナビゲーションを表示",
-    showMainNavigationDescription: "オフにすると左（または下）のメニューを隠して表示領域を広げます。隠れている間はデッキ左上のボタンで再表示できます。",
+    showMainNavigation: "メインナビゲーションを常時表示",
+    showMainNavigationDescription:
+      "オフにすると自動収納します。画面端へのポインター移動またはメニューボタンで一時表示し、ポインターが外れてから3秒後に隠れます。",
+    revealMainNavigation: "メインナビゲーションを一時表示",
     videoPlayer: "動画プレイヤー",
     playVideo: "動画を再生",
     pauseVideo: "動画を一時停止",
@@ -668,9 +671,10 @@ const translations: Partial<Record<Locale, Translation>> = {
     navigationPosition: "Navigation position",
     navigationPositionLeft: "Left",
     navigationPositionBottom: "Bottom",
-    showMainNavigation: "Show main navigation",
+    showMainNavigation: "Always show main navigation",
     showMainNavigationDescription:
-      "Hide the left (or bottom) menu to gain more viewing area. Use the button at the top of the deck to show it again.",
+      "Turn this off to auto-hide it. Move the pointer to the screen edge or use the menu button to reveal it; it hides three seconds after the pointer leaves.",
+    revealMainNavigation: "Reveal main navigation",
     videoPlayer: "Video player",
     playVideo: "Play video",
     pauseVideo: "Pause video",

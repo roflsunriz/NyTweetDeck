@@ -240,6 +240,9 @@
     <string name="setting_translation_language">لغة ترجمة المنشورات</string>
     <string name="setting_auto_refresh">تحديث الخطوط الزمنية تلقائيًا</string>
     <string name="setting_video_quality">جودة الفيديو الافتراضية</string>
+    <string name="show_main_navigation">إظهار شريط التنقل الرئيسي دائمًا</string>
+    <string name="show_main_navigation_desc">أوقف هذا الخيار لإخفائه تلقائيًا. اسحب يمينًا من الحافة اليسرى أو استخدم زر القائمة لإظهاره مؤقتًا؛ وسيختفي بعد ثلاث ثوانٍ.</string>
+    <string name="reveal_main_navigation">إظهار شريط التنقل الرئيسي</string>
     <string name="video_quality_menu">جودة الفيديو</string>
     <string name="video_quality_auto">تلقائي (الأعلى)</string>
     <string name="video_quality_low">منخفضة</string>

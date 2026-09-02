@@ -79,9 +79,12 @@ export function ConfiguredVideo({
   const [videoZoom, setVideoZoom] = useState(1);
   const [videoPan, setVideoPan] = useState<Point>({ x: 0, y: 0 });
   const videoPointersRef = useRef<Map<number, Point>>(new Map());
-  const videoPinchRef = useRef<{ distance: number; center: Point; zoom: number; pan: Point } | null>(
-    null,
-  );
+  const videoPinchRef = useRef<{
+    distance: number;
+    center: Point;
+    zoom: number;
+    pan: Point;
+  } | null>(null);
 
   useEffect(() => {
     setSelectedQuality(quality);
@@ -146,79 +149,70 @@ export function ConfiguredVideo({
     [revealControls, videoPan, videoZoom],
   );
 
-  const handleVideoPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLFieldSetElement>) => {
-      if (!videoPointersRef.current.has(event.pointerId)) return;
-      const point: Point = {
-        x: finiteCoordinate(event.clientX),
-        y: finiteCoordinate(event.clientY),
+  const handleVideoPointerMove = useCallback((event: ReactPointerEvent<HTMLFieldSetElement>) => {
+    if (!videoPointersRef.current.has(event.pointerId)) return;
+    const point: Point = {
+      x: finiteCoordinate(event.clientX),
+      y: finiteCoordinate(event.clientY),
+    };
+    videoPointersRef.current.set(event.pointerId, point);
+    if (videoPointersRef.current.size === 2 && videoPinchRef.current !== null) {
+      const pts = [...videoPointersRef.current.values()];
+      const a = pts[0];
+      const b = pts[1];
+      if (a === undefined || b === undefined) return;
+      const nextDistance = Math.hypot(
+        finiteCoordinate(a.x) - finiteCoordinate(b.x),
+        finiteCoordinate(a.y) - finiteCoordinate(b.y),
+      );
+      const nextCenter: Point = {
+        x: (finiteCoordinate(a.x) + finiteCoordinate(b.x)) / 2,
+        y: (finiteCoordinate(a.y) + finiteCoordinate(b.y)) / 2,
       };
-      videoPointersRef.current.set(event.pointerId, point);
-      if (videoPointersRef.current.size === 2 && videoPinchRef.current !== null) {
-        const pts = [...videoPointersRef.current.values()];
-        const a = pts[0];
-        const b = pts[1];
-        if (a === undefined || b === undefined) return;
-        const nextDistance = Math.hypot(
-          finiteCoordinate(a.x) - finiteCoordinate(b.x),
-          finiteCoordinate(a.y) - finiteCoordinate(b.y),
-        );
-        const nextCenter: Point = {
-          x: (finiteCoordinate(a.x) + finiteCoordinate(b.x)) / 2,
-          y: (finiteCoordinate(a.y) + finiteCoordinate(b.y)) / 2,
-        };
-        const baseline = videoPinchRef.current;
-        if (baseline.distance <= 0 || nextDistance <= 0) return;
-        const ratio = nextDistance / baseline.distance;
-        const nextZoom = Math.min(
-          VIDEO_MAX_ZOOM,
-          Math.max(VIDEO_MIN_ZOOM, baseline.zoom * ratio),
-        );
-        const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        const viewportCenter: Point = {
-          x: finiteCoordinate(bounds.left) + finiteCoordinate(bounds.width) / 2,
-          y: finiteCoordinate(bounds.top) + finiteCoordinate(bounds.height) / 2,
-        };
-        const anchoredPan: Point = {
-          x:
-            finiteCoordinate(nextCenter.x) -
+      const baseline = videoPinchRef.current;
+      if (baseline.distance <= 0 || nextDistance <= 0) return;
+      const ratio = nextDistance / baseline.distance;
+      const nextZoom = Math.min(VIDEO_MAX_ZOOM, Math.max(VIDEO_MIN_ZOOM, baseline.zoom * ratio));
+      const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const viewportCenter: Point = {
+        x: finiteCoordinate(bounds.left) + finiteCoordinate(bounds.width) / 2,
+        y: finiteCoordinate(bounds.top) + finiteCoordinate(bounds.height) / 2,
+      };
+      const anchoredPan: Point = {
+        x:
+          finiteCoordinate(nextCenter.x) -
+          finiteCoordinate(viewportCenter.x) -
+          (finiteCoordinate(baseline.center.x) -
             finiteCoordinate(viewportCenter.x) -
-            (finiteCoordinate(baseline.center.x) -
-              finiteCoordinate(viewportCenter.x) -
-              finiteCoordinate(baseline.pan.x)) *
-              (nextZoom / baseline.zoom),
-          y:
-            finiteCoordinate(nextCenter.y) -
+            finiteCoordinate(baseline.pan.x)) *
+            (nextZoom / baseline.zoom),
+        y:
+          finiteCoordinate(nextCenter.y) -
+          finiteCoordinate(viewportCenter.y) -
+          (finiteCoordinate(baseline.center.y) -
             finiteCoordinate(viewportCenter.y) -
-            (finiteCoordinate(baseline.center.y) -
-              finiteCoordinate(viewportCenter.y) -
-              finiteCoordinate(baseline.pan.y)) *
-              (nextZoom / baseline.zoom),
-        };
-        setVideoZoom(nextZoom);
-        setVideoPan(anchoredPan);
-        event.preventDefault();
-      } else if (videoPointersRef.current.size === 2) {
-        event.preventDefault();
-      }
-    },
-    [],
-  );
+            finiteCoordinate(baseline.pan.y)) *
+            (nextZoom / baseline.zoom),
+      };
+      setVideoZoom(nextZoom);
+      setVideoPan(anchoredPan);
+      event.preventDefault();
+    } else if (videoPointersRef.current.size === 2) {
+      event.preventDefault();
+    }
+  }, []);
 
-  const handleVideoPointerUp = useCallback(
-    (event: ReactPointerEvent<HTMLFieldSetElement>) => {
-      videoPointersRef.current.delete(event.pointerId);
-      if (videoPinchRef.current !== null && videoPointersRef.current.size < 2) {
-        videoPinchRef.current = null;
-      }
-      try {
-        (event.currentTarget as unknown as HTMLElement).releasePointerCapture(event.pointerId);
-      } catch {
-        // ignore
-      }
-    },
-    [],
-  );
+  const handleVideoPointerUp = useCallback((event: ReactPointerEvent<HTMLFieldSetElement>) => {
+    videoPointersRef.current.delete(event.pointerId);
+    if (videoPinchRef.current !== null && videoPointersRef.current.size < 2) {
+      videoPinchRef.current = null;
+    }
+    try {
+      (event.currentTarget as unknown as HTMLElement).releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const handleVideoDoubleClick = useCallback(() => {
     setVideoZoom(1);

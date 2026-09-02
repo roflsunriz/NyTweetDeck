@@ -238,9 +238,45 @@ select:focus-visible {
   cursor: pointer;
 }
 
-.app-shell[data-navigation-position="bottom"][data-main-navigation-visible="false"] .show-navigation-fab {
+.navigation-hover-zone {
+  position: fixed;
+  z-index: 3;
+  inset: 0 auto 0 0;
+  width: 12px;
+}
+
+.app-shell[data-navigation-position="bottom"] .navigation-hover-zone {
+  inset: auto 0 0;
+  width: auto;
+  height: 12px;
+}
+
+.app-shell[data-navigation-position="bottom"][data-main-navigation-visible="false"]
+  .show-navigation-fab {
   top: auto;
   bottom: 12px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-shell[data-main-navigation-mode="auto-hide"] .show-navigation-fab {
+    width: 28px;
+    height: 44px;
+    left: 0;
+    border-left: 0;
+    border-radius: 0 18px 18px 0;
+    opacity: 0.7;
+  }
+
+  .app-shell[data-navigation-position="bottom"][data-main-navigation-mode="auto-hide"]
+    .show-navigation-fab {
+    bottom: 0;
+    left: 12px;
+    width: 44px;
+    height: 28px;
+    border-bottom: 0;
+    border-left: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+  }
 }
 
 .empty-state {

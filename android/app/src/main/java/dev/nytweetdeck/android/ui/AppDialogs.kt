@@ -716,6 +716,11 @@ internal fun SettingsDialog(
                     },
                     tag = "setting-show-main-navigation",
                 )
+                Text(
+                    text = stringResource(R.string.show_main_navigation_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 TranslationHealthSummary(state.translationHealth)
                 Text(
                     text = when {

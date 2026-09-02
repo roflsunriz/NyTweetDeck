@@ -237,6 +237,9 @@
     <string name="setting_translation_language">Langue de traduction des posts</string>
     <string name="setting_auto_refresh">Actualiser automatiquement les fils</string>
     <string name="setting_video_quality">Qualité vidéo par défaut</string>
+    <string name="show_main_navigation">Toujours afficher la navigation principale</string>
+    <string name="show_main_navigation_desc">Désactivez cette option pour la masquer automatiquement. Balayez vers la droite depuis le bord gauche ou utilisez le bouton de menu pour l’afficher temporairement ; elle se masque après trois secondes.</string>
+    <string name="reveal_main_navigation">Afficher la navigation principale</string>
     <string name="video_quality_menu">Qualité vidéo</string>
     <string name="video_quality_auto">Auto (maximale)</string>
     <string name="video_quality_low">Basse</string>

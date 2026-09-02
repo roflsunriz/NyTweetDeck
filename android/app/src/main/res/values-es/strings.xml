@@ -237,6 +237,9 @@
     <string name="setting_translation_language">Idioma de traducción de publicaciones</string>
     <string name="setting_auto_refresh">Actualizar líneas de tiempo automáticamente</string>
     <string name="setting_video_quality">Calidad de vídeo predeterminada</string>
+    <string name="show_main_navigation">Mostrar siempre la navegación principal</string>
+    <string name="show_main_navigation_desc">Desactívalo para ocultarla automáticamente. Desliza a la derecha desde el borde izquierdo o usa el botón de menú para mostrarla temporalmente; se oculta a los tres segundos.</string>
+    <string name="reveal_main_navigation">Mostrar la navegación principal</string>
     <string name="video_quality_menu">Calidad del vídeo</string>
     <string name="video_quality_auto">Automática (máxima)</string>
     <string name="video_quality_low">Baja</string>

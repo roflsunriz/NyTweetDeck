@@ -236,6 +236,9 @@
     <string name="setting_translation_language">পোস্ট অনুবাদের ভাষা</string>
     <string name="setting_auto_refresh">টাইমলাইন স্বয়ংক্রিয়ভাবে রিফ্রেশ করুন</string>
     <string name="setting_video_quality">ডিফল্ট ভিডিও মান</string>
+    <string name="show_main_navigation">প্রধান নেভিগেশন সবসময় দেখান</string>
+    <string name="show_main_navigation_desc">স্বয়ংক্রিয়ভাবে লুকাতে এটি বন্ধ করুন। সাময়িকভাবে দেখাতে বাম প্রান্ত থেকে ডানে সোয়াইপ করুন বা মেনু বোতাম ব্যবহার করুন; তিন সেকেন্ড পরে এটি লুকিয়ে যাবে।</string>
+    <string name="reveal_main_navigation">প্রধান নেভিগেশন দেখান</string>
     <string name="video_quality_menu">ভিডিওর মান</string>
     <string name="video_quality_auto">স্বয়ংক্রিয় (সর্বোচ্চ)</string>
     <string name="video_quality_low">নিম্ন</string>

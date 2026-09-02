@@ -7,6 +7,7 @@ import {
   waitForPageCondition,
 } from "./cdp-client";
 import { readSharedLayout, updateSharedLayout } from "./shared-layout-cdp";
+import { layoutVersion } from "../src/model/layout";
 
 const applicationUrl = process.env.NYTWEETDECK_URL ?? "http://127.0.0.1:18080";
 const cdpPort = process.env.CHROME_CDP_PORT ?? "9222";
@@ -55,13 +56,66 @@ await updateSharedLayout(
 );
 await reload();
 
+const results: Array<Record<string, unknown>> = [];
+
+await client.call("Emulation.setDeviceMetricsOverride", {
+  width: 1_440,
+  height: 900,
+  deviceScaleFactor: 1,
+  mobile: false,
+});
+await updateSharedLayout(
+  client,
+  "layout => ({ ...layout, display: { ...layout.display, showMainNavigation: false } })",
+);
+await reload();
+await waitForCondition('document.querySelector("[data-testid=show-main-navigation]") !== null');
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseMoved",
+  x: 1,
+  y: 300,
+});
+await waitForCondition('document.querySelector(".main-navigation") !== null');
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseMoved",
+  x: 32,
+  y: 300,
+});
+await Bun.sleep(3_200);
+const navigationHeldWhileHovered = await client.evaluate<boolean>(
+  'document.querySelector(".main-navigation") !== null',
+);
+if (!navigationHeldWhileHovered) {
+  throw new Error("メインナビゲーションがホバー中に自動収納されました。");
+}
+await client.call("Input.dispatchMouseEvent", {
+  type: "mouseMoved",
+  x: 180,
+  y: 300,
+});
+await waitForCondition('document.querySelector(".main-navigation") === null', 4_500);
+results.push({
+  view: "auto-hide-navigation",
+  revealedFromEdge: true,
+  heldWhileHovered: navigationHeldWhileHovered,
+  hiddenAfterPointerExit: true,
+});
+await updateSharedLayout(
+  client,
+  "layout => ({ ...layout, display: { ...layout.display, showMainNavigation: true } })",
+);
+await reload();
+await Bun.sleep(3_200);
+if (!(await client.evaluate<boolean>('document.querySelector(".main-navigation") !== null'))) {
+  throw new Error("メインナビゲーションの常時表示設定が維持されませんでした。");
+}
+
 const viewports = [
   { width: 1440, height: 900, columns: 3 },
   { width: 768, height: 1024, columns: 2 },
   { width: 390, height: 844, columns: 1 },
 ] as const;
 
-const results: Array<Record<string, unknown>> = [];
 for (const viewport of viewports) {
   await client.call("Emulation.setDeviceMetricsOverride", {
     width: viewport.width,
@@ -621,7 +675,7 @@ const trendScreenshot = await client.call<{ data: string }>("Page.captureScreens
   format: "png",
   fromSurface: true,
 });
-if (trendMetrics.layoutVersion !== 8) throw new Error("共有レイアウト版が不正です。");
+if (trendMetrics.layoutVersion !== layoutVersion) throw new Error("共有レイアウト版が不正です。");
 if (trendMetrics.activeAccountId !== "qa-account") {
   throw new Error(`保存済み#1アカウントの自動選択に失敗しました: ${JSON.stringify(trendMetrics)}`);
 }
