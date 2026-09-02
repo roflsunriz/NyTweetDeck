@@ -54,6 +54,12 @@ export interface TimelineMedia {
   type: string;
   url: string;
   previewUrl: string;
+  variants?: VideoVariant[];
+}
+
+export interface VideoVariant {
+  url: string;
+  bitrate: number | null;
 }
 
 export interface TimelineTextLink {

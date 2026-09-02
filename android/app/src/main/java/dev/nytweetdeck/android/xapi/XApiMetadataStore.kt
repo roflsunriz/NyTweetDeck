@@ -1,5 +1,6 @@
 package dev.nytweetdeck.android.xapi
 
+import android.util.Log
 import java.util.concurrent.atomic.AtomicReference
 
 data class XApiMetadataRefreshResult(
@@ -26,7 +27,8 @@ class XApiMetadataStore(
         val updated = resolved.applyTo(bundledProfile)
         activeProfile.set(updated)
         XApiMetadataRefreshResult(true, resolved.sourceVersion)
-    }.getOrElse {
+    }.getOrElse { error ->
+        Log.w("XApiMetadataStore", "X API定義の更新に失敗しました。", error)
         XApiMetadataRefreshResult(false)
     }
 }

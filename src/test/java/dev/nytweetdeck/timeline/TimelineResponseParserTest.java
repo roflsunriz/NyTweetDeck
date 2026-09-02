@@ -47,6 +47,11 @@ class TimelineResponseParserTest {
         assertThat(detailed.quotedPost().text()).isEqualTo("引用元");
         assertThat(detailed.media()).hasSize(2);
         assertThat(detailed.media().get(1).url()).isEqualTo("https://video.twimg.com/high.mp4");
+        assertThat(detailed.media().get(1).variants())
+                .extracting(variant -> variant.url())
+                .containsExactly(
+                        "https://video.twimg.com/low.mp4",
+                        "https://video.twimg.com/high.mp4");
         assertThat(page.posts()).extracting(TimelinePage.Post::id).doesNotContain("99");
         assertThat(page.posts().get(0).replyToPostId()).isEqualTo("100");
         assertThat(page.posts().get(0).replyToUsername()).isEqualTo("parent_user");

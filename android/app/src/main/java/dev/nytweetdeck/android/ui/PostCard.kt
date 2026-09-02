@@ -74,6 +74,7 @@ import dev.nytweetdeck.android.model.TranslationCandidate
 import dev.nytweetdeck.android.model.TranslationLoadStatus
 import dev.nytweetdeck.android.model.Translation
 import dev.nytweetdeck.android.model.TextLink
+import dev.nytweetdeck.android.model.VideoQuality
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -114,6 +115,7 @@ internal fun PostCard(
     videoAutoplay: Boolean = false,
     videoLoop: Boolean = true,
     videoVolume: Int = 100,
+    videoQuality: VideoQuality = VideoQuality.AUTO,
 ) {
     var selectedMediaId by rememberSaveable(post.id) { mutableStateOf<String?>(null) }
     val selectedMedia = selectedMediaId?.let { mediaId ->
@@ -164,6 +166,7 @@ internal fun PostCard(
                 videoAutoplay = videoAutoplay && selectedMedia == null,
                 videoLoop = videoLoop,
                 videoVolume = videoVolume,
+                videoQuality = videoQuality,
                 onMediaClick = { selectedMediaId = it.id },
             )
         } else if (post.media.isNotEmpty()) {
@@ -204,6 +207,7 @@ internal fun PostCard(
                 videoAutoplay = videoAutoplay && selectedMedia == null,
                 videoLoop = videoLoop,
                 videoVolume = videoVolume,
+                videoQuality = videoQuality,
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -230,6 +234,7 @@ internal fun PostCard(
             videoAutoplay = videoAutoplay,
             videoLoop = videoLoop,
             videoVolume = videoVolume,
+            videoQuality = videoQuality,
             onDismiss = { selectedMediaId = null },
         )
     }
@@ -487,6 +492,7 @@ private fun QuoteCard(
     videoAutoplay: Boolean,
     videoLoop: Boolean,
     videoVolume: Int,
+    videoQuality: VideoQuality,
 ) {
     Column(
         modifier = Modifier
@@ -534,6 +540,7 @@ private fun QuoteCard(
                 videoAutoplay = videoAutoplay,
                 videoLoop = videoLoop,
                 videoVolume = videoVolume,
+                videoQuality = videoQuality,
                 onMediaClick = onMediaClick,
             )
         }
@@ -557,6 +564,7 @@ private fun MediaPreview(
     videoAutoplay: Boolean,
     videoLoop: Boolean,
     videoVolume: Int,
+    videoQuality: VideoQuality,
     onMediaClick: (Media) -> Unit,
 ) {
     val visibleMedia = media.take(4)
@@ -569,6 +577,7 @@ private fun MediaPreview(
             videoAutoplay = videoAutoplay,
             videoLoop = videoLoop,
             videoVolume = videoVolume,
+            videoQuality = videoQuality,
             onMediaClick = onMediaClick,
         )
         return
@@ -591,6 +600,7 @@ private fun MediaPreview(
                         videoAutoplay = videoAutoplay,
                         videoLoop = videoLoop,
                         videoVolume = videoVolume,
+                        videoQuality = videoQuality,
                         onMediaClick = onMediaClick,
                     )
                 }
@@ -609,6 +619,7 @@ private fun MediaTile(
     videoAutoplay: Boolean,
     videoLoop: Boolean,
     videoVolume: Int,
+    videoQuality: VideoQuality,
     onMediaClick: (Media) -> Unit,
 ) {
     val showInlineVideo = media.type != "photo" && safeMediaUri(media.url) != null
@@ -633,6 +644,7 @@ private fun MediaTile(
                 autoPlay = videoAutoplay,
                 loop = videoLoop,
                 volume = videoVolume,
+                defaultQuality = videoQuality,
                 onFullscreen = { onMediaClick(media) },
             )
         } else if (media.type != "photo") {

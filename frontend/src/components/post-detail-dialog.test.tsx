@@ -178,6 +178,42 @@ test("uses X reply ranking modes and folds replies X classifies as possible spam
   expect(urls.at(-1)).toContain("replySort=likes");
 });
 
+test("shows reply ancestors and loads older replies from a timeline detail", async () => {
+  let requests = 0;
+  globalThis.fetch = (async () => {
+    requests += 1;
+    return requests === 1
+      ? Response.json({
+          post: timelinePost("900", "focal post"),
+          contextPosts: [timelinePost("899", "previous reply")],
+          replies: [timelinePost("901", "first reply")],
+          nextCursor: "older",
+        })
+      : Response.json({
+          post: timelinePost("900", "focal post"),
+          replies: [timelinePost("902", "older reply")],
+          nextCursor: null,
+        });
+  }) as unknown as typeof fetch;
+  const user = userEvent.setup();
+
+  render(
+    <PostDetailDialog
+      postId="900"
+      accountId="account-1"
+      translation={translate("ja")}
+      onClose={() => undefined}
+    />,
+  );
+
+  expect(await screen.findByText("previous reply")).toBeDefined();
+  expect(screen.getByText("first reply")).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "さらに返信を読み込む" }));
+  expect(await screen.findByText("older reply")).toBeDefined();
+  expect(requests).toBe(2);
+  expect(screen.queryByRole("button", { name: "さらに返信を読み込む" })).toBeNull();
+});
+
 for (const viewport of [
   { width: 390, locale: "ar" as const, direction: "rtl" as const },
   { width: 1440, locale: "ja" as const, direction: "ltr" as const },

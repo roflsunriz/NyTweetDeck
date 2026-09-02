@@ -232,4 +232,14 @@
     <string name="post_link_copied">没有可用的分享目标，因此已复制帖子链接。</string>
     <string name="inline_video_fullscreen">全屏播放视频</string>
     <string name="media_viewer_rotate_landscape">旋转为横屏</string>
+    <string name="setting_translation_language">帖子翻译语言</string>
+    <string name="setting_auto_refresh">自动刷新时间线</string>
+    <string name="setting_video_quality">默认视频画质</string>
+    <string name="video_quality_menu">视频画质</string>
+    <string name="video_quality_auto">自动（最高）</string>
+    <string name="video_quality_low">低</string>
+    <string name="video_quality_medium">中</string>
+    <string name="video_quality_high">高</string>
+    <string name="column_sort_latest">最新</string>
+    <string name="column_sort_top">热门</string>
 </resources>

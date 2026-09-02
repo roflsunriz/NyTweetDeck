@@ -56,6 +56,7 @@ data class PostDetailPage(
     val replies: List<ConversationReply>,
     val nextCursor: String?,
     val rankingMode: RankingMode,
+    val contextPosts: List<Post> = emptyList(),
 ) {
     init {
         require(replies.none { reply -> reply.post.id == post.id }) {

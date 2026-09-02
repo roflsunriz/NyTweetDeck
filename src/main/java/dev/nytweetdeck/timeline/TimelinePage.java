@@ -77,7 +77,17 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
             String coverImageUrl,
             String url) {}
 
-    public record Media(String id, String type, String url, String previewUrl) {}
+    public record Media(String id, String type, String url, String previewUrl, List<VideoVariant> variants) {
+        public Media(String id, String type, String url, String previewUrl) {
+            this(id, type, url, previewUrl, List.of());
+        }
+
+        public Media {
+            variants = List.copyOf(variants);
+        }
+    }
+
+    public record VideoVariant(String url, Long bitrate) {}
 
     public record TextLink(String url, String displayText) {}
 }

@@ -8,10 +8,28 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { Translation } from "../i18n/translations";
+import type { VideoQuality } from "../model/layout";
+import type { VideoVariant } from "../model/timeline";
+import { selectVideoSource } from "../model/video-quality";
 
 export const VIDEO_CONTROLS_HIDE_DELAY_MS = 3_000;
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+const VIDEO_MIN_ZOOM = 1;
+const VIDEO_MAX_ZOOM = 4;
 
 interface ConfiguredVideoProps {
   mediaId: string;
@@ -20,6 +38,8 @@ interface ConfiguredVideoProps {
   volume: number;
   poster: string;
   src: string;
+  variants?: VideoVariant[];
+  quality?: VideoQuality;
   translation: Translation;
 }
 
@@ -30,6 +50,8 @@ export function ConfiguredVideo({
   volume,
   poster,
   src,
+  variants = [],
+  quality = "auto",
   translation,
 }: ConfiguredVideoProps) {
   const playerRef = useRef<HTMLFieldSetElement | null>(null);
@@ -52,6 +74,26 @@ export function ConfiguredVideo({
   const [pictureInPictureAvailable, setPictureInPictureAvailable] = useState(false);
   const [controlError, setControlError] = useState<string | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [selectedQuality, setSelectedQuality] = useState<VideoQuality>(quality);
+  const selectedSource = selectVideoSource(src, variants, selectedQuality);
+  const [videoZoom, setVideoZoom] = useState(1);
+  const [videoPan, setVideoPan] = useState<Point>({ x: 0, y: 0 });
+  const videoPointersRef = useRef<Map<number, Point>>(new Map());
+  const videoPinchRef = useRef<{ distance: number; center: Point; zoom: number; pan: Point } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setSelectedQuality(quality);
+  }, [quality]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset zoom when video source changes
+  useEffect(() => {
+    setVideoZoom(1);
+    setVideoPan({ x: 0, y: 0 });
+    videoPointersRef.current.clear();
+    videoPinchRef.current = null;
+  }, [selectedSource]);
 
   const hideControlsIfKeyboardIdle = useCallback(() => {
     controlsTimerRef.current = null;
@@ -68,6 +110,122 @@ export function ConfiguredVideo({
       VIDEO_CONTROLS_HIDE_DELAY_MS,
     );
   }, [hideControlsIfKeyboardIdle, inPlaybackZone]);
+
+  const handleVideoPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLFieldSetElement>) => {
+      revealControls();
+      const point: Point = {
+        x: finiteCoordinate(event.clientX),
+        y: finiteCoordinate(event.clientY),
+      };
+      videoPointersRef.current.set(event.pointerId, point);
+      try {
+        (event.currentTarget as unknown as HTMLElement).setPointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+      if (videoPointersRef.current.size === 2) {
+        const pts = [...videoPointersRef.current.values()];
+        const a = pts[0];
+        const b = pts[1];
+        if (a === undefined || b === undefined) return;
+        const distance = Math.hypot(
+          finiteCoordinate(a.x) - finiteCoordinate(b.x),
+          finiteCoordinate(a.y) - finiteCoordinate(b.y),
+        );
+        const center: Point = {
+          x: (finiteCoordinate(a.x) + finiteCoordinate(b.x)) / 2,
+          y: (finiteCoordinate(a.y) + finiteCoordinate(b.y)) / 2,
+        };
+        if (distance > 0) {
+          videoPinchRef.current = { distance, center, zoom: videoZoom, pan: videoPan };
+        }
+        event.preventDefault();
+      }
+    },
+    [revealControls, videoPan, videoZoom],
+  );
+
+  const handleVideoPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLFieldSetElement>) => {
+      if (!videoPointersRef.current.has(event.pointerId)) return;
+      const point: Point = {
+        x: finiteCoordinate(event.clientX),
+        y: finiteCoordinate(event.clientY),
+      };
+      videoPointersRef.current.set(event.pointerId, point);
+      if (videoPointersRef.current.size === 2 && videoPinchRef.current !== null) {
+        const pts = [...videoPointersRef.current.values()];
+        const a = pts[0];
+        const b = pts[1];
+        if (a === undefined || b === undefined) return;
+        const nextDistance = Math.hypot(
+          finiteCoordinate(a.x) - finiteCoordinate(b.x),
+          finiteCoordinate(a.y) - finiteCoordinate(b.y),
+        );
+        const nextCenter: Point = {
+          x: (finiteCoordinate(a.x) + finiteCoordinate(b.x)) / 2,
+          y: (finiteCoordinate(a.y) + finiteCoordinate(b.y)) / 2,
+        };
+        const baseline = videoPinchRef.current;
+        if (baseline.distance <= 0 || nextDistance <= 0) return;
+        const ratio = nextDistance / baseline.distance;
+        const nextZoom = Math.min(
+          VIDEO_MAX_ZOOM,
+          Math.max(VIDEO_MIN_ZOOM, baseline.zoom * ratio),
+        );
+        const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const viewportCenter: Point = {
+          x: finiteCoordinate(bounds.left) + finiteCoordinate(bounds.width) / 2,
+          y: finiteCoordinate(bounds.top) + finiteCoordinate(bounds.height) / 2,
+        };
+        const anchoredPan: Point = {
+          x:
+            finiteCoordinate(nextCenter.x) -
+            finiteCoordinate(viewportCenter.x) -
+            (finiteCoordinate(baseline.center.x) -
+              finiteCoordinate(viewportCenter.x) -
+              finiteCoordinate(baseline.pan.x)) *
+              (nextZoom / baseline.zoom),
+          y:
+            finiteCoordinate(nextCenter.y) -
+            finiteCoordinate(viewportCenter.y) -
+            (finiteCoordinate(baseline.center.y) -
+              finiteCoordinate(viewportCenter.y) -
+              finiteCoordinate(baseline.pan.y)) *
+              (nextZoom / baseline.zoom),
+        };
+        setVideoZoom(nextZoom);
+        setVideoPan(anchoredPan);
+        event.preventDefault();
+      } else if (videoPointersRef.current.size === 2) {
+        event.preventDefault();
+      }
+    },
+    [],
+  );
+
+  const handleVideoPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLFieldSetElement>) => {
+      videoPointersRef.current.delete(event.pointerId);
+      if (videoPinchRef.current !== null && videoPointersRef.current.size < 2) {
+        videoPinchRef.current = null;
+      }
+      try {
+        (event.currentTarget as unknown as HTMLElement).releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+    },
+    [],
+  );
+
+  const handleVideoDoubleClick = useCallback(() => {
+    setVideoZoom(1);
+    setVideoPan({ x: 0, y: 0 });
+    videoPointersRef.current.clear();
+    videoPinchRef.current = null;
+  }, []);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -263,13 +421,21 @@ export function ConfiguredVideo({
       data-media-id={mediaId}
       data-viewport-active={inPlaybackZone}
       data-controls-visible={controlsVisible}
-      onPointerMove={revealControls}
-      onPointerDown={revealControls}
+      data-zoom={videoZoom}
+      onPointerMove={(event) => {
+        revealControls();
+        handleVideoPointerMove(event);
+      }}
+      onPointerDown={handleVideoPointerDown}
+      onPointerUp={handleVideoPointerUp}
+      onPointerCancel={handleVideoPointerUp}
+      onDoubleClick={handleVideoDoubleClick}
       onFocusCapture={revealControls}
       onBlurCapture={revealControls}
     >
       {inPlaybackZone ? (
         <video
+          key={selectedSource}
           ref={videoRef}
           muted={muted}
           autoPlay={autoPlay}
@@ -277,8 +443,21 @@ export function ConfiguredVideo({
           playsInline
           preload="metadata"
           poster={poster || undefined}
-          src={src || undefined}
+          src={selectedSource || undefined}
+          style={
+            videoZoom === 1
+              ? undefined
+              : {
+                  transform: `translate(${videoPan.x}px, ${videoPan.y}px) scale(${videoZoom})`,
+                  transformOrigin: "center",
+                  willChange: "transform",
+                }
+          }
           onClick={() => {
+            if (videoZoom !== 1) {
+              handleVideoDoubleClick();
+              return;
+            }
             if (!controlsVisible) {
               revealControls();
               return;
@@ -358,6 +537,20 @@ export function ConfiguredVideo({
             value={Math.round(playbackVolume * 100)}
             onChange={changeVolume}
           />
+          {variants.length > 1 && (
+            <select
+              className="configured-video-quality"
+              aria-label={translation.videoQuality}
+              value={selectedQuality}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) => setSelectedQuality(event.target.value as VideoQuality)}
+            >
+              <option value="auto">{translation.videoQualityAuto}</option>
+              <option value="low">{translation.videoQualityLow}</option>
+              <option value="medium">{translation.videoQualityMedium}</option>
+              <option value="high">{translation.videoQualityHigh}</option>
+            </select>
+          )}
           <button
             type="button"
             aria-label={translation.videoLoop}
@@ -399,6 +592,10 @@ export function ConfiguredVideo({
       )}
     </fieldset>
   );
+}
+
+function finiteCoordinate(value: number): number {
+  return Number.isFinite(value) ? value : 0;
 }
 
 function normalizeVolume(volume: number): number {

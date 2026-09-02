@@ -234,4 +234,16 @@
     <string name="post_link_copied">共有先を開けなかったため、ポストのリンクをコピーしました。</string>
     <string name="inline_video_fullscreen">動画を全画面表示</string>
     <string name="media_viewer_rotate_landscape">横向きに回転</string>
+    <string name="setting_translation_language">投稿の翻訳先言語</string>
+    <string name="setting_auto_refresh">タイムラインを自動更新</string>
+    <string name="setting_video_quality">動画の既定画質</string>
+    <string name="show_main_navigation">メインナビゲーションを表示</string>
+    <string name="show_main_navigation_desc">オフにすると左（または下）のメニューを隠して表示領域を広げます。隠れている間は画面左上のボタンで再表示できます。</string>
+    <string name="video_quality_menu">動画の画質</string>
+    <string name="video_quality_auto">自動（最高）</string>
+    <string name="video_quality_low">低</string>
+    <string name="video_quality_medium">中</string>
+    <string name="video_quality_high">高</string>
+    <string name="column_sort_latest">最新</string>
+    <string name="column_sort_top">トップ</string>
 </resources>

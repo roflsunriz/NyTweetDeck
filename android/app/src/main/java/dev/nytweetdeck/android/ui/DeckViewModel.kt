@@ -41,6 +41,7 @@ import dev.nytweetdeck.android.model.ListPickerScope
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
+import dev.nytweetdeck.android.model.ColumnSort
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import java.util.UUID
@@ -186,7 +187,7 @@ class DeckViewModel(
             viewModelScope.launch(ioDispatcher) {
                 while (isActive) {
                     delay(currentAdaptiveDelayMillis)
-                    if (foreground && visibleColumnIds.isNotEmpty()) {
+                    if (foreground && mutableState.value.autoRefreshTimelines && visibleColumnIds.isNotEmpty()) {
                         withContext(Dispatchers.Main.immediate) { refreshVisibleColumns() }
                     }
                 }
@@ -338,6 +339,21 @@ class DeckViewModel(
     fun recordTrendSearch(query: String) = mutate { it.withTrendSearch(query, addColumn = false) }
     fun clearTrendSearchHistory() = mutate { it.copy(trendSearchHistory = emptyList()) }
     fun setAppLanguage(languageTag: String) = mutate { it.copy(appLanguageTag = languageTag) }
+    fun setTranslationLanguage(languageTag: String) = mutate {
+        it.copy(translationLanguageTag = languageTag, postTranslations = emptyMap())
+    }
+
+    fun setColumnSort(columnId: String, sort: ColumnSort) {
+        if (mutableState.value.columns.none { it.id == columnId && it.sort != sort }) return
+        mutate { current ->
+            current.copy(
+                columns = current.columns.map { column ->
+                    if (column.id == columnId) column.copy(sort = sort) else column
+                },
+            )
+        }
+        refreshColumn(columnId)
+    }
 
     fun importLayout(serialized: ByteArray) {
         val current = mutableState.value
@@ -496,7 +512,8 @@ class DeckViewModel(
                     account = account,
                     kind = queryKind,
                     target = column.target,
-                    language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
+                    language = snapshot.appLanguageTag,
+                    sort = column.sort.name.lowercase(Locale.ROOT),
                 )
                 withContext(Dispatchers.Main.immediate) {
                     if (mutableState.value.selectedAccountId != accountId) return@withContext
@@ -584,7 +601,7 @@ class DeckViewModel(
         }
         viewModelScope.launch(ioDispatcher) {
             val result = runCatching {
-                repository.load(account, language = Locale.getDefault().toLanguageTag().ifBlank { "ja" })
+                    repository.load(account, language = mutableState.value.appLanguageTag)
             }
             withContext(Dispatchers.Main.immediate) {
                 if (mutableState.value.selectedAccountId != accountId) return@withContext
@@ -663,7 +680,7 @@ class DeckViewModel(
         }
         viewModelScope.launch(ioDispatcher) {
             val result = runCatching {
-                repository.load(account, language = Locale.getDefault().toLanguageTag().ifBlank { "ja" })
+                    repository.load(account, language = mutableState.value.appLanguageTag)
             }
             withContext(Dispatchers.Main.immediate) {
                 if (mutableState.value.selectedAccountId != accountId) return@withContext
@@ -729,7 +746,7 @@ class DeckViewModel(
         }
         viewModelScope.launch(ioDispatcher) {
             val result = runCatching {
-                repository.load(account, language = Locale.getDefault().toLanguageTag().ifBlank { "ja" })
+                    repository.load(account, language = mutableState.value.appLanguageTag)
             }
             withContext(Dispatchers.Main.immediate) {
                 if (mutableState.value.selectedAccountId != accountId) return@withContext
@@ -897,15 +914,31 @@ class DeckViewModel(
 
     private fun scheduleVisibilityRefresh(columnId: String) {
         visibilityRefreshJobs.remove(columnId)?.cancel()
+        val current = mutableState.value
+        if (!current.autoRefreshTimelines && isColumnReady(current, columnId)) return
         visibilityRefreshJobs[columnId] = viewModelScope.launch {
             delay(visibilityRefreshDelayMillis)
-            if (columnId in visibleColumnIds && foregroundOrUntracked()) {
+            val current = mutableState.value
+            if (columnId in visibleColumnIds &&
+                foregroundOrUntracked() &&
+                (current.autoRefreshTimelines || !isColumnReady(current, columnId))
+            ) {
                 refreshColumn(columnId)
             }
         }
     }
 
     private fun foregroundOrUntracked(): Boolean = adaptiveRefreshIntervalMillis == null || foreground
+
+    private fun isColumnReady(state: DeckUiState, columnId: String): Boolean {
+        val column = state.columns.firstOrNull { it.id == columnId } ?: return false
+        return when (column.kind) {
+            ColumnKind.NOTIFICATIONS -> state.notifications[columnId]?.status == TimelineLoadStatus.READY
+            ColumnKind.TRENDS -> state.trends[columnId]?.status == TimelineLoadStatus.READY
+            ColumnKind.MESSAGES -> state.messages[columnId]?.status == TimelineLoadStatus.READY
+            else -> state.timelines[columnId]?.status == TimelineLoadStatus.READY
+        }
+    }
 
     override fun onCleared() {
         visibilityRefreshJobs.values.forEach(Job::cancel)

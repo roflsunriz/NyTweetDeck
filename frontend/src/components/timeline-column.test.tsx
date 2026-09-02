@@ -574,6 +574,43 @@ describe("timeline column", () => {
     expect(timelineLoads).toBeGreaterThanOrEqual(2);
   });
 
+  test("stops automatic membership refresh when the user disables it", async () => {
+    let eventSource: FakeEventSource | undefined;
+    globalThis.EventSource = class extends FakeEventSource {
+      constructor(_url: string | URL) {
+        super();
+        eventSource = this;
+      }
+    } as unknown as typeof EventSource;
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (String(input).includes("/api/v1/timelines/")) {
+        timelineLoads += 1;
+        return Response.json({ posts: [post("1", "manual only")], nextCursor: null });
+      }
+      return Response.json({ connected: true, topicCount: 1 });
+    }) as typeof fetch;
+    const column: ColumnConfig = { id: "manual", kind: "home", target: null, label: null };
+
+    render(
+      <TimelineColumn
+        column={column}
+        accountId="account-1"
+        translation={translate("ja")}
+        autoRefreshTimelines={false}
+        refreshMinimumMilliseconds={5}
+        refreshMaximumMilliseconds={5}
+        refreshGlobalGapMilliseconds={0}
+      />,
+    );
+    await screen.findByText("manual only");
+
+    act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "2" }));
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 30));
+
+    expect(timelineLoads).toBe(1);
+  });
+
   test("refreshes bookmarks only in the history column", async () => {
     let eventSource: FakeEventSource | undefined;
     globalThis.EventSource = class extends FakeEventSource {

@@ -8,6 +8,7 @@ import {
   Home,
   Mail,
   Megaphone,
+  Menu,
   MessageCircleMore,
   Minus,
   Pencil,
@@ -37,6 +38,7 @@ import { translate } from "./i18n/translations";
 import { fetchWithTimeout } from "./model/fetch-with-timeout";
 import {
   type AppLayout,
+  type ColumnSort,
   type ColumnKind,
   type Locale,
   moveItem,
@@ -96,6 +98,10 @@ function resolveBrowserLocale(): Locale {
   return supportedLocales.includes(language as Locale) ? (language as Locale) : "en";
 }
 
+function isTimelineColumn(kind: ColumnKind): boolean {
+  return kind !== "messages" && kind !== "notifications" && kind !== "trends";
+}
+
 export function App() {
   return (
     <TimelineCacheProvider>
@@ -131,6 +137,8 @@ function AppContent() {
     document.documentElement.dataset.accent = layout.display.accentColor;
     document.documentElement.dataset.density = layout.display.density;
     document.documentElement.dataset.reduceMotion = String(layout.display.reduceMotion);
+    document.documentElement.dataset.navigationPosition = layout.display.navigationPosition;
+    document.documentElement.dataset.mainNavigationVisible = String(layout.display.showMainNavigation);
   }, [layout]);
 
   const layoutTheme = layout?.theme;
@@ -223,7 +231,7 @@ function AppContent() {
   const listCandidates = useListCandidates(accountIds, activeAccountId);
 
   const addColumn = (kind: ColumnKind, target: string | null, label: string | null = null) => {
-    const column = { id: createColumnId(), kind, target, label };
+    const column = { id: createColumnId(), kind, target, label, sort: "latest" as const };
     setLayout((current) =>
       current.columns.some((item) => item.id === column.id)
         ? current
@@ -240,6 +248,8 @@ function AppContent() {
   };
 
   const setLocale = (locale: Locale) => setLayout((current) => ({ ...current, locale }));
+  const setTranslationLocale = (translationLocale: Locale) =>
+    setLayout((current) => ({ ...current, translationLocale }));
   const setTheme = (theme: Theme) => setLayout((current) => ({ ...current, theme }));
   const setDisplay = (display: AppLayout["display"]) =>
     setLayout((current) => ({ ...current, display }));
@@ -250,6 +260,13 @@ function AppContent() {
     }));
   const setReplySort = (replySort: AppLayout["replySort"]) =>
     setLayout((current) => ({ ...current, replySort }));
+  const setColumnSort = (columnId: string, sort: ColumnSort) =>
+    setLayout((current) => ({
+      ...current,
+      columns: current.columns.map((column) =>
+        column.id === columnId ? { ...column, sort } : column,
+      ),
+    }));
   const setNavigationItems = (navItems: NavItemId[]) =>
     setLayout((current) => ({ ...current, navItems }));
   const setActiveAccount = (activeAccountId: string) => {
@@ -349,13 +366,18 @@ function AppContent() {
     <PostTranslationProvider
       value={{
         locale: layout.locale,
+        translationLocale: layout.translationLocale,
         autoTranslatePosts: layout.display.autoTranslatePosts,
         setAutoTranslatePosts,
         replySort: layout.replySort,
         setReplySort,
       }}
     >
-      <div className="app-shell">
+      <div
+        className="app-shell"
+        data-navigation-position={layout.display.navigationPosition}
+        data-main-navigation-visible={String(layout.display.showMainNavigation)}
+      >
         {sharedLayoutError !== null && (
           <div className="shared-settings-warning" role="alert">
             <span>
@@ -368,7 +390,8 @@ function AppContent() {
             </button>
           </div>
         )}
-        <aside className="main-navigation" aria-label={translation.appName}>
+        {layout.display.showMainNavigation ? (
+          <aside className="main-navigation" aria-label={translation.appName}>
           <nav className="primary-actions">
             {layout.navItems.map((item) => {
               const Icon = navIcons[item];
@@ -425,6 +448,18 @@ function AppContent() {
             </button>
           </div>
         </aside>
+        ) : null}
+        {!layout.display.showMainNavigation && (
+          <button
+            className="show-navigation-fab"
+            type="button"
+            aria-label={translation.showMainNavigation}
+            onClick={() => setDisplay({ ...layout.display, showMainNavigation: true })}
+            data-testid="show-main-navigation"
+          >
+            <Menu aria-hidden="true" size={18} />
+          </button>
+        )}
 
         <main className="deck" aria-live="polite">
           {layout.columns.length === 0 ? (
@@ -463,13 +498,30 @@ function AppContent() {
                     }}
                   >
                     <header className="column-header">
-                      <div>
+                      <div className="column-header-main">
                         <span className="column-kicker">NyTweetDeck</span>
-                        <h2>
-                          {column.target === null
-                            ? columnText.title
-                            : `${columnText.title}: ${column.label ?? column.target}`}
-                        </h2>
+                        <div className="column-title-row">
+                          <h2>
+                            {column.target === null
+                              ? columnText.title
+                              : `${columnText.title}: ${column.label ?? column.target}`}
+                          </h2>
+                          {isTimelineColumn(column.kind) && (
+                            <label className="column-sort-control">
+                              <span>{translation.columnSort}</span>
+                              <select
+                                data-testid={`column-sort-${column.id}`}
+                                value={column.sort ?? "latest"}
+                                onChange={(event) =>
+                                  setColumnSort(column.id, event.target.value as ColumnSort)
+                                }
+                              >
+                                <option value="latest">{translation.columnSortLatest}</option>
+                                <option value="top">{translation.columnSortTop}</option>
+                              </select>
+                            </label>
+                          )}
+                        </div>
                       </div>
                       <button
                         className="icon-button"
@@ -511,6 +563,7 @@ function AppContent() {
                         translation={translation}
                         display={layout.display}
                         locale={layout.locale}
+                        autoRefreshTimelines={layout.display.autoRefreshTimelines}
                       />
                     )}
                   </article>
@@ -553,10 +606,12 @@ function AppContent() {
           <SettingsDialog
             translation={translation}
             locale={layout.locale}
+            translationLocale={layout.translationLocale}
             theme={layout.theme}
             display={layout.display}
             layout={layout}
             onLocaleChange={setLocale}
+            onTranslationLocaleChange={setTranslationLocale}
             onThemeChange={setTheme}
             onDisplayChange={setDisplay}
             onLayoutImport={setLayout}

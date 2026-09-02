@@ -33,4 +33,16 @@ class TimelineQueryFactoryTest {
             TimelineQueryFactory.create("unknown", null, null)
         }
     }
+
+    @Test
+    fun searchSupportsTopAndLatestProducts() {
+        assertEquals(
+            "Top",
+            TimelineQueryFactory.create("search", "NyTweetDeck", null, "top")
+                .variables["product"],
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            TimelineQueryFactory.create("search", "NyTweetDeck", null, "popular")
+        }
+    }
 }

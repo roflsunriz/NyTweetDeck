@@ -30,10 +30,11 @@ public class TimelineController {
             @RequestParam String accountId,
             @RequestParam(required = false) String target,
             @RequestParam(required = false) String cursor,
-            @RequestParam(defaultValue = "ja") String language) {
-        var query = queryFactory.create(kind, target, cursor);
+            @RequestParam(defaultValue = "ja") String language,
+            @RequestParam(defaultValue = "latest") String sort) {
+        var query = queryFactory.create(kind, target, cursor, sort);
         var result = graphQlClient.execute(
                 accountId, query.purpose(), query.variables(), language);
-        return responseParser.parse(result.rawJson());
+        return responseParser.parse(result.rawJson(), sort);
     }
 }

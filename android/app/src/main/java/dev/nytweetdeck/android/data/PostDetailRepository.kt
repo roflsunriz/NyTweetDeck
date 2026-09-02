@@ -8,6 +8,7 @@ import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiException
 import dev.nytweetdeck.android.xapi.XSessionCredentials
+import java.util.LinkedHashMap
 
 /** Loads the focal post and its conversation page through the shared authenticated GraphQL path. */
 class PostDetailRepository(
@@ -53,8 +54,14 @@ class PostDetailRepository(
             ?: detailPage?.posts?.firstOrNull { post -> post.id == postId }
             ?: conversationPage.posts.firstOrNull { post -> post.id == postId }
             ?: throw XApiException("ポスト詳細応答に対象ポストがありません。", 502)
+        val contextPosts = if (cursor.isNullOrBlank()) {
+            loadConversationContext(account, focalPost, language, rankingMode, credentials)
+        } else {
+            emptyList()
+        }
+        val contextIds = contextPosts.mapTo(HashSet()) { it.id }
         val replies = conversationPage.posts.asSequence()
-            .filter { post -> post.id != postId }
+            .filter { post -> post.id != postId && post.id !in contextIds }
             .map(::ConversationReply)
             .toList()
         return PostDetailPage(
@@ -62,7 +69,38 @@ class PostDetailRepository(
             replies = replies,
             nextCursor = conversationPage.nextCursor,
             rankingMode = rankingMode,
+            contextPosts = contextPosts,
         )
+    }
+
+    private fun loadConversationContext(
+        account: AccountSecrets,
+        focalPost: Post,
+        language: String,
+        rankingMode: RankingMode,
+        credentials: XSessionCredentials,
+    ): List<Post> {
+        var parentId = focalPost.replyToPostId ?: return emptyList()
+        require(POST_ID.matches(parentId)) { "返信元ポストIDの形式が不正です。" }
+        val page = responseParser.parseInResponseOrder(
+            graphQlExecutor.execute(
+                credentials = credentials,
+                purpose = "conversation",
+                variables = conversationVariables(parentId, null, rankingMode),
+                language = language,
+            ),
+        )
+        val postsById = LinkedHashMap<String, Post>()
+        page.posts.forEach { post -> postsById.putIfAbsent(post.id, post) }
+        val context = ArrayList<Post>()
+        val visited = HashSet<String>()
+        while (visited.add(parentId)) {
+            val parent = postsById[parentId] ?: break
+            context += parent
+            parentId = parent.replyToPostId ?: break
+        }
+        context.reverse()
+        return context.toList()
     }
 
     internal fun detailVariables(postId: String): Map<String, Any> {

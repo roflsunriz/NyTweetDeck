@@ -8,6 +8,7 @@ import dev.nytweetdeck.android.model.Media
 import dev.nytweetdeck.android.model.Post
 import dev.nytweetdeck.android.model.TimelinePage
 import dev.nytweetdeck.android.model.Translation
+import dev.nytweetdeck.android.model.VideoVariant
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -26,6 +27,9 @@ class TimelineResponseParser(
     private val json: Json = Json,
 ) {
     fun parse(body: String): TimelinePage = parse(body, sortChronologically = true)
+
+    fun parse(body: String, sort: String?): TimelinePage =
+        parse(body, sortChronologically = !sort.equals("top", ignoreCase = true))
 
     fun parseInResponseOrder(body: String): TimelinePage = parse(body, sortChronologically = false)
 
@@ -449,36 +453,42 @@ class TimelineResponseParser(
                 val item = node as? JsonObject
                 val type = item.text("type")
                 val preview = item.text("media_url_https")
-                val url = if (type == "photo") preview else bestVideoUrl(item?.objectValue("video_info"))
+                val variants = if (type == "photo") {
+                    emptyList()
+                } else {
+                    videoVariants(item?.objectValue("video_info"))
+                }
+                val url = if (type == "photo") preview else bestVideoUrl(variants)
                 add(
                     Media(
                         id = item.text("id_str") ?: size.toString(),
                         type = type ?: "unknown",
                         url = url ?: preview,
                         previewUrl = preview,
+                        variants = variants,
                     ),
                 )
             }
         }
     }
 
-    private fun bestVideoUrl(videoInfo: JsonObject?): String? {
-        val variants = videoInfo?.get("variants") as? JsonArray ?: return null
-        var best: JsonObject? = null
-        var bestBitrate = -1L
-        variants.forEach { node ->
-            val variant = node as? JsonObject ?: return@forEach
-            if (variant.text("content_type") != "video/mp4") {
-                return@forEach
-            }
-            val bitrate = variant.number("bitrate")
-            if (best == null || bitrate > bestBitrate) {
-                best = variant
-                bestBitrate = bitrate
+    private fun videoVariants(videoInfo: JsonObject?): List<VideoVariant> {
+        val variants = videoInfo?.get("variants") as? JsonArray ?: return emptyList()
+        return buildList {
+            variants.forEach { node ->
+                val variant = node as? JsonObject ?: return@forEach
+                if (variant.text("content_type") != "video/mp4") return@forEach
+                val url = variant.text("url")?.takeIf(String::isNotBlank) ?: return@forEach
+                add(VideoVariant(url, variant.nullableLong("bitrate")))
             }
         }
-        return best?.text("url")
     }
+
+    private fun bestVideoUrl(variants: List<VideoVariant>): String? =
+        variants.maxByOrNull { it.bitrate ?: 0L }?.url
+
+    private fun JsonObject.nullableLong(name: String): Long? =
+        (this[name] as? JsonPrimitive)?.longOrNull
 
     private fun findCursor(node: JsonObject, cursor: CursorHolder) {
         val cursorType = firstNonNull(node.text("cursorType"), node.text("cursor_type"))

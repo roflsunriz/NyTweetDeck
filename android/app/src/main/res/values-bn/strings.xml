@@ -233,4 +233,14 @@
     <string name="post_link_copied">শেয়ারের কোনো গন্তব্য পাওয়া যায়নি, তাই পোস্টের লিংক কপি করা হয়েছে।</string>
     <string name="inline_video_fullscreen">ভিডিও পূর্ণ স্ক্রিনে খুলুন</string>
     <string name="media_viewer_rotate_landscape">ল্যান্ডস্কেপে ঘোরান</string>
+    <string name="setting_translation_language">পোস্ট অনুবাদের ভাষা</string>
+    <string name="setting_auto_refresh">টাইমলাইন স্বয়ংক্রিয়ভাবে রিফ্রেশ করুন</string>
+    <string name="setting_video_quality">ডিফল্ট ভিডিও মান</string>
+    <string name="video_quality_menu">ভিডিওর মান</string>
+    <string name="video_quality_auto">স্বয়ংক্রিয় (সর্বোচ্চ)</string>
+    <string name="video_quality_low">নিম্ন</string>
+    <string name="video_quality_medium">মাঝারি</string>
+    <string name="video_quality_high">উচ্চ</string>
+    <string name="column_sort_latest">সর্বশেষ</string>
+    <string name="column_sort_top">শীর্ষ</string>
 </resources>

@@ -237,4 +237,14 @@
     <string name="post_link_copied">لم تتوفر وجهة للمشاركة، لذا تم نسخ رابط المنشور.</string>
     <string name="inline_video_fullscreen">فتح الفيديو بملء الشاشة</string>
     <string name="media_viewer_rotate_landscape">التدوير إلى الوضع الأفقي</string>
+    <string name="setting_translation_language">لغة ترجمة المنشورات</string>
+    <string name="setting_auto_refresh">تحديث الخطوط الزمنية تلقائيًا</string>
+    <string name="setting_video_quality">جودة الفيديو الافتراضية</string>
+    <string name="video_quality_menu">جودة الفيديو</string>
+    <string name="video_quality_auto">تلقائي (الأعلى)</string>
+    <string name="video_quality_low">منخفضة</string>
+    <string name="video_quality_medium">متوسطة</string>
+    <string name="video_quality_high">عالية</string>
+    <string name="column_sort_latest">الأحدث</string>
+    <string name="column_sort_top">الأبرز</string>
 </resources>

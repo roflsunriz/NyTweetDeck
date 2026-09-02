@@ -60,7 +60,8 @@ internal class ColumnPagingController(
                     kind,
                     column.target,
                     cursor,
-                    Locale.getDefault().toLanguageTag().ifBlank { "ja" },
+                    snapshot.appLanguageTag,
+                    column.sort.name.lowercase(Locale.ROOT),
                 )
             }
             withContext(Dispatchers.Main.immediate) {
@@ -204,5 +205,5 @@ internal class ColumnPagingController(
         }
     }
 
-    private fun language(): String = Locale.getDefault().toLanguageTag().ifBlank { "ja" }
+    private fun language(): String = state.value.appLanguageTag
 }

@@ -40,6 +40,10 @@ class TimelineResponseParserTest {
         assertEquals("引用元", detailed.quotedPost?.text)
         assertEquals(2, detailed.media.size)
         assertEquals("https://video.twimg.com/high.mp4", detailed.media[1].url)
+        assertEquals(
+            listOf("https://video.twimg.com/low.mp4", "https://video.twimg.com/high.mp4"),
+            detailed.media[1].variants.map { it.url },
+        )
         assertFalse(page.posts.any { it.id == "99" })
         assertEquals("100", page.posts[0].replyToPostId)
         assertEquals("parent_user", page.posts[0].replyToUsername)

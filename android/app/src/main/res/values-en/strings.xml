@@ -235,4 +235,14 @@
     <string name="post_link_copied">No share target was available, so the post link was copied.</string>
     <string name="inline_video_fullscreen">Open video fullscreen</string>
     <string name="media_viewer_rotate_landscape">Rotate to landscape</string>
+    <string name="setting_translation_language">Post translation language</string>
+    <string name="setting_auto_refresh">Automatically refresh timelines</string>
+    <string name="setting_video_quality">Default video quality</string>
+    <string name="video_quality_menu">Video quality</string>
+    <string name="video_quality_auto">Auto (highest)</string>
+    <string name="video_quality_low">Low</string>
+    <string name="video_quality_medium">Medium</string>
+    <string name="video_quality_high">High</string>
+    <string name="column_sort_latest">Latest</string>
+    <string name="column_sort_top">Top</string>
 </resources>

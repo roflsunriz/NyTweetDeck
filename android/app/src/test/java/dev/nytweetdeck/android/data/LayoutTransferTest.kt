@@ -9,6 +9,8 @@ import dev.nytweetdeck.android.model.RankingMode
 import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.AppFontSize
 import dev.nytweetdeck.android.model.AccentColor
+import dev.nytweetdeck.android.model.ColumnSort
+import dev.nytweetdeck.android.model.VideoQuality
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -24,7 +26,7 @@ class LayoutTransferTest {
         val source = DeckUiState(
             isInitializing = false,
             columns = listOf(
-                DeckColumn("home-1", ColumnKind.HOME_FOR_YOU, "ホーム"),
+                DeckColumn("home-1", ColumnKind.HOME_FOR_YOU, "ホーム", sort = ColumnSort.TOP),
                 DeckColumn("search-1", ColumnKind.SEARCH, "NyTweetDeck", "NyTweetDeck"),
                 DeckColumn("trends-1", ColumnKind.TRENDS, "AI"),
             ),
@@ -43,6 +45,9 @@ class LayoutTransferTest {
             trendSearchHistory = listOf("Android", "NyTweetDeck"),
             autoTranslatePosts = false,
             appLanguageTag = "fr",
+            translationLanguageTag = "ja",
+            autoRefreshTimelines = false,
+            videoQuality = VideoQuality.MEDIUM,
             accounts = listOf(
                 AccountUiModel(
                     accountId = "account-secret-id",
@@ -95,6 +100,9 @@ class LayoutTransferTest {
         assertEquals(source.trendSearchHistory, imported.state.trendSearchHistory)
         assertEquals(source.autoTranslatePosts, imported.state.autoTranslatePosts)
         assertEquals(source.appLanguageTag, imported.state.appLanguageTag)
+        assertEquals(source.translationLanguageTag, imported.state.translationLanguageTag)
+        assertEquals(source.autoRefreshTimelines, imported.state.autoRefreshTimelines)
+        assertEquals(source.videoQuality, imported.state.videoQuality)
         assertEquals(source.accounts, imported.state.accounts)
         assertEquals(source.selectedAccountId, imported.state.selectedAccountId)
         assertEquals(source.accountAuthStatus, imported.state.accountAuthStatus)

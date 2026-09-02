@@ -45,4 +45,15 @@ class TimelineQueryFactoryTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("対象");
     }
+
+    @Test
+    void mapsTopAndLatestToTheNativeSearchProducts() {
+        assertThat(factory.create("search", "NyTweetDeck", null, "top").variables())
+                .containsEntry("product", "Top");
+        assertThat(factory.create("search", "NyTweetDeck", null, "latest").variables())
+                .containsEntry("product", "Latest");
+        assertThatThrownBy(() -> factory.create("search", "NyTweetDeck", null, "popular"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("並び順");
+    }
 }

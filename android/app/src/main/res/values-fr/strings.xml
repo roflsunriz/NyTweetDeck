@@ -234,4 +234,14 @@
     <string name="post_link_copied">Aucune cible de partage n’était disponible. Le lien du post a été copié.</string>
     <string name="inline_video_fullscreen">Ouvrir la vidéo en plein écran</string>
     <string name="media_viewer_rotate_landscape">Pivoter en paysage</string>
+    <string name="setting_translation_language">Langue de traduction des posts</string>
+    <string name="setting_auto_refresh">Actualiser automatiquement les fils</string>
+    <string name="setting_video_quality">Qualité vidéo par défaut</string>
+    <string name="video_quality_menu">Qualité vidéo</string>
+    <string name="video_quality_auto">Auto (maximale)</string>
+    <string name="video_quality_low">Basse</string>
+    <string name="video_quality_medium">Moyenne</string>
+    <string name="video_quality_high">Haute</string>
+    <string name="column_sort_latest">Plus récents</string>
+    <string name="column_sort_top">Populaires</string>
 </resources>

@@ -374,8 +374,8 @@ class XWebMetadataResolver(
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .callTimeout(35, TimeUnit.SECONDS)
-            .followRedirects(false)
-            .followSslRedirects(false)
+            .followRedirects(true)
+            .followSslRedirects(true)
             .build()
         private val userAgent = userAgent.trim().also {
             require(it.isNotEmpty()) { "X Web User-Agentが空です。" }
@@ -425,7 +425,7 @@ class XWebMetadataResolver(
         val MANIFEST_ENTRY = Regex("(?:^|[,{])(\\d+):\"([^\"]+)\"")
         val BOOLEAN_FEATURE = Regex("\"([A-Za-z][A-Za-z0-9_]{0,199})\":\\{\"value\":(true|false)")
         val OPERATION = Regex(
-            """queryId:\s*"([^"]+)"\s*,\s*operationName:\s*"([^"]+)"\s*,\s*operationType:\s*"(query|mutation)"\s*,\s*metadata:\s*\{\s*featureSwitches:\s*\[([^]]*)]\s*,\s*fieldToggles:\s*\[([^]]*)]\s*}""",
+            """queryId:\s*"([^"]+)"\s*,\s*operationName:\s*"([^"]+)"\s*,\s*operationType:\s*"(query|mutation)"\s*,\s*metadata:\s*\Q{\E\s*featureSwitches:\s*\Q[\E(.*?)\Q]\E\s*,\s*fieldToggles:\s*\Q[\E(.*?)\Q]\E\s*\Q}\E""",
         )
         val SAFE_OPERATION_ID = Regex("[A-Za-z0-9_-]{8,100}")
         val SAFE_OPERATION_NAME = Regex("[A-Za-z][A-Za-z0-9_]{1,100}")

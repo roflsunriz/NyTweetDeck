@@ -51,6 +51,7 @@ import dev.nytweetdeck.android.model.CommunityNoteStatus
 import dev.nytweetdeck.android.model.CommunityNoteUiState
 import dev.nytweetdeck.android.model.PostTranslationUiState
 import dev.nytweetdeck.android.model.TranslationCandidate
+import dev.nytweetdeck.android.model.VideoQuality
 import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 import java.util.Locale
 
@@ -80,6 +81,10 @@ internal fun CommunityNoteDialog(
     onTranslationNeeded: (TranslationCandidate) -> Unit = {},
     onTranslationRetry: (TranslationCandidate) -> Unit = {},
     onToggleOriginal: (String) -> Unit = {},
+    videoAutoplay: Boolean = false,
+    videoLoop: Boolean = true,
+    videoVolume: Int = 100,
+    videoQuality: VideoQuality = VideoQuality.AUTO,
 ) {
     if (state.status == CommunityNoteStatus.CLOSED) return
     Dialog(
@@ -119,6 +124,10 @@ internal fun CommunityNoteDialog(
                         onTranslationNeeded = onTranslationNeeded,
                         onTranslationRetry = onTranslationRetry,
                         onToggleOriginal = onToggleOriginal,
+                        videoAutoplay = videoAutoplay,
+                        videoLoop = videoLoop,
+                        videoVolume = videoVolume,
+                        videoQuality = videoQuality,
                     )
                     CommunityNoteStatus.CLOSED -> Unit
                 }
@@ -192,6 +201,10 @@ private fun CommunityNoteReady(
     onTranslationNeeded: (TranslationCandidate) -> Unit,
     onTranslationRetry: (TranslationCandidate) -> Unit,
     onToggleOriginal: (String) -> Unit,
+    videoAutoplay: Boolean,
+    videoLoop: Boolean,
+    videoVolume: Int,
+    videoQuality: VideoQuality,
 ) {
     val page = state.page
     if (page == null) {
@@ -225,6 +238,10 @@ private fun CommunityNoteReady(
             onTranslationNeeded = onTranslationNeeded,
             onTranslationRetry = onTranslationRetry,
             onToggleOriginal = onToggleOriginal,
+            videoAutoplay = videoAutoplay,
+            videoLoop = videoLoop,
+            videoVolume = videoVolume,
+            videoQuality = videoQuality,
         )
         Text(
             text = stringResource(R.string.community_note_title),

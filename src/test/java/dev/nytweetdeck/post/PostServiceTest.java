@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.nytweetdeck.timeline.TimelineResponseParser;
+import dev.nytweetdeck.timeline.TimelinePage;
 import dev.nytweetdeck.xapi.graphql.AuthenticatedGraphQlClient;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -73,15 +74,58 @@ class PostServiceTest {
         assertThat(client.conversationVariables).containsEntry("rankingMode", "Likes");
     }
 
+    @Test
+    void loadsReplyAncestorsAsContextWhenAReplyIsOpenedFromATimeline() {
+        var focal = """
+                {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"124",
+                "legacy":{"full_text":"reply opened from timeline","in_reply_to_status_id_str":"100"}}}}}
+                """;
+        var replyConversation = """
+                {"data":{"threaded_conversation_with_injections_v2":{"instructions":[{
+                "entries":[{"content":{"itemContent":{"tweet_results":{"result":{
+                "__typename":"Tweet","rest_id":"124","legacy":{"full_text":"reply opened from timeline",
+                "in_reply_to_status_id_str":"100"}}}}}}]}]}}}
+                """;
+        var parentConversation = """
+                {"data":{"threaded_conversation_with_injections_v2":{"instructions":[{
+                "entries":[
+                {"content":{"itemContent":{"tweet_results":{"result":{
+                "__typename":"Tweet","rest_id":"99","legacy":{"full_text":"root"}}}}}},
+                {"content":{"itemContent":{"tweet_results":{"result":{
+                "__typename":"Tweet","rest_id":"100","legacy":{"full_text":"previous reply",
+                "in_reply_to_status_id_str":"99"}}}}}}
+                ]}]}}}
+                """;
+        var client = new RecordingGraphQlClient(focal, replyConversation, parentConversation);
+
+        var detail = new PostService(
+                client,
+                new TimelineResponseParser(JsonMapper.builder().build()),
+                null).detail("account", "124", null, "ja", "relevance");
+
+        assertThat(detail.contextPosts()).extracting(TimelinePage.Post::id)
+                .containsExactly("99", "100");
+        assertThat(detail.replies()).extracting(TimelinePage.Post::id)
+                .doesNotContain("99", "100");
+        assertThat(client.conversationVariables).containsEntry("focalTweetId", "100");
+    }
+
     private static final class RecordingGraphQlClient extends AuthenticatedGraphQlClient {
         private final String focal;
         private final String conversation;
+        private final String parentConversation;
         private Map<String, Object> conversationVariables = Map.of();
 
         private RecordingGraphQlClient(String focal, String conversation) {
+            this(focal, conversation, conversation);
+        }
+
+        private RecordingGraphQlClient(
+                String focal, String conversation, String parentConversation) {
             super(null, null, null, null);
             this.focal = focal;
             this.conversation = conversation;
+            this.parentConversation = parentConversation;
         }
 
         @Override
@@ -95,7 +139,11 @@ class PostServiceTest {
             }
             if ("conversation".equals(purpose)) {
                 conversationVariables = Map.copyOf(variables);
-                return new GraphQlResult(purpose, "TweetDetail", conversation);
+                var focalTweetId = variables.get("focalTweetId");
+                return new GraphQlResult(
+                        purpose,
+                        "TweetDetail",
+                        "100".equals(focalTweetId) ? parentConversation : conversation);
             }
             throw new IllegalArgumentException("unexpected purpose: " + purpose);
         }

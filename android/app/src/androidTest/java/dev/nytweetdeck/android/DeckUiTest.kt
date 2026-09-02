@@ -20,6 +20,8 @@ import dev.nytweetdeck.android.model.DefaultMainMenuItems
 import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.AppFontSize
 import dev.nytweetdeck.android.model.AccentColor
+import dev.nytweetdeck.android.model.ColumnSort
+import dev.nytweetdeck.android.model.VideoQuality
 import androidx.test.espresso.intent.Intents
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.espresso.intent.Intents.intended
@@ -69,8 +71,11 @@ class DeckUiTest {
         composeRule.onNodeWithTag("setting-reduce-motion").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-media-preview").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-autoplay").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-auto-refresh").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-loop").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-auto-translate").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-translation-language-fr").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-video-quality-low").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-volume").performScrollTo().performSemanticsAction(
             SemanticsActions.SetProgress,
         ) { it(42f) }
@@ -86,9 +91,22 @@ class DeckUiTest {
         assertEquals(false, state.videoLoop)
         assertEquals(42, state.videoVolume)
         assertEquals(false, state.autoTranslatePosts)
+        assertEquals(false, state.autoRefreshTimelines)
+        assertEquals("fr", state.translationLanguageTag)
+        assertEquals(VideoQuality.LOW, state.videoQuality)
         if (InstrumentationRegistry.getArguments().getString("capture") == "true") {
             Thread.sleep(5_000)
         }
+    }
+
+    @Test
+    fun timelineColumnCanSwitchBetweenLatestAndTop() {
+        isolatedViewModel.addColumn(ColumnKind.HOME_FOR_YOU, "Home")
+        val columnId = isolatedViewModel.state.value.columns.single().id
+
+        composeRule.onNodeWithTag("column-sort-top-$columnId").performClick()
+
+        assertEquals(ColumnSort.TOP, isolatedViewModel.state.value.columns.single().sort)
     }
 
     @Test

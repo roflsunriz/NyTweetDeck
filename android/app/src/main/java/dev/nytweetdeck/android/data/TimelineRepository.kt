@@ -17,8 +17,9 @@ class TimelineRepository(
         target: String? = null,
         cursor: String? = null,
         language: String = "ja",
+        sort: String = "latest",
     ): TimelinePage {
-        val query = TimelineQueryFactory.create(kind, target, cursor)
+        val query = TimelineQueryFactory.create(kind, target, cursor, sort)
         val body = graphQlExecutor.execute(
             credentials = XSessionCredentials(
                 bearerToken = account.webBearerToken,
@@ -29,7 +30,7 @@ class TimelineRepository(
             variables = query.variables,
             language = language,
         )
-        val page = responseParser.parse(body)
+        val page = responseParser.parse(body, sort)
         if (cursor.isNullOrBlank()) {
             cache?.write(account.accountId, kind, target, body)
         }

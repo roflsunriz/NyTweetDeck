@@ -1,5 +1,5 @@
 import { createContext, type ReactNode, useContext, useRef } from "react";
-import type { ColumnConfig, Locale } from "./layout";
+import type { ColumnConfig, ColumnSort, Locale } from "./layout";
 import type { TimelinePage, TimelinePost } from "./timeline";
 
 const maximumTimelineSnapshots = 64;
@@ -121,6 +121,7 @@ export function createTimelineCacheKey(
   accountId: string,
   column: ColumnConfig,
   locale: Locale,
+  sort: ColumnSort = "latest",
 ): string {
-  return JSON.stringify([accountId, column.kind, column.target, locale]);
+  return JSON.stringify([accountId, column.kind, column.target, locale, sort]);
 }

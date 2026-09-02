@@ -7,13 +7,22 @@ import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -319,14 +328,17 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     .safeDrawingPadding()
                     .navigationBarsPadding(),
             ) {
-                MainMenu(
-                    menuItems = state.mainMenuItems,
-                    onActivate = activateMenuItem,
-                    onEditMenu = { openDialog = OpenDialog.MENU_EDITOR },
-                    onAccounts = { openDialog = OpenDialog.ACCOUNTS },
-                    onSettings = { openDialog = OpenDialog.SETTINGS },
-                )
-                DeckContent(
+                if (state.showMainNavigation) {
+                    MainMenu(
+                        menuItems = state.mainMenuItems,
+                        onActivate = activateMenuItem,
+                        onEditMenu = { openDialog = OpenDialog.MENU_EDITOR },
+                        onAccounts = { openDialog = OpenDialog.ACCOUNTS },
+                        onSettings = { openDialog = OpenDialog.SETTINGS },
+                    )
+                }
+                Box(modifier = androidx.compose.ui.Modifier.weight(1f).fillMaxSize()) {
+                    DeckContent(
                     state = state,
                     columnScrollPositions = state.columnScrollPositions,
                     onRemoveColumn = viewModel::removeColumn,
@@ -375,8 +387,24 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     autoTranslatePosts = state.autoTranslatePosts,
                     onTranslationNeeded = viewModel::requestPostTranslation,
                     onTranslationRetry = viewModel::retryPostTranslation,
-                    onToggleOriginal = viewModel::togglePostOriginal,
-                )
+                                         onToggleOriginal = viewModel::togglePostOriginal,
+            )
+                    if (!state.showMainNavigation) {
+                        androidx.compose.material3.FloatingActionButton(
+                            onClick = {
+                                viewModel.setDisplaySettings(
+                                    state.displaySettings().copy(showMainNavigation = true),
+                                )
+                            },
+                            modifier = Modifier.align(Alignment.TopStart).padding(12.dp).testTag("show-main-navigation"),
+                        ) {
+                            androidx.compose.material3.Icon(
+                                androidx.compose.material.icons.Icons.Default.Menu,
+                                contentDescription = stringResource(R.string.show_main_navigation),
+                            )
+                        }
+                    }
+                }
             }
         }
 

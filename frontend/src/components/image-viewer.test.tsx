@@ -130,6 +130,33 @@ test("uses a modal dialog on wide screens and a non-modal full-page region on ph
   }
 });
 
+test("zooms with two-finger pinch while keeping the pinch center anchored and clamps to limits", () => {
+  renderViewer();
+  const { image, viewport } = viewerElements();
+  mockViewportBounds(viewport, 0, 300);
+
+  fireEvent(viewport, touchPointerEvent("pointerdown", 100, 100, 1, true));
+  fireEvent(viewport, touchPointerEvent("pointerdown", 200, 100, 2, false));
+  expect(Number(viewport.dataset.zoom)).toBe(1);
+
+  // Spread fingers: distance 100 -> 120, ratio 1.2
+  fireEvent(viewport, touchPointerEvent("pointermove", 80, 100, 1, true));
+  expect(Number(viewport.dataset.zoom)).toBeCloseTo(1.2, 2);
+  expect(image.style.transform).toContain("scale(1.2)");
+  // New center 140 with viewport center 150, anchored pan should be -10
+  expect(Number(viewport.dataset.panX)).toBeCloseTo(-10, 0);
+  expect(viewport.dataset.dragging).toBe("false");
+
+  // Pinch further out until max clamp, then move until min clamp
+  fireEvent(viewport, touchPointerEvent("pointermove", 20, 100, 1, true));
+  expect(Number(viewport.dataset.zoom)).toBeLessThanOrEqual(8);
+  // Lift one finger: pinch ends, remaining finger should be able to drag again
+  fireEvent(viewport, touchPointerEvent("pointerup", 20, 100, 1, true));
+  fireEvent(viewport, touchPointerEvent("pointermove", 210, 110, 2, false));
+  expect(viewport.dataset.dragging).toBe("true");
+  expect(image.style.transform).toContain("translate(");
+});
+
 function renderViewer({
   src = sources[0],
   sources: siblingSources = [src],
@@ -187,6 +214,26 @@ function pointerEvent(
     isPrimary: { value: true },
     button: { value: 0 },
     buttons: { value: buttons },
+    clientX: { value: clientX },
+    clientY: { value: clientY },
+  });
+  return event;
+}
+
+function touchPointerEvent(
+  type: string,
+  clientX: number,
+  clientY: number,
+  pointerId: number,
+  isPrimary: boolean,
+): Event {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    pointerId: { value: pointerId },
+    pointerType: { value: "touch" },
+    isPrimary: { value: isPrimary },
+    button: { value: 0 },
+    buttons: { value: type === "pointerup" ? 0 : 1 },
     clientX: { value: clientX },
     clientY: { value: clientY },
   });

@@ -76,8 +76,10 @@ describe("NyTweetDeck shell", () => {
     await user.click(addColumnButton);
     await user.click(screen.getByRole("button", { name: /おすすめ/ }));
     expect(screen.getByRole("heading", { name: "おすすめ" })).toBeDefined();
+    await user.selectOptions(screen.getByRole("combobox", { name: "ポストの並び順" }), "top");
 
     await waitFor(() => expect(sharedSnapshot?.layout.columns).toHaveLength(1));
+    await waitFor(() => expect(sharedSnapshot?.layout.columns[0]?.sort).toBe("top"));
     firstRender.unmount();
     render(<App />);
     expect(await screen.findByRole("heading", { name: "おすすめ" })).toBeDefined();
@@ -113,6 +115,8 @@ describe("NyTweetDeck shell", () => {
     await user.selectOptions(screen.getByTestId("setting-language"), "en");
 
     expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();
+    await user.selectOptions(screen.getByTestId("setting-translation-language"), "fr");
+    expect(sharedSnapshot?.layout.translationLocale).toBe("fr");
     await user.selectOptions(screen.getByTestId("setting-theme"), "light");
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(document.documentElement.lang).toBe("en");
@@ -128,19 +132,23 @@ describe("NyTweetDeck shell", () => {
     expect((screen.getByTestId("setting-video-loop") as HTMLInputElement).checked).toBe(true);
     expect((screen.getByTestId("setting-video-volume") as HTMLInputElement).value).toBe("100");
     await user.click(screen.getByTestId("setting-auto-translate-posts"));
+    await user.click(screen.getByTestId("setting-auto-refresh-timelines"));
     await user.click(screen.getByTestId("setting-reduce-motion"));
     await user.click(screen.getByTestId("setting-video-loop"));
     fireEvent.change(screen.getByTestId("setting-video-volume"), { target: { value: "35" } });
+    await user.selectOptions(screen.getByTestId("setting-video-quality"), "low");
     expect(document.documentElement.dataset.fontSize).toBe("large");
     expect(document.documentElement.dataset.accent).toBe("purple");
     expect(document.documentElement.dataset.density).toBe("compact");
     expect(document.documentElement.dataset.reduceMotion).toBe("true");
     await waitFor(() => expect(sharedSnapshot?.layout.display.videoVolume).toBe(35));
-    expect(sharedSnapshot?.layout.version).toBe(8);
+    expect(sharedSnapshot?.layout.version).toBe(10);
     expect(sharedSnapshot?.layout.display.accentColor).toBe("purple");
     expect(sharedSnapshot?.layout.display.reduceMotion).toBe(true);
     expect(sharedSnapshot?.layout.display.autoTranslatePosts).toBe(false);
+    expect(sharedSnapshot?.layout.display.autoRefreshTimelines).toBe(false);
     expect(sharedSnapshot?.layout.display.videoLoop).toBe(false);
+    expect(sharedSnapshot?.layout.display.videoQuality).toBe("low");
   });
 
   test("imports menu columns and display settings while preserving the selected account", async () => {

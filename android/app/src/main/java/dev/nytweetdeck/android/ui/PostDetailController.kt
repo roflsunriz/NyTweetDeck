@@ -77,7 +77,7 @@ internal class PostDetailController(
                     postId = page.post.id,
                     cursor = cursor,
                     knownFocalPost = page.post,
-                    language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
+                    language = snapshot.appLanguageTag,
                     replySort = snapshot.replySort.name.lowercase(Locale.ROOT),
                 )
             }
@@ -148,7 +148,7 @@ internal class PostDetailController(
                 repository.load(
                     account = account,
                     postId = postId,
-                    language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
+                    language = snapshot.appLanguageTag,
                     replySort = snapshot.replySort.name.lowercase(Locale.ROOT),
                 )
             }

@@ -9,6 +9,8 @@ import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.AppFontSize
 import dev.nytweetdeck.android.model.AccentColor
 import dev.nytweetdeck.android.model.DisplaySettings
+import dev.nytweetdeck.android.model.ColumnSort
+import dev.nytweetdeck.android.model.VideoQuality
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
@@ -29,7 +31,7 @@ import java.util.Locale
 public object LayoutTransfer {
     public const val FORMAT: String = "NyTweetDeckSettings"
     public const val DOCUMENT_VERSION: Int = 1
-    public const val LAYOUT_VERSION: Int = 8
+    public const val LAYOUT_VERSION: Int = 9
     public const val MAX_JSON_SIZE_BYTES: Int = 1 shl 20
 
     /** Compatibility alias for callers that use the settings-store terminology. */
@@ -42,7 +44,7 @@ public object LayoutTransfer {
     private const val MAX_HISTORY_QUERY_LENGTH = 100
     private const val MAX_HISTORY_ENTRIES = 20
     private val ROOT_KEYS = setOf("format", "version", "exportedAt", "layout")
-    private val LAYOUT_KEYS = setOf(
+    private val LAYOUT_KEYS_V8 = setOf(
         "version",
         "columns",
         "navItems",
@@ -53,9 +55,12 @@ public object LayoutTransfer {
         "display",
         "trendSearchHistory",
     )
+    private val LAYOUT_KEYS = LAYOUT_KEYS_V8 + "translationLocale"
+    private val ANDROID_LAYOUT_KEYS_V8 = LAYOUT_KEYS_V8 + "selectedMenu"
     private val ANDROID_LAYOUT_KEYS = LAYOUT_KEYS + "selectedMenu"
-    private val COLUMN_KEYS = setOf("id", "kind", "target", "label")
-    private val DISPLAY_KEYS = setOf(
+    private val COLUMN_KEYS_V8 = setOf("id", "kind", "target", "label")
+    private val COLUMN_KEYS = COLUMN_KEYS_V8 + "sort"
+    private val DISPLAY_KEYS_V8 = setOf(
         "fontSize",
         "accentColor",
         "density",
@@ -66,6 +71,7 @@ public object LayoutTransfer {
         "videoVolume",
         "autoTranslatePosts",
     )
+    private val DISPLAY_KEYS = DISPLAY_KEYS_V8 + setOf("autoRefreshTimelines", "videoQuality")
 
     private val NAV_ITEM_IDS = setOf(
         "compose",
@@ -158,6 +164,7 @@ public object LayoutTransfer {
             videoVolume = imported.display.videoVolume,
             autoTranslatePosts = imported.display.autoTranslatePosts,
             appLanguageTag = imported.locale,
+            translationLanguageTag = imported.translationLocale,
             trendSearchHistory = imported.trendSearchHistory,
         )
         return ImportResult(state = state, currentAccountId = currentState.selectedAccountId)
@@ -194,6 +201,8 @@ public object LayoutTransfer {
             if (column.target == null) append("null") else appendJsonString(column.target)
             append(",\"label\":")
             appendJsonString(column.title)
+            append(",\"sort\":")
+            appendJsonString(column.sort.name.lowercase(Locale.ROOT))
             append('}')
         }
         append("],\"navItems\":[")
@@ -203,6 +212,8 @@ public object LayoutTransfer {
         }
         append("],\"locale\":")
         appendJsonString(state.appLanguageTag)
+        append(",\"translationLocale\":")
+        appendJsonString(state.translationLanguageTag)
         append(",\"theme\":")
         appendJsonString(state.themeMode.name.lowercase(Locale.ROOT))
         append(",\"activeAccountId\":null")
@@ -221,6 +232,9 @@ public object LayoutTransfer {
         append(",\"videoLoop\":${state.videoLoop}")
         append(",\"videoVolume\":${state.videoVolume}")
         append(",\"autoTranslatePosts\":${state.autoTranslatePosts}")
+        append(",\"autoRefreshTimelines\":${state.autoRefreshTimelines}")
+        append(",\"videoQuality\":")
+        appendJsonString(state.videoQuality.name.lowercase(Locale.ROOT))
         append('}')
         append(",\"trendSearchHistory\":[")
         state.trendSearchHistory.forEachIndexed { index, query ->
@@ -256,15 +270,29 @@ public object LayoutTransfer {
 
         val layout = document.requireObject("layout")
         val layoutKeys = layout.values.keys.toSet()
-        if (layoutKeys != LAYOUT_KEYS && layoutKeys != ANDROID_LAYOUT_KEYS) {
+        val layoutVersion = layout.requireInteger("version")
+        val isAndroidLayout = layoutKeys == ANDROID_LAYOUT_KEYS || layoutKeys == ANDROID_LAYOUT_KEYS_V8
+        val expectedLayoutKeys = when {
+            layoutVersion == 8 && isAndroidLayout -> ANDROID_LAYOUT_KEYS_V8
+            layoutVersion == 8 -> LAYOUT_KEYS_V8
+            layoutVersion == LAYOUT_VERSION && isAndroidLayout -> ANDROID_LAYOUT_KEYS
+            layoutVersion == LAYOUT_VERSION -> LAYOUT_KEYS
+            else -> emptySet()
+        }
+        if (layoutKeys != expectedLayoutKeys) {
             invalidLayout("項目が不正です。")
         }
 
-        if (layout.requireInteger("version") != LAYOUT_VERSION) {
+        if (layoutVersion !in setOf(8, LAYOUT_VERSION)) {
             invalidLayout("のバージョンが未対応です。")
         }
         val locale = parseEnum(layout.requireString("locale"), LOCALES, "言語")
-        val columns = parseColumns(layout.requireArray("columns"), locale)
+        val translationLocale = if (layoutVersion >= LAYOUT_VERSION) {
+            parseEnum(layout.requireString("translationLocale"), LOCALES, "翻訳先言語")
+        } else {
+            locale
+        }
+        val columns = parseColumns(layout.requireArray("columns"), locale, layoutVersion)
         val mainMenuItems = parseNavItems(layout.requireArray("navItems"))
         val theme = parseEnum(layout.requireString("theme"), THEMES, "テーマ")
         validateNullableString(layout.requireValue("activeAccountId"), MAX_ACCOUNT_ID_LENGTH, "選択アカウントID")
@@ -272,7 +300,7 @@ public object LayoutTransfer {
             parseEnum(layout.requireString("replySort"), REPLY_SORTS, "返信並び順"),
         )
         val themeMode = ThemeMode.valueOf(theme.uppercase(Locale.ROOT))
-        val display = parseDisplay(layout.requireObject("display"), themeMode)
+        val display = parseDisplay(layout.requireObject("display"), themeMode, layoutVersion)
         val trendSearchHistory = parseTrendSearchHistory(layout.requireArray("trendSearchHistory"))
 
         val selectedMenu = if ("selectedMenu" in layout.values) {
@@ -295,15 +323,20 @@ public object LayoutTransfer {
             replySort,
             trendSearchHistory,
             locale,
+            translationLocale,
         )
     }
 
-    private fun parseColumns(array: TransferJsonArray, locale: String): List<DeckColumn> {
+    private fun parseColumns(array: TransferJsonArray, locale: String, layoutVersion: Int): List<DeckColumn> {
         val ids = HashSet<String>(array.values.size)
         return array.values.mapIndexed { index, value ->
             val column = value as? TransferJsonObject
                 ?: invalidLayout("カラム設定[$index]がオブジェクトではありません。")
-            requireExactKeys(column, COLUMN_KEYS, "カラム設定[$index]")
+            requireExactKeys(
+                column,
+                if (layoutVersion >= LAYOUT_VERSION) COLUMN_KEYS else COLUMN_KEYS_V8,
+                "カラム設定[$index]",
+            )
             val id = column.requireString("id")
             validateText(id, MAX_COLUMN_ID_LENGTH, "カラムID[$index]", trimRequired = true)
             if (!ids.add(id)) {
@@ -316,7 +349,15 @@ public object LayoutTransfer {
             val title = label?.takeIf(String::isNotBlank)
                 ?: target?.takeIf(String::isNotBlank)
                 ?: defaultColumnTitle(kind, locale)
-            DeckColumn(id = id, kind = kind, title = title, target = target)
+            val sort = if (layoutVersion >= LAYOUT_VERSION) {
+                ColumnSort.valueOf(
+                    parseEnum(column.requireString("sort"), setOf("latest", "top"), "カラムの並び順")
+                        .uppercase(Locale.ROOT),
+                )
+            } else {
+                ColumnSort.LATEST
+            }
+            DeckColumn(id = id, kind = kind, title = title, target = target, sort = sort)
         }
     }
 
@@ -374,8 +415,16 @@ public object LayoutTransfer {
         MainMenuItemId.SPACES -> "spaces"
     }
 
-    private fun parseDisplay(display: TransferJsonObject, themeMode: ThemeMode): DisplaySettings {
-        requireExactKeys(display, DISPLAY_KEYS, "表示設定")
+    private fun parseDisplay(
+        display: TransferJsonObject,
+        themeMode: ThemeMode,
+        layoutVersion: Int,
+    ): DisplaySettings {
+        requireExactKeys(
+            display,
+            if (layoutVersion >= LAYOUT_VERSION) DISPLAY_KEYS else DISPLAY_KEYS_V8,
+            "表示設定",
+        )
         val fontSize = AppFontSize.valueOf(
             parseEnum(display.requireString("fontSize"), FONT_SIZES, "文字サイズ").uppercase(Locale.ROOT),
         )
@@ -392,6 +441,22 @@ public object LayoutTransfer {
             invalidLayout("表示設定の動画音量が範囲外です。")
         }
         val autoTranslatePosts = requireBoolean(display, "autoTranslatePosts")
+        val autoRefreshTimelines = if (layoutVersion >= LAYOUT_VERSION) {
+            requireBoolean(display, "autoRefreshTimelines")
+        } else {
+            true
+        }
+        val videoQuality = if (layoutVersion >= LAYOUT_VERSION) {
+            VideoQuality.valueOf(
+                parseEnum(
+                    display.requireString("videoQuality"),
+                    setOf("auto", "low", "medium", "high"),
+                    "動画画質",
+                ).uppercase(Locale.ROOT),
+            )
+        } else {
+            VideoQuality.AUTO
+        }
         return DisplaySettings(
             themeMode = themeMode,
             fontSize = fontSize,
@@ -403,6 +468,8 @@ public object LayoutTransfer {
             videoLoop = videoLoop,
             videoVolume = volume,
             autoTranslatePosts = autoTranslatePosts,
+            autoRefreshTimelines = autoRefreshTimelines,
+            videoQuality = videoQuality,
         )
     }
 
@@ -432,6 +499,9 @@ public object LayoutTransfer {
         if (state.videoVolume !in 0..100) {
             invalid("表示設定の動画音量が範囲外です。")
         }
+        if (state.appLanguageTag !in LOCALES || state.translationLanguageTag !in LOCALES) {
+            invalid("表示言語または翻訳先言語が不正です。")
+        }
         val ids = HashSet<String>(state.columns.size)
         state.columns.forEachIndexed { index, column ->
             validateText(column.id, MAX_COLUMN_ID_LENGTH, "カラムID[$index]", trimRequired = true)
@@ -443,6 +513,9 @@ public object LayoutTransfer {
                 validateText(it, MAX_TARGET_LENGTH, "カラム対象[$index]", trimRequired = true)
             }
             validateColumnTarget(column.kind, column.target, index)
+            if (column.sort !in setOf(ColumnSort.LATEST, ColumnSort.TOP)) {
+                invalid("カラムの並び順[$index]が不正です。")
+            }
         }
     }
 
@@ -609,6 +682,7 @@ public object LayoutTransfer {
         val replySort: RankingMode,
         val trendSearchHistory: List<String>,
         val locale: String,
+        val translationLocale: String,
     )
 }
 

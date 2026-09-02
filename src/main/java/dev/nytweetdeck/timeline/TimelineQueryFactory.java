@@ -8,6 +8,11 @@ import org.springframework.stereotype.Component;
 public class TimelineQueryFactory {
 
     public Query create(String kind, String target, String cursor) {
+        return create(kind, target, cursor, "latest");
+    }
+
+    public Query create(String kind, String target, String cursor, String sort) {
+        var normalizedSort = normalizeSort(sort);
         var variables = new LinkedHashMap<String, Object>();
         variables.put("count", 20);
         if (cursor != null && !cursor.isBlank()) {
@@ -15,13 +20,14 @@ public class TimelineQueryFactory {
         }
         return switch (kind) {
             case "homeForYou" -> {
+                variables.put("enableRanking", "top".equals(normalizedSort));
                 variables.put("includePromotedContent", false);
                 variables.put("requestContext", "launch");
                 variables.put("withCommunity", true);
                 yield new Query("homeForYou", variables);
             }
             case "homeFollowing" -> {
-                variables.put("enableRanking", false);
+                variables.put("enableRanking", "top".equals(normalizedSort));
                 variables.put("includePromotedContent", false);
                 variables.put("requestContext", "launch");
                 yield new Query("homeFollowing", variables);
@@ -43,13 +49,21 @@ public class TimelineQueryFactory {
             case "search" -> {
                 variables.put("rawQuery", requireTarget(target, kind));
                 variables.put("querySource", "typed_query");
-                variables.put("product", "Latest");
+                variables.put("product", "top".equals(normalizedSort) ? "Top" : "Latest");
                 variables.put("withGrokTranslatedBio", false);
                 variables.put("withQuickPromoteEligibilityTweetFields", false);
                 yield new Query("search", variables);
             }
             default -> throw new IllegalArgumentException("未対応のタイムライン種別です: " + kind);
         };
+    }
+
+    private static String normalizeSort(String sort) {
+        var normalized = sort == null ? "latest" : sort.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!normalized.equals("latest") && !normalized.equals("top")) {
+            throw new IllegalArgumentException("カラムの並び順が不正です。");
+        }
+        return normalized;
     }
 
     private static String requireTarget(String target, String kind) {

@@ -30,7 +30,6 @@ import dev.nytweetdeck.android.xapi.VerifiedWebSession
 import dev.nytweetdeck.android.xapi.VerifiedXAccount
 import dev.nytweetdeck.android.xapi.XSessionCredentials
 import dev.nytweetdeck.android.xapi.XSessionVerifier
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -362,6 +361,53 @@ class DeckViewModelTest {
             advanceUntilIdle()
             assertEquals(1, calls)
             assertEquals("retained", viewModel.state.value.timelines["home"]?.posts?.single()?.text)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun disablesAdaptiveTimelineRefreshWithoutBlockingTheInitialVisibleLoad() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath())
+            settingsStore.save(
+                DeckUiState(
+                    columns = listOf(DeckColumn("home", ColumnKind.HOME_FOR_YOU, "Home")),
+                    autoRefreshTimelines = false,
+                ),
+            )
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            AccountStore(accountFile).addOrReplace(
+                AccountSecrets("7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile-7"),
+                select = true,
+            )
+            var calls = 0
+            val repository = TimelineRepository(GraphQlExecutor { _, _, _, _ ->
+                calls++
+                timelineJson("1", "initial only", "next")
+            })
+            val viewModel = DeckViewModel(
+                settingsStore = settingsStore,
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                timelineRepository = repository,
+                ioDispatcher = dispatcher,
+                adaptiveRefreshIntervalMillis = 15_000L,
+                visibilityRefreshDelayMillis = 750L,
+            )
+            runCurrent()
+
+            viewModel.setVisibleColumns(setOf("home"))
+            advanceTimeBy(750L)
+            runCurrent()
+            assertEquals(1, calls)
+
+            advanceTimeBy(15_000L)
+            runCurrent()
+            assertEquals(1, calls)
         } finally {
             Dispatchers.resetMain()
         }
@@ -720,11 +766,8 @@ class DeckViewModelTest {
             )
             advanceUntilIdle()
 
-            val sourceLanguage = if (Locale.getDefault().language.equals("en", ignoreCase = true)) {
-                "fr"
-            } else {
-                "en"
-            }
+            viewModel.setTranslationLanguage("fr")
+            val sourceLanguage = "en"
             viewModel.requestPostTranslation(TranslationCandidate("123", sourceLanguage, null))
             assertEquals(TranslationLoadStatus.LOADING, viewModel.state.value.postTranslations["123"]?.status)
             advanceUntilIdle()

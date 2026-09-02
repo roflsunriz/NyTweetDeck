@@ -36,7 +36,7 @@ public class XWebMetadataResolver {
     private static final Pattern OPERATION = Pattern.compile(
             "queryId:\\s*\"([^\"]+)\"\\s*,\\s*operationName:\\s*\"([^\"]+)\"\\s*,"
                     + "\\s*operationType:\\s*\"(query|mutation)\"\\s*,\\s*metadata:\\s*\\{"
-                    + "\\s*featureSwitches:\\s*\\[([^]]*)]\\s*,\\s*fieldToggles:\\s*\\[([^]]*)]\\s*}");
+                    + "\\s*featureSwitches:\\s*\\[(.*?)]\\s*,\\s*fieldToggles:\\s*\\[(.*?)]\\s*}");
     private static final Pattern QUOTED_VALUE = Pattern.compile("\\\"([^\\\"]+)\\\"");
     private static final Pattern SAFE_OPERATION_ID = Pattern.compile("[A-Za-z0-9_-]{8,100}");
     private static final List<String> RELEVANT_CHUNK_MARKERS = List.of(

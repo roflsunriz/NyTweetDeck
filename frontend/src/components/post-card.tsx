@@ -300,6 +300,8 @@ export function PostCard({
                   volume={display.videoVolume}
                   poster={media.previewUrl}
                   src={media.url}
+                  variants={media.variants}
+                  quality={display.videoQuality}
                   translation={translation}
                 />
               ) : onOpenImage === undefined ? (

@@ -16,10 +16,12 @@ import { Modal } from "./modal";
 interface SettingsDialogProps {
   translation: Translation;
   locale: Locale;
+  translationLocale: Locale;
   theme: Theme;
   display: DisplayPreferences;
   layout: AppLayout;
   onLocaleChange: (locale: Locale) => void;
+  onTranslationLocaleChange: (locale: Locale) => void;
   onThemeChange: (theme: Theme) => void;
   onDisplayChange: (display: DisplayPreferences) => void;
   onLayoutImport: (layout: AppLayout) => void;
@@ -29,10 +31,12 @@ interface SettingsDialogProps {
 export function SettingsDialog({
   translation,
   locale,
+  translationLocale,
   theme,
   display,
   layout,
   onLocaleChange,
+  onTranslationLocaleChange,
   onThemeChange,
   onDisplayChange,
   onLayoutImport,
@@ -47,6 +51,20 @@ export function SettingsDialog({
             data-testid="setting-language"
             value={locale}
             onChange={(event) => onLocaleChange(event.target.value as Locale)}
+          >
+            {supportedLocales.map((supportedLocale) => (
+              <option key={supportedLocale} value={supportedLocale}>
+                {translation.localeName[supportedLocale]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{translation.translationLanguage}</span>
+          <select
+            data-testid="setting-translation-language"
+            value={translationLocale}
+            onChange={(event) => onTranslationLocaleChange(event.target.value as Locale)}
           >
             {supportedLocales.map((supportedLocale) => (
               <option key={supportedLocale} value={supportedLocale}>
@@ -141,6 +159,12 @@ export function SettingsDialog({
           onChange={(checked) => onDisplayChange({ ...display, videoAutoplay: checked })}
         />
         <ToggleSetting
+          id="auto-refresh-timelines"
+          label={translation.autoRefreshTimelines}
+          checked={display.autoRefreshTimelines}
+          onChange={(checked) => onDisplayChange({ ...display, autoRefreshTimelines: checked })}
+        />
+        <ToggleSetting
           id="video-loop"
           label={translation.videoLoop}
           checked={display.videoLoop}
@@ -162,6 +186,52 @@ export function SettingsDialog({
             }
           />
         </label>
+        <label>
+          <span>{translation.videoQuality}</span>
+          <select
+            data-testid="setting-video-quality"
+            value={display.videoQuality}
+            onChange={(event) =>
+              onDisplayChange({
+                ...display,
+                videoQuality: event.target.value as DisplayPreferences["videoQuality"],
+              })
+            }
+          >
+            <option value="auto">{translation.videoQualityAuto}</option>
+            <option value="low">{translation.videoQualityLow}</option>
+            <option value="medium">{translation.videoQualityMedium}</option>
+            <option value="high">{translation.videoQualityHigh}</option>
+          </select>
+        </label>
+        <label>
+          <span>{translation.navigationPosition}</span>
+          <select
+            data-testid="setting-navigation-position"
+            value={display.navigationPosition}
+            onChange={(event) =>
+              onDisplayChange({
+                ...display,
+                navigationPosition:
+                  event.target.value as DisplayPreferences["navigationPosition"],
+              })
+            }
+          >
+            <option value="left">{translation.navigationPositionLeft}</option>
+            <option value="bottom">{translation.navigationPositionBottom}</option>
+          </select>
+        </label>
+        <ToggleSetting
+          id="show-main-navigation"
+          label={translation.showMainNavigation}
+          checked={display.showMainNavigation}
+          onChange={(checked) =>
+            onDisplayChange({ ...display, showMainNavigation: checked })
+          }
+        />
+        <p className="inline-warning" style={{ gridColumn: "1 / -1", marginTop: "-8px" }}>
+          {translation.showMainNavigationDescription}
+        </p>
       </div>
       <LayoutTransferSettings layout={layout} translation={translation} onImport={onLayoutImport} />
       <TranslationHealthSettings translation={translation} />

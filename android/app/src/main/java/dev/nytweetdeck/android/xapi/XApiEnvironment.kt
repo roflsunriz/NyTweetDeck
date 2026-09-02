@@ -22,7 +22,7 @@ class XApiEnvironment(context: Context) : XSessionVerifier, XApiMetadataRefreshe
     private val applicationContext = context.applicationContext
     private val userAgent: String by lazy {
         WebSettings.getDefaultUserAgent(applicationContext).takeIf(String::isNotBlank)
-            ?: throw XApiException("Android WebViewのUser-Agentを取得できません。", 503)
+            ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
     }
     private val httpClient by lazy { OkHttpClient() }
     private val bundledProfile: XApiProfile by lazy {

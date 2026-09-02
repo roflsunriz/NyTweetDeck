@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,6 +43,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -79,6 +81,7 @@ import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Article
 import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.ColumnKind
+import dev.nytweetdeck.android.model.ColumnSort
 import dev.nytweetdeck.android.model.ColumnScrollPosition
 import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 import dev.nytweetdeck.android.model.ColumnTimelineState
@@ -93,6 +96,7 @@ import dev.nytweetdeck.android.model.PostTranslationUiState
 import dev.nytweetdeck.android.model.TranslationCandidate
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.TrendColumnState
+import dev.nytweetdeck.android.model.VideoQuality
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -110,6 +114,7 @@ internal fun DeckContent(
     onClearNewPostsColumn: (String) -> Unit,
     onVisibleColumnsChanged: (Set<String>) -> Unit,
     onMoveColumn: (String, Int) -> Unit,
+    onColumnSortChange: (String, ColumnSort) -> Unit = { _, _ -> },
     onSaveColumnScrollPosition: (String, Int, Int, String?) -> Unit,
     onPostClick: (String) -> Unit = {},
     onQuoteClick: (String) -> Unit = {},
@@ -133,6 +138,7 @@ internal fun DeckContent(
     videoAutoplay: Boolean = false,
     videoLoop: Boolean = true,
     videoVolume: Int = 100,
+    videoQuality: VideoQuality = VideoQuality.AUTO,
     onTrendSelected: (String) -> Unit = {},
     onTrendQueryCommitted: (String) -> Unit = {},
     onClearTrendHistory: () -> Unit = {},
@@ -220,14 +226,16 @@ internal fun DeckContent(
                     onTranslationRetry = onTranslationRetry,
                     onToggleOriginal = onToggleOriginal,
                     videoAutoplay = videoAutoplay,
-                    videoLoop = videoLoop,
-                    videoVolume = videoVolume,
-                    trendSearchHistory = state.trendSearchHistory,
+                     videoLoop = videoLoop,
+                     videoVolume = videoVolume,
+                     videoQuality = videoQuality,
+                     trendSearchHistory = state.trendSearchHistory,
                     onTrendSelected = onTrendSelected,
                     onTrendQueryCommitted = onTrendQueryCommitted,
-                    onClearTrendHistory = onClearTrendHistory,
-                    onRemove = { onRemoveColumn(column.id) },
-                    onOpenAccounts = onOpenAccounts,
+                     onClearTrendHistory = onClearTrendHistory,
+                     onRemove = { onRemoveColumn(column.id) },
+                     onColumnSortChange = onColumnSortChange,
+                     onOpenAccounts = onOpenAccounts,
                     onRetry = { onRefreshColumn(column.id) },
                     onLoadMore = { onLoadMoreColumn(column.id) },
                     onClearNewPosts = { onClearNewPostsColumn(column.id) },
@@ -324,11 +332,13 @@ private fun DeckColumnCard(
     videoAutoplay: Boolean,
     videoLoop: Boolean,
     videoVolume: Int,
+    videoQuality: VideoQuality,
     trendSearchHistory: List<String>,
     onTrendSelected: (String) -> Unit,
     onTrendQueryCommitted: (String) -> Unit,
     onClearTrendHistory: () -> Unit,
     onRemove: () -> Unit,
+    onColumnSortChange: (String, ColumnSort) -> Unit,
     onOpenAccounts: () -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
@@ -345,24 +355,73 @@ private fun DeckColumnCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.fillMaxSize()) {
+            val headerHeight = if (compactDensity) 48.dp else 56.dp
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = headerHeight)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(start = 14.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center,
+                ) {
                     Text(
                         stringResource(R.string.column_kind),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
                     )
-                    Text(
-                        column.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            column.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (isTimelineColumn(column.kind)) {
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                FilterChip(
+                                    selected = column.sort == ColumnSort.LATEST,
+                                    onClick = { onColumnSortChange(column.id, ColumnSort.LATEST) },
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.column_sort_latest),
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .height(28.dp)
+                                        .testTag("column-sort-latest-${column.id}"),
+                                )
+                                FilterChip(
+                                    selected = column.sort == ColumnSort.TOP,
+                                    onClick = { onColumnSortChange(column.id, ColumnSort.TOP) },
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.column_sort_top),
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .height(28.dp)
+                                        .testTag("column-sort-top-${column.id}"),
+                                )
+                            }
+                        }
+                    }
                 }
                 IconButton(onClick = onRemove, modifier = Modifier.testTag("remove-column")) {
                     Icon(Icons.Default.Close, stringResource(R.string.remove_column))
@@ -399,7 +458,8 @@ private fun DeckColumnCard(
                             onLoadMore,
                         )
                         else -> TimelineBody(
-                            state = timelineState,
+                             state = timelineState,
+                             columnKind = column.kind,
                             onRetry = onRetry,
                             onLoadMore = onLoadMore,
                             onClearNewPosts = onClearNewPosts,
@@ -424,11 +484,13 @@ private fun DeckColumnCard(
                             onTranslationRetry = onTranslationRetry,
                             onToggleOriginal = onToggleOriginal,
                             pendingPostActions = pendingPostActions,
-                            failedPostActions = failedPostActions,
-                            mediaPreview = mediaPreview,
+                             failedPostActions = failedPostActions,
+                             columnSort = column.sort,
+                             mediaPreview = mediaPreview,
                             videoAutoplay = videoAutoplay,
                             videoLoop = videoLoop,
-                            videoVolume = videoVolume,
+                     videoVolume = videoVolume,
+                     videoQuality = videoQuality,
                         )
                     }
                 } else {
@@ -476,6 +538,7 @@ private fun DeckColumnCard(
 @Composable
 private fun TimelineBody(
     state: ColumnTimelineState?,
+    columnKind: ColumnKind,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onClearNewPosts: () -> Unit,
@@ -501,10 +564,12 @@ private fun TimelineBody(
     onToggleOriginal: (String) -> Unit,
     pendingPostActions: Map<String, Set<PostActionType>>,
     failedPostActions: Map<String, Set<PostActionType>>,
+    columnSort: ColumnSort,
     mediaPreview: Boolean,
     videoAutoplay: Boolean,
     videoLoop: Boolean,
     videoVolume: Int,
+    videoQuality: VideoQuality,
 ) {
     val timelineScope = rememberCoroutineScope()
     when (state?.status ?: TimelineLoadStatus.IDLE) {
@@ -527,9 +592,10 @@ private fun TimelineBody(
             if (readyState.posts.isEmpty()) {
                 Text(stringResource(R.string.timeline_empty), Modifier.testTag("timeline-empty"))
             } else {
+                val orderedPosts = orderedTimelinePosts(readyState.posts, columnKind, columnSort)
                 val listState = rememberRestoredLazyListState(
                     scrollPosition,
-                    timelineItemKeys(readyState),
+                    timelineItemKeys(readyState, orderedPosts),
                 )
                 ObserveListScrollPosition(listState, onScrollPositionChanged)
                 LaunchedEffect(listState, readyState.nextCursor, readyState.isLoadingMore) {
@@ -569,7 +635,7 @@ private fun TimelineBody(
                                 ) { Text(stringResource(R.string.retry_latest_posts)) }
                             }
                         }
-                        items(readyState.posts, key = Post::id) { post ->
+                        items(orderedPosts, key = Post::id) { post ->
                             PostCard(
                                 post = post,
                                 onPostClick = onPostClick,
@@ -596,6 +662,7 @@ private fun TimelineBody(
                                 videoAutoplay = videoAutoplay,
                                 videoLoop = videoLoop,
                                 videoVolume = videoVolume,
+                                videoQuality = videoQuality,
                             )
                         }
                         if (readyState.isLoadingMore) {
@@ -712,12 +779,48 @@ private fun restoredItemIndex(
     return (keyIndex ?: scrollPosition?.firstVisibleItemIndex ?: 0).coerceIn(0, itemKeys.lastIndex)
 }
 
-private fun timelineItemKeys(state: ColumnTimelineState): List<String> = buildList {
+private fun timelineItemKeys(state: ColumnTimelineState, orderedPosts: List<Post>): List<String> = buildList {
     if (state.refreshFailed) add("refresh-failed")
     if (state.newPostCount > 0) add("new-posts")
-    addAll(state.posts.map(Post::id))
+    addAll(orderedPosts.map(Post::id))
     if (state.isLoadingMore) add("loading-more")
     if (state.loadMoreFailed) add("load-more-failed")
+}
+
+private fun isTimelineColumn(kind: ColumnKind): Boolean = kind !in setOf(
+    ColumnKind.NOTIFICATIONS,
+    ColumnKind.MESSAGES,
+    ColumnKind.TRENDS,
+)
+
+private fun orderedTimelinePosts(
+    posts: List<Post>,
+    kind: ColumnKind,
+    sort: ColumnSort,
+): List<Post> {
+    if (sort == ColumnSort.LATEST || kind == ColumnKind.SEARCH) return posts
+    return posts.sortedWith(
+        compareByDescending<Post> { engagementScore(it) }
+            .thenComparator { left, right -> compareNewestFirst(left, right) },
+    )
+}
+
+private fun engagementScore(post: Post): Double =
+    post.viewCount.coerceAtLeast(0).toDouble() +
+        post.likeCount.coerceAtLeast(0) * 4.0 +
+        post.repostCount.coerceAtLeast(0) * 3.0 +
+        post.quoteCount.coerceAtLeast(0) * 3.0 +
+        post.replyCount.coerceAtLeast(0) * 2.0
+
+private fun compareNewestFirst(left: Post, right: Post): Int {
+    val leftTime = parsePostInstant(left.createdAt)
+    val rightTime = parsePostInstant(right.createdAt)
+    return when {
+        leftTime != null && rightTime != null -> rightTime.compareTo(leftTime)
+        leftTime != null -> -1
+        rightTime != null -> 1
+        else -> right.id.compareTo(left.id)
+    }
 }
 
 internal fun safeImageUrl(value: String?): String? {

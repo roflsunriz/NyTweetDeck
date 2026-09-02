@@ -81,6 +81,12 @@ data class Media(
     val type: String,
     val url: String?,
     val previewUrl: String?,
+    val variants: List<VideoVariant> = emptyList(),
+)
+
+data class VideoVariant(
+    val url: String,
+    val bitrate: Long?,
 )
 
 data class TextLink(

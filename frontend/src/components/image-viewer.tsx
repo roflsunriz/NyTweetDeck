@@ -40,6 +40,13 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
   const viewerRef = useRef<HTMLElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
+  const pointersRef = useRef<Map<number, Point>>(new Map());
+  const pinchRef = useRef<{
+    distance: number;
+    center: Point;
+    zoom: number;
+    pan: Point;
+  } | null>(null);
   const imageSources = useMemo(() => normalizeImageSources(src, sources), [src, sources]);
   const [imageIndex, setImageIndex] = useState(() => selectedImageIndex(src, imageSources));
   const [zoom, setZoom] = useState(1);
@@ -57,6 +64,10 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
     dragRef.current = null;
     setDragging(false);
     if (target.hasPointerCapture(active.pointerId)) target.releasePointerCapture(active.pointerId);
+  }, []);
+
+  const clearPinch = useCallback(() => {
+    pinchRef.current = null;
   }, []);
 
   const navigate = useCallback(
@@ -147,15 +158,96 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
   }, [setZoomAround, stopActiveDrag, zoom]);
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || event.isPrimary === false || dragRef.current !== null) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
     const point = pointerPoint(event);
+    pointersRef.current.set(event.pointerId, point);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Ignore missing capture support
+    }
+
+    if (pointersRef.current.size === 2) {
+      // Begin pinch: use the two active pointer positions
+      const entries = [...pointersRef.current.values()];
+      const a = entries[0];
+      const b = entries[1];
+      if (a === undefined || b === undefined) return;
+      const distance = pointDistance(a, b);
+      const center = pointMidpoint(a, b);
+      if (distance > 0) {
+        // Stop single-finger drag when second finger lands
+        if (dragRef.current !== null) {
+          const active = dragRef.current;
+          if (event.currentTarget.hasPointerCapture(active.pointerId)) {
+            event.currentTarget.releasePointerCapture(active.pointerId);
+          }
+          dragRef.current = null;
+          setDragging(false);
+        }
+        pinchRef.current = { distance, center, zoom, pan };
+      }
+      event.preventDefault();
+      return;
+    }
+
+    if (pointersRef.current.size > 2) {
+      event.preventDefault();
+      return;
+    }
+
+    if (event.button !== 0 || dragRef.current !== null) return;
+    // Allow secondary touch pointer as first pointer for pinch initiation
+    if (event.pointerType !== "touch" && event.isPrimary === false) return;
+    event.preventDefault();
     dragRef.current = { pointerId: event.pointerId, point, origin: point };
     setDragging(true);
   };
 
   const drag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const point = pointerPoint(event);
+    if (pointersRef.current.has(event.pointerId)) {
+      pointersRef.current.set(event.pointerId, point);
+    }
+
+    if (pointersRef.current.size === 2 && pinchRef.current !== null) {
+      const entries = [...pointersRef.current.values()];
+      const a = entries[0];
+      const b = entries[1];
+      if (a === undefined || b === undefined) return;
+      const nextDistance = pointDistance(a, b);
+      const nextCenter = pointMidpoint(a, b);
+      const baseline = pinchRef.current;
+      if (baseline.distance <= 0 || nextDistance <= 0) return;
+      const ratio = nextDistance / baseline.distance;
+      const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, baseline.zoom * ratio));
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const viewportCenter: Point = {
+        x: finiteCoordinate(bounds.left) + finiteCoordinate(bounds.width) / 2,
+        y: finiteCoordinate(bounds.top) + finiteCoordinate(bounds.height) / 2,
+      };
+      // Keep the pinch center anchored under the fingers
+      const anchoredPan: Point = {
+        x:
+          finiteCoordinate(nextCenter.x) -
+          finiteCoordinate(viewportCenter.x) -
+          (finiteCoordinate(baseline.center.x) -
+            finiteCoordinate(viewportCenter.x) -
+            finiteCoordinate(baseline.pan.x)) *
+            (nextZoom / baseline.zoom),
+        y:
+          finiteCoordinate(nextCenter.y) -
+          finiteCoordinate(viewportCenter.y) -
+          (finiteCoordinate(baseline.center.y) -
+            finiteCoordinate(viewportCenter.y) -
+            finiteCoordinate(baseline.pan.y)) *
+            (nextZoom / baseline.zoom),
+      };
+      setZoom(nextZoom);
+      setPan(anchoredPan);
+      event.preventDefault();
+      return;
+    }
+
     const current = dragRef.current;
     if (current === null || current.pointerId !== event.pointerId) return;
     if (event.pointerType !== "touch" && (event.buttons & 1) === 0) {
@@ -196,6 +288,35 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
   };
 
   const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const hadPinch = pinchRef.current !== null;
+    pointersRef.current.delete(event.pointerId);
+    if (pinchRef.current !== null) {
+      if (pointersRef.current.size < 2) {
+        pinchRef.current = null;
+      }
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        try {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        } catch {
+          // ignore
+        }
+      }
+      // When one finger remains after pinch, restart drag from its current position
+      if (pointersRef.current.size === 1) {
+        const remaining = [...pointersRef.current.entries()][0];
+        if (remaining !== undefined) {
+          const [remainingId, remainingPoint] = remaining;
+          dragRef.current = {
+            pointerId: remainingId,
+            point: remainingPoint,
+            origin: remainingPoint,
+          };
+          setDragging(true);
+        }
+      }
+      if (hadPinch) return;
+    }
+
     const current = dragRef.current;
     if (current === null || current.pointerId !== event.pointerId) return;
     const next = pointerPoint(event);
@@ -216,10 +337,14 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
   };
 
   const cancelDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    pointersRef.current.delete(event.pointerId);
+    if (pointersRef.current.size < 2) clearPinch();
     stopActiveDrag(event.currentTarget, event.pointerId);
   };
 
   const resetFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    pointersRef.current.clear();
+    clearPinch();
     stopActiveDrag(event.currentTarget);
     reset();
   };
@@ -342,6 +467,20 @@ function pointerPoint(event: ReactPointerEvent<HTMLDivElement>): Point {
   return {
     x: finiteCoordinate(event.clientX),
     y: finiteCoordinate(event.clientY),
+  };
+}
+
+function pointDistance(left: Point, right: Point): number {
+  return Math.hypot(
+    finiteCoordinate(left.x) - finiteCoordinate(right.x),
+    finiteCoordinate(left.y) - finiteCoordinate(right.y),
+  );
+}
+
+function pointMidpoint(left: Point, right: Point): Point {
+  return {
+    x: (finiteCoordinate(left.x) + finiteCoordinate(right.x)) / 2,
+    y: (finiteCoordinate(left.y) + finiteCoordinate(right.y)) / 2,
   };
 }
 

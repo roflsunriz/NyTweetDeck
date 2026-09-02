@@ -53,6 +53,7 @@ import dev.nytweetdeck.android.model.PostDetailUiState
 import dev.nytweetdeck.android.model.PostTranslationUiState
 import dev.nytweetdeck.android.model.RankingMode
 import dev.nytweetdeck.android.model.TranslationCandidate
+import dev.nytweetdeck.android.model.VideoQuality
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -87,6 +88,7 @@ internal fun PostDetailDialog(
     videoAutoplay: Boolean = false,
     videoLoop: Boolean = true,
     videoVolume: Int = 100,
+    videoQuality: VideoQuality = VideoQuality.AUTO,
 ) {
     if (state.status == PostDetailStatus.CLOSED) return
     val detailScrollPositions = remember { mutableStateMapOf<String, Pair<Int, Int>>() }
@@ -131,6 +133,7 @@ internal fun PostDetailDialog(
                         videoAutoplay = videoAutoplay,
                         videoLoop = videoLoop,
                         videoVolume = videoVolume,
+                        videoQuality = videoQuality,
                     ) }
                     PostDetailStatus.CLOSED -> Unit
                 }
@@ -226,6 +229,7 @@ private fun DetailReady(
     videoAutoplay: Boolean,
     videoLoop: Boolean,
     videoVolume: Int,
+    videoQuality: VideoQuality,
 ) {
     val page = state.page
     if (page == null) {
@@ -264,6 +268,36 @@ private fun DetailReady(
         modifier = Modifier.fillMaxSize(),
         state = listState,
     ) {
+        page.contextPosts.forEach { contextPost ->
+            item(key = "context-" + contextPost.id) {
+                PostCard(
+                    post = contextPost,
+                    onPostClick = onPostClick,
+                    onQuoteClick = onQuoteClick,
+                    onCreateQuoteClick = onCreateQuoteClick,
+                    onAuthorClick = onAuthorClick,
+                    onReplyClick = onReplyClick,
+                    onRepostClick = onRepostClick,
+                    onLikeClick = onLikeClick,
+                    onImpressionClick = onImpressionClick,
+                    onBookmarkClick = onBookmarkClick,
+                    onShareClick = onShareClick,
+                    onDownloadClick = onDownloadClick,
+                    onArticleClick = onArticleClick,
+                    onMenuClick = onPostMenuClick,
+                    translationStates = translationStates,
+                    autoTranslatePosts = autoTranslatePosts,
+                    onTranslationNeeded = onTranslationNeeded,
+                    onTranslationRetry = onTranslationRetry,
+                    onToggleOriginal = onToggleOriginal,
+                    mediaPreview = mediaPreview,
+                    videoAutoplay = false,
+                    videoLoop = videoLoop,
+                    videoVolume = videoVolume,
+                    videoQuality = videoQuality,
+                )
+            }
+        }
         item(key = "detail-post") {
             PostCard(
                 post = page.post,
@@ -289,6 +323,7 @@ private fun DetailReady(
                 videoAutoplay = videoAutoplay,
                 videoLoop = videoLoop,
                 videoVolume = videoVolume,
+                videoQuality = videoQuality,
             )
         }
         item(key = "reply-sort") {
@@ -344,6 +379,7 @@ private fun DetailReady(
                                 videoAutoplay = videoAutoplay,
                                 videoLoop = videoLoop,
                                 videoVolume = videoVolume,
+                                videoQuality = videoQuality,
                             )
                         }
                     }

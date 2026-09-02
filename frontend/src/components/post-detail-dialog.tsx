@@ -1,5 +1,5 @@
 import { ChevronDown, ShieldAlert } from "lucide-react";
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import {
   defaultDisplayPreferences,
@@ -49,6 +49,9 @@ export function PostDetailDialog({
   const [replying, setReplying] = useState(false);
   const [imageSelection, setImageSelection] = useState<ImageSelection | null>(null);
   const [showPossibleSpam, setShowPossibleSpam] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const requestedCursors = useRef(new Set<string>());
   const { locale, replySort, setReplySort } = usePostTranslationSettings();
 
   useEffect(() => {
@@ -56,6 +59,9 @@ export function PostDetailDialog({
     setDetail(null);
     setError(null);
     setShowPossibleSpam(false);
+    setLoadingMore(false);
+    setLoadMoreError(false);
+    requestedCursors.current.clear();
     void loadPostDetail(accountId, postId, locale, replySort)
       .then((value) => {
         if (active) setDetail(value);
@@ -67,6 +73,38 @@ export function PostDetailDialog({
       active = false;
     };
   }, [accountId, locale, postId, replySort, translation.timelineLoadError]);
+
+  const loadMoreReplies = async () => {
+    const cursor = detail?.nextCursor?.trim();
+    if (cursor === undefined || cursor.length === 0 || loadingMore) return;
+    if (requestedCursors.current.has(cursor)) {
+      setDetail((current) => (current === null ? current : { ...current, nextCursor: null }));
+      return;
+    }
+    requestedCursors.current.add(cursor);
+    setLoadingMore(true);
+    setLoadMoreError(false);
+    try {
+      const next = await loadPostDetail(accountId, postId, locale, replySort, cursor);
+      setDetail((current) => {
+        if (current === null) return current;
+        const replies = new Map(current.replies.map((reply) => [reply.id, reply]));
+        for (const reply of next.replies) {
+          replies.set(reply.id, reply);
+        }
+        return {
+          ...current,
+          replies: [...replies.values()],
+          nextCursor: next.nextCursor,
+        };
+      });
+    } catch {
+      requestedCursors.current.delete(cursor);
+      setLoadMoreError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const threadedReplies = useMemo(
     () => buildReplyThreadLayout(detail?.replies ?? [], postId),
@@ -99,6 +137,20 @@ export function PostDetailDialog({
             <p>{translation.loading}</p>
           ) : (
             <>
+              {detail.contextPosts?.map((contextPost) => (
+                <div className="detail-context-post" key={contextPost.id}>
+                  <PostCard
+                    post={contextPost}
+                    accountId={accountId}
+                    translation={translation}
+                    display={display}
+                    onOpen={() => onOpenPost?.(contextPost.id)}
+                    onOpenQuotedPost={onOpenPost}
+                    onOpenUser={onOpenUser}
+                    onOpenImage={openImage}
+                  />
+                </div>
+              ))}
               <PostCard
                 post={detail.post}
                 accountId={accountId}
@@ -182,6 +234,21 @@ export function PostDetailDialog({
                     </section>
                   )}
                 </>
+              )}
+              {detail.nextCursor !== null && (
+                <div className="detail-load-more">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={loadingMore}
+                    onClick={() => void loadMoreReplies()}
+                  >
+                    {loadingMore ? translation.loading : translation.loadMoreReplies}
+                  </button>
+                  {loadMoreError && (
+                    <p className="inline-error">{translation.replyLoadMoreError}</p>
+                  )}
+                </div>
               )}
             </>
           )}

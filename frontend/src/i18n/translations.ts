@@ -49,6 +49,9 @@ export interface Translation {
   filterVideos: string;
   filterExcludeReposts: string;
   noFilteredPosts: string;
+  columnSort: string;
+  columnSortLatest: string;
+  columnSortTop: string;
   userProfile: string;
   profileLoadError: string;
   profileAll: string;
@@ -143,10 +146,13 @@ export interface Translation {
   replySortRelevance: string;
   replySortRecency: string;
   replySortLikes: string;
+  loadMoreReplies: string;
+  replyLoadMoreError: string;
   possibleSpamReplies: (count: number) => string;
   togglePossibleSpamReplies: (expanded: boolean, count: number) => string;
   closeDetail: string;
   language: string;
+  translationLanguage: string;
   theme: string;
   displayAndAccessibility: string;
   fontSize: string;
@@ -155,8 +161,19 @@ export interface Translation {
   reduceMotion: string;
   mediaPreview: string;
   videoAutoplay: string;
+  autoRefreshTimelines: string;
   videoLoop: string;
   videoVolume: string;
+  videoQuality: string;
+  videoQualityAuto: string;
+  videoQualityLow: string;
+  videoQualityMedium: string;
+  videoQualityHigh: string;
+  navigationPosition: string;
+  navigationPositionLeft: string;
+  navigationPositionBottom: string;
+  showMainNavigation: string;
+  showMainNavigationDescription: string;
   videoPlayer: string;
   playVideo: string;
   pauseVideo: string;
@@ -254,6 +271,9 @@ const translations: Partial<Record<Locale, Translation>> = {
     filterVideos: "動画",
     filterExcludeReposts: "リポストを除く",
     noFilteredPosts: "条件に一致するポストはありません。",
+    columnSort: "ポストの並び順",
+    columnSortLatest: "最新",
+    columnSortTop: "トップ",
     userProfile: "ユーザープロフィール",
     profileLoadError: "ユーザープロフィールを読み込めませんでした。",
     profileAll: "すべて",
@@ -348,11 +368,14 @@ const translations: Partial<Record<Locale, Translation>> = {
     replySortRelevance: "関連度",
     replySortRecency: "最新",
     replySortLikes: "いいね",
+    loadMoreReplies: "さらに返信を読み込む",
+    replyLoadMoreError: "返信を読み込めませんでした。再試行してください。",
     possibleSpamReplies: (count) => `スパムの可能性のあるリプライ (${count})`,
     togglePossibleSpamReplies: (expanded, count) =>
       `${count}件のスパムの可能性のあるリプライを${expanded ? "折り畳む" : "表示"}`,
     closeDetail: "詳細を閉じる",
     language: "表示言語",
+    translationLanguage: "投稿の翻訳先言語",
     theme: "テーマ",
     displayAndAccessibility: "アクセシビリティ、表示、データ使用量",
     fontSize: "文字サイズ",
@@ -361,8 +384,19 @@ const translations: Partial<Record<Locale, Translation>> = {
     reduceMotion: "動きを減らす",
     mediaPreview: "画像と動画のプレビューを表示",
     videoAutoplay: "動画を自動再生",
+    autoRefreshTimelines: "タイムラインを自動更新",
     videoLoop: "動画をループ再生",
     videoVolume: "動画の音量",
+    videoQuality: "動画の画質（既定値）",
+    videoQualityAuto: "自動（最高）",
+    videoQualityLow: "低",
+    videoQualityMedium: "中",
+    videoQualityHigh: "高",
+    navigationPosition: "ナビゲーションの位置",
+    navigationPositionLeft: "左側",
+    navigationPositionBottom: "下側",
+    showMainNavigation: "メインナビゲーションを表示",
+    showMainNavigationDescription: "オフにすると左（または下）のメニューを隠して表示領域を広げます。隠れている間はデッキ左上のボタンで再表示できます。",
     videoPlayer: "動画プレイヤー",
     playVideo: "動画を再生",
     pauseVideo: "動画を一時停止",
@@ -510,6 +544,9 @@ const translations: Partial<Record<Locale, Translation>> = {
     filterVideos: "Videos",
     filterExcludeReposts: "Exclude reposts",
     noFilteredPosts: "No posts match this filter.",
+    columnSort: "Post order",
+    columnSortLatest: "Latest",
+    columnSortTop: "Top",
     userProfile: "User profile",
     profileLoadError: "Could not load the user profile.",
     profileAll: "All",
@@ -604,11 +641,14 @@ const translations: Partial<Record<Locale, Translation>> = {
     replySortRelevance: "Relevance",
     replySortRecency: "Latest",
     replySortLikes: "Likes",
+    loadMoreReplies: "Load more replies",
+    replyLoadMoreError: "Could not load more replies. Try again.",
     possibleSpamReplies: (count) => `Possible spam replies (${count})`,
     togglePossibleSpamReplies: (expanded, count) =>
       `${expanded ? "Collapse" : "Show"} ${count} possible spam replies`,
     closeDetail: "Close details",
     language: "Language",
+    translationLanguage: "Post translation language",
     theme: "Theme",
     displayAndAccessibility: "Accessibility, display, and data usage",
     fontSize: "Font size",
@@ -617,8 +657,20 @@ const translations: Partial<Record<Locale, Translation>> = {
     reduceMotion: "Reduce motion",
     mediaPreview: "Show image and video previews",
     videoAutoplay: "Autoplay videos",
+    autoRefreshTimelines: "Automatically refresh timelines",
     videoLoop: "Loop videos",
     videoVolume: "Video volume",
+    videoQuality: "Default video quality",
+    videoQualityAuto: "Auto (highest)",
+    videoQualityLow: "Low",
+    videoQualityMedium: "Medium",
+    videoQualityHigh: "High",
+    navigationPosition: "Navigation position",
+    navigationPositionLeft: "Left",
+    navigationPositionBottom: "Bottom",
+    showMainNavigation: "Show main navigation",
+    showMainNavigationDescription:
+      "Hide the left (or bottom) menu to gain more viewing area. Use the button at the top of the deck to show it again.",
     videoPlayer: "Video player",
     playVideo: "Play video",
     pauseVideo: "Pause video",

@@ -146,12 +146,49 @@ class PostDetailRepositoryTest {
         assertEquals(502, error.statusCode)
     }
 
+    @Test
+    fun loadsReplyAncestorsAsContextForPostsOpenedFromATimeline() {
+        val executor = RecordingGraphQlExecutor(
+            detail = detailResponseWithParent("124", "100"),
+            conversation = conversationResponseForReply("124", "100"),
+            parentConversation = parentConversationResponse(),
+        )
+        val page = PostDetailRepository(executor).load(account(), "124")
+
+        assertEquals(listOf("99", "100"), page.contextPosts.map { it.id })
+        assertEquals(listOf("125"), page.replies.map { it.post.id })
+        assertEquals(listOf("postDetail", "conversation", "conversation"), executor.calls.map { it.purpose })
+        assertEquals("100", executor.calls.last().variables["focalTweetId"])
+    }
+
     private fun account() = AccountSecrets(
         "7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile-7",
     )
 
     private fun detailResponse(postId: String): String = tweet(postId, "focal post")
         .let { result -> """{"data":{"tweet":{"result":$result}}}""" }
+
+    private fun detailResponseWithParent(postId: String, parentId: String): String =
+        """{"data":{"tweet":{"result":${tweet(postId, "reply", parentId)}}}}"""
+
+    private fun conversationResponseForReply(postId: String, parentId: String): String =
+        conversationEnvelope(
+            listOf(
+                conversationEntry(postId, "reply", "HighQuality", parentId),
+                conversationEntry("125", "reply child", "HighQuality", postId),
+            ),
+        )
+
+    private fun parentConversationResponse(): String =
+        conversationEnvelope(
+            listOf(
+                conversationEntry("99", "root", "HighQuality", null),
+                conversationEntry("100", "previous reply", "HighQuality", "99"),
+            ),
+        )
+
+    private fun conversationEnvelope(entries: List<String>): String =
+        """{"data":{"threaded_conversation_with_injections_v2":{"instructions":[{"entries":[${entries.joinToString(",")}]}]}}}"""
 
     private fun conversationResponse(includeFocal: Boolean): String {
         val entries = buildList {
@@ -185,6 +222,7 @@ class PostDetailRepositoryTest {
     private class RecordingGraphQlExecutor(
         private val detail: String,
         private val conversation: String,
+        private val parentConversation: String = conversation,
     ) : GraphQlExecutor {
         val calls = mutableListOf<Call>()
 
@@ -197,7 +235,7 @@ class PostDetailRepositoryTest {
             calls += Call(credentials, purpose, variables.toMap(), language)
             return when (purpose) {
                 "postDetail" -> detail
-                "conversation" -> conversation
+                "conversation" -> if (variables["focalTweetId"] == "100") parentConversation else conversation
                 else -> throw IllegalArgumentException("unexpected purpose: $purpose")
             }
         }

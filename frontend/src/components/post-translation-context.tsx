@@ -3,6 +3,7 @@ import type { Locale, ReplySort } from "../model/layout";
 
 interface PostTranslationSettings {
   locale: Locale;
+  translationLocale: Locale;
   autoTranslatePosts: boolean;
   setAutoTranslatePosts: (enabled: boolean) => void;
   replySort: ReplySort;
@@ -11,6 +12,7 @@ interface PostTranslationSettings {
 
 const defaultSettings: PostTranslationSettings = {
   locale: "ja",
+  translationLocale: "ja",
   autoTranslatePosts: true,
   setAutoTranslatePosts: () => undefined,
   replySort: "relevance",
@@ -19,8 +21,11 @@ const defaultSettings: PostTranslationSettings = {
 
 const PostTranslationContext = createContext<PostTranslationSettings>(defaultSettings);
 
-type PostTranslationProviderValue = Omit<PostTranslationSettings, "replySort" | "setReplySort"> &
-  Partial<Pick<PostTranslationSettings, "replySort" | "setReplySort">>;
+type PostTranslationProviderValue = Omit<
+  PostTranslationSettings,
+  "translationLocale" | "replySort" | "setReplySort"
+> &
+  Partial<Pick<PostTranslationSettings, "translationLocale" | "replySort" | "setReplySort">>;
 
 export function PostTranslationProvider({
   value,
@@ -30,7 +35,13 @@ export function PostTranslationProvider({
   children: ReactNode;
 }) {
   return (
-    <PostTranslationContext.Provider value={{ ...defaultSettings, ...value }}>
+    <PostTranslationContext.Provider
+      value={{
+        ...defaultSettings,
+        ...value,
+        translationLocale: value.translationLocale ?? value.locale,
+      }}
+    >
       {children}
     </PostTranslationContext.Provider>
   );

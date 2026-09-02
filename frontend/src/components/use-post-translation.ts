@@ -43,16 +43,16 @@ export function usePostTranslation({
   const [retrySeconds, setRetrySeconds] = useState(0);
   const [showOriginal, setShowOriginal] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const { locale, autoTranslatePosts } = usePostTranslationSettings();
+  const { translationLocale, autoTranslatePosts } = usePostTranslationSettings();
   const availablePreTranslation =
     preTranslated !== undefined &&
     preTranslated !== null &&
-    translationTargetsLocale(preTranslated.targetLanguage, locale)
+    translationTargetsLocale(preTranslated.targetLanguage, translationLocale)
       ? preTranslated
       : null;
   const needed =
     text.trim().length > 0 &&
-    (availablePreTranslation !== null || shouldTranslatePost(language, locale));
+    (availablePreTranslation !== null || shouldTranslatePost(language, translationLocale));
   const translatedText = availablePreTranslation?.text ?? fetchedText;
   const provider = availablePreTranslation?.provider ?? fetchedProvider;
   const visibleText =
@@ -93,7 +93,7 @@ export function usePostTranslation({
       accountId,
       postId,
       sourceLanguage: language,
-      targetLanguage: locale,
+      targetLanguage: translationLocale,
       force: attempt > 0,
       onRetryScheduled: (delaySeconds) => {
         if (mounted) setRetrySeconds(delaySeconds);
@@ -124,7 +124,7 @@ export function usePostTranslation({
     autoTranslatePosts,
     availablePreTranslation,
     language,
-    locale,
+    translationLocale,
     needed,
     postId,
   ]);

@@ -80,6 +80,7 @@ import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.VideoQuality
 import dev.nytweetdeck.android.model.TranslationHealth
 import kotlin.math.roundToInt
 import java.time.ZoneId
@@ -512,6 +513,8 @@ internal fun SettingsDialog(
     onDisplaySettingsChange: (DisplaySettings) -> Unit,
     selectedLanguageTag: String? = null,
     onLanguageChange: (String) -> Unit = {},
+    selectedTranslationLanguageTag: String? = null,
+    onTranslationLanguageChange: (String) -> Unit = {},
     onExport: () -> Unit,
     onImport: () -> Unit,
     transferStatus: TransferStatus,
@@ -521,6 +524,9 @@ internal fun SettingsDialog(
     val settings = state.displaySettings()
     val currentLanguageTag = selectedLanguageTag?.substringBefore('-')
         ?: AppLocaleController.currentLanguageTag(LocalContext.current)
+    val currentTranslationLanguageTag = selectedTranslationLanguageTag
+        ?.substringBefore('-')
+        ?: state.translationLanguageTag
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings)) },
@@ -547,6 +553,17 @@ internal fun SettingsDialog(
                             selected = currentLanguageTag == languageTag,
                             tag = "setting-language-" + languageTag,
                             onClick = { onLanguageChange(languageTag) },
+                        )
+                    }
+                }
+                SettingSectionTitle(stringResource(R.string.setting_translation_language))
+                SettingChoiceRow {
+                    AppLocaleController.supportedLanguageTags.forEach { languageTag ->
+                        SettingChoice(
+                            label = languageLabel(languageTag),
+                            selected = currentTranslationLanguageTag == languageTag,
+                            tag = "setting-translation-language-" + languageTag,
+                            onClick = { onTranslationLanguageChange(languageTag) },
                         )
                     }
                 }
@@ -623,6 +640,14 @@ internal fun SettingsDialog(
                     tag = "setting-video-autoplay",
                 )
                 SettingCheckbox(
+                    label = stringResource(R.string.setting_auto_refresh),
+                    checked = settings.autoRefreshTimelines,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(autoRefreshTimelines = it))
+                    },
+                    tag = "setting-auto-refresh",
+                )
+                SettingCheckbox(
                     label = stringResource(R.string.setting_video_loop),
                     checked = settings.videoLoop,
                     onCheckedChange = {
@@ -669,6 +694,27 @@ internal fun SettingsDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("setting-video-volume"),
+                )
+                SettingSectionTitle(stringResource(R.string.setting_video_quality))
+                SettingChoiceRow {
+                    VideoQuality.entries.forEach { quality ->
+                        SettingChoice(
+                            label = videoQualityLabel(quality),
+                            selected = settings.videoQuality == quality,
+                            tag = "setting-video-quality-" + quality.name.lowercase(),
+                            onClick = {
+                                onDisplaySettingsChange(settings.copy(videoQuality = quality))
+                            },
+                        )
+                    }
+                }
+                SettingCheckbox(
+                    label = stringResource(R.string.show_main_navigation),
+                    checked = settings.showMainNavigation,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(showMainNavigation = it))
+                    },
+                    tag = "setting-show-main-navigation",
                 )
                 TranslationHealthSummary(state.translationHealth)
                 Text(
@@ -758,6 +804,8 @@ internal fun SettingsDialog(
         },
         selectedLanguageTag = null,
         onLanguageChange = {},
+        selectedTranslationLanguageTag = null,
+        onTranslationLanguageChange = {},
         onExport = onExport,
         onImport = onImport,
         transferStatus = transferStatus,
@@ -869,6 +917,14 @@ private fun accentColorPreview(accent: AccentColor): Color = when (accent) {
 }
 
 @Composable
+private fun videoQualityLabel(quality: VideoQuality): String = when (quality) {
+    VideoQuality.AUTO -> stringResource(R.string.video_quality_auto)
+    VideoQuality.LOW -> stringResource(R.string.video_quality_low)
+    VideoQuality.MEDIUM -> stringResource(R.string.video_quality_medium)
+    VideoQuality.HIGH -> stringResource(R.string.video_quality_high)
+}
+
+@Composable
 private fun languageLabel(languageTag: String): String = when (languageTag) {
     "ja" -> stringResource(R.string.language_ja)
     "en" -> stringResource(R.string.language_en)
@@ -888,9 +944,12 @@ private fun languageLabel(languageTag: String): String = when (languageTag) {
 private fun TranslationHealthSummary(health: TranslationHealth?) {
     val unavailable = stringResource(R.string.translation_health_unavailable)
     val successRate = health?.recentSuccessRate ?: health?.upstreamSuccessRate
-    val successText = successRate?.let {
-        stringResource(R.string.translation_percent, it.roundToInt())
-    } ?: unavailable
+    val successText = when {
+        health == null -> unavailable
+        successRate != null -> stringResource(R.string.translation_percent, successRate.roundToInt())
+        health.requests == 0L -> stringResource(R.string.translation_percent, 0)
+        else -> unavailable
+    }
     val remaining = health?.rateLimitRemaining
     val limit = health?.rateLimit
     val remainingText = if (remaining != null && limit != null) {

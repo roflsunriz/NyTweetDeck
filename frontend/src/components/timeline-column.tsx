@@ -10,6 +10,7 @@ import {
   useTimelineCache,
 } from "../model/timeline-cache";
 import type { TimelineAuthor, TimelinePage, TimelinePost } from "../model/timeline";
+import { sortTimelinePosts } from "../model/timeline-sort";
 import { PostCard } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import {
@@ -56,6 +57,7 @@ interface TimelineColumnProps {
   refreshMinimumMilliseconds?: number;
   refreshMaximumMilliseconds?: number;
   refreshGlobalGapMilliseconds?: number;
+  autoRefreshTimelines?: boolean;
 }
 
 let nextTimelineRefreshSlot = 0;
@@ -63,8 +65,11 @@ let nextTimelineRefreshSlot = 0;
 export function TimelineColumn({ ...props }: TimelineColumnProps) {
   const timelineCache = useTimelineCache();
   const locale = props.locale ?? "ja";
+  const sort = props.column.sort ?? "latest";
   const cacheKey =
-    props.accountId === null ? null : createTimelineCacheKey(props.accountId, props.column, locale);
+    props.accountId === null
+      ? null
+      : createTimelineCacheKey(props.accountId, props.column, locale, sort);
   return (
     <TimelineColumnContent
       key={cacheKey ?? "logged-out"}
@@ -85,6 +90,7 @@ function TimelineColumnContent({
   refreshMinimumMilliseconds = 60_000,
   refreshMaximumMilliseconds = 300_000,
   refreshGlobalGapMilliseconds = 15_000,
+  autoRefreshTimelines = true,
   timelineCache,
   timelineCacheKey,
 }: TimelineColumnProps & {
@@ -133,6 +139,7 @@ function TimelineColumnContent({
       if (showLoading) setLoading(true);
       try {
         const params = new URLSearchParams({ accountId, language: locale });
+        params.set("sort", column.sort ?? "latest");
         if (column.target !== null) {
           params.set("target", column.target);
         }
@@ -209,6 +216,7 @@ function TimelineColumnContent({
       accountId,
       column.kind,
       column.target,
+      column.sort,
       locale,
       requestTimeoutMilliseconds,
       timelineCache,
@@ -231,7 +239,7 @@ function TimelineColumnContent({
   }, [load]);
 
   useEffect(() => {
-    if (accountId === null) {
+    if (accountId === null || !autoRefreshTimelines) {
       return;
     }
     let stopped = false;
@@ -287,6 +295,7 @@ function TimelineColumnContent({
     refreshGlobalGapMilliseconds,
     refreshMaximumMilliseconds,
     refreshMinimumMilliseconds,
+    autoRefreshTimelines,
   ]);
 
   useEffect(() => {
@@ -324,10 +333,13 @@ function TimelineColumnContent({
         );
       }
       if (update.reason === "bookmark" || update.reason === "removeBookmark") {
-        if (column.kind === "history") void load();
+        if (autoRefreshTimelines && column.kind === "history") void load();
         return;
       }
-      if (update.reason === "create" || update.reason === "reply" || update.reason === "quote") {
+      if (
+        autoRefreshTimelines &&
+        (update.reason === "create" || update.reason === "reply" || update.reason === "quote")
+      ) {
         void load(undefined, "preserve-viewport");
       }
     };
@@ -336,7 +348,7 @@ function TimelineColumnContent({
       source.removeEventListener("timeline-update", handleUpdate);
       source.close();
     };
-  }, [accountId, column.kind, load, updatePosts]);
+  }, [accountId, autoRefreshTimelines, column.kind, load, updatePosts]);
 
   const livePostIds = posts
     .slice(0, 100)
@@ -431,7 +443,11 @@ function TimelineColumnContent({
   if (posts.length === 0) {
     return <ColumnMessage title={translation.noPosts} />;
   }
-  const visiblePosts = filterPosts(posts, postFilter);
+  const visiblePosts = sortTimelinePosts(
+    filterPosts(posts, postFilter),
+    column.kind,
+    column.sort ?? "latest",
+  );
   return (
     <div
       ref={scrollRef}

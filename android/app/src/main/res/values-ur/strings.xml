@@ -233,4 +233,14 @@
     <string name="post_link_copied">شیئر کرنے کی کوئی منزل دستیاب نہیں تھی، اس لیے پوسٹ کا لنک کاپی کر دیا گیا۔</string>
     <string name="inline_video_fullscreen">ویڈیو فل اسکرین میں کھولیں</string>
     <string name="media_viewer_rotate_landscape">لینڈ اسکیپ میں گھمائیں</string>
+    <string name="setting_translation_language">پوسٹس کے ترجمے کی زبان</string>
+    <string name="setting_auto_refresh">ٹائم لائنز خودکار طور پر تازہ کریں</string>
+    <string name="setting_video_quality">ڈیفالٹ ویڈیو کوالٹی</string>
+    <string name="video_quality_menu">ویڈیو کوالٹی</string>
+    <string name="video_quality_auto">خودکار (اعلیٰ ترین)</string>
+    <string name="video_quality_low">کم</string>
+    <string name="video_quality_medium">درمیانی</string>
+    <string name="video_quality_high">اعلیٰ</string>
+    <string name="column_sort_latest">تازہ ترین</string>
+    <string name="column_sort_top">اعلیٰ</string>
 </resources>

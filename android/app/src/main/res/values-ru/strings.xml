@@ -235,4 +235,14 @@
     <string name="post_link_copied">Приложение для отправки не найдено, поэтому ссылка на пост скопирована.</string>
     <string name="inline_video_fullscreen">Открыть видео на весь экран</string>
     <string name="media_viewer_rotate_landscape">Повернуть в альбомный режим</string>
+    <string name="setting_translation_language">Язык перевода постов</string>
+    <string name="setting_auto_refresh">Автоматически обновлять ленты</string>
+    <string name="setting_video_quality">Качество видео по умолчанию</string>
+    <string name="video_quality_menu">Качество видео</string>
+    <string name="video_quality_auto">Авто (максимальное)</string>
+    <string name="video_quality_low">Низкое</string>
+    <string name="video_quality_medium">Среднее</string>
+    <string name="video_quality_high">Высокое</string>
+    <string name="column_sort_latest">Последние</string>
+    <string name="column_sort_top">Популярные</string>
 </resources>

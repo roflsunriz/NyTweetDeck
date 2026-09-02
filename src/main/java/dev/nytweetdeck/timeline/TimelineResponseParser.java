@@ -7,6 +7,7 @@ import dev.nytweetdeck.timeline.TimelinePage.EmbeddedPost;
 import dev.nytweetdeck.timeline.TimelinePage.Media;
 import dev.nytweetdeck.timeline.TimelinePage.Post;
 import dev.nytweetdeck.timeline.TimelinePage.Translation;
+import dev.nytweetdeck.timeline.TimelinePage.VideoVariant;
 import dev.nytweetdeck.timeline.PostTextUrlNormalizer.Kind;
 import dev.nytweetdeck.timeline.PostTextUrlNormalizer.UrlEntity;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
@@ -41,6 +42,10 @@ public class TimelineResponseParser {
 
     public TimelinePage parse(String body) {
         return parse(body, true);
+    }
+
+    public TimelinePage parse(String body, String sort) {
+        return parse(body, !"top".equalsIgnoreCase(sort == null ? "" : sort.trim()));
     }
 
     public TimelinePage parseInResponseOrder(String body) {
@@ -559,37 +564,61 @@ public class TimelineResponseParser {
         for (JsonNode item : mediaNodes) {
             var type = text(item, "type");
             var preview = text(item, "media_url_https");
-            var url = "photo".equals(type) ? preview : bestVideoUrl(item.get("video_info"));
+            var variants = "photo".equals(type)
+                    ? List.<VideoVariant>of()
+                    : videoVariants(item.get("video_info"));
+            var url = "photo".equals(type) ? preview : bestVideoUrl(variants);
             if (url == null) {
                 url = preview;
             }
             media.add(new Media(
                     firstNonNull(text(item, "id_str"), Integer.toString(media.size())),
-                    type == null ? "unknown" : type,
-                    url,
-                    preview));
+                     type == null ? "unknown" : type,
+                     url,
+                     preview,
+                     variants));
         }
         return media;
     }
 
-    private static String bestVideoUrl(JsonNode videoInfo) {
+    private static List<VideoVariant> videoVariants(JsonNode videoInfo) {
         var variants = videoInfo == null ? null : videoInfo.get("variants");
         if (variants == null || !variants.isArray()) {
-            return null;
+            return List.of();
         }
-        JsonNode best = null;
-        long bestBitrate = -1;
+        var result = new ArrayList<VideoVariant>();
         for (JsonNode variant : variants) {
             if (!"video/mp4".equals(text(variant, "content_type"))) {
                 continue;
             }
-            var bitrate = number(variant, "bitrate");
-            if (best == null || bitrate > bestBitrate) {
-                best = variant;
-                bestBitrate = bitrate;
+            var url = text(variant, "url");
+            if (url != null && !url.isBlank()) {
+                result.add(new VideoVariant(url, nullableNumber(variant, "bitrate")));
             }
         }
-        return best == null ? null : text(best, "url");
+        return List.copyOf(result);
+    }
+
+    private static String bestVideoUrl(List<VideoVariant> variants) {
+        return variants.stream()
+                .max(Comparator.comparingLong(variant -> variant.bitrate() == null ? 0 : variant.bitrate()))
+                .map(VideoVariant::url)
+                .orElse(null);
+    }
+
+    private static Long nullableNumber(JsonNode node, String field) {
+        var value = node == null ? null : node.get(field);
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (value.isIntegralNumber()) {
+            return value.asLong();
+        }
+        try {
+            return Long.parseLong(value.asString(null));
+        } catch (NumberFormatException | NullPointerException exception) {
+            return null;
+        }
     }
 
     private static void findCursor(JsonNode node, String[] cursor) {

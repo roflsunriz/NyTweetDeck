@@ -1,23 +1,29 @@
 package dev.nytweetdeck.android.xapi
 
+import java.util.Locale
+
 data class TimelineQuery(
     val purpose: String,
     val variables: Map<String, Any?>,
 )
 
 object TimelineQueryFactory {
-    fun create(kind: String, target: String?, cursor: String?): TimelineQuery {
+    fun create(kind: String, target: String?, cursor: String?, sort: String = "latest"): TimelineQuery {
+        val normalizedSort = sort.trim().lowercase(Locale.ROOT).also {
+            require(it == "latest" || it == "top") { "カラムの並び順が不正です。" }
+        }
         val variables = linkedMapOf<String, Any?>("count" to 20)
         cursor?.takeIf(String::isNotBlank)?.let { variables["cursor"] = it }
         val purpose = when (kind) {
             "homeForYou" -> {
+                variables["enableRanking"] = normalizedSort == "top"
                 variables["includePromotedContent"] = false
                 variables["requestContext"] = "launch"
                 variables["withCommunity"] = true
                 "homeForYou"
             }
             "homeFollowing" -> {
-                variables["enableRanking"] = false
+                variables["enableRanking"] = normalizedSort == "top"
                 variables["includePromotedContent"] = false
                 variables["requestContext"] = "launch"
                 "homeFollowing"
@@ -37,7 +43,7 @@ object TimelineQueryFactory {
             "search" -> {
                 variables["rawQuery"] = requireTarget(target, kind)
                 variables["querySource"] = "typed_query"
-                variables["product"] = "Latest"
+                variables["product"] = if (normalizedSort == "top") "Top" else "Latest"
                 variables["withGrokTranslatedBio"] = false
                 variables["withQuickPromoteEligibilityTweetFields"] = false
                 "search"

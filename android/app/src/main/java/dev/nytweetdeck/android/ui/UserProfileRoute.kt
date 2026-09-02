@@ -44,6 +44,7 @@ import dev.nytweetdeck.android.model.TranslationCandidate
 import dev.nytweetdeck.android.model.UserProfileStatus
 import dev.nytweetdeck.android.model.UserProfileTab
 import dev.nytweetdeck.android.model.UserProfileUiState
+import dev.nytweetdeck.android.model.VideoQuality
 
 @Composable
 internal fun UserProfileRoute(
@@ -73,6 +74,7 @@ internal fun UserProfileRoute(
     videoAutoplay: Boolean,
     videoLoop: Boolean,
     videoVolume: Int,
+    videoQuality: VideoQuality = VideoQuality.AUTO,
 ) {
     if (state.status == UserProfileStatus.CLOSED) return
     FullScreenRouteSurface(tag = "user-profile-route", onDismiss = onDismiss) {
@@ -185,6 +187,7 @@ internal fun UserProfileRoute(
                             videoAutoplay = videoAutoplay,
                             videoLoop = videoLoop,
                             videoVolume = videoVolume,
+                            videoQuality = videoQuality,
                         )
                     }
                     if (state.nextCursor != null || state.loadMoreFailed) {

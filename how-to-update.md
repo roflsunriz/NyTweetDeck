@@ -44,6 +44,8 @@ bun run sandbox:run-x-url-contract
 
 X公式挙動を取り込む際も、自由追加・削除・並べ替え可能な任意数カラム、左メインメニューの常設とカスタマイズ、複数アカウントのログイン状態保持・自動選択・切替を製品不変条件として維持します。Xの単一フィードまたは単一アカウント前提の状態はカラム単位・選択アカウント単位へ適応し、これらを削除する変更を互換対応として扱いません。
 
+Issue #1のようにデスクトップ版とAndroid版の両方へ機能を追加する場合は、タイムライン取得・設定移行・詳細返信・動画再生の各経路を同じ受入条件で更新します。カラムの「トップ／最新」、タイムライン自動更新、投稿の翻訳先言語、動画画質は両版の設定へ追加し、旧設定を既定値で移行できることを確認します。返信詳細は親返信の文脈と追加ページのcursorを、動画はX応答の複数MP4 variantを、各版の単体テストとUIテストで確認します。
+
 ## 検証
 
 ```powershell
@@ -104,7 +106,7 @@ GitHub Releaseの本文には、`CHANGELOG.md`の同じバージョン見出し�
 Android版は`android/app/build.gradle.kts`の`versionName`と一致する`android-v<version>`タグをmainのコミットへ付けます。`CHANGELOG.md`へ`## [Android <version>]`節を確定し、次のコマンドでAndroid専用リリース本文を確認します。
 
 ```powershell
-.\scripts\verify-release-notes.ps1 -Version 0.1.1 -SectionPrefix Android
+.\scripts\verify-release-notes.ps1 -Version 0.2.0 -SectionPrefix Android
 ```
 
 タグのpush後はAndroid Releaseワークフローが単体テスト、release Lint、Gradle依存関係のOSV監査、署名付きAPK生成、`apksigner`検証、SHA-256生成を行います。公開されたAPK名のバージョン、署名検証、SHA-256、CHANGELOG本文がタグと一致することを確認します。

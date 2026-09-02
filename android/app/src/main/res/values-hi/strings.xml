@@ -233,4 +233,14 @@
     <string name="post_link_copied">कोई शेयर लक्ष्य उपलब्ध नहीं था, इसलिए पोस्ट लिंक कॉपी कर दिया गया।</string>
     <string name="inline_video_fullscreen">वीडियो फ़ुल स्क्रीन में खोलें</string>
     <string name="media_viewer_rotate_landscape">लैंडस्केप में घुमाएँ</string>
+    <string name="setting_translation_language">पोस्ट अनुवाद भाषा</string>
+    <string name="setting_auto_refresh">टाइमलाइन अपने-आप रीफ़्रेश करें</string>
+    <string name="setting_video_quality">डिफ़ॉल्ट वीडियो गुणवत्ता</string>
+    <string name="video_quality_menu">वीडियो गुणवत्ता</string>
+    <string name="video_quality_auto">ऑटो (उच्चतम)</string>
+    <string name="video_quality_low">कम</string>
+    <string name="video_quality_medium">मध्यम</string>
+    <string name="video_quality_high">उच्च</string>
+    <string name="column_sort_latest">नवीनतम</string>
+    <string name="column_sort_top">शीर्ष</string>
 </resources>

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -25,6 +26,9 @@ import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,9 +39,16 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +66,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.Media
+import dev.nytweetdeck.android.model.VideoQuality
+import dev.nytweetdeck.android.model.selectVideoUrl
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.delay
@@ -68,6 +81,7 @@ internal fun InlineVideoPlayer(
     autoPlay: Boolean,
     loop: Boolean,
     volume: Int,
+    defaultQuality: VideoQuality = VideoQuality.AUTO,
     onFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -76,6 +90,7 @@ internal fun InlineVideoPlayer(
         autoPlay = autoPlay,
         loop = loop,
         volume = volume,
+        defaultQuality = defaultQuality,
         onFullscreen = onFullscreen,
         modifier = modifier,
         attachOnlyWhenVisible = true,
@@ -90,6 +105,7 @@ internal fun FullscreenVideoPlayer(
     autoPlay: Boolean,
     loop: Boolean,
     volume: Int,
+    defaultQuality: VideoQuality = VideoQuality.AUTO,
     onExitFullscreen: () -> Unit,
     onRotateToLandscape: () -> Unit,
     modifier: Modifier = Modifier,
@@ -99,6 +115,7 @@ internal fun FullscreenVideoPlayer(
         autoPlay = autoPlay,
         loop = loop,
         volume = volume,
+        defaultQuality = defaultQuality,
         onFullscreen = onExitFullscreen,
         onRotateToLandscape = onRotateToLandscape,
         modifier = modifier,
@@ -115,6 +132,7 @@ private fun VideoPlayer(
     autoPlay: Boolean,
     loop: Boolean,
     volume: Int,
+    defaultQuality: VideoQuality,
     onFullscreen: () -> Unit,
     modifier: Modifier,
     attachOnlyWhenVisible: Boolean,
@@ -122,7 +140,11 @@ private fun VideoPlayer(
     controlTagPrefix: String,
     onRotateToLandscape: (() -> Unit)? = null,
 ) {
-    val uri = remember(media.url) { safeMediaUri(media.url) }
+    var selectedQuality by remember(media.id, defaultQuality) { mutableStateOf(defaultQuality) }
+    LaunchedEffect(defaultQuality) { selectedQuality = defaultQuality }
+    val uri = remember(media.id, media.url, media.variants, selectedQuality) {
+        safeMediaUri(selectVideoUrl(media, selectedQuality))
+    }
     val context = LocalContext.current
     val rootView = LocalView.current
     var visible by remember(media.id, attachOnlyWhenVisible) {
@@ -139,6 +161,15 @@ private fun VideoPlayer(
     var duration by remember(media.id) { mutableLongStateOf(0L) }
     var controlsVisible by remember(media.id) { mutableStateOf(true) }
     var controlsInteraction by remember(media.id) { mutableIntStateOf(0) }
+    var qualityMenuExpanded by remember(media.id) { mutableStateOf(false) }
+    var scale by remember(media.id) { mutableFloatStateOf(1f) }
+    var offset by remember(media.id) { mutableStateOf(Offset.Zero) }
+    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+        val nextScale = (scale * zoomChange).coerceIn(1f, 4f)
+        val nextOffset = Offset(offset.x + panChange.x, offset.y + panChange.y)
+        scale = nextScale
+        offset = if (nextScale <= 1f) Offset.Zero else nextOffset
+    }
 
     fun revealControls() {
         controlsVisible = true
@@ -146,7 +177,12 @@ private fun VideoPlayer(
     }
 
     LaunchedEffect(uri, visible) {
-        if (visible && uri != null && player == null) {
+        if (visible && uri != null) {
+            player?.run {
+                stop()
+                clearMediaItems()
+                release()
+            }
             player = CachedVideoPlayback.createPlayer(context).apply {
                 this.volume = 0f
                 repeatMode = if (loopActive) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -166,6 +202,7 @@ private fun VideoPlayer(
             duration = 0L
             muted = true
             loopActive = loop
+            qualityMenuExpanded = false
         }
     }
     LaunchedEffect(player, autoPlay) { player?.playWhenReady = autoPlay }
@@ -215,6 +252,7 @@ private fun VideoPlayer(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .clipToBounds()
             .onGloballyPositioned { coordinates ->
                 if (!attachOnlyWhenVisible) return@onGloballyPositioned
                 val bounds = coordinates.boundsInWindow()
@@ -224,22 +262,43 @@ private fun VideoPlayer(
             }
             .testTag("$controlTagPrefix-${media.id}"),
     ) {
-        AndroidView(
-            factory = { viewContext ->
-                PlayerView(viewContext).apply {
-                    useController = false
-                    this.player = player
-                    setKeepContentOnPlayerReset(true)
-                }
-            },
-            update = { it.player = player },
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .testTag(
-                    if (player == null) "$controlTagPrefix-disconnected"
-                    else "$controlTagPrefix-connected",
-                ),
-        )
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
+                    translationY = offset.y
+                }
+                .transformable(transformState)
+                .pointerInput(media.id) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            scale = 1f
+                            offset = Offset.Zero
+                        },
+                    )
+                }
+                .testTag("$controlTagPrefix-viewport"),
+        ) {
+            AndroidView(
+                factory = { viewContext ->
+                    PlayerView(viewContext).apply {
+                        useController = false
+                        this.player = player
+                        setKeepContentOnPlayerReset(true)
+                    }
+                },
+                update = { it.player = player },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag(
+                        if (player == null) "$controlTagPrefix-disconnected"
+                        else "$controlTagPrefix-connected",
+                    ),
+            )
+        }
         if (player != null) {
             Box(
                 modifier = Modifier
@@ -312,6 +371,41 @@ private fun VideoPlayer(
                         },
                         modifier = Modifier.weight(1f).testTag("$controlTagPrefix-volume"),
                     )
+                    if (media.variants.size > 1) {
+                        Box {
+                            IconButton(
+                                onClick = {
+                                    revealControls()
+                                    qualityMenuExpanded = true
+                                },
+                                modifier = Modifier.size(34.dp).testTag("$controlTagPrefix-quality"),
+                            ) {
+                                Icon(
+                                    Icons.Default.HighQuality,
+                                    stringResource(R.string.video_quality_menu),
+                                    tint = Color.White,
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = qualityMenuExpanded,
+                                onDismissRequest = { qualityMenuExpanded = false },
+                            ) {
+                                VideoQuality.entries.forEach { quality ->
+                                    DropdownMenuItem(
+                                        text = { Text(videoQualityLabel(quality)) },
+                                        onClick = {
+                                            selectedQuality = quality
+                                            qualityMenuExpanded = false
+                                            revealControls()
+                                        },
+                                        modifier = Modifier.testTag(
+                                            "$controlTagPrefix-quality-${quality.name.lowercase()}",
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    }
                     IconButton(
                         onClick = {
                             revealControls()
@@ -359,6 +453,14 @@ private fun VideoPlayer(
             }
         }
     }
+}
+
+@Composable
+private fun videoQualityLabel(quality: VideoQuality): String = when (quality) {
+    VideoQuality.AUTO -> stringResource(R.string.video_quality_auto)
+    VideoQuality.LOW -> stringResource(R.string.video_quality_low)
+    VideoQuality.MEDIUM -> stringResource(R.string.video_quality_medium)
+    VideoQuality.HIGH -> stringResource(R.string.video_quality_high)
 }
 
 internal fun shouldAttachInlineVideo(visibleFraction: Float): Boolean =
