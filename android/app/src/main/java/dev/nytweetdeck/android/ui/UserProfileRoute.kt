@@ -94,111 +94,151 @@ internal fun UserProfileRoute(
                 }
             }
             HorizontalDivider()
-            state.profile?.let { profile ->
-                Column(Modifier.fillMaxWidth().testTag("user-profile-header")) {
-                    Box(Modifier.fillMaxWidth().height(112.dp).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                        profile.bannerUrl?.let {
-                            AsyncImage(
-                                model = it,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop,
+            LazyColumn(Modifier.fillMaxSize().testTag("user-profile-posts")) {
+                state.profile?.let { profile ->
+                    item(key = "profile-header") {
+                        Column(Modifier.fillMaxWidth().testTag("user-profile-header")) {
+                            Box(
+                                Modifier.fillMaxWidth().height(112.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                            ) {
+                                profile.bannerUrl?.let {
+                                    AsyncImage(
+                                        model = it,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                AsyncImage(
+                                    model = profile.avatarUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    contentScale = ContentScale.Crop,
+                                )
+                                Spacer(Modifier.size(12.dp))
+                                Column {
+                                    Text(profile.displayName.orEmpty(), fontWeight = FontWeight.Bold)
+                                    Text(
+                                        "@${profile.username.orEmpty()}",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            profile.description?.let {
+                                Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                            ) {
+                                Text("${profile.followingCount} ${stringResource(R.string.following)}")
+                                Text("${profile.followerCount} ${stringResource(R.string.profile_followers)}")
+                                Text("${profile.mutualFollowerCount} ${stringResource(R.string.profile_mutual)}")
+                            }
+                        }
+                    }
+                }
+                item(key = "profile-tabs") {
+                    PrimaryScrollableTabRow(selectedTabIndex = state.tab.ordinal) {
+                        UserProfileTab.entries.forEach { tab ->
+                            Tab(
+                                selected = state.tab == tab,
+                                onClick = { onTabSelected(tab) },
+                                modifier = Modifier.testTag("profile-tab-" + tab.name.lowercase()),
+                                text = { Text(profileTabLabel(tab)) },
                             )
                         }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        AsyncImage(
-                            model = profile.avatarUrl,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            contentScale = ContentScale.Crop,
-                        )
-                        Spacer(Modifier.size(12.dp))
-                        Column {
-                            Text(profile.displayName.orEmpty(), fontWeight = FontWeight.Bold)
-                            Text("@${profile.username.orEmpty()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    profile.description?.let { Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(18.dp),
-                    ) {
-                        Text("${profile.followingCount} ${stringResource(R.string.following)}")
-                        Text("${profile.followerCount} ${stringResource(R.string.profile_followers)}")
-                        Text("${profile.mutualFollowerCount} ${stringResource(R.string.profile_mutual)}")
-                    }
                 }
-            }
-            PrimaryScrollableTabRow(selectedTabIndex = state.tab.ordinal) {
-                UserProfileTab.entries.forEach { tab ->
-                    Tab(
-                        selected = state.tab == tab,
-                        onClick = { onTabSelected(tab) },
-                        modifier = Modifier.testTag("profile-tab-" + tab.name.lowercase()),
-                        text = { Text(profileTabLabel(tab)) },
-                    )
-                }
-            }
-            when {
-                state.status == UserProfileStatus.LOADING && state.posts.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(Modifier.testTag("user-profile-loading"))
-                    }
-                }
-                state.status == UserProfileStatus.FAILED && state.posts.isEmpty() -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(stringResource(R.string.profile_load_failed), color = MaterialTheme.colorScheme.error)
-                        Button(onClick = onRetry, modifier = Modifier.testTag("user-profile-retry")) {
-                            Text(stringResource(R.string.retry))
-                        }
-                    }
-                }
-                else -> LazyColumn(Modifier.fillMaxSize().testTag("user-profile-posts")) {
-                    items(state.posts, key = Post::id) { post ->
-                        PostCard(
-                            post = post,
-                            onPostClick = onPostClick,
-                            onQuoteClick = onQuoteClick,
-                            onCreateQuoteClick = onCreateQuoteClick,
-                            onAuthorClick = onAuthorClick,
-                            onReplyClick = onReplyClick,
-                            onRepostClick = onRepostClick,
-                            onLikeClick = onLikeClick,
-                            onBookmarkClick = onBookmarkClick,
-                            onShareClick = onShareClick,
-                            onDownloadClick = onDownloadClick,
-                            onArticleClick = onArticleClick,
-                            onMenuClick = onPostMenuClick,
-                            translationStates = translationStates,
-                            autoTranslatePosts = autoTranslatePosts,
-                            onTranslationNeeded = onTranslationNeeded,
-                            onTranslationRetry = onTranslationRetry,
-                            onToggleOriginal = onToggleOriginal,
-                            pendingActions = emptySet<PostActionType>(),
-                            mediaPreview = mediaPreview,
-                            videoAutoplay = videoAutoplay,
-                            videoLoop = videoLoop,
-                            videoVolume = videoVolume,
-                            videoQuality = videoQuality,
-                        )
-                    }
-                    if (state.nextCursor != null || state.loadMoreFailed) {
-                        item(key = "profile-load-more") {
-                            Button(
-                                onClick = onLoadMore,
-                                enabled = !state.isLoadingMore,
-                                modifier = Modifier.fillMaxWidth().padding(16.dp).testTag("user-profile-load-more"),
+                when {
+                    state.status == UserProfileStatus.LOADING && state.posts.isEmpty() -> {
+                        item(key = "profile-loading") {
+                            Box(
+                                Modifier.fillParentMaxSize(),
+                                contentAlignment = Alignment.Center,
                             ) {
-                                if (state.isLoadingMore) CircularProgressIndicator(Modifier.size(18.dp))
-                                else Text(stringResource(if (state.loadMoreFailed) R.string.retry else R.string.profile_load_more))
+                                CircularProgressIndicator(Modifier.testTag("user-profile-loading"))
+                            }
+                        }
+                    }
+                    state.status == UserProfileStatus.FAILED && state.posts.isEmpty() -> {
+                        item(key = "profile-failed") {
+                            Column(
+                                modifier = Modifier.fillParentMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    stringResource(R.string.profile_load_failed),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                                Button(
+                                    onClick = onRetry,
+                                    modifier = Modifier.testTag("user-profile-retry"),
+                                ) {
+                                    Text(stringResource(R.string.retry))
+                                }
+                            }
+                        }
+                    }
+                    else -> {
+                        items(state.posts, key = Post::id) { post ->
+                            PostCard(
+                                post = post,
+                                onPostClick = onPostClick,
+                                onQuoteClick = onQuoteClick,
+                                onCreateQuoteClick = onCreateQuoteClick,
+                                onAuthorClick = onAuthorClick,
+                                onReplyClick = onReplyClick,
+                                onRepostClick = onRepostClick,
+                                onLikeClick = onLikeClick,
+                                onBookmarkClick = onBookmarkClick,
+                                onShareClick = onShareClick,
+                                onDownloadClick = onDownloadClick,
+                                onArticleClick = onArticleClick,
+                                onMenuClick = onPostMenuClick,
+                                translationStates = translationStates,
+                                autoTranslatePosts = autoTranslatePosts,
+                                onTranslationNeeded = onTranslationNeeded,
+                                onTranslationRetry = onTranslationRetry,
+                                onToggleOriginal = onToggleOriginal,
+                                pendingActions = emptySet<PostActionType>(),
+                                mediaPreview = mediaPreview,
+                                videoAutoplay = videoAutoplay,
+                                videoLoop = videoLoop,
+                                videoVolume = videoVolume,
+                                videoQuality = videoQuality,
+                            )
+                        }
+                        if (state.nextCursor != null || state.loadMoreFailed) {
+                            item(key = "profile-load-more") {
+                                Button(
+                                    onClick = onLoadMore,
+                                    enabled = !state.isLoadingMore,
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                                        .testTag("user-profile-load-more"),
+                                ) {
+                                    if (state.isLoadingMore) {
+                                        CircularProgressIndicator(Modifier.size(18.dp))
+                                    } else {
+                                        Text(
+                                            stringResource(
+                                                if (state.loadMoreFailed) {
+                                                    R.string.retry
+                                                } else {
+                                                    R.string.profile_load_more
+                                                },
+                                            ),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
