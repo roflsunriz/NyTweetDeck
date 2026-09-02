@@ -235,7 +235,9 @@
     <string name="inline_video_fullscreen">動画を全画面表示</string>
     <string name="media_viewer_rotate_landscape">横向きに回転</string>
     <string name="setting_translation_language">投稿の翻訳先言語</string>
-    <string name="setting_auto_refresh">タイムラインを自動更新</string>
+    <string name="setting_feed_updates">フィード更新</string>
+    <string name="setting_auto_refresh">フィードを自動更新</string>
+    <string name="setting_auto_refresh_desc">オフにしても初回読み込み、手動更新、リアルタイムの反応更新は継続します。</string>
     <string name="setting_video_quality">動画の既定画質</string>
     <string name="setting_navigation_position">メインナビゲーションの位置</string>
     <string name="navigation_position_left">サイド</string>

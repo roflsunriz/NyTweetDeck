@@ -236,7 +236,9 @@
     <string name="inline_video_fullscreen">Open video fullscreen</string>
     <string name="media_viewer_rotate_landscape">Rotate to landscape</string>
     <string name="setting_translation_language">Post translation language</string>
-    <string name="setting_auto_refresh">Automatically refresh timelines</string>
+    <string name="setting_feed_updates">Feed updates</string>
+    <string name="setting_auto_refresh">Automatically refresh feeds</string>
+    <string name="setting_auto_refresh_desc">Initial loading, manual refresh, and live engagement updates continue when this is off.</string>
     <string name="setting_video_quality">Default video quality</string>
     <string name="setting_navigation_position">Main navigation position</string>
     <string name="navigation_position_left">Side</string>

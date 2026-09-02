@@ -234,7 +234,9 @@
     <string name="inline_video_fullscreen">ویڈیو فل اسکرین میں کھولیں</string>
     <string name="media_viewer_rotate_landscape">لینڈ اسکیپ میں گھمائیں</string>
     <string name="setting_translation_language">پوسٹس کے ترجمے کی زبان</string>
-    <string name="setting_auto_refresh">ٹائم لائنز خودکار طور پر تازہ کریں</string>
+    <string name="setting_feed_updates">فیڈ اپ ڈیٹس</string>
+    <string name="setting_auto_refresh">فیڈز خودکار طور پر تازہ کریں</string>
+    <string name="setting_auto_refresh_desc">اسے بند کرنے پر بھی ابتدائی لوڈ، دستی ریفریش اور براہ راست ردعمل کی اپ ڈیٹس جاری رہتی ہیں۔</string>
     <string name="setting_video_quality">ڈیفالٹ ویڈیو کوالٹی</string>
     <string name="setting_navigation_position">مرکزی نیویگیشن کی جگہ</string>
     <string name="navigation_position_left">کنارے پر</string>

@@ -234,7 +234,9 @@
     <string name="inline_video_fullscreen">ভিডিও পূর্ণ স্ক্রিনে খুলুন</string>
     <string name="media_viewer_rotate_landscape">ল্যান্ডস্কেপে ঘোরান</string>
     <string name="setting_translation_language">পোস্ট অনুবাদের ভাষা</string>
-    <string name="setting_auto_refresh">টাইমলাইন স্বয়ংক্রিয়ভাবে রিফ্রেশ করুন</string>
+    <string name="setting_feed_updates">ফিড আপডেট</string>
+    <string name="setting_auto_refresh">ফিড স্বয়ংক্রিয়ভাবে রিফ্রেশ করুন</string>
+    <string name="setting_auto_refresh_desc">এটি বন্ধ থাকলেও প্রাথমিক লোড, ম্যানুয়াল রিফ্রেশ এবং লাইভ প্রতিক্রিয়া আপডেট চলতে থাকে।</string>
     <string name="setting_video_quality">ডিফল্ট ভিডিও মান</string>
     <string name="setting_navigation_position">প্রধান নেভিগেশনের অবস্থান</string>
     <string name="navigation_position_left">পাশে</string>

@@ -236,7 +236,9 @@
     <string name="inline_video_fullscreen">Открыть видео на весь экран</string>
     <string name="media_viewer_rotate_landscape">Повернуть в альбомный режим</string>
     <string name="setting_translation_language">Язык перевода постов</string>
+    <string name="setting_feed_updates">Обновление лент</string>
     <string name="setting_auto_refresh">Автоматически обновлять ленты</string>
+    <string name="setting_auto_refresh_desc">Начальная загрузка, ручное обновление и обновления реакций в реальном времени продолжаются даже при отключении.</string>
     <string name="setting_video_quality">Качество видео по умолчанию</string>
     <string name="setting_navigation_position">Расположение основной навигации</string>
     <string name="navigation_position_left">Сбоку</string>

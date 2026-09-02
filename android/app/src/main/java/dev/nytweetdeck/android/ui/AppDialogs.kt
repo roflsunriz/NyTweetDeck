@@ -568,6 +568,20 @@ internal fun SettingsDialog(
                         )
                     }
                 }
+                SettingSectionTitle(stringResource(R.string.setting_feed_updates))
+                SettingCheckbox(
+                    label = stringResource(R.string.setting_auto_refresh),
+                    checked = settings.autoRefreshTimelines,
+                    onCheckedChange = {
+                        onDisplaySettingsChange(settings.copy(autoRefreshTimelines = it))
+                    },
+                    tag = "setting-auto-refresh",
+                )
+                Text(
+                    text = stringResource(R.string.setting_auto_refresh_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 SettingSectionTitle(stringResource(R.string.setting_theme))
                 SettingChoiceRow {
                     ThemeMode.entries.forEach { mode ->
@@ -639,14 +653,6 @@ internal fun SettingsDialog(
                         onDisplaySettingsChange(settings.copy(videoAutoplay = it))
                     },
                     tag = "setting-video-autoplay",
-                )
-                SettingCheckbox(
-                    label = stringResource(R.string.setting_auto_refresh),
-                    checked = settings.autoRefreshTimelines,
-                    onCheckedChange = {
-                        onDisplaySettingsChange(settings.copy(autoRefreshTimelines = it))
-                    },
-                    tag = "setting-auto-refresh",
                 )
                 SettingCheckbox(
                     label = stringResource(R.string.setting_video_loop),

@@ -25,6 +25,7 @@ class XApiEnvironment(context: Context) : XSessionVerifier, XApiMetadataRefreshe
             ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
     }
     private val httpClient by lazy { OkHttpClient() }
+    private val metadataUserAgent by lazy { normalizeMetadataUserAgent(userAgent) }
     private val bundledProfile: XApiProfile by lazy {
         val profileJson = applicationContext.assets.open("web-current.json")
             .bufferedReader(Charsets.UTF_8).use { it.readText() }
@@ -35,7 +36,7 @@ class XApiEnvironment(context: Context) : XSessionVerifier, XApiMetadataRefreshe
     @Volatile private var metadataResolved: Boolean? = null
     private val metadataStore by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         XApiMetadataStore(bundledProfile) {
-            XWebMetadataResolver(httpClient, userAgent).resolve(bundledProfile)
+            XWebMetadataResolver(httpClient, metadataUserAgent).resolve(bundledProfile)
         }
     }
     private val bearerResolver by lazy { XWebBearerResolver(httpClient, userAgent) }
@@ -79,3 +80,8 @@ class XApiEnvironment(context: Context) : XSessionVerifier, XApiMetadataRefreshe
 
     fun metadataResolutionSucceeded(): Boolean? = metadataResolved
 }
+
+internal fun normalizeMetadataUserAgent(userAgent: String): String = userAgent
+    .replace(Regex(";\\s*wv(?=[;)])", RegexOption.IGNORE_CASE), "")
+    .replace(Regex("\\s+Version/4\\.0(?=\\s)", RegexOption.IGNORE_CASE), "")
+    .trim()

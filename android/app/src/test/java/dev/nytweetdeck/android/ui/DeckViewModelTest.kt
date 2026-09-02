@@ -15,6 +15,7 @@ import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
+import dev.nytweetdeck.android.model.DisplaySettings
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.ComposerMode
@@ -67,12 +68,26 @@ class DeckViewModelTest {
     @Test
     fun displayPreferencesUpdateIndependently() {
         val viewModel = DeckViewModel()
+        val expected = DisplaySettings(
+            themeMode = dev.nytweetdeck.android.model.ThemeMode.LIGHT,
+            fontSize = dev.nytweetdeck.android.model.AppFontSize.LARGE,
+            accentColor = dev.nytweetdeck.android.model.AccentColor.PURPLE,
+            compactDensity = true,
+            reduceMotion = true,
+            mediaPreview = false,
+            videoAutoplay = true,
+            videoLoop = false,
+            videoVolume = 35,
+            autoTranslatePosts = false,
+            autoRefreshTimelines = false,
+            videoQuality = dev.nytweetdeck.android.model.VideoQuality.LOW,
+            navigationPosition = dev.nytweetdeck.android.model.NavigationPosition.BOTTOM,
+            showMainNavigation = false,
+        )
 
-        viewModel.setDarkTheme(false)
-        viewModel.setCompactDensity(true)
+        viewModel.setDisplaySettings(expected)
 
-        assertEquals(false, viewModel.state.value.useDarkTheme)
-        assertEquals(true, viewModel.state.value.compactDensity)
+        assertEquals(expected, viewModel.state.value.displaySettings())
     }
 
     @Test

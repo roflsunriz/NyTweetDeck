@@ -238,7 +238,9 @@
     <string name="inline_video_fullscreen">فتح الفيديو بملء الشاشة</string>
     <string name="media_viewer_rotate_landscape">التدوير إلى الوضع الأفقي</string>
     <string name="setting_translation_language">لغة ترجمة المنشورات</string>
-    <string name="setting_auto_refresh">تحديث الخطوط الزمنية تلقائيًا</string>
+    <string name="setting_feed_updates">تحديثات الخلاصة</string>
+    <string name="setting_auto_refresh">تحديث الخلاصات تلقائيًا</string>
+    <string name="setting_auto_refresh_desc">يستمر التحميل الأولي والتحديث اليدوي وتحديثات التفاعل المباشرة عند إيقاف هذا الخيار.</string>
     <string name="setting_video_quality">جودة الفيديو الافتراضية</string>
     <string name="setting_navigation_position">موضع شريط التنقل الرئيسي</string>
     <string name="navigation_position_left">جانبي</string>

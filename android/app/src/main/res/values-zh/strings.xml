@@ -233,7 +233,9 @@
     <string name="inline_video_fullscreen">全屏播放视频</string>
     <string name="media_viewer_rotate_landscape">旋转为横屏</string>
     <string name="setting_translation_language">帖子翻译语言</string>
-    <string name="setting_auto_refresh">自动刷新时间线</string>
+    <string name="setting_feed_updates">信息流更新</string>
+    <string name="setting_auto_refresh">自动刷新信息流</string>
+    <string name="setting_auto_refresh_desc">关闭后，首次加载、手动刷新和实时互动更新仍会继续。</string>
     <string name="setting_video_quality">默认视频画质</string>
     <string name="setting_navigation_position">主导航位置</string>
     <string name="navigation_position_left">侧边</string>

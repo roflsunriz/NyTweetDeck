@@ -13,7 +13,11 @@ class XWebMetadataLiveTest {
         val profile = XApiProfile.parse(resource("web-current.json"), resource("web-boolean-feature-defaults.json"))
         val resolved = XWebMetadataResolver(
             OkHttpClient(),
-            "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/151.0 Mobile Safari/537.36",
+            normalizeMetadataUserAgent(
+                "Mozilla/5.0 (Linux; Android 17; Pixel Build/TEST; wv) " +
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 " +
+                    "Chrome/151.0 Mobile Safari/537.36",
+            ),
         ).resolve(profile)
         val updated = resolved.applyTo(profile)
 

@@ -235,7 +235,9 @@
     <string name="inline_video_fullscreen">Ouvrir la vidéo en plein écran</string>
     <string name="media_viewer_rotate_landscape">Pivoter en paysage</string>
     <string name="setting_translation_language">Langue de traduction des posts</string>
+    <string name="setting_feed_updates">Actualisation des fils</string>
     <string name="setting_auto_refresh">Actualiser automatiquement les fils</string>
+    <string name="setting_auto_refresh_desc">Le chargement initial, l’actualisation manuelle et les réactions en direct continuent lorsque cette option est désactivée.</string>
     <string name="setting_video_quality">Qualité vidéo par défaut</string>
     <string name="setting_navigation_position">Position de la navigation principale</string>
     <string name="navigation_position_left">Latérale</string>

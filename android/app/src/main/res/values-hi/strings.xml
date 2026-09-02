@@ -234,7 +234,9 @@
     <string name="inline_video_fullscreen">वीडियो फ़ुल स्क्रीन में खोलें</string>
     <string name="media_viewer_rotate_landscape">लैंडस्केप में घुमाएँ</string>
     <string name="setting_translation_language">पोस्ट अनुवाद भाषा</string>
-    <string name="setting_auto_refresh">टाइमलाइन अपने-आप रीफ़्रेश करें</string>
+    <string name="setting_feed_updates">फ़ीड अपडेट</string>
+    <string name="setting_auto_refresh">फ़ीड अपने-आप रीफ़्रेश करें</string>
+    <string name="setting_auto_refresh_desc">इसे बंद करने पर भी शुरुआती लोड, मैन्युअल रीफ़्रेश और लाइव प्रतिक्रिया अपडेट जारी रहते हैं।</string>
     <string name="setting_video_quality">डिफ़ॉल्ट वीडियो गुणवत्ता</string>
     <string name="setting_navigation_position">मुख्य नेविगेशन की स्थिति</string>
     <string name="navigation_position_left">किनारा</string>

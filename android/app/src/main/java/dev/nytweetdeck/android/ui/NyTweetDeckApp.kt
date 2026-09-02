@@ -493,6 +493,8 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     viewModel.setAppLanguage(languageTag)
                     (context as? Activity)?.let { AppLocaleController.apply(it, languageTag) }
                 },
+                selectedTranslationLanguageTag = state.translationLanguageTag,
+                onTranslationLanguageChange = viewModel::setTranslationLanguage,
                 onExport = {
                     transferStatus = TransferStatus.NONE
                     exportLauncher.launch("NyTweetDeck-settings.json")

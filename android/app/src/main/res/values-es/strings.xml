@@ -235,7 +235,9 @@
     <string name="inline_video_fullscreen">Abrir vídeo en pantalla completa</string>
     <string name="media_viewer_rotate_landscape">Girar a horizontal</string>
     <string name="setting_translation_language">Idioma de traducción de publicaciones</string>
-    <string name="setting_auto_refresh">Actualizar líneas de tiempo automáticamente</string>
+    <string name="setting_feed_updates">Actualizaciones del feed</string>
+    <string name="setting_auto_refresh">Actualizar feeds automáticamente</string>
+    <string name="setting_auto_refresh_desc">La carga inicial, la actualización manual y las interacciones en directo continúan aunque esté desactivado.</string>
     <string name="setting_video_quality">Calidad de vídeo predeterminada</string>
     <string name="setting_navigation_position">Posición de la navegación principal</string>
     <string name="navigation_position_left">Lateral</string>
