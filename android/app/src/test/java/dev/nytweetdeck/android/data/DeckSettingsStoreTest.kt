@@ -7,6 +7,7 @@ import dev.nytweetdeck.android.model.ColumnSort
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
+import dev.nytweetdeck.android.model.NavigationPosition
 import dev.nytweetdeck.android.model.RankingMode
 import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.VideoQuality
@@ -297,6 +298,7 @@ class DeckSettingsStoreTest {
         translationLanguageTag = "fr",
         autoRefreshTimelines = false,
         videoQuality = VideoQuality.LOW,
+        navigationPosition = NavigationPosition.BOTTOM,
     )
 
     private fun legacySchema(version: Int): String = buildString {

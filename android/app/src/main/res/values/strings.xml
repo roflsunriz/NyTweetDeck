@@ -237,8 +237,11 @@
     <string name="setting_translation_language">投稿の翻訳先言語</string>
     <string name="setting_auto_refresh">タイムラインを自動更新</string>
     <string name="setting_video_quality">動画の既定画質</string>
+    <string name="setting_navigation_position">メインナビゲーションの位置</string>
+    <string name="navigation_position_left">サイド</string>
+    <string name="navigation_position_bottom">下部</string>
     <string name="show_main_navigation">メインナビゲーションを常時表示</string>
-    <string name="show_main_navigation_desc">オフにすると自動収納します。左端から右へスワイプするかメニューボタンで一時表示し、3秒後に自動的に隠れます。</string>
+    <string name="show_main_navigation_desc">オフにすると自動収納します。サイド配置は画面端から内側へ、下部配置は下端から上へスワイプするか、メニューボタンで一時表示できます。3秒後に自動的に隠れます。</string>
     <string name="reveal_main_navigation">メインナビゲーションを一時表示</string>
     <string name="video_quality_menu">動画の画質</string>
     <string name="video_quality_auto">自動（最高）</string>

@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -61,6 +60,7 @@ import dev.nytweetdeck.android.model.CapturedWebSession
 import dev.nytweetdeck.android.model.Author
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.MainMenuItemId
+import dev.nytweetdeck.android.model.NavigationPosition
 import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.ComposerMode
 import dev.nytweetdeck.android.model.ComposerStatus
@@ -333,22 +333,21 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         fontSize = state.fontSize,
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .safeDrawingPadding()
                     .navigationBarsPadding(),
             ) {
-                if (mainNavigationVisible) {
-                    MainMenu(
-                        menuItems = state.mainMenuItems,
-                        onActivate = activateMenuItem,
-                        onEditMenu = { openDialog = OpenDialog.MENU_EDITOR },
-                        onAccounts = { openDialog = OpenDialog.ACCOUNTS },
-                        onSettings = { openDialog = OpenDialog.SETTINGS },
-                    )
+                val deckModifier = if (!mainNavigationVisible) {
+                    Modifier.fillMaxSize()
+                } else {
+                    when (state.navigationPosition) {
+                        NavigationPosition.LEFT -> Modifier.fillMaxSize().padding(start = 60.dp)
+                        NavigationPosition.BOTTOM -> Modifier.fillMaxSize().padding(bottom = 60.dp)
+                    }
                 }
-                Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                Box(modifier = deckModifier) {
                     DeckContent(
                         state = state,
                         columnScrollPositions = state.columnScrollPositions,
@@ -402,12 +401,26 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     )
                     if (!mainNavigationVisible) {
                         MainMenuRevealEdge(
+                            position = state.navigationPosition,
                             onReveal = { temporaryMainNavigationVisible = true },
-                            modifier = Modifier.align(Alignment.CenterStart),
+                            modifier = Modifier.align(
+                                when (state.navigationPosition) {
+                                    NavigationPosition.LEFT -> Alignment.CenterStart
+                                    NavigationPosition.BOTTOM -> Alignment.BottomCenter
+                                },
+                            ),
                         )
                         FloatingActionButton(
                             onClick = { temporaryMainNavigationVisible = true },
-                            modifier = Modifier.align(Alignment.TopStart).padding(12.dp).testTag("show-main-navigation"),
+                            modifier = Modifier
+                                .align(
+                                    when (state.navigationPosition) {
+                                        NavigationPosition.LEFT -> Alignment.TopStart
+                                        NavigationPosition.BOTTOM -> Alignment.BottomStart
+                                    },
+                                )
+                                .padding(12.dp)
+                                .testTag("show-main-navigation"),
                         ) {
                             Icon(
                                 Icons.Default.Menu,
@@ -415,6 +428,22 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                             )
                         }
                     }
+                }
+                if (mainNavigationVisible) {
+                    MainMenu(
+                        position = state.navigationPosition,
+                        menuItems = state.mainMenuItems,
+                        onActivate = activateMenuItem,
+                        onEditMenu = { openDialog = OpenDialog.MENU_EDITOR },
+                        onAccounts = { openDialog = OpenDialog.ACCOUNTS },
+                        onSettings = { openDialog = OpenDialog.SETTINGS },
+                        modifier = Modifier.align(
+                            when (state.navigationPosition) {
+                                NavigationPosition.LEFT -> Alignment.CenterStart
+                                NavigationPosition.BOTTOM -> Alignment.BottomCenter
+                            },
+                        ),
+                    )
                 }
             }
         }

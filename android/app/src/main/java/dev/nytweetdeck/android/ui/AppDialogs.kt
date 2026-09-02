@@ -77,6 +77,7 @@ import dev.nytweetdeck.android.model.ComposerUiState
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.DisplaySettings
 import dev.nytweetdeck.android.model.MainMenuItemId
+import dev.nytweetdeck.android.model.NavigationPosition
 import dev.nytweetdeck.android.model.TargetPickerState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.ThemeMode
@@ -704,6 +705,26 @@ internal fun SettingsDialog(
                             tag = "setting-video-quality-" + quality.name.lowercase(),
                             onClick = {
                                 onDisplaySettingsChange(settings.copy(videoQuality = quality))
+                            },
+                        )
+                    }
+                }
+                SettingSectionTitle(stringResource(R.string.setting_navigation_position))
+                SettingChoiceRow {
+                    NavigationPosition.entries.forEach { position ->
+                        SettingChoice(
+                            label = stringResource(
+                                when (position) {
+                                    NavigationPosition.LEFT -> R.string.navigation_position_left
+                                    NavigationPosition.BOTTOM -> R.string.navigation_position_bottom
+                                },
+                            ),
+                            selected = settings.navigationPosition == position,
+                            tag = "setting-navigation-" + position.name.lowercase(),
+                            onClick = {
+                                onDisplaySettingsChange(
+                                    settings.copy(navigationPosition = position),
+                                )
                             },
                         )
                     }

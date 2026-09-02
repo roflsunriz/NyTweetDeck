@@ -236,8 +236,11 @@
     <string name="setting_translation_language">पोस्ट अनुवाद भाषा</string>
     <string name="setting_auto_refresh">टाइमलाइन अपने-आप रीफ़्रेश करें</string>
     <string name="setting_video_quality">डिफ़ॉल्ट वीडियो गुणवत्ता</string>
+    <string name="setting_navigation_position">मुख्य नेविगेशन की स्थिति</string>
+    <string name="navigation_position_left">किनारा</string>
+    <string name="navigation_position_bottom">नीचे</string>
     <string name="show_main_navigation">मुख्य नेविगेशन हमेशा दिखाएँ</string>
-    <string name="show_main_navigation_desc">इसे बंद करने पर नेविगेशन अपने-आप छिपेगा। थोड़ी देर के लिए दिखाने हेतु बाएँ किनारे से दाएँ स्वाइप करें या मेनू बटन दबाएँ; यह तीन सेकंड बाद छिप जाएगा।</string>
+    <string name="show_main_navigation_desc">इसे बंद करने पर नेविगेशन अपने-आप छिपेगा। साइड नेविगेशन के लिए किनारे से अंदर स्वाइप करें, नीचे वाले नेविगेशन के लिए नीचे से ऊपर स्वाइप करें, या मेनू बटन दबाएँ। यह तीन सेकंड बाद छिप जाएगा।</string>
     <string name="reveal_main_navigation">मुख्य नेविगेशन दिखाएँ</string>
     <string name="video_quality_menu">वीडियो गुणवत्ता</string>
     <string name="video_quality_auto">ऑटो (उच्चतम)</string>

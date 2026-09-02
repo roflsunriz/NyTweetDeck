@@ -237,8 +237,11 @@
     <string name="setting_translation_language">Idioma de traducción de publicaciones</string>
     <string name="setting_auto_refresh">Actualizar líneas de tiempo automáticamente</string>
     <string name="setting_video_quality">Calidad de vídeo predeterminada</string>
+    <string name="setting_navigation_position">Posición de la navegación principal</string>
+    <string name="navigation_position_left">Lateral</string>
+    <string name="navigation_position_bottom">Inferior</string>
     <string name="show_main_navigation">Mostrar siempre la navegación principal</string>
-    <string name="show_main_navigation_desc">Desactívalo para ocultarla automáticamente. Desliza a la derecha desde el borde izquierdo o usa el botón de menú para mostrarla temporalmente; se oculta a los tres segundos.</string>
+    <string name="show_main_navigation_desc">Desactívalo para ocultarla automáticamente. Desliza hacia dentro desde el borde lateral, hacia arriba desde el borde inferior para la navegación inferior, o usa el botón de menú. Se oculta a los tres segundos.</string>
     <string name="reveal_main_navigation">Mostrar la navegación principal</string>
     <string name="video_quality_menu">Calidad del vídeo</string>
     <string name="video_quality_auto">Automática (máxima)</string>

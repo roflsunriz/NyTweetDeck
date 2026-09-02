@@ -10,6 +10,7 @@ import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.AppFontSize
 import dev.nytweetdeck.android.model.AccentColor
 import dev.nytweetdeck.android.model.ColumnSort
+import dev.nytweetdeck.android.model.NavigationPosition
 import dev.nytweetdeck.android.model.VideoQuality
 import java.nio.charset.StandardCharsets
 import java.time.Instant
@@ -48,6 +49,7 @@ class LayoutTransferTest {
             translationLanguageTag = "ja",
             autoRefreshTimelines = false,
             videoQuality = VideoQuality.MEDIUM,
+            navigationPosition = NavigationPosition.BOTTOM,
             accounts = listOf(
                 AccountUiModel(
                     accountId = "account-secret-id",
@@ -103,6 +105,7 @@ class LayoutTransferTest {
         assertEquals(source.translationLanguageTag, imported.state.translationLanguageTag)
         assertEquals(source.autoRefreshTimelines, imported.state.autoRefreshTimelines)
         assertEquals(source.videoQuality, imported.state.videoQuality)
+        assertEquals(source.navigationPosition, imported.state.navigationPosition)
         assertEquals(source.accounts, imported.state.accounts)
         assertEquals(source.selectedAccountId, imported.state.selectedAccountId)
         assertEquals(source.accountAuthStatus, imported.state.accountAuthStatus)

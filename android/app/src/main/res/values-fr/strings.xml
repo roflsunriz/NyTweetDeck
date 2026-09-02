@@ -237,8 +237,11 @@
     <string name="setting_translation_language">Langue de traduction des posts</string>
     <string name="setting_auto_refresh">Actualiser automatiquement les fils</string>
     <string name="setting_video_quality">Qualité vidéo par défaut</string>
+    <string name="setting_navigation_position">Position de la navigation principale</string>
+    <string name="navigation_position_left">Latérale</string>
+    <string name="navigation_position_bottom">En bas</string>
     <string name="show_main_navigation">Toujours afficher la navigation principale</string>
-    <string name="show_main_navigation_desc">Désactivez cette option pour la masquer automatiquement. Balayez vers la droite depuis le bord gauche ou utilisez le bouton de menu pour l’afficher temporairement ; elle se masque après trois secondes.</string>
+    <string name="show_main_navigation_desc">Désactivez cette option pour la masquer automatiquement. Balayez vers l’intérieur depuis le bord latéral, vers le haut depuis le bord inférieur pour la navigation du bas, ou utilisez le bouton de menu. Elle se masque après trois secondes.</string>
     <string name="reveal_main_navigation">Afficher la navigation principale</string>
     <string name="video_quality_menu">Qualité vidéo</string>
     <string name="video_quality_auto">Auto (maximale)</string>

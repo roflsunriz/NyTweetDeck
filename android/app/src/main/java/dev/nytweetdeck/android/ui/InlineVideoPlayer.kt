@@ -46,11 +46,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.center
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
@@ -58,6 +63,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -73,7 +79,35 @@ import kotlin.math.min
 import kotlinx.coroutines.delay
 
 private const val INLINE_PLAYBACK_VISIBLE_FRACTION = 0.6f
+private const val VIDEO_MIN_SCALE = 1f
+private const val VIDEO_MAX_SCALE = 4f
 internal const val VIDEO_CONTROLS_HIDE_DELAY_MILLIS = 3_000L
+
+internal data class VideoViewportTransform(
+    val scale: Float,
+    val offset: Offset,
+)
+
+internal fun updateVideoViewportTransform(
+    scale: Float,
+    offset: Offset,
+    centroid: Offset,
+    viewportCenter: Offset,
+    zoomChange: Float,
+    panChange: Offset,
+): VideoViewportTransform {
+    val nextScale = (scale * zoomChange).coerceIn(VIDEO_MIN_SCALE, VIDEO_MAX_SCALE)
+    val effectiveCentroid = centroid.takeIf { it.isSpecified } ?: viewportCenter
+    val scaleRatio = nextScale / scale
+    return VideoViewportTransform(
+        scale = nextScale,
+        offset = if (nextScale <= VIDEO_MIN_SCALE) {
+            Offset.Zero
+        } else {
+            effectiveCentroid - (effectiveCentroid - offset) * scaleRatio + panChange
+        },
+    )
+}
 
 @Composable
 internal fun InlineVideoPlayer(
@@ -164,11 +198,18 @@ private fun VideoPlayer(
     var qualityMenuExpanded by remember(media.id) { mutableStateOf(false) }
     var scale by remember(media.id) { mutableFloatStateOf(1f) }
     var offset by remember(media.id) { mutableStateOf(Offset.Zero) }
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        val nextScale = (scale * zoomChange).coerceIn(1f, 4f)
-        val nextOffset = Offset(offset.x + panChange.x, offset.y + panChange.y)
-        scale = nextScale
-        offset = if (nextScale <= 1f) Offset.Zero else nextOffset
+    var viewportSize by remember(media.id) { mutableStateOf(Size.Zero) }
+    val transformState = rememberTransformableState { centroid, zoomChange, panChange, _ ->
+        val transformed = updateVideoViewportTransform(
+            scale = scale,
+            offset = offset,
+            centroid = centroid,
+            viewportCenter = viewportSize.center,
+            zoomChange = zoomChange,
+            panChange = panChange,
+        )
+        scale = transformed.scale
+        offset = transformed.offset
     }
 
     fun revealControls() {
@@ -265,11 +306,13 @@ private fun VideoPlayer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onSizeChanged { viewportSize = it.toSize() }
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                     translationX = offset.x
                     translationY = offset.y
+                    transformOrigin = TransformOrigin(0f, 0f)
                 }
                 .transformable(transformState)
                 .pointerInput(media.id) {

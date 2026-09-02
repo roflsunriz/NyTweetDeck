@@ -236,8 +236,11 @@
     <string name="setting_translation_language">پوسٹس کے ترجمے کی زبان</string>
     <string name="setting_auto_refresh">ٹائم لائنز خودکار طور پر تازہ کریں</string>
     <string name="setting_video_quality">ڈیفالٹ ویڈیو کوالٹی</string>
+    <string name="setting_navigation_position">مرکزی نیویگیشن کی جگہ</string>
+    <string name="navigation_position_left">کنارے پر</string>
+    <string name="navigation_position_bottom">نیچے</string>
     <string name="show_main_navigation">مرکزی نیویگیشن ہمیشہ دکھائیں</string>
-    <string name="show_main_navigation_desc">خودکار طور پر چھپانے کے لیے اسے بند کریں۔ عارضی طور پر دکھانے کے لیے بائیں کنارے سے دائیں سوائپ کریں یا مینو بٹن استعمال کریں؛ یہ تین سیکنڈ بعد چھپ جائے گی۔</string>
+    <string name="show_main_navigation_desc">خودکار طور پر چھپانے کے لیے اسے بند کریں۔ سائیڈ نیویگیشن کے لیے کنارے سے اندر، نیچے والی نیویگیشن کے لیے نچلے کنارے سے اوپر سوائپ کریں، یا مینو بٹن استعمال کریں۔ یہ تین سیکنڈ بعد چھپ جائے گی۔</string>
     <string name="reveal_main_navigation">مرکزی نیویگیشن دکھائیں</string>
     <string name="video_quality_menu">ویڈیو کوالٹی</string>
     <string name="video_quality_auto">خودکار (اعلیٰ ترین)</string>

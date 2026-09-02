@@ -17,6 +17,7 @@ import androidx.compose.ui.test.advanceEventTime
 import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.DefaultMainMenuItems
+import dev.nytweetdeck.android.model.NavigationPosition
 import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.AppFontSize
 import dev.nytweetdeck.android.model.AccentColor
@@ -77,6 +78,7 @@ class DeckUiTest {
         composeRule.onNodeWithTag("setting-auto-translate").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-translation-language-fr").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-quality-low").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setting-navigation-bottom").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-show-main-navigation").performScrollTo().performClick()
         composeRule.onNodeWithTag("setting-video-volume").performScrollTo().performSemanticsAction(
             SemanticsActions.SetProgress,
@@ -96,6 +98,7 @@ class DeckUiTest {
         assertEquals(false, state.autoRefreshTimelines)
         assertEquals("fr", state.translationLanguageTag)
         assertEquals(VideoQuality.LOW, state.videoQuality)
+        assertEquals(NavigationPosition.BOTTOM, state.navigationPosition)
         assertEquals(false, state.showMainNavigation)
         if (InstrumentationRegistry.getArguments().getString("capture") == "true") {
             Thread.sleep(5_000)
@@ -129,6 +132,33 @@ class DeckUiTest {
         composeRule.mainClock.advanceTimeBy(3_100)
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("settings").assertIsDisplayed()
+    }
+
+    @Test
+    fun bottomMainMenuUsesTheBottomEdgeSwipeWhenAutoHidden() {
+        isolatedViewModel.setDisplaySettings(
+            isolatedViewModel.state.value.displaySettings().copy(
+                navigationPosition = NavigationPosition.BOTTOM,
+                showMainNavigation = true,
+            ),
+        )
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("main-menu-bottom").assertIsDisplayed()
+        composeRule.onNodeWithTag("main-menu-left").assertDoesNotExist()
+
+        isolatedViewModel.setDisplaySettings(
+            isolatedViewModel.state.value.displaySettings().copy(showMainNavigation = false),
+        )
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("main-menu-bottom").assertDoesNotExist()
+        composeRule.onNodeWithTag("navigation-swipe-edge").performTouchInput {
+            val start = center
+            down(start)
+            moveTo(Offset(start.x, start.y - 240f), 300)
+            up()
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("main-menu-bottom").assertIsDisplayed()
     }
 
     @Test
