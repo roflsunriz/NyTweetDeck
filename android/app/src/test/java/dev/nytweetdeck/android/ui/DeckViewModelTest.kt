@@ -1,5 +1,6 @@
 package dev.nytweetdeck.android.ui
 
+import androidx.lifecycle.ViewModelStore
 import dev.nytweetdeck.android.data.AccountStore
 import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.DeckSettingsStore
@@ -369,6 +370,7 @@ class DeckViewModelTest {
     @Test
     fun disablesAdaptiveTimelineRefreshWithoutBlockingTheInitialVisibleLoad() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
+        val viewModelStore = ViewModelStore()
         Dispatchers.setMain(dispatcher)
         try {
             val root = temporaryFolder.root
@@ -398,8 +400,10 @@ class DeckViewModelTest {
                 adaptiveRefreshIntervalMillis = 15_000L,
                 visibilityRefreshDelayMillis = 750L,
             )
+            viewModelStore.put("adaptive-refresh", viewModel)
             runCurrent()
 
+            viewModel.setForeground(true)
             viewModel.setVisibleColumns(setOf("home"))
             advanceTimeBy(750L)
             runCurrent()
@@ -409,6 +413,7 @@ class DeckViewModelTest {
             runCurrent()
             assertEquals(1, calls)
         } finally {
+            viewModelStore.clear()
             Dispatchers.resetMain()
         }
     }

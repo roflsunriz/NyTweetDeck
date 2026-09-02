@@ -29,9 +29,12 @@ class XApiMetadataStoreTest {
             featureDefaults = mapOf("feature_a" to true),
         )
         var fail = false
-        val store = XApiMetadataStore(bundled) {
-            if (fail) error("offline") else resolved
-        }
+        var loggedFailure: Throwable? = null
+        val store = XApiMetadataStore(
+            bundledProfile = bundled,
+            resolver = { if (fail) error("offline") else resolved },
+            warningLogger = { loggedFailure = it },
+        )
 
         val success = store.refreshMetadata()
         assertTrue(success.succeeded)
@@ -41,6 +44,7 @@ class XApiMetadataStoreTest {
 
         fail = true
         assertFalse(store.refreshMetadata().succeeded)
+        assertEquals("offline", loggedFailure?.message)
         assertEquals("new-id", store.currentProfile().requireOperation("home").operationId)
     }
 }

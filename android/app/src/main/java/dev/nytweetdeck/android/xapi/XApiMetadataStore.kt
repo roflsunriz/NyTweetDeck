@@ -15,6 +15,9 @@ fun interface XApiMetadataRefresher {
 /** Atomically exposes only complete metadata snapshots and retains the last valid profile. */
 class XApiMetadataStore(
     private val bundledProfile: XApiProfile,
+    private val warningLogger: (Throwable) -> Unit = { error ->
+        Log.w("XApiMetadataStore", "X API定義の更新に失敗しました。", error)
+    },
     private val resolver: () -> XWebMetadataResolver.ResolvedMetadata,
 ) : XApiMetadataRefresher {
     private val activeProfile = AtomicReference(bundledProfile)
@@ -28,7 +31,7 @@ class XApiMetadataStore(
         activeProfile.set(updated)
         XApiMetadataRefreshResult(true, resolved.sourceVersion)
     }.getOrElse { error ->
-        Log.w("XApiMetadataStore", "X API定義の更新に失敗しました。", error)
+        warningLogger(error)
         XApiMetadataRefreshResult(false)
     }
 }
