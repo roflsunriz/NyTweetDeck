@@ -40,7 +40,7 @@ interface NewPostNotification {
 
 interface ViewportAnchor {
   postId: string | null;
-  postOffset: number;
+  postTop: number;
   scrollHeight: number;
   scrollTop: number;
 }
@@ -576,7 +576,7 @@ function captureViewportAnchor(scroll: HTMLDivElement | null): ViewportAnchor | 
   );
   return {
     postId: readingPost?.post.dataset.postId ?? null,
-    postOffset: readingPost === undefined ? 0 : readingPost.bounds.top - scrollBounds.top,
+    postTop: readingPost?.bounds.top ?? scrollBounds.top,
     scrollHeight: scroll.scrollHeight,
     scrollTop: scroll.scrollTop,
   };
@@ -591,10 +591,7 @@ function restoreViewportAnchor(scroll: HTMLDivElement, anchor: ViewportAnchor): 
     scroll.scrollTop = Math.max(0, anchor.scrollTop + heightDelta);
     return;
   }
-  const offsetDelta =
-    anchoredPost.getBoundingClientRect().top -
-    scroll.getBoundingClientRect().top -
-    anchor.postOffset;
+  const offsetDelta = anchoredPost.getBoundingClientRect().top - anchor.postTop;
   if (Math.abs(offsetDelta) < 0.5) return;
   scroll.scrollTop = Math.max(0, scroll.scrollTop + offsetDelta);
 }
