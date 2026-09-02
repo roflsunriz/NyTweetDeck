@@ -1,5 +1,5 @@
 export const layoutStorageKey = "nytweetdeck.layout";
-export const layoutVersion = 8 as const;
+export const layoutVersion = 11 as const;
 export const trendSearchHistoryLimit = 20;
 
 export const columnKinds = [
@@ -58,6 +58,12 @@ export type AccentColor = "blue" | "yellow" | "pink" | "purple" | "orange" | "gr
 export type Density = "comfortable" | "compact";
 export const replySorts = ["relevance", "recency", "likes"] as const;
 export type ReplySort = (typeof replySorts)[number];
+export const columnSorts = ["latest", "top"] as const;
+export type ColumnSort = (typeof columnSorts)[number];
+export const videoQualities = ["auto", "low", "medium", "high"] as const;
+export type VideoQuality = (typeof videoQualities)[number];
+export const navigationPositions = ["left", "bottom"] as const;
+export type NavigationPosition = (typeof navigationPositions)[number];
 
 export interface DisplayPreferences {
   fontSize: FontSize;
@@ -69,6 +75,10 @@ export interface DisplayPreferences {
   videoLoop: boolean;
   videoVolume: number;
   autoTranslatePosts: boolean;
+  autoRefreshTimelines: boolean;
+  videoQuality: VideoQuality;
+  navigationPosition: NavigationPosition;
+  showMainNavigation: boolean;
 }
 
 export const defaultDisplayPreferences: DisplayPreferences = {
@@ -81,6 +91,10 @@ export const defaultDisplayPreferences: DisplayPreferences = {
   videoLoop: true,
   videoVolume: 100,
   autoTranslatePosts: true,
+  autoRefreshTimelines: true,
+  videoQuality: "auto",
+  navigationPosition: "left",
+  showMainNavigation: true,
 };
 
 export interface ColumnConfig {
@@ -88,6 +102,8 @@ export interface ColumnConfig {
   kind: ColumnKind;
   target: string | null;
   label: string | null;
+  /** Omitted only for in-memory compatibility with pre-v9 test fixtures. */
+  sort?: ColumnSort;
 }
 
 export interface AppLayout {
@@ -95,6 +111,7 @@ export interface AppLayout {
   columns: ColumnConfig[];
   navItems: NavItemId[];
   locale: Locale;
+  translationLocale: Locale;
   theme: Theme;
   activeAccountId: string | null;
   replySort: ReplySort;
@@ -114,11 +131,48 @@ export function createDefaultLayout(): AppLayout {
     columns: [],
     navItems: [...defaultNavItemIds],
     locale: "ja",
+    translationLocale: "ja",
     theme: "system",
     activeAccountId: null,
     replySort: "relevance",
     display: { ...defaultDisplayPreferences },
     trendSearchHistory: [],
+  };
+}
+
+export function migrateLegacyLayout(value: unknown): AppLayout | null {
+  if (isAppLayout(value)) return value;
+  if (isLegacyLayoutV10(value)) {
+    return {
+      ...value,
+      version: layoutVersion,
+      display: { ...value.display, showMainNavigation: true },
+    };
+  }
+  if (isLegacyLayoutV9(value)) {
+    return {
+      ...value,
+      version: layoutVersion,
+      display: {
+        ...value.display,
+        navigationPosition: "left" as const,
+        showMainNavigation: true,
+      },
+    };
+  }
+  if (!isLegacyLayoutV8(value)) return null;
+  return {
+    ...value,
+    version: layoutVersion,
+    translationLocale: value.locale,
+    columns: value.columns.map((column) => ({ ...column, sort: column.sort ?? "latest" })),
+    display: {
+      ...value.display,
+      autoRefreshTimelines: true,
+      videoQuality: "auto",
+      navigationPosition: "left" as const,
+      showMainNavigation: true,
+    },
   };
 }
 
@@ -133,11 +187,59 @@ export function loadLayout(storage: StorageLike): AppLayout {
     if (isAppLayout(candidate)) {
       return candidate;
     }
+    if (isLegacyLayoutV10(candidate)) {
+      const migrated: AppLayout = {
+        ...candidate,
+        version: layoutVersion,
+        display: { ...candidate.display, showMainNavigation: true },
+      };
+      saveLayout(storage, migrated);
+      return migrated;
+    }
+    if (isLegacyLayoutV9(candidate)) {
+      const migrated: AppLayout = {
+        ...candidate,
+        version: layoutVersion,
+        display: {
+          ...candidate.display,
+          navigationPosition: "left" as const,
+          showMainNavigation: true,
+        },
+      };
+      saveLayout(storage, migrated);
+      return migrated;
+    }
+    if (isLegacyLayoutV8(candidate)) {
+      const migrated: AppLayout = {
+        ...candidate,
+        version: layoutVersion,
+        translationLocale: candidate.locale,
+        columns: candidate.columns.map((column) => ({ ...column, sort: column.sort ?? "latest" })),
+        display: {
+          ...candidate.display,
+          autoRefreshTimelines: true,
+          videoQuality: "auto",
+          navigationPosition: "left" as const,
+          showMainNavigation: true,
+        },
+      };
+      saveLayout(storage, migrated);
+      return migrated;
+    }
     if (isLegacyLayoutV7(candidate)) {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
+        translationLocale: candidate.locale,
         replySort: "relevance",
+        columns: candidate.columns.map((column) => ({ ...column, sort: column.sort ?? "latest" })),
+        display: {
+          ...candidate.display,
+          autoRefreshTimelines: true,
+          videoQuality: "auto",
+          navigationPosition: "left" as const,
+          showMainNavigation: true,
+        },
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -145,9 +247,15 @@ export function loadLayout(storage: StorageLike): AppLayout {
     if (isLegacyLayoutV1(candidate)) {
       const migrated: AppLayout = {
         version: layoutVersion,
-        columns: candidate.columns.map((column) => ({ ...column, target: null, label: null })),
+        columns: candidate.columns.map((column) => ({
+          ...column,
+          target: null,
+          label: null,
+          sort: "latest" as const,
+        })),
         navItems: candidate.navItems,
         locale: candidate.locale,
+        translationLocale: candidate.locale,
         theme: candidate.theme,
         activeAccountId: null,
         replySort: "relevance",
@@ -161,7 +269,12 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
-        columns: candidate.columns.map((column) => ({ ...column, label: null })),
+        translationLocale: candidate.locale,
+        columns: candidate.columns.map((column) => ({
+          ...column,
+          label: null,
+          sort: "latest" as const,
+        })),
         replySort: "relevance",
         display: { ...defaultDisplayPreferences },
         trendSearchHistory: [],
@@ -173,13 +286,22 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
-        columns: candidate.columns.map((column) => ({ ...column, label: null })),
+        translationLocale: candidate.locale,
+        columns: candidate.columns.map((column) => ({
+          ...column,
+          label: null,
+          sort: "latest" as const,
+        })),
         replySort: "relevance",
         display: {
           ...candidate.display,
           autoTranslatePosts: true,
           videoLoop: true,
           videoVolume: 100,
+          autoRefreshTimelines: true,
+          videoQuality: "auto",
+          navigationPosition: "left" as const,
+          showMainNavigation: true,
         },
         trendSearchHistory: [],
       };
@@ -190,12 +312,18 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
+        translationLocale: candidate.locale,
+        columns: candidate.columns.map((column) => ({ ...column, sort: column.sort ?? "latest" })),
         replySort: "relevance",
         display: {
           ...candidate.display,
           autoTranslatePosts: true,
           videoLoop: true,
           videoVolume: 100,
+          autoRefreshTimelines: true,
+          videoQuality: "auto",
+          navigationPosition: "left" as const,
+          showMainNavigation: true,
         },
         trendSearchHistory: [],
       };
@@ -206,8 +334,18 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
+        translationLocale: candidate.locale,
+        columns: candidate.columns.map((column) => ({ ...column, sort: column.sort ?? "latest" })),
         replySort: "relevance",
-        display: { ...candidate.display, videoLoop: true, videoVolume: 100 },
+        display: {
+          ...candidate.display,
+          videoLoop: true,
+          videoVolume: 100,
+          autoRefreshTimelines: true,
+          videoQuality: "auto",
+          navigationPosition: "left" as const,
+          showMainNavigation: true,
+        },
         trendSearchHistory: [],
       };
       saveLayout(storage, migrated);
@@ -217,8 +355,17 @@ export function loadLayout(storage: StorageLike): AppLayout {
       const migrated: AppLayout = {
         ...candidate,
         version: layoutVersion,
+        translationLocale: candidate.locale,
         replySort: "relevance",
-        display: { ...candidate.display, videoLoop: true, videoVolume: 100 },
+        display: {
+          ...candidate.display,
+          videoLoop: true,
+          videoVolume: 100,
+          autoRefreshTimelines: true,
+          videoQuality: "auto",
+          navigationPosition: "left" as const,
+          showMainNavigation: true,
+        },
       };
       saveLayout(storage, migrated);
       return migrated;
@@ -273,6 +420,7 @@ export function isAppLayout(value: unknown): value is AppLayout {
   }
   if (
     !isLocale(value.locale) ||
+    !isLocale(value.translationLocale) ||
     !isTheme(value.theme) ||
     !isNullableString(value.activeAccountId, 200) ||
     !isReplySort(value.replySort) ||
@@ -290,15 +438,81 @@ export function isAppLayout(value: unknown): value is AppLayout {
   return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
 }
 
-function isLegacyLayoutV7(value: unknown): value is Omit<AppLayout, "version" | "replySort"> & {
+function isLegacyLayoutV10(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
+  version: 10;
+  display: LegacyDisplayPreferencesV10;
+} {
+  if (!isRecord(value) || value.version !== 10) return false;
+  if (
+    !isLocale(value.locale) ||
+    !isLocale(value.translationLocale) ||
+    !isTheme(value.theme) ||
+    !isNullableString(value.activeAccountId, 200) ||
+    !isLegacyDisplayPreferencesV10(value.display) ||
+    !isTrendSearchHistory(value.trendSearchHistory) ||
+    !isReplySort(value.replySort)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) return false;
+  return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
+}
+
+function isLegacyLayoutV9(value: unknown): value is Omit<AppLayout, "version" | "display"> & {
+  version: 9;
+  display: LegacyDisplayPreferencesV9;
+} {
+  if (!isRecord(value) || value.version !== 9) return false;
+  if (
+    !isLocale(value.locale) ||
+    !isLocale(value.translationLocale) ||
+    !isTheme(value.theme) ||
+    !isNullableString(value.activeAccountId, 200) ||
+    !isLegacyDisplayPreferencesV9(value.display) ||
+    !isTrendSearchHistory(value.trendSearchHistory) ||
+    !isReplySort(value.replySort)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) return false;
+  return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
+}
+
+function isLegacyLayoutV8(value: unknown): value is Omit<
+  AppLayout,
+  "version" | "translationLocale" | "display"
+> & {
+  version: 8;
+  display: LegacyDisplayPreferencesV8;
+} {
+  if (!isRecord(value) || value.version !== 8) return false;
+  if (
+    !isLocale(value.locale) ||
+    !isTheme(value.theme) ||
+    !isNullableString(value.activeAccountId, 200) ||
+    !isLegacyDisplayPreferencesV8(value.display) ||
+    !isTrendSearchHistory(value.trendSearchHistory) ||
+    !isReplySort(value.replySort)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.navItems) || !value.navItems.every(isNavItemId)) return false;
+  return Array.isArray(value.columns) && value.columns.every(isColumnConfig);
+}
+
+function isLegacyLayoutV7(value: unknown): value is Omit<
+  AppLayout,
+  "version" | "translationLocale" | "replySort" | "display"
+> & {
   version: 7;
+  display: LegacyDisplayPreferencesV8;
 } {
   if (!isRecord(value) || value.version !== 7) return false;
   if (
     !isLocale(value.locale) ||
     !isTheme(value.theme) ||
     !isNullableString(value.activeAccountId, 200) ||
-    !isDisplayPreferences(value.display) ||
+    !isLegacyDisplayPreferencesV8(value.display) ||
     !isTrendSearchHistory(value.trendSearchHistory)
   ) {
     return false;
@@ -309,7 +523,7 @@ function isLegacyLayoutV7(value: unknown): value is Omit<AppLayout, "version" | 
 
 function isLegacyLayoutV5(value: unknown): value is Omit<
   AppLayout,
-  "version" | "trendSearchHistory" | "display" | "replySort"
+  "version" | "translationLocale" | "trendSearchHistory" | "display" | "replySort"
 > & {
   version: 5;
   display: LegacyDisplayPreferencesV5;
@@ -333,7 +547,7 @@ function isLegacyLayoutV5(value: unknown): value is Omit<
 
 function isLegacyLayoutV6(value: unknown): value is Omit<
   AppLayout,
-  "version" | "display" | "replySort"
+  "version" | "translationLocale" | "display" | "replySort"
 > & {
   version: 6;
   display: LegacyDisplayPreferencesV5;
@@ -358,7 +572,7 @@ function isLegacyLayoutV6(value: unknown): value is Omit<
 
 function isLegacyLayoutV3(value: unknown): value is Omit<
   AppLayout,
-  "version" | "columns" | "display" | "trendSearchHistory" | "replySort"
+  "version" | "translationLocale" | "columns" | "display" | "trendSearchHistory" | "replySort"
 > & {
   version: 3;
   columns: Array<Omit<ColumnConfig, "label">>;
@@ -383,7 +597,7 @@ function isLegacyLayoutV3(value: unknown): value is Omit<
 
 function isLegacyLayoutV4(value: unknown): value is Omit<
   AppLayout,
-  "version" | "display" | "trendSearchHistory" | "replySort"
+  "version" | "translationLocale" | "display" | "trendSearchHistory" | "replySort"
 > & {
   version: 4;
   display: LegacyDisplayPreferencesV3;
@@ -407,7 +621,7 @@ function isLegacyLayoutV4(value: unknown): value is Omit<
 
 function isLegacyLayoutV2(value: unknown): value is Omit<
   AppLayout,
-  "version" | "display" | "trendSearchHistory" | "replySort"
+  "version" | "translationLocale" | "display" | "trendSearchHistory" | "replySort"
 > & {
   version: 2;
 } {
@@ -435,7 +649,8 @@ function isColumnConfig(value: unknown): value is ColumnConfig {
     value.id.length <= 200 &&
     isColumnKind(value.kind) &&
     isNullableString(value.target, 500) &&
-    isNullableString(value.label, 500)
+    isNullableString(value.label, 500) &&
+    (value.sort === undefined || isColumnSort(value.sort))
   );
 }
 
@@ -452,7 +667,12 @@ function isLegacyTargetedColumn(value: unknown): value is Omit<ColumnConfig, "la
 
 function isLegacyLayoutV1(value: unknown): value is Omit<
   AppLayout,
-  "version" | "activeAccountId" | "display" | "trendSearchHistory" | "replySort"
+  | "version"
+  | "translationLocale"
+  | "activeAccountId"
+  | "display"
+  | "trendSearchHistory"
+  | "replySort"
 > & {
   version: 1;
   columns: Array<Omit<ColumnConfig, "target" | "label">>;
@@ -487,6 +707,10 @@ function isColumnKind(value: unknown): value is ColumnKind {
   return typeof value === "string" && columnKinds.includes(value as ColumnKind);
 }
 
+function isColumnSort(value: unknown): value is ColumnSort {
+  return typeof value === "string" && columnSorts.includes(value as ColumnSort);
+}
+
 function isNavItemId(value: unknown): value is NavItemId {
   return typeof value === "string" && availableNavItemIds.includes(value as NavItemId);
 }
@@ -503,7 +727,65 @@ function isReplySort(value: unknown): value is ReplySort {
   return typeof value === "string" && replySorts.includes(value as ReplySort);
 }
 
+function isVideoQuality(value: unknown): value is VideoQuality {
+  return typeof value === "string" && videoQualities.includes(value as VideoQuality);
+}
+
+function isNavigationPosition(value: unknown): value is NavigationPosition {
+  return typeof value === "string" && navigationPositions.includes(value as NavigationPosition);
+}
+
 function isDisplayPreferences(value: unknown): value is DisplayPreferences {
+  const record = isRecord(value) ? value : null;
+  return (
+    isLegacyDisplayPreferencesV10(value) &&
+    record !== null &&
+    typeof record.showMainNavigation === "boolean"
+  );
+}
+
+type LegacyDisplayPreferencesV10 = Omit<DisplayPreferences, "showMainNavigation">;
+
+function isLegacyDisplayPreferencesV10(value: unknown): value is LegacyDisplayPreferencesV10 {
+  const record = isRecord(value) ? value : null;
+  return (
+    isLegacyDisplayPreferencesV9(value) &&
+    record !== null &&
+    isNavigationPosition(record.navigationPosition)
+  );
+}
+
+type LegacyDisplayPreferencesV9 = Omit<LegacyDisplayPreferencesV10, "navigationPosition">;
+
+function isLegacyDisplayPreferencesV9(value: unknown): value is LegacyDisplayPreferencesV9 {
+  const record = isRecord(value) ? value : null;
+  return (
+    isLegacyDisplayPreferencesV8(value) &&
+    record !== null &&
+    typeof record.autoRefreshTimelines === "boolean" &&
+    isVideoQuality(record.videoQuality)
+  );
+}
+
+type LegacyDisplayPreferencesV8 = LegacyDisplayPreferencesV5 & {
+  videoLoop: boolean;
+  videoVolume: number;
+};
+
+type LegacyDisplayPreferencesV5 = LegacyDisplayPreferencesV3 & {
+  autoTranslatePosts: boolean;
+};
+
+function isLegacyDisplayPreferencesV5(value: unknown): value is LegacyDisplayPreferencesV5 {
+  const record = isRecord(value) ? value : null;
+  return (
+    isLegacyDisplayPreferencesV3(value) &&
+    record !== null &&
+    typeof record.autoTranslatePosts === "boolean"
+  );
+}
+
+function isLegacyDisplayPreferencesV8(value: unknown): value is LegacyDisplayPreferencesV8 {
   const record = isRecord(value) ? value : null;
   return (
     isLegacyDisplayPreferencesV5(value) &&
@@ -516,21 +798,14 @@ function isDisplayPreferences(value: unknown): value is DisplayPreferences {
   );
 }
 
-type LegacyDisplayPreferencesV5 = Omit<DisplayPreferences, "videoLoop" | "videoVolume">;
-
-function isLegacyDisplayPreferencesV5(value: unknown): value is LegacyDisplayPreferencesV5 {
-  const record = isRecord(value) ? value : null;
-  return (
-    isLegacyDisplayPreferencesV3(value) &&
-    record !== null &&
-    typeof record.autoTranslatePosts === "boolean"
-  );
-}
-
-type LegacyDisplayPreferencesV3 = Omit<
-  DisplayPreferences,
-  "autoTranslatePosts" | "videoLoop" | "videoVolume"
->;
+type LegacyDisplayPreferencesV3 = {
+  fontSize: FontSize;
+  accentColor: AccentColor;
+  density: Density;
+  reduceMotion: boolean;
+  mediaPreview: boolean;
+  videoAutoplay: boolean;
+};
 
 function isLegacyDisplayPreferencesV3(value: unknown): value is LegacyDisplayPreferencesV3 {
   return (

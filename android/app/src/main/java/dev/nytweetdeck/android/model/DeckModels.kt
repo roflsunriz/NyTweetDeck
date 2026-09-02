@@ -97,6 +97,23 @@ enum class ThemeMode {
     DARK,
 }
 
+enum class ColumnSort {
+    LATEST,
+    TOP,
+}
+
+enum class VideoQuality {
+    AUTO,
+    LOW,
+    MEDIUM,
+    HIGH,
+}
+
+enum class NavigationPosition {
+    LEFT,
+    BOTTOM,
+}
+
 enum class AppFontSize {
     SMALL,
     DEFAULT,
@@ -129,6 +146,10 @@ data class DisplaySettings(
     val videoLoop: Boolean = true,
     val videoVolume: Int = 100,
     val autoTranslatePosts: Boolean = true,
+    val autoRefreshTimelines: Boolean = true,
+    val videoQuality: VideoQuality = VideoQuality.AUTO,
+    val navigationPosition: NavigationPosition = NavigationPosition.LEFT,
+    val showMainNavigation: Boolean = true,
 ) {
     init {
         require(videoVolume in 0..100) { "動画音量が範囲外です。" }
@@ -211,6 +232,7 @@ data class DeckColumn(
     val kind: ColumnKind,
     val title: String,
     val target: String? = null,
+    val sort: ColumnSort = ColumnSort.LATEST,
 )
 
 data class CapturedWebSession(
@@ -256,6 +278,11 @@ data class DeckUiState(
     val trendSearchHistory: List<String> = emptyList(),
     val autoTranslatePosts: Boolean = true,
     val appLanguageTag: String = "ja",
+    val translationLanguageTag: String = "ja",
+    val autoRefreshTimelines: Boolean = true,
+    val videoQuality: VideoQuality = VideoQuality.AUTO,
+    val navigationPosition: NavigationPosition = NavigationPosition.LEFT,
+    val showMainNavigation: Boolean = true,
     val replySort: RankingMode = RankingMode.RELEVANCE,
     val accounts: List<AccountUiModel> = emptyList(),
     val selectedAccountId: String? = null,

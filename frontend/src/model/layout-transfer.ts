@@ -1,4 +1,4 @@
-import { type AppLayout, isAppLayout } from "./layout";
+import { migrateLegacyLayout, type AppLayout } from "./layout";
 
 export const layoutTransferFormat = "NyTweetDeckSettings";
 export const layoutTransferVersion = 1 as const;
@@ -15,7 +15,11 @@ export function exportLayoutSettings(layout: AppLayout, now = new Date()): strin
     format: layoutTransferFormat,
     version: layoutTransferVersion,
     exportedAt: now.toISOString(),
-    layout: { ...layout, activeAccountId: null },
+    layout: {
+      ...layout,
+      activeAccountId: null,
+      columns: layout.columns.map((column) => ({ ...column, sort: column.sort ?? "latest" })),
+    },
   };
   return `${JSON.stringify(document, null, 2)}\n`;
 }
@@ -36,10 +40,11 @@ export function importLayoutSettings(serialized: string, current: AppLayout): Ap
   if (typeof value.exportedAt !== "string" || !Number.isFinite(Date.parse(value.exportedAt))) {
     throw new Error("設定ファイルの出力日時が不正です。");
   }
-  if (!isAppLayout(value.layout)) {
+  const layout = migrateLegacyLayout(value.layout);
+  if (layout === null) {
     throw new Error("設定ファイルのレイアウトが不正です。");
   }
-  return { ...value.layout, activeAccountId: current.activeAccountId };
+  return { ...layout, activeAccountId: current.activeAccountId };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

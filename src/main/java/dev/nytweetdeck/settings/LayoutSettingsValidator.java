@@ -7,7 +7,7 @@ import java.util.Set;
 
 final class LayoutSettingsValidator {
 
-    static final int CURRENT_LAYOUT_VERSION = 8;
+    static final int CURRENT_LAYOUT_VERSION = 11;
     private static final int FIRST_LAYOUT_VERSION = 1;
     private static final int MAX_HISTORY = 20;
     private static final Set<String> COLUMN_KINDS = Set.of(
@@ -34,11 +34,17 @@ final class LayoutSettingsValidator {
         if (!LOCALES.contains(settings.locale())) {
             throw new IllegalArgumentException("表示言語が不正です。");
         }
+        var translationLocale = settings.translationLocale() == null
+                ? settings.locale()
+                : settings.translationLocale();
+        if (!LOCALES.contains(translationLocale)) {
+            throw new IllegalArgumentException("翻訳先言語が不正です。");
+        }
         if (!Set.of("system", "light", "dark").contains(settings.theme())) {
             throw new IllegalArgumentException("テーマが不正です。");
         }
         validateNullableText(settings.activeAccountId(), 200, "選択アカウント");
-        var replySort = sourceVersion < CURRENT_LAYOUT_VERSION
+        var replySort = sourceVersion < 8
                 ? "relevance"
                 : settings.replySort();
         if (replySort == null
@@ -54,6 +60,7 @@ final class LayoutSettingsValidator {
                 columns,
                 navItems,
                 settings.locale(),
+                translationLocale,
                 settings.theme(),
                 settings.activeAccountId(),
                 replySort,
@@ -65,10 +72,24 @@ final class LayoutSettingsValidator {
             LayoutSettings.Display display, int sourceVersion) {
         if (sourceVersion <= 2) {
             return new LayoutSettings.Display(
-                    "default", "blue", "comfortable", false, true, false, true, 100, true);
+                    "default", "blue", "comfortable", false, true, false, true, 100, true,
+                    true, "auto", "left", true);
         }
         if (display == null) {
             throw new IllegalArgumentException("表示設定が不正です。");
+        }
+        var navigationPosition = sourceVersion < 10
+                ? "left"
+                : display.navigationPosition();
+        if (navigationPosition == null
+                || !Set.of("left", "bottom").contains(navigationPosition)) {
+            throw new IllegalArgumentException("ナビゲーション位置が不正です。");
+        }
+        Boolean showMainNavigation = sourceVersion < 11
+                ? Boolean.TRUE
+                : display.showMainNavigation();
+        if (showMainNavigation == null) {
+            throw new IllegalArgumentException("メインナビゲーション表示が不正です。");
         }
         return new LayoutSettings.Display(
                 display.fontSize(),
@@ -79,7 +100,11 @@ final class LayoutSettingsValidator {
                 display.videoAutoplay(),
                 sourceVersion <= 6 ? true : display.videoLoop(),
                 sourceVersion <= 6 ? 100 : display.videoVolume(),
-                sourceVersion <= 4 ? true : display.autoTranslatePosts());
+                sourceVersion <= 4 ? true : display.autoTranslatePosts(),
+                sourceVersion < 9 ? Boolean.TRUE : display.autoRefreshTimelines(),
+                sourceVersion < 9 ? "auto" : display.videoQuality(),
+                navigationPosition,
+                showMainNavigation);
     }
 
     private static List<LayoutSettings.Column> validateColumns(
@@ -88,6 +113,7 @@ final class LayoutSettingsValidator {
             throw new IllegalArgumentException("カラム設定が不正です。");
         }
         var ids = new HashSet<String>();
+        var normalized = new java.util.ArrayList<LayoutSettings.Column>(columns.size());
         for (var column : columns) {
             if (column == null) {
                 throw new IllegalArgumentException("カラム設定に空要素があります。");
@@ -101,8 +127,14 @@ final class LayoutSettingsValidator {
             }
             validateNullableText(column.target(), 500, "カラム対象");
             validateNullableText(column.label(), 500, "カラム名");
+            var sort = column.sort() == null ? "latest" : column.sort();
+            if (!Set.of("latest", "top").contains(sort)) {
+                throw new IllegalArgumentException("カラムの並び順が不正です。");
+            }
+            normalized.add(new LayoutSettings.Column(
+                    column.id(), column.kind(), column.target(), column.label(), sort));
         }
-        return List.copyOf(columns);
+        return List.copyOf(normalized);
     }
 
     private static List<String> validateUniqueValues(
@@ -130,6 +162,10 @@ final class LayoutSettingsValidator {
                 || display.videoAutoplay() == null
                 || display.videoLoop() == null
                 || display.autoTranslatePosts() == null
+                || display.autoRefreshTimelines() == null
+                || !Set.of("auto", "low", "medium", "high").contains(display.videoQuality())
+                || !Set.of("left", "bottom").contains(display.navigationPosition())
+                || display.showMainNavigation() == null
                 || display.videoVolume() == null
                 || display.videoVolume() < 0
                 || display.videoVolume() > 100) {

@@ -15,11 +15,18 @@ describe("layout settings transfer", () => {
       replySort: "likes",
       navItems: ["home", "search"],
       columns: [
-        { id: "home", kind: "home" as const, target: null, label: null },
-        { id: "search", kind: "search" as const, target: "NyTweetDeck", label: "NyTweetDeck" },
+        { id: "home", kind: "home" as const, target: null, label: null, sort: "top" as const },
+        {
+          id: "search",
+          kind: "search" as const,
+          target: "NyTweetDeck",
+          label: "NyTweetDeck",
+          sort: "latest" as const,
+        },
       ],
       display: { ...createDefaultLayout().display, videoVolume: 35 },
       trendSearchHistory: ["AI"],
+      translationLocale: "fr",
     };
 
     const serialized = exportLayoutSettings(source, new Date("2026-08-27T00:00:00Z"));
@@ -35,6 +42,7 @@ describe("layout settings transfer", () => {
     expect(imported.activeAccountId).toBe("current-account");
     expect(imported.navItems).toEqual(["home", "search"]);
     expect(imported.columns).toEqual(source.columns);
+    expect(imported.translationLocale).toBe("fr");
     expect(imported.replySort).toBe("likes");
     expect(imported.display.videoVolume).toBe(35);
     expect(imported.trendSearchHistory).toEqual(["AI"]);

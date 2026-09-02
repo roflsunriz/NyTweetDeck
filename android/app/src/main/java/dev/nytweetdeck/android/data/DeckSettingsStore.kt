@@ -6,6 +6,8 @@ import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.DefaultMainMenuItems
 import dev.nytweetdeck.android.model.RankingMode
+import dev.nytweetdeck.android.model.ColumnSort
+import dev.nytweetdeck.android.model.VideoQuality
 import dev.nytweetdeck.android.model.ThemeMode
 import dev.nytweetdeck.android.model.AppFontSize
 import dev.nytweetdeck.android.model.AccentColor
@@ -37,7 +39,7 @@ private const val MAX_JSON_DEPTH = 64
  */
 class DeckSettingsStore(filePath: Path) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION: Int = 9
+        const val CURRENT_SCHEMA_VERSION: Int = 12
         const val MAX_FILE_SIZE_BYTES: Int = 1 shl 20
 
         private const val MAX_COLUMN_ID_LENGTH = 200
@@ -66,8 +68,16 @@ class DeckSettingsStore(filePath: Path) {
         private val ROOT_KEYS_V7 = ROOT_KEYS_V6 + "autoTranslatePosts"
         private val ROOT_KEYS_V8 = ROOT_KEYS_V7 + "appLanguageTag"
         private val ROOT_KEYS_V9 = ROOT_KEYS_V8 + "layoutRevision"
+        private val ROOT_KEYS_V10 = ROOT_KEYS_V9 + setOf(
+            "translationLanguageTag",
+            "autoRefreshTimelines",
+            "videoQuality",
+        )
+        private val ROOT_KEYS_V11 = ROOT_KEYS_V10 + "navigationPosition"
+        private val ROOT_KEYS_V12 = ROOT_KEYS_V11 + "showMainNavigation"
         private val COLUMN_KEYS_V1 = setOf("id", "kind", "title")
         private val COLUMN_KEYS_V2 = setOf("id", "kind", "title", "target")
+        private val COLUMN_KEYS_V3 = COLUMN_KEYS_V2 + "sort"
         private val SUPPORTED_LANGUAGES = setOf(
             "ja", "en", "zh", "hi", "es", "fr", "ar", "pt", "bn", "ru", "ur",
         )
@@ -257,6 +267,9 @@ class DeckSettingsStore(filePath: Path) {
             requireNotNull(nonNullColumn.kind) {
                 "カラム種別[$index]が不正です。"
             }
+            requireNotNull(nonNullColumn.sort) {
+                "カラムの並び順[$index]が不正です。"
+            }
             validateText(
                 nonNullColumn.title,
                 MAX_COLUMN_TITLE_LENGTH,
@@ -279,6 +292,7 @@ class DeckSettingsStore(filePath: Path) {
         require(state.mainMenuItems.size <= MainMenuItemId.entries.size) { "メニュー項目数が不正です。" }
         require(state.mainMenuItems.distinct().size == state.mainMenuItems.size) { "メニュー項目が重複しています。" }
         require(state.videoVolume in 0..100) { "動画音量が範囲外です。" }
+        requireNotNull(state.videoQuality) { "動画画質が不正です。" }
         require(state.trendSearchHistory.size <= 20) { "トレンド検索履歴が20件を超えています。" }
         require(state.trendSearchHistory.distinctBy { it.lowercase(Locale.ROOT) }.size == state.trendSearchHistory.size) {
             "トレンド検索履歴が重複しています。"
@@ -289,6 +303,7 @@ class DeckSettingsStore(filePath: Path) {
             }
         }
         require(state.appLanguageTag in SUPPORTED_LANGUAGES) { "表示言語が不正です。" }
+        require(state.translationLanguageTag in SUPPORTED_LANGUAGES) { "翻訳先言語が不正です。" }
 
         return state.copy(
             isInitializing = false,
@@ -358,6 +373,8 @@ class DeckSettingsStore(filePath: Path) {
                 appendJsonString(column.title)
                 append(",\"target\":")
                 if (column.target == null) append("null") else appendJsonString(column.target)
+                append(",\"sort\":")
+                appendJsonString(column.sort.name)
                 append('}')
             }
             append("],\"selectedMenu\":")
@@ -390,6 +407,14 @@ class DeckSettingsStore(filePath: Path) {
             append(state.videoLoop)
             append(",\"videoVolume\":")
             append(state.videoVolume)
+            append(",\"autoRefreshTimelines\":")
+            append(state.autoRefreshTimelines)
+            append(",\"videoQuality\":")
+            appendJsonString(state.videoQuality.name)
+            append(",\"navigationPosition\":")
+            appendJsonString(state.navigationPosition.name)
+            append(",\"showMainNavigation\":")
+            append(state.showMainNavigation)
             append(",\"trendSearchHistory\":[")
             state.trendSearchHistory.forEachIndexed { index, history ->
                 if (index > 0) append(',')
@@ -400,6 +425,8 @@ class DeckSettingsStore(filePath: Path) {
             append(state.autoTranslatePosts)
             append(",\"appLanguageTag\":")
             appendJsonString(state.appLanguageTag)
+            append(",\"translationLanguageTag\":")
+            appendJsonString(state.translationLanguageTag)
             append('}')
         }
         return json.toByteArray(StandardCharsets.UTF_8)
@@ -422,14 +449,24 @@ class DeckSettingsStore(filePath: Path) {
                 schemaVersion < 7 -> ROOT_KEYS_V6
                 schemaVersion < 8 -> ROOT_KEYS_V7
                 schemaVersion < 9 -> ROOT_KEYS_V8
-                else -> ROOT_KEYS_V9
+                schemaVersion < 10 -> ROOT_KEYS_V9
+                schemaVersion < 11 -> ROOT_KEYS_V10
+                schemaVersion < 12 -> ROOT_KEYS_V11
+                else -> ROOT_KEYS_V12
             },
         )
 
         val columns = root.requireArray("columns").values.mapIndexed { index, value ->
             val column = value as? JsonObject
                 ?: invalid("カラム設定[$index]がオブジェクトではありません。")
-            requireExactKeys(column, if (schemaVersion == 1) COLUMN_KEYS_V1 else COLUMN_KEYS_V2)
+            requireExactKeys(
+                column,
+                when {
+                    schemaVersion == 1 -> COLUMN_KEYS_V1
+                    schemaVersion < 10 -> COLUMN_KEYS_V2
+                    else -> COLUMN_KEYS_V3
+                },
+            )
             val id = column.requireString("id")
             val kind = parseColumnKind(column.requireString("kind"), index)
             val title = column.requireString("title")
@@ -442,7 +479,13 @@ class DeckSettingsStore(filePath: Path) {
                     else -> invalid("カラム対象[$index]が文字列ではありません。")
                 }
             }
-            DeckColumn(id = id, kind = kind, title = title, target = target)
+            val sort = if (schemaVersion < 10) {
+                ColumnSort.LATEST
+            } else {
+                runCatching { ColumnSort.valueOf(column.requireString("sort")) }
+                    .getOrElse { invalid("カラムの並び順が不正です。") }
+            }
+            DeckColumn(id = id, kind = kind, title = title, target = target, sort = sort)
         }
 
         val state = DeckUiState(
@@ -479,6 +522,27 @@ class DeckSettingsStore(filePath: Path) {
             videoLoop = schemaVersion < 5 || root.requireBoolean("videoLoop"),
             videoVolume = if (schemaVersion < 5) 100 else root.requireNumber("videoVolume")
                 .asInt("videoVolume"),
+            autoRefreshTimelines = if (schemaVersion < 10) {
+                true
+            } else {
+                root.requireBoolean("autoRefreshTimelines")
+            },
+            videoQuality = if (schemaVersion < 10) {
+                VideoQuality.AUTO
+            } else {
+                runCatching { VideoQuality.valueOf(root.requireString("videoQuality")) }
+                    .getOrElse { invalid("動画画質が不正です。") }
+            },
+            navigationPosition = if (schemaVersion < 11) {
+                dev.nytweetdeck.android.model.NavigationPosition.LEFT
+            } else {
+                runCatching {
+                    dev.nytweetdeck.android.model.NavigationPosition.valueOf(
+                        root.requireString("navigationPosition"),
+                    )
+                }.getOrElse { invalid("ナビゲーション位置が不正です。") }
+            },
+            showMainNavigation = if (schemaVersion < 12) true else root.requireBoolean("showMainNavigation"),
             trendSearchHistory = if (schemaVersion < 6) {
                 emptyList()
             } else {
@@ -489,6 +553,11 @@ class DeckSettingsStore(filePath: Path) {
             },
             autoTranslatePosts = schemaVersion < 7 || root.requireBoolean("autoTranslatePosts"),
             appLanguageTag = if (schemaVersion < 8) "ja" else root.requireString("appLanguageTag"),
+            translationLanguageTag = if (schemaVersion < 10) {
+                if (schemaVersion < 8) "ja" else root.requireString("appLanguageTag")
+            } else {
+                root.requireString("translationLanguageTag")
+            },
             mainMenuItems = if (schemaVersion < 3) {
                 DefaultMainMenuItems
             } else {

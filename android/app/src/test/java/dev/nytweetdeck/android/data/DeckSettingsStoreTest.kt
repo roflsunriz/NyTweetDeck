@@ -3,11 +3,13 @@ package dev.nytweetdeck.android.data
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.AccountUiModel
 import dev.nytweetdeck.android.model.ColumnKind
+import dev.nytweetdeck.android.model.ColumnSort
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.MainMenuItemId
 import dev.nytweetdeck.android.model.RankingMode
 import dev.nytweetdeck.android.model.ThemeMode
+import dev.nytweetdeck.android.model.VideoQuality
 import dev.nytweetdeck.android.model.AppFontSize
 import dev.nytweetdeck.android.model.AccentColor
 import java.nio.charset.StandardCharsets
@@ -154,7 +156,7 @@ class DeckSettingsStoreTest {
         val store = DeckSettingsStore(settingsPath())
         store.save(layout())
         val current = readText(store.primaryPath)
-            .replace("\"schemaVersion\":9", "\"schemaVersion\":999")
+            .replace("\"schemaVersion\":10", "\"schemaVersion\":999")
         writeText(store.primaryPath, current)
         Files.delete(store.backupPath)
 
@@ -186,6 +188,10 @@ class DeckSettingsStoreTest {
             assertEquals(ColumnKind.HOME_FOR_YOU, loaded.columns.single().kind)
             assertEquals(0L, loaded.layoutRevision)
             if (version >= 8) assertEquals("ar", loaded.appLanguageTag)
+            assertEquals(if (version >= 8) "ar" else "ja", loaded.translationLanguageTag)
+            assertEquals(true, loaded.autoRefreshTimelines)
+            assertEquals(VideoQuality.AUTO, loaded.videoQuality)
+            assertEquals(ColumnSort.LATEST, loaded.columns.single().sort)
         }
     }
 
@@ -270,7 +276,7 @@ class DeckSettingsStoreTest {
 
     private fun layout() = DeckUiState(
         columns = listOf(
-            DeckColumn("home-1", ColumnKind.HOME_FOR_YOU, "Home"),
+            DeckColumn("home-1", ColumnKind.HOME_FOR_YOU, "Home", sort = ColumnSort.TOP),
             DeckColumn("notifications-1", ColumnKind.NOTIFICATIONS, "Notifications"),
         ),
         selectedMenu = ColumnKind.HOME_FOR_YOU,
@@ -288,6 +294,9 @@ class DeckSettingsStoreTest {
         trendSearchHistory = listOf("Android", "NyTweetDeck"),
         autoTranslatePosts = false,
         appLanguageTag = "ar",
+        translationLanguageTag = "fr",
+        autoRefreshTimelines = false,
+        videoQuality = VideoQuality.LOW,
     )
 
     private fun legacySchema(version: Int): String = buildString {

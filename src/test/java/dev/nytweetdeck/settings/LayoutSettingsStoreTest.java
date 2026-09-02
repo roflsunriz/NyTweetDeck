@@ -77,7 +77,7 @@ class LayoutSettingsStoreTest {
 
         var migrated = LayoutSettingsValidator.validateAndCopy(legacy);
 
-        assertThat(migrated.version()).isEqualTo(8);
+        assertThat(migrated.version()).isEqualTo(9);
         assertThat(migrated.replySort()).isEqualTo("relevance");
     }
 
@@ -98,7 +98,7 @@ class LayoutSettingsStoreTest {
 
         assertThat(loaded.current()).hasValueSatisfying(snapshot -> {
             assertThat(snapshot.revision()).isEqualTo(4);
-            assertThat(snapshot.layout().version()).isEqualTo(8);
+            assertThat(snapshot.layout().version()).isEqualTo(9);
             assertThat(snapshot.layout().replySort()).isEqualTo("relevance");
             assertThat(snapshot.layout().activeAccountId()).isEqualTo("account-1");
             assertThat(snapshot.layout().display().accentColor()).isEqualTo("purple");
@@ -132,7 +132,7 @@ class LayoutSettingsStoreTest {
                     display,
                     version >= 6 ? List.of("NyTweetDeck") : null));
 
-            assertThat(migrated.version()).isEqualTo(8);
+            assertThat(migrated.version()).isEqualTo(9);
             assertThat(migrated.columns()).extracting(LayoutSettings.Column::id)
                     .containsExactly("saved-home");
             assertThat(migrated.replySort()).isEqualTo("relevance");
@@ -164,7 +164,7 @@ class LayoutSettingsStoreTest {
             assertThat(snapshot.layout().columns()).extracting(LayoutSettings.Column::id)
                     .containsExactly("saved-home");
         });
-        assertThat(Files.readString(path)).contains("\"version\":8");
+        assertThat(Files.readString(path)).contains("\"version\":9");
         assertThat(Files.readString(path.resolveSibling("settings.json.bak")))
                 .contains("\"version\":3");
     }
