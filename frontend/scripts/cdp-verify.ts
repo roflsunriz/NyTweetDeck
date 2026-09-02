@@ -1036,11 +1036,12 @@ results.push({
 });
 
 const newPostRequestBaseline = await client.evaluate<number>("window.__qaTimelineRequests");
-const readingPositionBeforeUpdate = await client.evaluate<Record<string, unknown>>(`(() => {
+const readingPositionBeforeUpdate = await client.evaluate<Record<string, unknown>>(`(async () => {
   const timeline = document.querySelector("[data-testid=timeline-scroll]");
   const anchor = document.querySelector('[data-post-id="fresh-4"]');
   if (!(timeline instanceof HTMLElement) || !(anchor instanceof HTMLElement)) return { found: false };
   anchor.scrollIntoView({ block: "center" });
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   return {
     found: true,
     postId: anchor.dataset.postId,
