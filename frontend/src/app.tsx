@@ -5,6 +5,7 @@ import {
   CircleUserRound,
   Clapperboard,
   Flame,
+  GripVertical,
   Home,
   Mail,
   Megaphone,
@@ -541,10 +542,6 @@ function AppContent() {
                     className="deck-column"
                     key={column.id}
                     data-column-kind={column.kind}
-                    draggable
-                    onDragStart={(event) =>
-                      event.dataTransfer.setData("text/plain", `column:${column.id}`)
-                    }
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => {
                       const source = event.dataTransfer.getData("text/plain");
@@ -554,10 +551,21 @@ function AppContent() {
                     }}
                   >
                     <header className="column-header">
+                      <button
+                        className="column-drag-handle"
+                        type="button"
+                        draggable
+                        aria-labelledby={`column-title-${column.id}`}
+                        onDragStart={(event) =>
+                          event.dataTransfer.setData("text/plain", `column:${column.id}`)
+                        }
+                      >
+                        <GripVertical aria-hidden="true" size={16} />
+                      </button>
                       <div className="column-header-main">
                         <span className="column-kicker">NyTweetDeck</span>
                         <div className="column-title-row">
-                          <h2>
+                          <h2 id={`column-title-${column.id}`}>
                             {column.target === null
                               ? columnText.title
                               : `${columnText.title}: ${column.label ?? column.target}`}

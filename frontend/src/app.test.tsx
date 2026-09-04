@@ -514,8 +514,20 @@ describe("NyTweetDeck shell", () => {
     if (homeColumn === null || notificationColumn === null) {
       throw new Error("並べ替え対象のカラムが見つかりません。");
     }
+    const homeColumnHeader = homeColumn.querySelector(".column-header");
+    const homeColumnDragHandle = homeColumn.querySelector(".column-drag-handle");
+    const homeSort = homeColumn.querySelector("select");
+    if (homeColumnHeader === null || homeColumnDragHandle === null || homeSort === null) {
+      throw new Error("カラムのドラッグハンドルまたは並び順選択が見つかりません。");
+    }
+    expect(homeColumn.hasAttribute("draggable")).toBe(false);
+    expect(homeColumnHeader.hasAttribute("draggable")).toBe(false);
+    expect(homeColumnDragHandle.getAttribute("draggable")).toBe("true");
+    const interactiveTransfer = dataTransfer();
+    fireEvent.dragStart(homeSort, { dataTransfer: interactiveTransfer });
+    expect(interactiveTransfer.getData("text/plain")).toBe("");
     const columnTransfer = dataTransfer();
-    fireEvent.dragStart(homeColumn, { dataTransfer: columnTransfer });
+    fireEvent.dragStart(homeColumnDragHandle, { dataTransfer: columnTransfer });
     fireEvent.drop(notificationColumn, { dataTransfer: columnTransfer });
 
     await waitFor(() =>

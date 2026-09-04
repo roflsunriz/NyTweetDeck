@@ -378,6 +378,23 @@ select:focus-visible {
   flex: 1 1 auto;
 }
 
+.column-drag-handle {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 35px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  place-items: center;
+}
+
+.column-drag-handle:active {
+  cursor: grabbing;
+}
+
 .column-title-row {
   display: flex;
   align-items: center;

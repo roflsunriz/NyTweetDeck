@@ -971,11 +971,12 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
   const heart = like?.querySelector("svg");
   const video = document.querySelector(".post-media video");
   const player = video?.closest(".configured-video");
+  const videoDragTransfer = new DataTransfer();
   const videoDragAllowed = video instanceof HTMLVideoElement
     ? video.dispatchEvent(new DragEvent("dragstart", {
         bubbles: true,
         cancelable: true,
-        dataTransfer: new DataTransfer()
+        dataTransfer: videoDragTransfer
       }))
     : null;
   return {
@@ -990,6 +991,7 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
     videoAutoplay: video instanceof HTMLVideoElement ? video.autoplay : null,
     videoDraggable: video instanceof HTMLVideoElement ? video.draggable : null,
     videoDragAllowed,
+    videoDragPayload: videoDragTransfer.getData("text/plain"),
     videoInPlaybackZone: player?.getAttribute("data-viewport-active"),
     videoNativeControls: video instanceof HTMLVideoElement ? video.controls : null,
     videoCustomButtons: player?.querySelectorAll(".configured-video-controls button").length,
@@ -1016,6 +1018,7 @@ if (
   engagementMetrics.videoAutoplay !== true ||
   engagementMetrics.videoDraggable !== false ||
   engagementMetrics.videoDragAllowed !== false ||
+  engagementMetrics.videoDragPayload !== "" ||
   engagementMetrics.videoInPlaybackZone !== "true" ||
   engagementMetrics.videoNativeControls !== false ||
   Number(engagementMetrics.videoCustomButtons) < 4 ||
