@@ -9,6 +9,7 @@ import dev.nytweetdeck.android.model.Post
 import dev.nytweetdeck.android.model.TimelinePage
 import dev.nytweetdeck.android.model.Translation
 import dev.nytweetdeck.android.model.VideoVariant
+import dev.nytweetdeck.android.text.HtmlEntityDecoder
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -221,12 +222,13 @@ class TimelineResponseParser(
         val article = tweet.objectValue("article")
         val result = article?.objectValue("article_results")?.objectValue("result") ?: return null
         val id = firstNonBlank(result.text("rest_id"), result.text("id")) ?: return null
-        val title = firstNonBlank(result.text("title")) ?: return null
+        val title = HtmlEntityDecoder.decode(firstNonBlank(result.text("title")) ?: return null)
         val body = firstNonBlank(
             result.text("plain_text"),
             articleText(result["content_state"]),
-        )
+        )?.let(HtmlEntityDecoder::decode)
         val preview = firstNonBlank(result.text("preview_text"), summarizeArticle(body))
+            ?.let(HtmlEntityDecoder::decode)
         val coverMedia = result.objectValue("cover_media")
         val coverImage = firstNonBlank(
             coverMedia?.objectValue("media_info")?.text("original_img_url"),
@@ -345,7 +347,7 @@ class TimelineResponseParser(
 
     private fun richText(node: JsonElement?): String? {
         val value = (node as? JsonPrimitive)?.contentOrNull ?: (node as? JsonObject).text("text")
-        return value?.takeIf(String::isNotBlank)
+        return value?.takeIf(String::isNotBlank)?.let(HtmlEntityDecoder::decode)
     }
 
     private fun parsePreTranslated(
@@ -387,7 +389,9 @@ class TimelineResponseParser(
         return Author(
             id = firstNonNull(user.text("rest_id"), legacy.text("id_str")).orEmpty(),
             username = firstNonNull(core.text("screen_name"), legacy.text("screen_name")).orEmpty(),
-            displayName = firstNonNull(core.text("name"), legacy.text("name")).orEmpty(),
+            displayName = HtmlEntityDecoder.decode(
+                firstNonNull(core.text("name"), legacy.text("name")).orEmpty(),
+            ),
             avatarUrl = firstNonNull(avatar.text("image_url"), legacy.text("profile_image_url_https")),
             verified = verification.bool("verified") || legacy.bool("verified") || user.bool("is_blue_verified"),
         )

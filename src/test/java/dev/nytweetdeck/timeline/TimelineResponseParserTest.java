@@ -61,9 +61,9 @@ class TimelineResponseParserTest {
     void readsIdentityFromCurrentWebUserSchema() {
         var body = """
                 {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"200",
-                "legacy":{"full_text":"web schema","created_at":"2018-10-10T20:19:24Z"},
+                "legacy":{"full_text":"web &lt; schema &gt; &amp; safe","created_at":"2018-10-10T20:19:24Z"},
                 "core":{"user_results":{"result":{"__typename":"User","rest_id":"42",
-                "core":{"screen_name":"alice","name":"Alice"},
+                "core":{"screen_name":"alice","name":"Alice &lt;3"},
                 "avatar":{"image_url":"https://pbs.twimg.com/profile_images/alice.jpg"},
                 "verification":{"verified":true}}}}}}}}
                 """;
@@ -72,7 +72,8 @@ class TimelineResponseParserTest {
 
         assertThat(post.author().id()).isEqualTo("42");
         assertThat(post.author().username()).isEqualTo("alice");
-        assertThat(post.author().displayName()).isEqualTo("Alice");
+        assertThat(post.text()).isEqualTo("web < schema > & safe");
+        assertThat(post.author().displayName()).isEqualTo("Alice <3");
         assertThat(post.author().avatarUrl()).endsWith("alice.jpg");
         assertThat(post.author().verified()).isTrue();
     }

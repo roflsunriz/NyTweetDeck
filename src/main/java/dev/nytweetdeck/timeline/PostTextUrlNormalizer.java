@@ -3,6 +3,7 @@ package dev.nytweetdeck.timeline;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
+import dev.nytweetdeck.text.HtmlEntityDecoder;
 import dev.nytweetdeck.timeline.TimelinePage.TextLink;
 
 final class PostTextUrlNormalizer {
@@ -28,8 +29,9 @@ final class PostTextUrlNormalizer {
     private PostTextUrlNormalizer() {}
 
     static String normalize(String value, List<UrlEntity> entities) {
-        if (value == null || entities.isEmpty()) {
-            return value;
+        var normalized = HtmlEntityDecoder.decode(value);
+        if (normalized == null || entities.isEmpty()) {
+            return normalized;
         }
         var replacements = new LinkedHashMap<String, String>();
         for (var entity : entities) {
@@ -45,7 +47,6 @@ final class PostTextUrlNormalizer {
                 replacements.putIfAbsent(entity.shortUrl(), destination);
             }
         }
-        var normalized = value;
         var removedContent = false;
         for (var replacement : replacements.entrySet()) {
             normalized = normalized.replace(replacement.getKey(), replacement.getValue());

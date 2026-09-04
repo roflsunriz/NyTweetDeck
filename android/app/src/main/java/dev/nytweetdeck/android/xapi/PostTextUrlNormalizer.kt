@@ -1,6 +1,7 @@
 package dev.nytweetdeck.android.xapi
 
 import dev.nytweetdeck.android.model.TextLink
+import dev.nytweetdeck.android.text.HtmlEntityDecoder
 import java.net.URI
 
 internal enum class PostUrlEntityKind {
@@ -19,7 +20,8 @@ internal data class PostUrlEntity(
 
 internal object PostTextUrlNormalizer {
     fun normalize(value: String, entities: List<PostUrlEntity>): String {
-        if (entities.isEmpty()) return value
+        var normalized = HtmlEntityDecoder.decode(value)
+        if (entities.isEmpty()) return normalized
         val replacements = linkedMapOf<String, String>()
         entities.forEach { entity ->
             if (!entity.shortUrl.isTcoUrl()) return@forEach
@@ -34,7 +36,6 @@ internal object PostTextUrlNormalizer {
                 replacements.putIfAbsent(entity.shortUrl, destination)
             }
         }
-        var normalized = value
         var removedContent = false
         replacements.forEach { (shortUrl, replacement) ->
             normalized = normalized.replace(shortUrl, replacement)

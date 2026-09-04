@@ -10,6 +10,7 @@ import dev.nytweetdeck.timeline.TimelinePage.Translation;
 import dev.nytweetdeck.timeline.TimelinePage.VideoVariant;
 import dev.nytweetdeck.timeline.PostTextUrlNormalizer.Kind;
 import dev.nytweetdeck.timeline.PostTextUrlNormalizer.UrlEntity;
+import dev.nytweetdeck.text.HtmlEntityDecoder;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -268,12 +269,14 @@ public class TimelineResponseParser {
             return null;
         }
         var id = firstNonBlank(text(result, "rest_id"), text(result, "id"));
-        var title = firstNonBlank(text(result, "title"));
+        var title = HtmlEntityDecoder.decode(firstNonBlank(text(result, "title")));
         if (id == null || title == null) {
             return null;
         }
-        var body = firstNonBlank(text(result, "plain_text"), articleText(result.get("content_state")));
-        var preview = firstNonBlank(text(result, "preview_text"), summarizeArticle(body));
+        var body = HtmlEntityDecoder.decode(
+                firstNonBlank(text(result, "plain_text"), articleText(result.get("content_state"))));
+        var preview = HtmlEntityDecoder.decode(
+                firstNonBlank(text(result, "preview_text"), summarizeArticle(body)));
         var coverMedia = object(result, "cover_media");
         var mediaInfo = object(coverMedia, "media_info");
         var coverImage = firstNonBlank(
@@ -407,7 +410,7 @@ public class TimelineResponseParser {
             return null;
         }
         var value = node.isString() ? node.asString(null) : text(node, "text");
-        return value == null || value.isBlank() ? null : value;
+        return value == null || value.isBlank() ? null : HtmlEntityDecoder.decode(value);
     }
 
     private static Translation parsePreTranslated(JsonNode tweet, JsonNode responseNode) {
@@ -455,7 +458,8 @@ public class TimelineResponseParser {
         return new Author(
                 firstNonNull(text(user, "rest_id"), text(legacy, "id_str")),
                 firstNonNull(text(userCore, "screen_name"), text(legacy, "screen_name")),
-                firstNonNull(text(userCore, "name"), text(legacy, "name")),
+                HtmlEntityDecoder.decode(
+                        firstNonNull(text(userCore, "name"), text(legacy, "name"))),
                 firstNonNull(
                         text(avatar, "image_url"), text(legacy, "profile_image_url_https")),
                 bool(verification, "verified")

@@ -59,4 +59,24 @@ class PostTextUrlNormalizerTest {
             PostTextUrlNormalizer.normalize("https://t.co/docs", entities),
         )
     }
+
+    @Test
+    fun decodesSafeHtmlReferencesExactlyOnceWithoutUrlEntities() {
+        assertEquals(
+            "A < B > C & D < E > F \"Q\" 'x' &unknown; &lt;",
+            PostTextUrlNormalizer.normalize(
+                "A &lt; B &gt; C &amp; D &#60; E &#x3E; F &quot;Q&quot; &apos;x&apos; " +
+                    "&unknown; &amp;lt;",
+                emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun leavesInvalidNumericReferencesUnchanged() {
+        assertEquals(
+            "&#0; &#xD800; &#99999999;",
+            PostTextUrlNormalizer.normalize("&#0; &#xD800; &#99999999;", emptyList()),
+        )
+    }
 }

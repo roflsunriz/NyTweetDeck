@@ -40,4 +40,19 @@ class PostTextUrlNormalizerTest {
         assertThat(PostTextUrlNormalizer.normalize("https://t.co/docs", entities))
                 .isEqualTo("https://t.co/docs");
     }
+
+    @Test
+    void decodesSafeHtmlReferencesExactlyOnceWithoutUrlEntities() {
+        assertThat(PostTextUrlNormalizer.normalize(
+                        "A &lt; B &gt; C &amp; D &#60; E &#x3E; F &quot;Q&quot; &apos;x&apos; "
+                                + "&unknown; &amp;lt;",
+                        List.of()))
+                .isEqualTo("A < B > C & D < E > F \"Q\" 'x' &unknown; &lt;");
+    }
+
+    @Test
+    void leavesInvalidNumericReferencesUnchanged() {
+        assertThat(PostTextUrlNormalizer.normalize("&#0; &#xD800; &#99999999;", List.of()))
+                .isEqualTo("&#0; &#xD800; &#99999999;");
+    }
 }

@@ -54,9 +54,9 @@ class TimelineResponseParserTest {
         val post = parser.parse(
             """
             {"data":{"tweet":{"result":{"__typename":"Tweet","rest_id":"200",
-            "legacy":{"full_text":"web schema","created_at":"2018-10-10T20:19:24Z"},
+            "legacy":{"full_text":"web &lt; schema &gt; &amp; safe","created_at":"2018-10-10T20:19:24Z"},
             "core":{"user_results":{"result":{"__typename":"User","rest_id":"42",
-            "core":{"screen_name":"alice","name":"Alice"},
+            "core":{"screen_name":"alice","name":"Alice &lt;3"},
             "avatar":{"image_url":"https://pbs.twimg.com/profile_images/alice.jpg"},
             "verification":{"verified":true}}}}}}}}
             """.trimIndent(),
@@ -64,7 +64,8 @@ class TimelineResponseParserTest {
 
         assertEquals("42", post.author.id)
         assertEquals("alice", post.author.username)
-        assertEquals("Alice", post.author.displayName)
+        assertEquals("web < schema > & safe", post.text)
+        assertEquals("Alice <3", post.author.displayName)
         assertTrue(post.author.avatarUrl.orEmpty().endsWith("alice.jpg"))
         assertTrue(post.author.verified)
     }
