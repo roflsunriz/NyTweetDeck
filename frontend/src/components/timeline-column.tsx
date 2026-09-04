@@ -11,6 +11,7 @@ import {
 } from "../model/timeline-cache";
 import type { TimelineAuthor, TimelinePage, TimelinePost } from "../model/timeline";
 import { sortTimelinePosts } from "../model/timeline-sort";
+import { removePostsByUser, subscribeUserSuppressed } from "../model/user-suppression";
 import { PostCard } from "./post-card";
 import { PostDetailDialog } from "./post-detail-dialog";
 import {
@@ -25,6 +26,7 @@ import { UserProfileDialog } from "./user-profile-dialog";
 interface TimelineUpdate {
   reason?: string;
   postId?: string | null;
+  userId?: string | null;
   replyCount?: number | null;
   repostCount?: number | null;
   quoteCount?: number | null;
@@ -123,6 +125,19 @@ function TimelineColumnContent({
       if (timelineCacheKey !== null) timelineCache.updatePosts(timelineCacheKey, update);
     },
     [timelineCache, timelineCacheKey],
+  );
+
+  const suppressUser = useCallback(
+    (userId: string) => updatePosts((current) => removePostsByUser(current, userId)),
+    [updatePosts],
+  );
+
+  useEffect(
+    () =>
+      subscribeUserSuppressed((suppression) => {
+        if (suppression.accountId === accountId) suppressUser(suppression.userId);
+      }),
+    [accountId, suppressUser],
   );
 
   const load = useCallback(
@@ -326,6 +341,13 @@ function TimelineColumnContent({
         }
         return;
       }
+      if (
+        (update.reason === "mute" || update.reason === "block") &&
+        typeof update.userId === "string"
+      ) {
+        suppressUser(update.userId);
+        return;
+      }
       const action = update.reason;
       if (update.postId != null && isPostAction(action)) {
         updatePosts((current) =>
@@ -348,7 +370,7 @@ function TimelineColumnContent({
       source.removeEventListener("timeline-update", handleUpdate);
       source.close();
     };
-  }, [accountId, autoRefreshTimelines, column.kind, load, updatePosts]);
+  }, [accountId, autoRefreshTimelines, column.kind, load, suppressUser, updatePosts]);
 
   const livePostIds = posts
     .slice(0, 100)

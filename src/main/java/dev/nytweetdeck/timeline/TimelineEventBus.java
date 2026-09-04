@@ -27,6 +27,29 @@ public class TimelineEventBus {
                 UUID.randomUUID().toString(),
                 reason,
                 postId,
+                null,
+                Instant.now(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+        notifyListeners(accountId, event);
+    }
+
+    public void publishUserSuppression(String accountId, String reason, String userId) {
+        validateAccountId(accountId);
+        if (!("mute".equals(reason) || "block".equals(reason))
+                || userId == null
+                || !userId.matches("[0-9]{1,30}")) {
+            throw new IllegalArgumentException("ユーザー除外イベントが不正です。");
+        }
+        var event = new TimelineEvent(
+                UUID.randomUUID().toString(),
+                reason,
+                null,
+                userId,
                 Instant.now(),
                 null,
                 null,
@@ -44,6 +67,7 @@ public class TimelineEventBus {
                 UUID.randomUUID().toString(),
                 "live:tweet_engagement",
                 postId,
+                null,
                 Instant.now(),
                 counts.replyCount(),
                 counts.repostCount(),
@@ -89,6 +113,7 @@ public class TimelineEventBus {
             String id,
             String reason,
             String postId,
+            String userId,
             Instant occurredAt,
             Long replyCount,
             Long repostCount,

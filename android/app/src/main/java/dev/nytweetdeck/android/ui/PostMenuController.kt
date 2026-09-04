@@ -123,7 +123,46 @@ internal class PostMenuController(
     private fun finish(key: MenuOperationKey, failed: Boolean) {
         pendingOperations -= key
         if (failed) failedOperations += key else failedOperations -= key
+        if (
+            !failed && key is UserOperationKey &&
+            (key.action == UserAction.MUTE || key.action == UserAction.BLOCK)
+        ) {
+            suppressUser(key.accountId, key.userId)
+        }
         publish()
+    }
+
+    private fun suppressUser(accountId: String, userId: String) {
+        state.update { current ->
+            if (current.selectedAccountId != accountId) return@update current
+            val removedPostIds = buildSet {
+                current.timelines.values.flatMapTo(this) { timeline ->
+                    timeline.posts.filter { it.belongsToUser(userId) }.map(Post::id)
+                }
+                current.notifications.values.forEach { notifications ->
+                    notifications.page?.posts
+                        ?.filter { it.belongsToUser(userId) }
+                        ?.mapTo(this, Post::id)
+                }
+            }
+            current.copy(
+                hiddenPostIds = current.hiddenPostIds + removedPostIds,
+                timelines = current.timelines.mapValues { (_, timeline) ->
+                    timeline.copy(posts = timeline.posts.filterNot { it.belongsToUser(userId) })
+                },
+                notifications = current.notifications.mapValues { (_, notifications) ->
+                    notifications.copy(page = notifications.page?.let { page ->
+                        page.copy(
+                            posts = page.posts.filterNot { it.belongsToUser(userId) },
+                            notifications = page.notifications.filterNot { notification ->
+                                notification.postId in removedPostIds ||
+                                    notification.actors.any { it.id == userId }
+                            },
+                        )
+                    })
+                },
+            )
+        }
     }
 
     private fun publish() {
@@ -154,3 +193,6 @@ private data class ListOperationKey(
     val userId: String,
     val listId: String,
 ) : MenuOperationKey
+
+private fun Post.belongsToUser(userId: String): Boolean =
+    author.id == userId || repostedBy?.id == userId

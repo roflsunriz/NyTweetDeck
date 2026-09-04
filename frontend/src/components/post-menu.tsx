@@ -1,6 +1,7 @@
 import { MoreHorizontal } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
+import { notifyUserSuppressed } from "../model/user-suppression";
 
 type UserMenuAction = "follow" | "mute" | "block";
 type ListMenuAction = "add" | "remove";
@@ -72,6 +73,9 @@ export function PostMenu({
     )
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (action === "mute" || action === "block") {
+          notifyUserSuppressed({ accountId, userId });
+        }
       })
       .catch(() => {
         completedUserActionsRef.current.delete(action);

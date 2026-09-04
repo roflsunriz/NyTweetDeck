@@ -1,6 +1,7 @@
 package dev.nytweetdeck.timeline;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,25 @@ class TimelineEventBusTest {
             assertThat(event.bookmarkCount()).isEqualTo(5);
             assertThat(event.viewCount()).isEqualTo(6);
         });
+        subscription.close();
+    }
+
+    @Test
+    void publishesValidatedUserSuppressionForTheMatchingAccount() throws Exception {
+        var bus = new TimelineEventBus();
+        var events = new ArrayList<TimelineEventBus.TimelineEvent>();
+        var subscription = bus.subscribe("account-a", events::add);
+
+        bus.publishUserSuppression("account-b", "mute", "41");
+        bus.publishUserSuppression("account-a", "block", "42");
+
+        assertThat(events).singleElement().satisfies(event -> {
+            assertThat(event.reason()).isEqualTo("block");
+            assertThat(event.postId()).isNull();
+            assertThat(event.userId()).isEqualTo("42");
+        });
+        assertThatThrownBy(() -> bus.publishUserSuppression("account-a", "follow", "42"))
+                .isInstanceOf(IllegalArgumentException.class);
         subscription.close();
     }
 }

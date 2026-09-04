@@ -6,8 +6,10 @@ import dev.nytweetdeck.android.data.ListMembershipExecutor
 import dev.nytweetdeck.android.data.UserAction
 import dev.nytweetdeck.android.data.UserActionExecutor
 import dev.nytweetdeck.android.model.Author
+import dev.nytweetdeck.android.model.ColumnTimelineState
 import dev.nytweetdeck.android.model.DeckUiState
 import dev.nytweetdeck.android.model.Post
+import dev.nytweetdeck.android.model.TimelineLoadStatus
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -64,6 +66,100 @@ class PostMenuControllerTest {
 
             assertEquals(setOf(UserAction.FOLLOW, UserAction.MUTE), actions.toSet())
             assertFalse(state.value.postMenuActionFailed)
+        } finally {
+            scope.cancel()
+            Dispatchers.resetMain()
+            main.close()
+            io.close()
+        }
+    }
+
+    @Test
+    fun confirmedMuteAndBlockRemoveEveryPostFromThatUserAcrossTimelines() {
+        val main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val io = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        Dispatchers.setMain(main)
+        val scope = CoroutineScope(SupervisorJob() + main)
+        try {
+            val mutedOriginal = post()
+            val mutedRepost = post().copy(
+                id = "2",
+                author = Author("99", "other", "Other", null, false),
+                repostedBy = mutedOriginal.author,
+            )
+            val other = post().copy(
+                id = "3",
+                author = Author("99", "other", "Other", null, false),
+            )
+            val initial = DeckUiState(
+                selectedAccountId = "7",
+                timelines = mapOf(
+                    "home" to ColumnTimelineState(
+                        status = TimelineLoadStatus.READY,
+                        posts = listOf(mutedOriginal, mutedRepost, other),
+                    ),
+                    "search" to ColumnTimelineState(
+                        status = TimelineLoadStatus.READY,
+                        posts = listOf(mutedOriginal, other),
+                    ),
+                ),
+            )
+            val state = MutableStateFlow(initial)
+            val controller = PostMenuController(
+                UserActionExecutor { _, _, _, _ -> },
+                null,
+                scope,
+                io,
+                { account() },
+                state,
+            )
+
+            listOf(UserAction.MUTE, UserAction.BLOCK).forEach { action ->
+                state.value = initial
+                runBlocking(main) { controller.userAction(mutedOriginal, action) }
+                await { state.value.timelines.values.all { timeline -> timeline.posts.size == 1 } }
+                assertEquals(setOf("3"), state.value.timelines["home"]?.posts?.map(Post::id)?.toSet())
+                assertEquals(setOf("3"), state.value.timelines["search"]?.posts?.map(Post::id)?.toSet())
+            }
+        } finally {
+            scope.cancel()
+            Dispatchers.resetMain()
+            main.close()
+            io.close()
+        }
+    }
+
+    @Test
+    fun failedMuteKeepsTheUsersPostsVisible() {
+        val main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val io = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        Dispatchers.setMain(main)
+        val scope = CoroutineScope(SupervisorJob() + main)
+        try {
+            val state = MutableStateFlow(
+                DeckUiState(
+                    selectedAccountId = "7",
+                    timelines = mapOf(
+                        "home" to ColumnTimelineState(
+                            status = TimelineLoadStatus.READY,
+                            posts = listOf(post()),
+                        ),
+                    ),
+                ),
+            )
+            val controller = PostMenuController(
+                UserActionExecutor { _, _, _, _ -> error("network") },
+                null,
+                scope,
+                io,
+                { account() },
+                state,
+            )
+
+            runBlocking(main) { controller.userAction(post(), UserAction.MUTE) }
+            await { state.value.postMenuActionFailed }
+
+            assertEquals(listOf("1"), state.value.timelines["home"]?.posts?.map(Post::id))
         } finally {
             scope.cancel()
             Dispatchers.resetMain()

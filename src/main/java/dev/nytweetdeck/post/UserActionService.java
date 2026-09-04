@@ -1,5 +1,6 @@
 package dev.nytweetdeck.post;
 
+import dev.nytweetdeck.timeline.TimelineEventBus;
 import dev.nytweetdeck.xapi.rest.AuthenticatedRestClient;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -8,14 +9,19 @@ import org.springframework.stereotype.Service;
 public class UserActionService {
 
     private final AuthenticatedRestClient restClient;
+    private final TimelineEventBus eventBus;
 
-    public UserActionService(AuthenticatedRestClient restClient) {
+    public UserActionService(AuthenticatedRestClient restClient, TimelineEventBus eventBus) {
         this.restClient = restClient;
+        this.eventBus = eventBus;
     }
 
     public UserActionResult execute(String accountId, String userId, String action) {
         var request = createRequest(userId, action);
         restClient.postForm(accountId, request.endpoint(), request.parameters());
+        if (action.equals("mute") || action.equals("block")) {
+            eventBus.publishUserSuppression(accountId, action, userId);
+        }
         return new UserActionResult(userId, action);
     }
 

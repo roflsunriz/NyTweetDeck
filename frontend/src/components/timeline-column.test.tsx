@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { translate } from "../i18n/translations";
 import type { ColumnConfig } from "../model/layout";
 import { TimelineCacheProvider } from "../model/timeline-cache";
+import { notifyUserSuppressed } from "../model/user-suppression";
 import { TimelineColumn } from "./timeline-column";
 
 const originalFetch = globalThis.fetch;
@@ -384,6 +385,47 @@ describe("timeline column", () => {
 
     act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "2" }));
     await waitFor(() => expect(timelineLoads).toBe(2));
+  });
+
+  test("removes every post authored or reposted by a muted or blocked user", async () => {
+    let eventSource: FakeEventSource | undefined;
+    globalThis.EventSource = class extends FakeEventSource {
+      constructor(_url: string | URL) {
+        super();
+        eventSource = this;
+      }
+    } as unknown as typeof EventSource;
+    const repostedByMutedUser = {
+      ...postByAuthor("2", "muted repost", "99", null),
+      repostedBy: post("reposter", "").author,
+    };
+    globalThis.fetch = (async (input) =>
+      String(input).includes("/api/v1/timelines/")
+        ? Response.json({
+            posts: [
+              post("1", "muted original"),
+              repostedByMutedUser,
+              postByAuthor("3", "other", "99", null),
+            ],
+            nextCursor: null,
+          })
+        : Response.json({ connected: true })) as typeof fetch;
+    render(
+      <TimelineColumn
+        column={{ id: "home", kind: "home", target: null, label: null }}
+        accountId="account-1"
+        translation={translate("ja")}
+      />,
+    );
+    await screen.findByText("muted original");
+
+    act(() => notifyUserSuppressed({ accountId: "account-1", userId: "42" }));
+    await waitFor(() => expect(screen.queryByText("muted original")).toBeNull());
+    expect(screen.queryByText("muted repost")).toBeNull();
+    expect(screen.getByText("other")).toBeDefined();
+
+    act(() => eventSource?.emit("timeline-update", { reason: "block", userId: "99" }));
+    await screen.findByText("表示するポストがありません。");
   });
 
   test("prepends new posts while preserving the visible post and shows five author avatars", async () => {

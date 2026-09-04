@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { translate } from "../i18n/translations";
 import { defaultDisplayPreferences } from "../model/layout";
+import { subscribeUserSuppressed } from "../model/user-suppression";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostTranslationProvider } from "./post-translation-context";
 
@@ -848,6 +849,24 @@ describe("post actions", () => {
     finishActions[0]?.(Response.json({ userId: "42", action: "follow" }));
     finishActions[1]?.(Response.json({ userId: "42", action: "mute" }));
     await waitFor(() => expect(followed.getAttribute("aria-busy")).toBe("false"));
+  });
+
+  test("announces a confirmed mute so every timeline can remove that user", async () => {
+    globalThis.fetch = (async () =>
+      Response.json({ userId: "42", action: "mute" })) as unknown as typeof fetch;
+    const suppressions: Array<{ accountId: string; userId: string }> = [];
+    const unsubscribe = subscribeUserSuppressed((suppression) => suppressions.push(suppression));
+    try {
+      const user = userEvent.setup();
+      render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
+
+      await user.click(screen.getByRole("button", { name: "ポストメニュー" }));
+      await user.click(screen.getByRole("menuitem", { name: "ミュート" }));
+
+      await waitFor(() => expect(suppressions).toEqual([{ accountId: "account-1", userId: "42" }]));
+    } finally {
+      unsubscribe();
+    }
   });
 
   test("rolls back only the failed optimistic user menu action", async () => {
