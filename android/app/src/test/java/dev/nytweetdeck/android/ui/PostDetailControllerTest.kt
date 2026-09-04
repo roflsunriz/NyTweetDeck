@@ -3,7 +3,9 @@ package dev.nytweetdeck.android.ui
 import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.PostDetailRepository
 import dev.nytweetdeck.android.model.DeckUiState
+import dev.nytweetdeck.android.model.PostDetailStatus
 import dev.nytweetdeck.android.xapi.GraphQlExecutor
+import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +21,46 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PostDetailControllerTest {
+    @Test
+    fun knownFocalPostIsShownImmediatelyAndIsNotRefetched() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val calls = mutableListOf<String>()
+            val executor = GraphQlExecutor { _, purpose, _, _ ->
+                calls += purpose
+                when (purpose) {
+                    "conversation" -> conversationResponse("201", "next-cursor")
+                    else -> error("unexpected purpose")
+                }
+            }
+            val state = MutableStateFlow(DeckUiState(selectedAccountId = "7"))
+            val controller = PostDetailController(
+                PostDetailRepository(executor),
+                this,
+                dispatcher,
+                { account() },
+                state,
+            )
+            val knownPost = TimelineResponseParser().parse(detailResponse()).posts.single()
+
+            controller.open("123", knownPost)
+
+            assertEquals(PostDetailStatus.READY, state.value.postDetail.status)
+            assertEquals("123", state.value.postDetail.page?.post?.id)
+            assertEquals(true, state.value.postDetail.isLoadingMore)
+            assertEquals(emptyList<String>(), calls)
+
+            advanceUntilIdle()
+
+            assertEquals(listOf("conversation"), calls)
+            assertEquals(listOf("201"), state.value.postDetail.page?.replies?.map { it.post.id })
+            assertFalse(state.value.postDetail.isLoadingMore)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     @Test
     fun repeatedReplyCursorStopsAutomaticPaginationWithoutRefetchingTheFocalPost() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)

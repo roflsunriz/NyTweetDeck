@@ -44,6 +44,7 @@ import dev.nytweetdeck.android.model.ColumnKind
 import dev.nytweetdeck.android.model.ColumnSort
 import dev.nytweetdeck.android.model.DeckColumn
 import dev.nytweetdeck.android.model.DeckUiState
+import dev.nytweetdeck.android.model.Post
 import java.util.UUID
 import java.io.File
 import java.util.Locale
@@ -845,7 +846,7 @@ class DeckViewModel(
         composerController?.submit(text)
     }
     fun openPostDetail(postId: String) {
-        postDetailController?.open(postId)
+        postDetailController?.open(postId, findLoadedPost(postId))
     }
     fun closePostDetail() {
         postDetailController?.close()
@@ -938,6 +939,22 @@ class DeckViewModel(
             ColumnKind.MESSAGES -> state.messages[columnId]?.status == TimelineLoadStatus.READY
             else -> state.timelines[columnId]?.status == TimelineLoadStatus.READY
         }
+    }
+
+    private fun findLoadedPost(postId: String): Post? {
+        val snapshot = mutableState.value
+        snapshot.postDetail.page?.let { page ->
+            if (page.post.id == postId) return page.post
+            page.contextPosts.firstOrNull { it.id == postId }?.let { return it }
+            page.replies.firstOrNull { it.post.id == postId }?.post?.let { return it }
+        }
+        snapshot.timelines.values.forEach { timeline ->
+            timeline.posts.firstOrNull { it.id == postId }?.let { return it }
+        }
+        snapshot.notifications.values.forEach { notifications ->
+            notifications.page?.posts?.firstOrNull { it.id == postId }?.let { return it }
+        }
+        return snapshot.userProfile.posts.firstOrNull { it.id == postId }
     }
 
     override fun onCleared() {

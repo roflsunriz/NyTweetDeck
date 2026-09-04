@@ -3,6 +3,8 @@ package dev.nytweetdeck.android.ui
 import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.PostDetailRepository
 import dev.nytweetdeck.android.model.DeckUiState
+import dev.nytweetdeck.android.model.Post
+import dev.nytweetdeck.android.model.PostDetailPage
 import dev.nytweetdeck.android.model.PostDetailStatus
 import dev.nytweetdeck.android.model.PostDetailUiState
 import java.util.Locale
@@ -24,27 +26,56 @@ internal class PostDetailController(
     private val history = ArrayDeque<PostDetailUiState>()
     private val requestedReplyCursors = mutableMapOf<String, MutableSet<String>>()
 
-    fun open(postId: String) {
+    fun open(postId: String, knownPost: Post? = null) {
         val current = state.value.postDetail
         if (current.postId == postId && current.status != PostDetailStatus.CLOSED) return
         if (current.status != PostDetailStatus.CLOSED) {
             if (history.size == MAX_DETAIL_HISTORY) history.removeFirst()
             history.addLast(current)
         }
+        val initialPage = knownPost
+            ?.takeIf { it.id == postId }
+            ?.let {
+                PostDetailPage(
+                    post = it,
+                    replies = emptyList(),
+                    nextCursor = null,
+                    rankingMode = state.value.replySort,
+                )
+            }
         state.update {
-            it.copy(postDetail = PostDetailUiState(PostDetailStatus.LOADING, postId))
+            it.copy(
+                postDetail = if (initialPage == null) {
+                    PostDetailUiState(PostDetailStatus.LOADING, postId)
+                } else {
+                    PostDetailUiState(
+                        status = PostDetailStatus.READY,
+                        postId = postId,
+                        page = initialPage,
+                        isLoadingMore = true,
+                    )
+                },
+            )
         }
         requestedReplyCursors[postId] = mutableSetOf()
-        load(postId)
+        load(postId, knownPost)
     }
 
     fun reload() {
-        val postId = state.value.postDetail.postId ?: return
+        val detail = state.value.postDetail
+        val postId = detail.postId ?: return
+        val knownPost = detail.page?.post
         requestedReplyCursors[postId] = mutableSetOf()
-        state.update {
-            it.copy(postDetail = PostDetailUiState(PostDetailStatus.LOADING, postId))
+        state.update { current ->
+            current.copy(
+                postDetail = if (detail.page == null) {
+                    PostDetailUiState(PostDetailStatus.LOADING, postId)
+                } else {
+                    detail.copy(isLoadingMore = true, loadMoreFailed = false)
+                },
+            )
         }
-        load(postId)
+        load(postId, knownPost)
     }
 
     fun loadMore() {
@@ -139,7 +170,7 @@ internal class PostDetailController(
         state.update { it.copy(postDetail = PostDetailUiState()) }
     }
 
-    private fun load(postId: String) {
+    private fun load(postId: String, knownPost: Post? = null) {
         val snapshot = state.value
         val accountId = snapshot.selectedAccountId ?: return fail(postId)
         val account = accountProvider(accountId) ?: return fail(postId)
@@ -148,6 +179,7 @@ internal class PostDetailController(
                 repository.load(
                     account = account,
                     postId = postId,
+                    knownFocalPost = knownPost,
                     language = snapshot.appLanguageTag,
                     replySort = snapshot.replySort.name.lowercase(Locale.ROOT),
                 )
@@ -157,10 +189,17 @@ internal class PostDetailController(
                     return@withContext
                 }
                 state.update { current ->
+                    val currentDetail = current.postDetail
                     current.copy(
                         postDetail = result.fold(
                             onSuccess = { page -> PostDetailUiState(PostDetailStatus.READY, postId, page) },
-                            onFailure = { PostDetailUiState(PostDetailStatus.FAILED, postId) },
+                            onFailure = {
+                                if (currentDetail.page == null) {
+                                    PostDetailUiState(PostDetailStatus.FAILED, postId)
+                                } else {
+                                    currentDetail.copy(isLoadingMore = false, loadMoreFailed = true)
+                                }
+                            },
                         ),
                     )
                 }

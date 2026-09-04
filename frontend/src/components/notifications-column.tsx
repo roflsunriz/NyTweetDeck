@@ -159,6 +159,7 @@ export function NotificationsColumn({
   return (
     <div
       className="notification-list refreshable-scroll"
+      data-media-scroll-root
       data-testid="notification-scroll"
       {...manualRefreshHandlers}
     >
@@ -215,6 +216,7 @@ export function NotificationsColumn({
       {selectedPostId !== null && accountId !== null && (
         <PostDetailDialog
           postId={selectedPostId}
+          initialPost={posts.find((post) => post.id === selectedPostId)}
           accountId={accountId}
           translation={translation}
           display={display}

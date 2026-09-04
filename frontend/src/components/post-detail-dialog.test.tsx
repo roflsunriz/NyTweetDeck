@@ -120,6 +120,38 @@ test("opens a detail image viewer with sub-100% zoom, held-button pan, and one-l
   expect(onClose).toHaveBeenCalledTimes(1);
 });
 
+test("shows the known focal post immediately while replies load in the background", async () => {
+  let finishRequest: ((response: Response) => void) | undefined;
+  globalThis.fetch = (async () =>
+    new Promise<Response>((resolve) => {
+      finishRequest = resolve;
+    })) as unknown as typeof fetch;
+  const initialPost = timelinePost("850", "known focal post");
+
+  render(
+    <PostDetailDialog
+      postId="850"
+      initialPost={initialPost}
+      accountId="account-1"
+      translation={translate("ja")}
+      onClose={() => undefined}
+    />,
+  );
+
+  expect(screen.getByText("known focal post")).toBeDefined();
+  expect(screen.getByText("読み込み中…", { selector: ".detail-background-loading" })).toBeDefined();
+
+  finishRequest?.(
+    Response.json({
+      post: initialPost,
+      replies: [timelinePost("851", "loaded reply")],
+      nextCursor: null,
+    }),
+  );
+  await screen.findByText("loaded reply");
+  expect(screen.queryByText("読み込み中…", { selector: ".detail-background-loading" })).toBeNull();
+});
+
 test("uses X reply ranking modes and folds replies X classifies as possible spam", async () => {
   const urls: string[] = [];
   globalThis.fetch = (async (input) => {

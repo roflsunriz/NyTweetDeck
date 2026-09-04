@@ -18,6 +18,7 @@ import { usePostTranslationSettings } from "./post-translation-context";
 
 interface PostDetailDialogProps {
   postId: string;
+  initialPost?: TimelinePost;
   accountId: string;
   translation: Translation;
   onClose: () => void;
@@ -36,6 +37,7 @@ const COMPACT_REPLY_THREAD_STEP = 14;
 
 export function PostDetailDialog({
   postId,
+  initialPost,
   accountId,
   translation,
   onClose,
@@ -45,6 +47,7 @@ export function PostDetailDialog({
 }: PostDetailDialogProps) {
   const close = useOverlayRoute(`post/${encodeURIComponent(postId)}`, onClose);
   const [detail, setDetail] = useState<PostDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
   const [imageSelection, setImageSelection] = useState<ImageSelection | null>(null);
@@ -56,7 +59,12 @@ export function PostDetailDialog({
 
   useEffect(() => {
     let active = true;
-    setDetail(null);
+    setDetail(
+      initialPost?.id === postId
+        ? { post: initialPost, contextPosts: [], replies: [], nextCursor: null }
+        : null,
+    );
+    setLoadingDetail(true);
     setError(null);
     setShowPossibleSpam(false);
     setLoadingMore(false);
@@ -68,11 +76,14 @@ export function PostDetailDialog({
       })
       .catch(() => {
         if (active) setError(translation.timelineLoadError);
+      })
+      .finally(() => {
+        if (active) setLoadingDetail(false);
       });
     return () => {
       active = false;
     };
-  }, [accountId, locale, postId, replySort, translation.timelineLoadError]);
+  }, [accountId, initialPost, locale, postId, replySort, translation.timelineLoadError]);
 
   const loadMoreReplies = async () => {
     const cursor = detail?.nextCursor?.trim();
@@ -131,7 +142,7 @@ export function PostDetailDialog({
         presentation="route"
       >
         <div className="post-detail-content">
-          {error !== null ? (
+          {error !== null && detail === null ? (
             <p className="setup-error">{error}</p>
           ) : detail === null ? (
             <p>{translation.loading}</p>
@@ -160,6 +171,8 @@ export function PostDetailDialog({
                 onOpenUser={onOpenUser}
                 onOpenImage={openImage}
               />
+              {loadingDetail && <p className="detail-background-loading">{translation.loading}</p>}
+              {error !== null && <p className="inline-error">{error}</p>}
               <button
                 className="primary-button detail-reply-button"
                 type="button"
@@ -182,7 +195,7 @@ export function PostDetailDialog({
                   </select>
                 </label>
               </div>
-              {detail.replies.length === 0 ? (
+              {!loadingDetail && detail.replies.length === 0 ? (
                 <p>{translation.noPosts}</p>
               ) : (
                 <>

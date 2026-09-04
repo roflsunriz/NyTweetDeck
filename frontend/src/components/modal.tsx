@@ -37,6 +37,7 @@ export function Modal({
       <section
         aria-labelledby={titleId}
         className="modal-panel"
+        data-media-scroll-root
         data-presentation={presentation}
         {...presentationProps}
       >

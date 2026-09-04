@@ -474,6 +474,7 @@ function TimelineColumnContent({
     <div
       ref={scrollRef}
       className="timeline-content refreshable-scroll"
+      data-media-scroll-root
       data-testid="timeline-scroll"
       {...manualRefreshHandlers}
     >
@@ -538,6 +539,7 @@ function TimelineColumnContent({
       {selectedPostId !== null && (
         <PostDetailDialog
           postId={selectedPostId}
+          initialPost={posts.find((post) => post.id === selectedPostId)}
           accountId={accountId}
           translation={translation}
           display={display}

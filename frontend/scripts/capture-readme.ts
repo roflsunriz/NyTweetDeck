@@ -126,9 +126,9 @@ await capture("nytweetdeck-cover.png");
 await capture("nytweetdeck-columns.png", ".column-track");
 
 const openedPost = await client.evaluate<boolean>(`(() => {
-  const button = document.querySelector('[data-post-id="1"] .post-open-button');
-  if (!(button instanceof HTMLButtonElement)) return false;
-  button.click();
+  const post = document.querySelector('[data-post-id="1"]');
+  if (!(post instanceof HTMLElement)) return false;
+  post.click();
   return true;
 })()`);
 if (!openedPost) throw new Error("README用のポスト詳細を開けませんでした。");

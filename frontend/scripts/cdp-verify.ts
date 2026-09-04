@@ -893,6 +893,12 @@ if (!firstVideoPositioned) throw new Error("先頭動画を再生帯へ移動で
 await waitForCondition(
   'document.querySelector(\'[data-media-id="video-qa"]\')?.querySelector("video") !== null',
 );
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-qa"]\')?.getAttribute("data-viewport-active") === "true"',
+);
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("data-media-connected") === "true"',
+);
 await client.evaluate(
   '(() => { window.__qaFirstVideoElement = document.querySelector(\'[data-media-id="video-qa"]\')?.querySelector("video"); return true; })()',
 );
@@ -909,9 +915,11 @@ const deferredVideoMetrics = await client.evaluate<Record<string, unknown>>(`(()
     activeControlButtons: active?.querySelectorAll(".configured-video-controls button").length,
     activeControlSliders: active?.querySelectorAll('.configured-video-controls input[type="range"]').length,
     deferredVideoConnected: deferredVideo !== null,
+    deferredMediaConnected: deferred?.getAttribute("data-media-connected"),
     deferredInPlaybackZone: deferred?.getAttribute("data-viewport-active"),
     deferredTop: deferred instanceof Element ? deferred.getBoundingClientRect().top : null,
-    playbackZoneBottom: innerHeight / 2
+    playbackZoneBottom: innerHeight / 2,
+    preloadZoneBottom: innerHeight + 1200
   };
 })()`);
 if (
@@ -921,13 +929,13 @@ if (
   deferredVideoMetrics.activeNativeControls !== false ||
   Number(deferredVideoMetrics.activeControlButtons) < 4 ||
   deferredVideoMetrics.activeControlSliders !== 2 ||
-  deferredVideoMetrics.deferredVideoConnected !== false ||
+  deferredVideoMetrics.deferredVideoConnected !== true ||
+  deferredVideoMetrics.deferredMediaConnected !== "true" ||
   deferredVideoMetrics.deferredInPlaybackZone !== "false" ||
-  Number(deferredVideoMetrics.deferredTop) <= Number(deferredVideoMetrics.playbackZoneBottom)
+  Number(deferredVideoMetrics.deferredTop) <= Number(deferredVideoMetrics.playbackZoneBottom) ||
+  Number(deferredVideoMetrics.deferredTop) > Number(deferredVideoMetrics.preloadZoneBottom)
 ) {
-  throw new Error(
-    `画面外動画の遅延ロード検証に失敗しました: ${JSON.stringify(deferredVideoMetrics)}`,
-  );
+  throw new Error(`画面外動画の先読み検証に失敗しました: ${JSON.stringify(deferredVideoMetrics)}`);
 }
 const deferredVideoPositioned = await client.evaluate<boolean>(`(() => {
   const player = document.querySelector('[data-media-id="video-offscreen-qa"]');
@@ -962,7 +970,10 @@ await waitForCondition(
   'document.querySelector(\'[data-media-id="video-qa"]\')?.querySelector("video") !== window.__qaFirstVideoElement',
 );
 await waitForCondition(
-  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.querySelector("video") === null',
+  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("data-media-connected") === "true"',
+);
+await waitForCondition(
+  'document.querySelector(\'[data-media-id="video-offscreen-qa"]\')?.getAttribute("data-viewport-active") === "false"',
 );
 const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const like = document.querySelector("[data-post-action=like]");

@@ -192,6 +192,7 @@ export function UserProfileDialog({
         {selectedPostId !== null && (
           <PostDetailDialog
             postId={selectedPostId}
+            initialPost={posts.find((post) => post.id === selectedPostId)}
             accountId={accountId}
             translation={translation}
             display={display}

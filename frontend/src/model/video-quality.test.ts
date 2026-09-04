@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { selectVideoSource } from "./video-quality";
+import { selectVideoSource, selectVideoSources } from "./video-quality";
 
 const variants = [
   { url: "https://video.example/low.mp4", bitrate: 256_000 },
@@ -28,4 +28,15 @@ test("uses the existing media source when no usable variants are available", () 
   expect(selectVideoSource("fallback.mp4", [{ url: "", bitrate: null }], "low")).toBe(
     "fallback.mp4",
   );
+});
+
+test("orders automatic sources from high to low for stall recovery", () => {
+  expect(selectVideoSources("fallback.mp4", variants, "auto")).toEqual([
+    "https://video.example/high.mp4",
+    "https://video.example/mid.mp4",
+    "https://video.example/low.mp4",
+  ]);
+  expect(selectVideoSources("fallback.mp4", variants, "medium")).toEqual([
+    "https://video.example/mid.mp4",
+  ]);
 });

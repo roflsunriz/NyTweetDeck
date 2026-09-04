@@ -13,15 +13,18 @@ import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import type { Translation } from "../i18n/translations";
 import type { VideoQuality } from "../model/layout";
 import type { VideoVariant } from "../model/timeline";
-import { selectVideoSource } from "../model/video-quality";
+import { selectVideoSources } from "../model/video-quality";
 
 export const VIDEO_CONTROLS_HIDE_DELAY_MS = 3_000;
+export const VIDEO_STALL_RECOVERY_DELAY_MS = 2_000;
+export const VIDEO_PRELOAD_ROOT_MARGIN = "1200px 0px";
 
 interface Point {
   x: number;
@@ -57,9 +60,15 @@ export function ConfiguredVideo({
   const playerRef = useRef<HTMLFieldSetElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const loopRef = useRef(loop);
-  const intersectionActiveRef = useRef(false);
+  const loadActiveRef = useRef(false);
   const pictureInPictureRef = useRef(false);
   const controlsTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const stallTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const resumeTimeRef = useRef(0);
+  const resumePlayingRef = useRef(false);
+  const [mediaConnected, setMediaConnected] = useState(
+    () => typeof globalThis.IntersectionObserver === "undefined",
+  );
   const [inPlaybackZone, setInPlaybackZone] = useState(
     () => typeof globalThis.IntersectionObserver === "undefined",
   );
@@ -75,7 +84,12 @@ export function ConfiguredVideo({
   const [controlError, setControlError] = useState<string | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [selectedQuality, setSelectedQuality] = useState<VideoQuality>(quality);
-  const selectedSource = selectVideoSource(src, variants, selectedQuality);
+  const sourceCandidates = useMemo(
+    () => selectVideoSources(src, variants, selectedQuality),
+    [selectedQuality, src, variants],
+  );
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const selectedSource = sourceCandidates[sourceIndex] ?? src;
   const [videoZoom, setVideoZoom] = useState(1);
   const [videoPan, setVideoPan] = useState<Point>({ x: 0, y: 0 });
   const videoPointersRef = useRef<Map<number, Point>>(new Map());
@@ -89,6 +103,13 @@ export function ConfiguredVideo({
   useEffect(() => {
     setSelectedQuality(quality);
   }, [quality]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: candidate changes must reset automatic recovery
+  useEffect(() => {
+    setSourceIndex(0);
+    resumeTimeRef.current = 0;
+    resumePlayingRef.current = false;
+  }, [sourceCandidates]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset zoom when video source changes
   useEffect(() => {
@@ -107,12 +128,49 @@ export function ConfiguredVideo({
   const revealControls = useCallback(() => {
     if (controlsTimerRef.current !== null) globalThis.clearTimeout(controlsTimerRef.current);
     setControlsVisible(true);
-    if (!inPlaybackZone) return;
+    if (!mediaConnected) return;
     controlsTimerRef.current = globalThis.setTimeout(
       hideControlsIfKeyboardIdle,
       VIDEO_CONTROLS_HIDE_DELAY_MS,
     );
-  }, [hideControlsIfKeyboardIdle, inPlaybackZone]);
+  }, [hideControlsIfKeyboardIdle, mediaConnected]);
+
+  const clearStallRecovery = useCallback(() => {
+    if (stallTimerRef.current === null) return;
+    globalThis.clearTimeout(stallTimerRef.current);
+    stallTimerRef.current = null;
+  }, []);
+
+  const recoverFromSourceFailure = useCallback(() => {
+    clearStallRecovery();
+    if (selectedQuality !== "auto") return;
+    setSourceIndex((current) => {
+      if (current + 1 >= sourceCandidates.length) return current;
+      const video = videoRef.current;
+      if (video !== null) {
+        resumeTimeRef.current = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+        resumePlayingRef.current = !video.paused;
+      }
+      return current + 1;
+    });
+  }, [clearStallRecovery, selectedQuality, sourceCandidates.length]);
+
+  const scheduleStallRecovery = useCallback(() => {
+    if (selectedQuality !== "auto" || sourceIndex + 1 >= sourceCandidates.length) return;
+    clearStallRecovery();
+    stallTimerRef.current = globalThis.setTimeout(
+      recoverFromSourceFailure,
+      VIDEO_STALL_RECOVERY_DELAY_MS,
+    );
+  }, [
+    clearStallRecovery,
+    recoverFromSourceFailure,
+    selectedQuality,
+    sourceCandidates.length,
+    sourceIndex,
+  ]);
+
+  useEffect(() => clearStallRecovery, [clearStallRecovery]);
 
   const handleVideoPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLVideoElement>) => {
@@ -224,14 +282,37 @@ export function ConfiguredVideo({
   useEffect(() => {
     const player = playerRef.current;
     if (player === null || typeof globalThis.IntersectionObserver === "undefined") return;
+    const scrollRoot = player.closest("[data-media-scroll-root]");
     setInPlaybackZone(false);
     const observer = new IntersectionObserver(
       (entries) => {
         const active = entries.some((entry) => entry.target === player && entry.isIntersecting);
-        intersectionActiveRef.current = active;
-        if (!active && pictureInPictureRef.current) return;
         setInPlaybackZone(active);
+        if (active) setMediaConnected(true);
+      },
+      {
+        root: scrollRoot,
+        rootMargin: "0px 0px -50% 0px",
+        threshold: 0,
+      },
+    );
+    observer.observe(player);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (player === null || typeof globalThis.IntersectionObserver === "undefined") return;
+    const scrollRoot = player.closest("[data-media-scroll-root]");
+    setMediaConnected(false);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const active = entries.some((entry) => entry.target === player && entry.isIntersecting);
+        loadActiveRef.current = active;
+        if (!active && pictureInPictureRef.current) return;
+        setMediaConnected(active);
         if (!active) {
+          clearStallRecovery();
           setPlaying(false);
           setMuted(true);
           setCurrentTime(0);
@@ -242,18 +323,18 @@ export function ConfiguredVideo({
         }
       },
       {
-        root: null,
-        rootMargin: "0px 0px -50% 0px",
+        root: scrollRoot,
+        rootMargin: VIDEO_PRELOAD_ROOT_MARGIN,
         threshold: 0,
       },
     );
     observer.observe(player);
     return () => observer.disconnect();
-  }, []);
+  }, [clearStallRecovery]);
 
   useEffect(() => {
     if (controlsTimerRef.current !== null) globalThis.clearTimeout(controlsTimerRef.current);
-    if (!inPlaybackZone) {
+    if (!mediaConnected) {
       controlsTimerRef.current = null;
       setControlsVisible(false);
       return;
@@ -267,15 +348,16 @@ export function ConfiguredVideo({
       if (controlsTimerRef.current !== null) globalThis.clearTimeout(controlsTimerRef.current);
       controlsTimerRef.current = null;
     };
-  }, [hideControlsIfKeyboardIdle, inPlaybackZone]);
+  }, [hideControlsIfKeyboardIdle, mediaConnected]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a keyed video replacement needs the saved volume
   useEffect(() => {
     const normalized = normalizeVolume(volume);
     setPlaybackVolume(normalized);
-    if (!inPlaybackZone) return;
+    if (!mediaConnected) return;
     const video = videoRef.current;
     if (video !== null) video.volume = normalized;
-  }, [volume, inPlaybackZone]);
+  }, [mediaConnected, selectedSource, volume]);
 
   useEffect(() => {
     loopRef.current = loop;
@@ -289,8 +371,9 @@ export function ConfiguredVideo({
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a keyed video replacement needs fresh PiP listeners
   useEffect(() => {
-    if (!inPlaybackZone) {
+    if (!mediaConnected) {
       setPictureInPictureAvailable(false);
       return;
     }
@@ -307,11 +390,9 @@ export function ConfiguredVideo({
     const leave = () => {
       pictureInPictureRef.current = false;
       setPictureInPicture(false);
-      if (
-        !intersectionActiveRef.current &&
-        typeof globalThis.IntersectionObserver !== "undefined"
-      ) {
+      if (!loadActiveRef.current && typeof globalThis.IntersectionObserver !== "undefined") {
         setInPlaybackZone(false);
+        setMediaConnected(false);
       }
     };
     video.addEventListener("enterpictureinpicture", enter);
@@ -323,27 +404,29 @@ export function ConfiguredVideo({
       video.removeAttribute("src");
       video.load();
     };
-  }, [inPlaybackZone]);
+  }, [mediaConnected, selectedSource]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a keyed video replacement needs playback settings
   useEffect(() => {
-    if (!inPlaybackZone) return;
+    if (!mediaConnected) return;
     const video = videoRef.current;
     if (video === null) return;
     video.muted = muted;
     video.loop = loopActive;
     video.volume = playbackVolume;
-  }, [inPlaybackZone, loopActive, muted, playbackVolume]);
+  }, [loopActive, mediaConnected, muted, playbackVolume, selectedSource]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a keyed video replacement must re-evaluate autoplay
   useEffect(() => {
-    if (!inPlaybackZone) return;
+    if (!mediaConnected) return;
     const video = videoRef.current;
     if (video === null) return;
-    if (!autoPlay) {
+    if (!autoPlay || !inPlaybackZone) {
       video.pause();
       return;
     }
     void tryPlay(video);
-  }, [autoPlay, inPlaybackZone]);
+  }, [autoPlay, inPlaybackZone, mediaConnected, selectedSource]);
 
   const togglePlayback = () => {
     const video = videoRef.current;
@@ -419,13 +502,14 @@ export function ConfiguredVideo({
       aria-label={translation.videoPlayer}
       data-media-id={mediaId}
       data-viewport-active={inPlaybackZone}
+      data-media-connected={mediaConnected}
       data-controls-visible={controlsVisible}
       data-zoom={videoZoom}
       onPointerMove={revealControls}
       onFocusCapture={revealControls}
       onBlurCapture={revealControls}
     >
-      {inPlaybackZone ? (
+      {mediaConnected ? (
         <video
           key={selectedSource}
           ref={videoRef}
@@ -434,7 +518,7 @@ export function ConfiguredVideo({
           loop={loopActive}
           draggable={false}
           playsInline
-          preload="metadata"
+          preload="auto"
           poster={poster || undefined}
           src={selectedSource || undefined}
           style={
@@ -470,6 +554,15 @@ export function ConfiguredVideo({
               ? event.currentTarget.duration
               : 0;
             setDuration(next);
+            if (resumeTimeRef.current > 0 && next > 0) {
+              const restoredTime = Math.min(resumeTimeRef.current, next);
+              event.currentTarget.currentTime = restoredTime;
+              setCurrentTime(restoredTime);
+            }
+            const resumePlaying = resumePlayingRef.current;
+            resumeTimeRef.current = 0;
+            resumePlayingRef.current = false;
+            if (resumePlaying && inPlaybackZone) void tryPlay(event.currentTarget);
           }}
           onDurationChange={(event) => {
             const next = Number.isFinite(event.currentTarget.duration)
@@ -478,13 +571,18 @@ export function ConfiguredVideo({
             setDuration(next);
           }}
           onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+          onCanPlay={clearStallRecovery}
+          onPlaying={clearStallRecovery}
+          onWaiting={scheduleStallRecovery}
+          onStalled={scheduleStallRecovery}
+          onError={recoverFromSourceFailure}
         />
       ) : poster ? (
         <img className="configured-video-poster" loading="lazy" src={poster} alt="" />
       ) : (
         <span className="configured-video-poster" aria-hidden="true" />
       )}
-      {inPlaybackZone && (
+      {mediaConnected && (
         <div
           className="configured-video-controls"
           data-playing={playing}

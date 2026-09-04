@@ -1,10 +1,11 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { translate } from "../i18n/translations";
 import { defaultDisplayPreferences } from "../model/layout";
 import { subscribeUserSuppressed } from "../model/user-suppression";
+import { VIDEO_STALL_RECOVERY_DELAY_MS } from "./configured-video";
 import { PostCard, type TimelinePost } from "./post-card";
 import { PostTranslationProvider } from "./post-translation-context";
 
@@ -527,7 +528,7 @@ describe("post actions", () => {
     expect(translationRequests).toBe(0);
   });
 
-  test("defers video loading and autoplay to the upper viewport while honoring settings", async () => {
+  test("preloads nearby video and limits autoplay to the upper viewport while honoring settings", async () => {
     const observers = installIntersectionObserverMock();
     const user = userEvent.setup();
     const play = mock(async () => undefined);
@@ -572,9 +573,16 @@ describe("post actions", () => {
     );
     const player = screen.getByRole("group", { name: "動画プレイヤー" });
     const videoObserver = observers.find(
-      (observer) => observer.options.rootMargin === "0px 0px -50% 0px",
+      (observer) =>
+        observer.options.rootMargin === "0px 0px -50% 0px" && observer.targets.includes(player),
+    );
+    const preloadObserver = observers.find(
+      (observer) =>
+        observer.options.rootMargin === "1200px 0px" && observer.targets.includes(player),
     );
     if (videoObserver === undefined) throw new Error("動画用の監視が作成されませんでした。");
+    if (preloadObserver === undefined)
+      throw new Error("動画先読み用の監視が作成されませんでした。");
     expect(videoObserver.options.root).toBeNull();
     expect(videoObserver.options.threshold).toBe(0);
     expect(videoObserver.targets).toEqual([player]);
@@ -582,7 +590,7 @@ describe("post actions", () => {
     expect(player.querySelector(".configured-video-poster")).toBeDefined();
     expect(play).toHaveBeenCalledTimes(0);
 
-    act(() => videoObserver.notify(player, true));
+    act(() => preloadObserver.notify(player, true));
     await waitFor(() => expect(second.container.querySelector("video")).not.toBeNull());
     const firstVideo = second.container.querySelector("video");
     if (firstVideo === null) throw new Error("動画が表示されませんでした。");
@@ -595,21 +603,31 @@ describe("post actions", () => {
     expect(firstVideo.volume).toBe(1);
     expect(firstVideo.muted).toBe(true);
     expect(firstVideo.autoplay).toBe(true);
-    expect(firstVideo.preload).toBe("metadata");
+    expect(firstVideo.preload).toBe("auto");
+    expect(play).toHaveBeenCalledTimes(0);
+
+    act(() => videoObserver.notify(player, true));
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(1));
     expect(play).toHaveBeenCalledTimes(1);
 
     act(() => videoObserver.notify(player, false));
+    await waitFor(() => expect(pause).toHaveBeenCalled());
+    expect(second.container.querySelector("video")).toBe(firstVideo);
+
+    act(() => preloadObserver.notify(player, false));
     await waitFor(() => expect(second.container.querySelector("video")).toBeNull());
-    expect(pause).toHaveBeenCalled();
     expect(load).toHaveBeenCalled();
 
-    act(() => videoObserver.notify(player, true));
-    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    act(() => preloadObserver.notify(player, true));
+    await waitFor(() => expect(second.container.querySelector("video")).not.toBeNull());
     const replacementVideo = second.container.querySelector("video");
     if (replacementVideo === null) throw new Error("動画が再生成されませんでした。");
     expect(replacementVideo).not.toBe(firstVideo);
     expect(replacementVideo.getAttribute("src")).toBe(videoUrl);
     expect(replacementVideo.muted).toBe(true);
+
+    act(() => videoObserver.notify(player, true));
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
 
     Object.defineProperty(replacementVideo, "duration", { configurable: true, value: 125 });
     fireEvent.loadedMetadata(replacementVideo);
@@ -823,6 +841,55 @@ describe("post actions", () => {
         "requestPictureInPicture",
         requestPictureInPictureDescriptor,
       );
+    }
+  });
+
+  test("falls back after a stalled automatic source and restores playback position", () => {
+    jest.useFakeTimers();
+    try {
+      const play = mock(async () => undefined);
+      globalThis.HTMLMediaElement.prototype.play = play as typeof HTMLMediaElement.prototype.play;
+      const view = render(
+        <PostCard
+          post={{
+            ...post(),
+            media: [
+              {
+                id: "adaptive-video",
+                type: "video",
+                url: "https://video.example/high.mp4",
+                previewUrl: "https://video.example/poster.jpg",
+                variants: [
+                  { url: "https://video.example/low.mp4", bitrate: 256_000 },
+                  { url: "https://video.example/mid.mp4", bitrate: 832_000 },
+                  { url: "https://video.example/high.mp4", bitrate: 2_000_000 },
+                ],
+              },
+            ],
+          }}
+          accountId="account-1"
+          translation={translate("ja")}
+          display={{ ...defaultDisplayPreferences, videoAutoplay: false, videoQuality: "auto" }}
+        />,
+      );
+      const preferred = view.container.querySelector("video");
+      if (preferred === null) throw new Error("動画が作成されませんでした。");
+      expect(preferred.getAttribute("src")).toBe("https://video.example/high.mp4");
+      preferred.currentTime = 42;
+      Object.defineProperty(preferred, "paused", { configurable: true, value: false });
+
+      fireEvent.stalled(preferred);
+      act(() => jest.advanceTimersByTime(VIDEO_STALL_RECOVERY_DELAY_MS));
+
+      const recovered = view.container.querySelector("video");
+      if (recovered === null) throw new Error("復旧後の動画が作成されませんでした。");
+      expect(recovered.getAttribute("src")).toBe("https://video.example/mid.mp4");
+      Object.defineProperty(recovered, "duration", { configurable: true, value: 120 });
+      fireEvent.loadedMetadata(recovered);
+      expect(recovered.currentTime).toBe(42);
+      expect(play).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
     }
   });
 
