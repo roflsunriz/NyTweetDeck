@@ -85,10 +85,6 @@ internal fun MediaViewerDialog(
             if (media.type == "photo" && none { it.id == media.id }) add(media)
         }.distinctBy(Media::id)
     }
-    var photoIndex by remember(media.id, photos) {
-        mutableIntStateOf(photos.indexOfFirst { it.id == media.id }.coerceAtLeast(0))
-    }
-    val activeMedia = if (media.type == "photo") photos.getOrNull(photoIndex) ?: media else media
     val activity = LocalContext.current.findActivity()
     val dismissViewer = {
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -118,23 +114,14 @@ internal fun MediaViewerDialog(
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
                 Box(Modifier.fillMaxSize()) {
-                    if (activeMedia.type == "photo") {
+                    if (media.type == "photo") {
                         PhotoViewer(
-                            media = activeMedia,
-                            index = photoIndex,
-                            count = photos.size,
-                            onNext = {
-                                if (photos.size > 1) photoIndex = (photoIndex + 1) % photos.size
-                            },
-                            onPrevious = {
-                                if (photos.size > 1) {
-                                    photoIndex = (photoIndex - 1 + photos.size) % photos.size
-                                }
-                            },
+                            initialMedia = media,
+                            mediaItems = photos,
                         )
                     } else {
                         FullscreenVideoPlayer(
-                            media = activeMedia,
+                            media = media,
                             autoPlay = videoAutoplay,
                             loop = videoLoop,
                             volume = videoVolume,
@@ -189,15 +176,17 @@ private fun ImmersiveMediaWindow() {
 
 @Composable
 private fun PhotoViewer(
-    media: Media,
-    index: Int,
-    count: Int,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
+    initialMedia: Media,
+    mediaItems: List<Media>,
 ) {
-    var scale by remember(media.id) { mutableStateOf(1f) }
-    var offset by remember(media.id) { mutableStateOf(Offset.Zero) }
-    val offsetAnim = remember(media.id) { Animatable(Offset.Zero, Offset.VectorConverter) }
+    var currentIndex by remember(initialMedia.id, mediaItems) {
+        mutableIntStateOf(mediaItems.indexOfFirst { it.id == initialMedia.id }.coerceAtLeast(0))
+    }
+    var scale by remember(initialMedia.id, mediaItems) { mutableStateOf(1f) }
+    var offset by remember(initialMedia.id, mediaItems) { mutableStateOf(Offset.Zero) }
+    val offsetAnim = remember(initialMedia.id, mediaItems) {
+        Animatable(Offset.Zero, Offset.VectorConverter)
+    }
     var viewportWidth by remember { mutableFloatStateOf(0f) }
     var navigationLocked by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
@@ -208,65 +197,26 @@ private fun PhotoViewer(
     }
     val transformState = rememberTransformableState { _, zoomChange, panChange, _ ->
         val nextScale = (scale * zoomChange).coerceIn(0.1f, 8f)
-        // When zoomed, pan directly; when at 1x, add pull resistance near edges
         val isZoomed = nextScale > 1.05f
         val rawNextOffset = Offset(offset.x + panChange.x, offset.y + panChange.y)
-        val pullResistance = if (isZoomed) 1f else {
-            // Add resistance when pulling beyond thresholds for bouncy feel
-            val threshold = viewportWidth * 0.22f
-            val absX = kotlin.math.abs(rawNextOffset.x)
-            if (threshold > 0f && absX > threshold) {
-                val excess = absX - threshold
-                // Dampen excess with 0.35 factor for pull effect
-                val damped = threshold + excess * 0.35f
-                if (rawNextOffset.x < 0) -damped else damped
-            } else rawNextOffset.x
-            rawNextOffset.x
+        val nextOffset = if (isZoomed) rawNextOffset else Offset(rawNextOffset.x, 0f)
+        val pageDirection = if (isZoomed) 0 else {
+            photoPageDirectionForDrag(nextOffset.x, viewportWidth)
         }
-        val nextOffset = if (isZoomed) rawNextOffset else Offset(pullResistance, rawNextOffset.y)
-        // More sensitive edge detection: 22% of width (was 45%) for quicker, bouncy switch
-        val switchThreshold = viewportWidth * 0.22f
-        val atLeftEdge = nextOffset.x <= -switchThreshold
-        val atRightEdge = nextOffset.x >= switchThreshold
         when {
-            !navigationLocked && count > 1 && !isZoomed &&
-                switchThreshold > 0f && atLeftEdge -> {
+            !navigationLocked && mediaItems.size > 1 && pageDirection != 0 -> {
                 navigationLocked = true
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                scope.launch {
-                    // Bouncy snap to next
-                    offsetAnim.animateTo(
-                        Offset(-viewportWidth * 0.15f, 0f),
-                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 800f),
-                    )
-                }
+                currentIndex = wrappedPhotoIndex(currentIndex, mediaItems.size, pageDirection)
                 scale = 1f
-                offset = Offset.Zero
-                scope.launch { offsetAnim.snapTo(Offset.Zero) }
-                onNext()
-            }
-            !navigationLocked && count > 1 && !isZoomed &&
-                switchThreshold > 0f && atRightEdge -> {
-                navigationLocked = true
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                scope.launch {
-                    offsetAnim.animateTo(
-                        Offset(viewportWidth * 0.15f, 0f),
-                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 800f),
-                    )
-                }
-                scale = 1f
-                offset = Offset.Zero
-                scope.launch { offsetAnim.snapTo(Offset.Zero) }
-                onPrevious()
+                offset = Offset(
+                    nextOffset.x + if (pageDirection > 0) viewportWidth else -viewportWidth,
+                    0f,
+                )
             }
             else -> {
                 scale = nextScale
                 offset = nextOffset
-                // Keep animatable in sync for spring-back
-                if (!isZoomed && kotlin.math.abs(nextOffset.x) < switchThreshold) {
-                    scope.launch { offsetAnim.snapTo(nextOffset) }
-                }
             }
         }
     }
@@ -274,30 +224,26 @@ private fun PhotoViewer(
         snapshotFlow { transformState.isTransformInProgress }.collect { inProgress ->
             if (!inProgress) {
                 navigationLocked = false
-                // Spring back with purupuru when released without navigation
                 if (scale <= 1.05f && offset != Offset.Zero) {
-                    val needsSnap = kotlin.math.abs(offset.x) < viewportWidth * 0.22f
-                    if (needsSnap) {
-                        scope.launch {
-                            offsetAnim.animateTo(
-                                Offset.Zero,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMediumLow,
-                                ),
-                            )
-                            offset = Offset.Zero
-                        }
+                    scope.launch {
+                        offsetAnim.snapTo(offset)
+                        offsetAnim.animateTo(
+                            Offset.Zero,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        )
+                        offset = Offset.Zero
                     }
                 }
             }
         }
     }
-    val imageUri = remember(media.url, media.previewUrl) {
-        safeMediaUri(media.url ?: media.previewUrl)
-    }
-    // Use animatable for bouncy spring when not dragging
     val displayOffset = if (transformState.isTransformInProgress) offset else offsetAnim.value
+    val currentMedia = mediaItems.getOrNull(currentIndex) ?: initialMedia
+    val previousIndex = wrappedPhotoIndex(currentIndex, mediaItems.size, -1)
+    val nextIndex = wrappedPhotoIndex(currentIndex, mediaItems.size, 1)
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -307,37 +253,41 @@ private fun PhotoViewer(
             .testTag("media-image"),
         contentAlignment = Alignment.Center,
     ) {
-        if (imageUri == null) {
-            Text(
-                text = stringResource(R.string.media_viewer_unavailable),
-                color = Color.White,
+        if (mediaItems.size > 1) {
+            PhotoPage(
+                media = mediaItems[previousIndex],
+                translationX = displayOffset.x - viewportWidth,
+                testTag = "media-image-previous-index-$previousIndex",
             )
-        } else {
-            AsyncImage(
-                model = imageUri,
-                contentDescription = stringResource(R.string.post_media),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                        translationX = displayOffset.x
-                        translationY = displayOffset.y
-                    }
-                    .pointerInput(media.id) {
-                        detectTapGestures(
-                            onDoubleTap = {
-                                scale = 1f
-                                offset = Offset.Zero
-                                scope.launch { offsetAnim.snapTo(Offset.Zero) }
-                            },
-                        )
-                    }
-                    .transformable(transformState)
-                    .testTag("media-image-index-$index"),
-                contentScale = ContentScale.Fit,
+            PhotoPage(
+                media = mediaItems[nextIndex],
+                translationX = displayOffset.x + viewportWidth,
+                testTag = "media-image-next-index-$nextIndex",
             )
         }
+        PhotoPage(
+            media = currentMedia,
+            translationX = displayOffset.x,
+            translationY = displayOffset.y,
+            scale = scale,
+            testTag = "media-image-index-$currentIndex",
+            unavailableMessage = stringResource(R.string.media_viewer_unavailable),
+            contentDescription = stringResource(R.string.post_media),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(currentMedia.id) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            scale = 1f
+                            offset = Offset.Zero
+                            scope.launch { offsetAnim.snapTo(Offset.Zero) }
+                        },
+                    )
+                }
+                .transformable(transformState),
+        )
         IconButton(
             onClick = {
                 scale = 1f
@@ -356,6 +306,56 @@ private fun PhotoViewer(
             )
         }
     }
+}
+
+@Composable
+private fun PhotoPage(
+    media: Media,
+    translationX: Float,
+    testTag: String,
+    translationY: Float = 0f,
+    scale: Float = 1f,
+    unavailableMessage: String? = null,
+    contentDescription: String? = null,
+) {
+    val imageUri = remember(media.id, media.url, media.previewUrl) {
+        safeMediaUri(media.url ?: media.previewUrl)
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.translationX = translationX
+                this.translationY = translationY
+            }
+            .testTag(testTag),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (imageUri == null) {
+            unavailableMessage?.let { Text(text = it, color = Color.White) }
+        } else {
+            AsyncImage(
+                model = imageUri,
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+            )
+        }
+    }
+}
+
+internal fun photoPageDirectionForDrag(dragOffset: Float, viewportWidth: Float): Int = when {
+    viewportWidth <= 0f -> 0
+    dragOffset < -viewportWidth / 2f -> 1
+    dragOffset > viewportWidth / 2f -> -1
+    else -> 0
+}
+
+internal fun wrappedPhotoIndex(currentIndex: Int, count: Int, pageDirection: Int): Int {
+    if (count <= 0) return 0
+    return (currentIndex + pageDirection).mod(count)
 }
 
 internal fun safeMediaUri(value: String?): Uri? {

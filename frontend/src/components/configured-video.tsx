@@ -115,7 +115,7 @@ export function ConfiguredVideo({
   }, [hideControlsIfKeyboardIdle, inPlaybackZone]);
 
   const handleVideoPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLFieldSetElement>) => {
+    (event: ReactPointerEvent<HTMLVideoElement>) => {
       revealControls();
       const point: Point = {
         x: finiteCoordinate(event.clientX),
@@ -123,7 +123,7 @@ export function ConfiguredVideo({
       };
       videoPointersRef.current.set(event.pointerId, point);
       try {
-        (event.currentTarget as unknown as HTMLElement).setPointerCapture(event.pointerId);
+        event.currentTarget.setPointerCapture(event.pointerId);
       } catch {
         // ignore
       }
@@ -149,7 +149,7 @@ export function ConfiguredVideo({
     [revealControls, videoPan, videoZoom],
   );
 
-  const handleVideoPointerMove = useCallback((event: ReactPointerEvent<HTMLFieldSetElement>) => {
+  const handleVideoPointerMove = useCallback((event: ReactPointerEvent<HTMLVideoElement>) => {
     if (!videoPointersRef.current.has(event.pointerId)) return;
     const point: Point = {
       x: finiteCoordinate(event.clientX),
@@ -173,7 +173,7 @@ export function ConfiguredVideo({
       if (baseline.distance <= 0 || nextDistance <= 0) return;
       const ratio = nextDistance / baseline.distance;
       const nextZoom = Math.min(VIDEO_MAX_ZOOM, Math.max(VIDEO_MIN_ZOOM, baseline.zoom * ratio));
-      const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const bounds = event.currentTarget.getBoundingClientRect();
       const viewportCenter: Point = {
         x: finiteCoordinate(bounds.left) + finiteCoordinate(bounds.width) / 2,
         y: finiteCoordinate(bounds.top) + finiteCoordinate(bounds.height) / 2,
@@ -202,13 +202,13 @@ export function ConfiguredVideo({
     }
   }, []);
 
-  const handleVideoPointerUp = useCallback((event: ReactPointerEvent<HTMLFieldSetElement>) => {
+  const handleVideoPointerUp = useCallback((event: ReactPointerEvent<HTMLVideoElement>) => {
     videoPointersRef.current.delete(event.pointerId);
     if (videoPinchRef.current !== null && videoPointersRef.current.size < 2) {
       videoPinchRef.current = null;
     }
     try {
-      (event.currentTarget as unknown as HTMLElement).releasePointerCapture(event.pointerId);
+      event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {
       // ignore
     }
@@ -360,11 +360,19 @@ export function ConfiguredVideo({
     setMuted(next);
   };
 
+  const unmuteForDirectControl = () => {
+    const video = videoRef.current;
+    if (video === null || !video.muted) return;
+    video.muted = false;
+    setMuted(false);
+  };
+
   const seek = (event: ChangeEvent<HTMLInputElement>) => {
     const video = videoRef.current;
     if (video === null) return;
     const next = Number(event.currentTarget.value);
     if (!Number.isFinite(next)) return;
+    unmuteForDirectControl();
     video.currentTime = next;
     setCurrentTime(next);
   };
@@ -375,10 +383,7 @@ export function ConfiguredVideo({
     const next = normalizeVolume(Number(event.currentTarget.value));
     video.volume = next;
     setPlaybackVolume(next);
-    if (next > 0 && video.muted) {
-      video.muted = false;
-      setMuted(false);
-    }
+    unmuteForDirectControl();
   };
 
   const toggleFullscreen = async () => {
@@ -416,14 +421,7 @@ export function ConfiguredVideo({
       data-viewport-active={inPlaybackZone}
       data-controls-visible={controlsVisible}
       data-zoom={videoZoom}
-      onPointerMove={(event) => {
-        revealControls();
-        handleVideoPointerMove(event);
-      }}
-      onPointerDown={handleVideoPointerDown}
-      onPointerUp={handleVideoPointerUp}
-      onPointerCancel={handleVideoPointerUp}
-      onDoubleClick={handleVideoDoubleClick}
+      onPointerMove={revealControls}
       onFocusCapture={revealControls}
       onBlurCapture={revealControls}
     >
@@ -458,6 +456,11 @@ export function ConfiguredVideo({
             }
             togglePlayback();
           }}
+          onPointerMove={handleVideoPointerMove}
+          onPointerDown={handleVideoPointerDown}
+          onPointerUp={handleVideoPointerUp}
+          onPointerCancel={handleVideoPointerUp}
+          onDoubleClick={handleVideoDoubleClick}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onLoadedMetadata={(event) => {
@@ -507,6 +510,7 @@ export function ConfiguredVideo({
             max={duration > 0 ? duration : 0}
             step={0.1}
             value={duration > 0 ? Math.min(currentTime, duration) : 0}
+            onPointerDown={unmuteForDirectControl}
             onChange={seek}
           />
           <button
@@ -529,6 +533,7 @@ export function ConfiguredVideo({
             max={100}
             step={1}
             value={Math.round(playbackVolume * 100)}
+            onPointerDown={unmuteForDirectControl}
             onChange={changeVolume}
           />
           {variants.length > 1 && (

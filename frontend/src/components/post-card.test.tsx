@@ -612,9 +612,20 @@ describe("post actions", () => {
     fireEvent.loadedMetadata(replacementVideo);
     expect(screen.getByText("0:00 / 2:05")).toBeDefined();
     const seek = screen.getByRole("slider", { name: "動画の再生位置" });
+    const setPointerCapture = mock(() => undefined);
+    Object.defineProperty(replacementVideo, "setPointerCapture", {
+      configurable: true,
+      value: setPointerCapture,
+    });
+    fireEvent.pointerDown(seek, { pointerId: 7 });
+    expect(setPointerCapture).toHaveBeenCalledTimes(0);
     fireEvent.change(seek, { target: { value: "30" } });
     expect(replacementVideo.currentTime).toBe(30);
     expect((seek as HTMLInputElement).value).toBe("30");
+    expect(replacementVideo.muted).toBe(false);
+
+    fireEvent.pointerDown(replacementVideo, { pointerId: 8, clientX: 40, clientY: 20 });
+    expect(setPointerCapture).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: "動画を再生" }));
     expect(play).toHaveBeenCalledTimes(3);
@@ -623,9 +634,12 @@ describe("post actions", () => {
     fireEvent.pause(replacementVideo);
     expect(screen.getByRole("button", { name: "動画を再生" })).toBeDefined();
 
-    await user.click(screen.getByRole("button", { name: "動画のミュートを解除" }));
-    expect(replacementVideo.muted).toBe(false);
+    await user.click(screen.getByRole("button", { name: "動画をミュート" }));
+    expect(replacementVideo.muted).toBe(true);
     const volumeControl = screen.getByRole("slider", { name: "動画の音量" });
+    fireEvent.pointerDown(volumeControl, { pointerId: 9 });
+    expect(setPointerCapture).toHaveBeenCalledTimes(1);
+    expect(replacementVideo.muted).toBe(false);
     fireEvent.change(volumeControl, { target: { value: "25" } });
     expect(replacementVideo.volume).toBe(0.25);
     await user.click(screen.getByRole("button", { name: "動画をミュート" }));

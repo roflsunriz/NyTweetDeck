@@ -368,6 +368,7 @@ private fun VideoPlayer(
                     value = if (duration > 0L) position.coerceAtMost(duration).toFloat() else 0f,
                     onValueChange = {
                         revealControls()
+                        muted = false
                         player?.seekTo(it.toLong())
                     },
                     valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
@@ -410,7 +411,7 @@ private fun VideoPlayer(
                         onValueChange = {
                             revealControls()
                             playbackVolume = it.coerceIn(0f, 1f)
-                            if (playbackVolume > 0f) muted = false
+                            muted = false
                         },
                         modifier = Modifier.weight(1f).testTag("$controlTagPrefix-volume"),
                     )

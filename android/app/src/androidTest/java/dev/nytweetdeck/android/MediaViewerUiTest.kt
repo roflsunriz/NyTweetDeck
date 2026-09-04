@@ -1,14 +1,19 @@
 package dev.nytweetdeck.android
 
 import androidx.activity.compose.setContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import dev.nytweetdeck.android.model.Author
@@ -38,6 +43,17 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("post-media-1-photo-1").performClick()
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag(
+            "media-image-next-index-1",
+            useUnmergedTree = true,
+        ).fetchSemanticsNode()
+        composeRule.onNodeWithTag("media-image").performTouchInput {
+            swipe(
+                start = Offset(right, center.y),
+                end = center,
+            )
+        }
         composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
         composeRule.onNodeWithTag("media-image-index-1", useUnmergedTree = true).assertIsDisplayed()
@@ -97,12 +113,33 @@ class MediaViewerUiTest {
             .assertIsDisplayed().assertIsEnabled()
         composeRule.onNodeWithTag("media-video-mute", useUnmergedTree = true)
             .assertIsDisplayed().assertIsEnabled()
+            .assertContentDescriptionEquals(
+                composeRule.activity.getString(R.string.media_viewer_unmute),
+            )
         composeRule.onNodeWithTag("media-video-seek", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-video-volume", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-video-loop", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-video-fullscreen", useUnmergedTree = true)
             .assertIsDisplayed()
         composeRule.onNodeWithTag("media-video-rotate", useUnmergedTree = true).assertIsDisplayed()
+
+        composeRule.onNodeWithTag("media-video-seek", useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                setProgress(0.5f)
+            }
+        composeRule.onNodeWithTag("media-video-mute", useUnmergedTree = true)
+            .assertContentDescriptionEquals(
+                composeRule.activity.getString(R.string.media_viewer_mute),
+            )
+            .performClick()
+        composeRule.onNodeWithTag("media-video-volume", useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                setProgress(0f)
+            }
+        composeRule.onNodeWithTag("media-video-mute", useUnmergedTree = true)
+            .assertContentDescriptionEquals(
+                composeRule.activity.getString(R.string.media_viewer_mute),
+            )
 
         composeRule.mainClock.autoAdvance = false
         composeRule.mainClock.advanceTimeBy(3_100)
