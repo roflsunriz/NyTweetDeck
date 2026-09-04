@@ -290,6 +290,7 @@ const settingsMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
     documentOverflow: document.documentElement.scrollWidth > innerWidth,
     translationHealthFound: document.querySelector("[data-testid=translation-health]") !== null,
     settingsTransferFound: document.querySelector("[data-testid=layout-transfer-settings]") !== null,
+    desktopUpdateFound: document.querySelector("[data-testid=desktop-update-settings]") !== null,
     importedNavigation: Array.from(document.querySelectorAll("[data-nav-item]"), item => item.getAttribute("data-nav-item")),
     videoLoopChecked: document.querySelector("[data-testid=setting-video-loop]")?.checked,
     videoVolume: document.querySelector("[data-testid=setting-video-volume]")?.value
@@ -300,6 +301,7 @@ if (
   settingsMetrics.videoVolume !== "100" ||
   settingsMetrics.translationHealthFound !== true ||
   settingsMetrics.settingsTransferFound !== true ||
+  settingsMetrics.desktopUpdateFound !== true ||
   JSON.stringify(settingsMetrics.importedNavigation) !== JSON.stringify(["home", "trends"])
 ) {
   throw new Error(`動画設定の既定値検証に失敗しました: ${JSON.stringify(settingsMetrics)}`);

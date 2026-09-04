@@ -194,6 +194,12 @@ export interface Translation {
   apiMetadataFailed: string;
   settingsTransfer: string;
   settingsTransferDescription: string;
+  appUpdate: string;
+  appUpdateDescription: string;
+  downloadLatestDesktop: string;
+  checkingLatestDesktop: string;
+  desktopDownloadStarted: string;
+  desktopDownloadFailed: string;
   exportSettings: string;
   importSettings: string;
   settingsImported: string;
@@ -421,6 +427,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     settingsTransfer: "設定のインポート・エクスポート",
     settingsTransferDescription:
       "メニュー、カラム、表示設定、検索履歴をJSONで移動します。アカウント情報や認証情報は含みません。",
+    appUpdate: "アプリの更新",
+    appUpdateDescription:
+      "GitHub Releasesから最新の安定版デスクトップZIPを直接ダウンロードします。",
+    downloadLatestDesktop: "GitHubから最新版をダウンロード",
+    checkingLatestDesktop: "最新版を確認中…",
+    desktopDownloadStarted: "最新版のダウンロードを開始しました。",
+    desktopDownloadFailed: "最新版を取得できませんでした。通信状態を確認して再試行してください。",
     exportSettings: "設定をエクスポート",
     importSettings: "設定をインポート",
     settingsImported: "設定を読み込み、自動保存しました。",
@@ -696,6 +709,12 @@ const translations: Partial<Record<Locale, Translation>> = {
     settingsTransfer: "Import or export settings",
     settingsTransferDescription:
       "Move menus, columns, display preferences, and search history as JSON. Account and credential data are never included.",
+    appUpdate: "App updates",
+    appUpdateDescription: "Download the latest stable desktop ZIP directly from GitHub Releases.",
+    downloadLatestDesktop: "Download latest from GitHub",
+    checkingLatestDesktop: "Checking for the latest version…",
+    desktopDownloadStarted: "The latest release download has started.",
+    desktopDownloadFailed: "Could not get the latest release. Check your connection and try again.",
     exportSettings: "Export settings",
     importSettings: "Import settings",
     settingsImported: "Settings imported and saved automatically.",

@@ -10,6 +10,7 @@ import type {
   Theme,
 } from "../model/layout";
 import { supportedLocales } from "../model/layout";
+import { downloadDesktopRelease, loadLatestDesktopRelease } from "../model/desktop-release";
 import { exportLayoutSettings, importLayoutSettings } from "../model/layout-transfer";
 import { Modal } from "./modal";
 
@@ -231,6 +232,7 @@ export function SettingsDialog({
         </p>
       </div>
       <LayoutTransferSettings layout={layout} translation={translation} onImport={onLayoutImport} />
+      <DesktopUpdateSettings translation={translation} />
       <TranslationHealthSettings translation={translation} />
       <ApiMetadataSettings translation={translation} />
     </Modal>
@@ -238,6 +240,43 @@ export function SettingsDialog({
 }
 
 const maximumSettingsFileBytes = 256 * 1_024;
+
+function DesktopUpdateSettings({ translation }: { translation: Translation }) {
+  const [status, setStatus] = useState<"checking" | "started" | "failed" | null>(null);
+
+  const downloadLatest = async () => {
+    if (status === "checking") return;
+    setStatus("checking");
+    try {
+      downloadDesktopRelease(await loadLatestDesktopRelease());
+      setStatus("started");
+    } catch {
+      setStatus("failed");
+    }
+  };
+
+  return (
+    <section className="metadata-settings" data-testid="desktop-update-settings">
+      <h3>{translation.appUpdate}</h3>
+      <p>{translation.appUpdateDescription}</p>
+      <button
+        className="secondary-button"
+        data-testid="download-latest-desktop"
+        type="button"
+        disabled={status === "checking"}
+        onClick={() => void downloadLatest()}
+      >
+        {status === "checking"
+          ? translation.checkingLatestDesktop
+          : translation.downloadLatestDesktop}
+      </button>
+      {status === "started" && (
+        <p className="setup-success">{translation.desktopDownloadStarted}</p>
+      )}
+      {status === "failed" && <p className="inline-warning">{translation.desktopDownloadFailed}</p>}
+    </section>
+  );
+}
 
 function LayoutTransferSettings({
   layout,

@@ -64,6 +64,7 @@ bun run sandbox:observe-x-video
 - Android実機で端末WebViewのUser-Agentをブラウザ互換へ正規化した後、X公式公開資産から全必須operationを解決できることを専用ライブテストで確認します。失敗時は現在の検証済み定義が置換されず、設定画面の再試行が利用できることも確認します。
 - Android設定の「GitHubから最新版APKをダウンロード」でGitHub Releases APIへバージョン指定header付きで接続し、draft・prerelease・デスクトップ版release・不正hostのassetを除外して、最新の安定版`android-v*`と完全一致するAPKだけをダウンロードフォルダーへ保存することを確認します。通信失敗とAPK未公開時は失敗表示となり、連打で複数要求を開始しないことも確認します。
 - ヘッドレスChrome検証でデスクトップ、タブレット、モバイル、RTLの各表示に横方向のページ溢れがなく、ブラウザコンソールに未処理エラーがないことを確認します。
+- デスクトップ設定の「GitHubから最新版をダウンロード」で、backendがGitHub Releases APIからdraft・prerelease・Android release・不正hostのassetを除外し、最新の安定版`v*`と完全一致する公式ZIPだけをブラウザへ渡すことを確認します。確認中の連打を抑止し、失敗時は設定内へ再試行可能なエラーを表示することも確認します。
 
 ## 失敗時の対策
 
