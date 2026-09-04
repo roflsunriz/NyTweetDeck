@@ -21,6 +21,7 @@
         <revision>1.0.0-SNAPSHOT</revision>
         <java.version>17</java.version>
         <maven.compiler.release>17</maven.compiler.release>
+        <tomcat.version>11.0.25</tomcat.version>
     </properties>
 
     <dependencies>
