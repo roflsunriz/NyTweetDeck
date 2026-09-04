@@ -252,4 +252,11 @@
     <string name="video_quality_high">Alta</string>
     <string name="column_sort_latest">Más recientes</string>
     <string name="column_sort_top">Destacadas</string>
+    <string name="apk_update_section">Actualizaciones de la aplicación</string>
+    <string name="apk_update_current_version">Versión actual: %1$s</string>
+    <string name="apk_update_description">Descarga el APK estable más reciente de Android desde GitHub Releases a la carpeta Descargas.</string>
+    <string name="apk_update_download">Descargar el APK más reciente de GitHub</string>
+    <string name="apk_update_checking">Buscando la versión más reciente…</string>
+    <string name="apk_update_started">Se inició la descarga del APK. Abre la notificación al finalizar para actualizar.</string>
+    <string name="apk_update_failed">No se pudo obtener el APK más reciente. Comprueba la conexión e inténtalo de nuevo.</string>
 </resources>

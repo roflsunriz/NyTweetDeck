@@ -251,4 +251,11 @@
     <string name="video_quality_high">উচ্চ</string>
     <string name="column_sort_latest">সর্বশেষ</string>
     <string name="column_sort_top">শীর্ষ</string>
+    <string name="apk_update_section">অ্যাপ আপডেট</string>
+    <string name="apk_update_current_version">বর্তমান সংস্করণ: %1$s</string>
+    <string name="apk_update_description">GitHub Releases থেকে সর্বশেষ স্থিতিশীল Android APK ডাউনলোড ফোল্ডারে সংরক্ষণ করে।</string>
+    <string name="apk_update_download">GitHub থেকে সর্বশেষ APK ডাউনলোড করুন</string>
+    <string name="apk_update_checking">সর্বশেষ সংস্করণ পরীক্ষা করা হচ্ছে…</string>
+    <string name="apk_update_started">APK ডাউনলোড শুরু হয়েছে। আপডেট করতে সম্পন্ন ডাউনলোডের বিজ্ঞপ্তি খুলুন।</string>
+    <string name="apk_update_failed">সর্বশেষ APK পাওয়া যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।</string>
 </resources>

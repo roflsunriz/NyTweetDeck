@@ -255,4 +255,11 @@
     <string name="video_quality_high">عالية</string>
     <string name="column_sort_latest">الأحدث</string>
     <string name="column_sort_top">الأبرز</string>
+    <string name="apk_update_section">تحديثات التطبيق</string>
+    <string name="apk_update_current_version">الإصدار الحالي: %1$s</string>
+    <string name="apk_update_description">ينزّل أحدث ملف APK مستقر لنظام Android من GitHub Releases إلى مجلد التنزيلات.</string>
+    <string name="apk_update_download">تنزيل أحدث APK من GitHub</string>
+    <string name="apk_update_checking">جارٍ البحث عن أحدث إصدار…</string>
+    <string name="apk_update_started">بدأ تنزيل APK. افتح إشعار اكتمال التنزيل للتحديث.</string>
+    <string name="apk_update_failed">تعذر الحصول على أحدث APK. تحقق من الاتصال وحاول مجددًا.</string>
 </resources>

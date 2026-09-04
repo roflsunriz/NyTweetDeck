@@ -253,4 +253,11 @@
     <string name="video_quality_high">Высокое</string>
     <string name="column_sort_latest">Последние</string>
     <string name="column_sort_top">Популярные</string>
+    <string name="apk_update_section">Обновления приложения</string>
+    <string name="apk_update_current_version">Текущая версия: %1$s</string>
+    <string name="apk_update_description">Скачивает последний стабильный Android APK из GitHub Releases в папку «Загрузки».</string>
+    <string name="apk_update_download">Скачать последний APK с GitHub</string>
+    <string name="apk_update_checking">Проверка последней версии…</string>
+    <string name="apk_update_started">Загрузка APK началась. После завершения откройте уведомление для обновления.</string>
+    <string name="apk_update_failed">Не удалось получить последний APK. Проверьте подключение и повторите попытку.</string>
 </resources>

@@ -251,4 +251,11 @@
     <string name="video_quality_high">उच्च</string>
     <string name="column_sort_latest">नवीनतम</string>
     <string name="column_sort_top">शीर्ष</string>
+    <string name="apk_update_section">ऐप अपडेट</string>
+    <string name="apk_update_current_version">वर्तमान संस्करण: %1$s</string>
+    <string name="apk_update_description">GitHub Releases से नवीनतम स्थिर Android APK को डाउनलोड फ़ोल्डर में सहेजता है।</string>
+    <string name="apk_update_download">GitHub से नवीनतम APK डाउनलोड करें</string>
+    <string name="apk_update_checking">नवीनतम संस्करण जाँचा जा रहा है…</string>
+    <string name="apk_update_started">APK डाउनलोड शुरू हो गया। अपडेट करने के लिए पूर्ण डाउनलोड की सूचना खोलें।</string>
+    <string name="apk_update_failed">नवीनतम APK नहीं मिल सका। कनेक्शन जाँचें और फिर प्रयास करें।</string>
 </resources>

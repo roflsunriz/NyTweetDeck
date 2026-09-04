@@ -66,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import dev.nytweetdeck.android.BuildConfig
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.model.AccountAuthStatus
 import dev.nytweetdeck.android.model.AccentColor
@@ -91,6 +92,13 @@ internal enum class TransferStatus {
     NONE,
     EXPORT_SUCCESS,
     IMPORT_SUCCESS,
+    FAILED,
+}
+
+internal enum class ApkUpdateStatus {
+    NONE,
+    CHECKING,
+    DOWNLOAD_STARTED,
     FAILED,
 }
 
@@ -521,6 +529,8 @@ internal fun SettingsDialog(
     transferStatus: TransferStatus,
     onDismiss: () -> Unit,
     onRefreshXApiMetadata: () -> Unit = {},
+    apkUpdateStatus: ApkUpdateStatus = ApkUpdateStatus.NONE,
+    onDownloadLatestApk: () -> Unit = {},
 ) {
     val settings = state.displaySettings()
     val currentLanguageTag = selectedLanguageTag?.substringBefore('-')
@@ -782,6 +792,53 @@ internal fun SettingsDialog(
                     modifier = Modifier.fillMaxWidth().testTag("refresh-x-api-metadata"),
                 ) {
                     Text(stringResource(R.string.x_api_metadata_refresh))
+                }
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                SettingSectionTitle(stringResource(R.string.apk_update_section))
+                Text(
+                    text = stringResource(R.string.apk_update_current_version, BuildConfig.VERSION_NAME),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(R.string.apk_update_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(
+                    onClick = onDownloadLatestApk,
+                    enabled = apkUpdateStatus != ApkUpdateStatus.CHECKING,
+                    modifier = Modifier.fillMaxWidth().testTag("download-latest-apk"),
+                ) {
+                    if (apkUpdateStatus == ApkUpdateStatus.CHECKING) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(
+                        stringResource(
+                            if (apkUpdateStatus == ApkUpdateStatus.CHECKING) {
+                                R.string.apk_update_checking
+                            } else {
+                                R.string.apk_update_download
+                            },
+                        ),
+                    )
+                }
+                when (apkUpdateStatus) {
+                    ApkUpdateStatus.DOWNLOAD_STARTED -> Text(
+                        text = stringResource(R.string.apk_update_started),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.testTag("apk-update-status"),
+                    )
+                    ApkUpdateStatus.FAILED -> Text(
+                        text = stringResource(R.string.apk_update_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.testTag("apk-update-status"),
+                    )
+                    ApkUpdateStatus.NONE, ApkUpdateStatus.CHECKING -> Unit
                 }
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Button(

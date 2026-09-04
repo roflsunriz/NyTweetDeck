@@ -83,6 +83,7 @@ class DeckUiTest {
         composeRule.onNodeWithTag("setting-video-volume").performScrollTo().performSemanticsAction(
             SemanticsActions.SetProgress,
         ) { it(42f) }
+        composeRule.onNodeWithTag("download-latest-apk").performScrollTo().assertIsDisplayed()
 
         val state = isolatedViewModel.state.value
         assertEquals(ThemeMode.LIGHT, state.themeMode)

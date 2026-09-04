@@ -71,6 +71,7 @@ import dev.nytweetdeck.android.model.PostMenuAction
 import dev.nytweetdeck.android.data.UserAction
 import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
+import dev.nytweetdeck.android.update.GitHubReleaseClient
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiEnvironment
 import java.time.Instant
@@ -124,10 +125,12 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var openDialog by remember { mutableStateOf<OpenDialog?>(null) }
     var transferStatus by remember { mutableStateOf(TransferStatus.NONE) }
+    var apkUpdateStatus by remember { mutableStateOf(ApkUpdateStatus.NONE) }
     var followNotification by remember { mutableStateOf<DeckNotification?>(null) }
     var postMenuPost by remember { mutableStateOf<Post?>(null) }
     var temporaryMainNavigationVisible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val gitHubReleaseClient = remember { GitHubReleaseClient() }
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(state.isInitializing, state.appLanguageTag) {
         if (!state.isInitializing && AppLocaleController.currentLanguageTag(context) != state.appLanguageTag) {
@@ -505,6 +508,38 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 },
                 transferStatus = transferStatus,
                 onRefreshXApiMetadata = viewModel::refreshXApiMetadata,
+                apkUpdateStatus = apkUpdateStatus,
+                onDownloadLatestApk = {
+                    if (apkUpdateStatus != ApkUpdateStatus.CHECKING) {
+                        apkUpdateStatus = ApkUpdateStatus.CHECKING
+                        coroutineScope.launch {
+                            apkUpdateStatus = runCatching {
+                                val apk = withContext(Dispatchers.IO) {
+                                    gitHubReleaseClient.latestStableAndroidApk()
+                                }
+                                val manager = requireNotNull(
+                                    context.getSystemService(DownloadManager::class.java),
+                                )
+                                manager.enqueue(
+                                    DownloadManager.Request(apk.downloadUrl.toUri())
+                                        .setTitle(apk.assetName)
+                                        .setDescription(apk.tagName)
+                                        .setMimeType("application/vnd.android.package-archive")
+                                        .setNotificationVisibility(
+                                            DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
+                                        )
+                                        .setDestinationInExternalPublicDir(
+                                            Environment.DIRECTORY_DOWNLOADS,
+                                            apk.assetName,
+                                        ),
+                                )
+                            }.fold(
+                                onSuccess = { ApkUpdateStatus.DOWNLOAD_STARTED },
+                                onFailure = { ApkUpdateStatus.FAILED },
+                            )
+                        }
+                    }
+                },
                 onDismiss = { openDialog = null },
             )
             OpenDialog.MENU_EDITOR -> MenuEditorDialog(

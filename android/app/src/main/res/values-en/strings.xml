@@ -253,4 +253,11 @@
     <string name="video_quality_high">High</string>
     <string name="column_sort_latest">Latest</string>
     <string name="column_sort_top">Top</string>
+    <string name="apk_update_section">App updates</string>
+    <string name="apk_update_current_version">Current version: %1$s</string>
+    <string name="apk_update_description">Downloads the latest stable Android APK from GitHub Releases to your Downloads folder.</string>
+    <string name="apk_update_download">Download latest APK from GitHub</string>
+    <string name="apk_update_checking">Checking for the latest version…</string>
+    <string name="apk_update_started">APK download started. Open the completed-download notification to update.</string>
+    <string name="apk_update_failed">Could not get the latest APK. Check your connection and try again.</string>
 </resources>

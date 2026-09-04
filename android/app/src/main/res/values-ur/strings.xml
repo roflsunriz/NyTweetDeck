@@ -251,4 +251,11 @@
     <string name="video_quality_high">اعلیٰ</string>
     <string name="column_sort_latest">تازہ ترین</string>
     <string name="column_sort_top">اعلیٰ</string>
+    <string name="apk_update_section">ایپ اپ ڈیٹس</string>
+    <string name="apk_update_current_version">موجودہ ورژن: %1$s</string>
+    <string name="apk_update_description">GitHub Releases سے تازہ ترین مستحکم Android APK کو ڈاؤن لوڈز فولڈر میں محفوظ کرتا ہے۔</string>
+    <string name="apk_update_download">GitHub سے تازہ ترین APK ڈاؤن لوڈ کریں</string>
+    <string name="apk_update_checking">تازہ ترین ورژن چیک ہو رہا ہے…</string>
+    <string name="apk_update_started">APK ڈاؤن لوڈ شروع ہو گیا۔ اپ ڈیٹ کے لیے مکمل ڈاؤن لوڈ کی اطلاع کھولیں۔</string>
+    <string name="apk_update_failed">تازہ ترین APK حاصل نہیں ہو سکا۔ کنکشن چیک کر کے دوبارہ کوشش کریں۔</string>
 </resources>
