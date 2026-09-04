@@ -432,6 +432,7 @@ export function ConfiguredVideo({
           muted={muted}
           autoPlay={autoPlay}
           loop={loopActive}
+          draggable={false}
           playsInline
           preload="metadata"
           poster={poster || undefined}
@@ -461,6 +462,7 @@ export function ConfiguredVideo({
           onPointerUp={handleVideoPointerUp}
           onPointerCancel={handleVideoPointerUp}
           onDoubleClick={handleVideoDoubleClick}
+          onDragStart={(event) => event.preventDefault()}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onLoadedMetadata={(event) => {

@@ -587,7 +587,9 @@ describe("post actions", () => {
     if (firstVideo === null) throw new Error("動画が表示されませんでした。");
     expect(firstVideo.getAttribute("src")).toBe(videoUrl);
     expect(firstVideo.controls).toBe(false);
+    expect(firstVideo.getAttribute("draggable")).toBe("false");
     expect(firstVideo.hasAttribute("playsinline")).toBe(true);
+    expect(fireEvent.dragStart(firstVideo)).toBe(false);
     expect(firstVideo.loop).toBe(true);
     expect(firstVideo.volume).toBe(1);
     expect(firstVideo.muted).toBe(true);

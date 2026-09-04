@@ -971,6 +971,13 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
   const heart = like?.querySelector("svg");
   const video = document.querySelector(".post-media video");
   const player = video?.closest(".configured-video");
+  const videoDragAllowed = video instanceof HTMLVideoElement
+    ? video.dispatchEvent(new DragEvent("dragstart", {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: new DataTransfer()
+      }))
+    : null;
   return {
     likeColor: like instanceof HTMLElement ? getComputedStyle(like).color : null,
     likeFilled: heart?.getAttribute("fill"),
@@ -981,6 +988,8 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
     videoVolume: video instanceof HTMLVideoElement ? video.volume : null,
     videoMuted: video instanceof HTMLVideoElement ? video.muted : null,
     videoAutoplay: video instanceof HTMLVideoElement ? video.autoplay : null,
+    videoDraggable: video instanceof HTMLVideoElement ? video.draggable : null,
+    videoDragAllowed,
     videoInPlaybackZone: player?.getAttribute("data-viewport-active"),
     videoNativeControls: video instanceof HTMLVideoElement ? video.controls : null,
     videoCustomButtons: player?.querySelectorAll(".configured-video-controls button").length,
@@ -1005,6 +1014,8 @@ if (
   engagementMetrics.videoVolume !== 1 ||
   engagementMetrics.videoMuted !== true ||
   engagementMetrics.videoAutoplay !== true ||
+  engagementMetrics.videoDraggable !== false ||
+  engagementMetrics.videoDragAllowed !== false ||
   engagementMetrics.videoInPlaybackZone !== "true" ||
   engagementMetrics.videoNativeControls !== false ||
   Number(engagementMetrics.videoCustomButtons) < 4 ||
