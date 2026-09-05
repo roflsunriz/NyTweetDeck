@@ -61,7 +61,8 @@ public record TimelinePage(List<Post> posts, String nextCursor) {
         }
     }
 
-    public record CommunityNote(String title, String text, String footer) {}
+    public record CommunityNote(String title, String text, String footer,
+            String noteId, String language, Boolean isTranslatable) {}
 
     public record Translation(
             String text,

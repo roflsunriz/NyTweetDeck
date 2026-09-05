@@ -118,6 +118,7 @@ export interface Translation {
   translationLoading: string;
   translationRetryScheduled: (seconds: number) => string;
   translationFailed: string;
+  translationUnavailable: string;
   translatedBy: (provider: string) => string;
   postMenu: string;
   notInterested: string;
@@ -358,6 +359,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     translationLoading: "表示範囲のポストをXで翻訳中…",
     translationRetryScheduled: (seconds) => `X翻訳を再試行します（約${seconds}秒後）`,
     translationFailed: "翻訳できませんでした。原文を表示しています。",
+    translationUnavailable: "翻訳はまだ提供されていません。",
     translatedBy: (provider) => `${provider}による自動翻訳`,
     postMenu: "ポストメニュー",
     notInterested: "このポストに興味がない",
@@ -646,6 +648,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     translationLoading: "Translating nearby posts with X…",
     translationRetryScheduled: (seconds) => `Retrying X translation in about ${seconds}s`,
     translationFailed: "Translation failed. Showing the original post.",
+    translationUnavailable: "Translation is not available yet.",
     translatedBy: (provider) => `Automatically translated by ${provider}`,
     postMenu: "Post menu",
     notInterested: "Not interested in this post",

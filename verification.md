@@ -20,6 +20,14 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## コミュニティノートの翻訳（2026-09-05）
+
+- X公式Web資産と実X応答から、`grok_translated_community_note_with_availability`の`is_available`、`data.translation`、`destination_language`、`source_language`、`rich_text_entities`を確認した。ノートIDを通常ポスト翻訳へ流用せず、`BirdwatchFetchOneNote`を翻訳先言語で取得する。
+- 原文言語と翻訳先が異なり、本文がある場合に自動翻訳する。取得言語に依存する`is_community_note_translatable=false`を、別の翻訳先に対する禁止として扱わない。利用可フラグ・ノートID・翻訳先を検証し、訳文には訳文の出典オフセットと安全なURLを使う。
+- フロントエンド192件、Java140件、Android255件、lint/型/ビルドが成功。Chromeの390/1440幅で訳文→原文の切替とそれぞれの出典URL、横溢れなし、実行時エラー0を確認した。自動翻訳OFF/ON、同一ノートの重複要求、未提供と通信失敗、手動再試行、言語/アカウント切替時の古い応答を回帰対象とする。
+- AQUOSで`CommunityNoteTranslationUiTest`と、noteIdを明示した`LiveCommunityNoteTranslationTest`の4件が成功。実Xの日本語訳を表示して原文との往復、出典保持を確認した。ライブテストは明示的にノートIDを指定した場合だけ実行し、ログに認証情報やノート本文を出さない。
+- 両稼働版を更新し、Androidは非debuggable releaseとAPKハッシュ一致、WindowsはJARハッシュ一致・HTTP/HTTPS readyを確認した。Windowsの稼働APIでも実ノートの日本語訳と3件の出典が返ることを確認した。認証・設定は維持した。
+
 ## 画像の有限な並び（2026-09-05）
 
 - 画像ビューアは投稿の枚数の範囲だけで移動し、先頭の前に末尾画像、末尾の後に先頭画像を配置しない。Androidの隣接ページとWebのボタン・キーボード・ドラッグのすべてで循環を除去する。

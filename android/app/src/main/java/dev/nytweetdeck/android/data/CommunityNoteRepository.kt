@@ -1,6 +1,7 @@
 package dev.nytweetdeck.android.data
 
 import dev.nytweetdeck.android.model.CommunityNotePage
+import dev.nytweetdeck.android.model.CommunityNoteDetail
 import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.NotificationResponseParser
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
@@ -11,6 +12,25 @@ class CommunityNoteRepository(
     private val notificationParser: NotificationResponseParser = NotificationResponseParser(),
     private val timelineParser: TimelineResponseParser = TimelineResponseParser(),
 ) {
+    // Serial requests and a bounded account/language cache prevent a column burst from flooding X.
+    private val cache = object : LinkedHashMap<Triple<String, String, String>, CommunityNoteDetail>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Triple<String, String, String>, CommunityNoteDetail>?) = size > 256
+    }
+
+    @Synchronized
+    fun loadNote(account: AccountSecrets, noteId: String, language: String): CommunityNoteDetail {
+        require(NOTE_ID.matches(noteId)) { "コミュニティノートIDの形式が不正です。" }
+        val key = Triple(account.accountId, noteId, language)
+        cache[key]?.let { return it }
+        val body = graphQlExecutor.execute(
+            XSessionCredentials(account.webBearerToken, account.authToken, account.csrfToken),
+            "communityNote", mapOf("note_id" to noteId), language,
+        )
+        return notificationParser.parseCommunityNote(body, noteId, language).also {
+            if (it.translation != null) cache[key] = it
+        }
+    }
+
     fun load(account: AccountSecrets, noteId: String, language: String = "ja"): CommunityNotePage {
         require(NOTE_ID.matches(noteId)) { "コミュニティノートIDの形式が不正です。" }
         val credentials = XSessionCredentials(
@@ -18,13 +38,7 @@ class CommunityNoteRepository(
             account.authToken,
             account.csrfToken,
         )
-        val noteBody = graphQlExecutor.execute(
-            credentials,
-            "communityNote",
-            mapOf("note_id" to noteId),
-            language,
-        )
-        val detail = notificationParser.parseCommunityNote(noteBody, noteId)
+        val detail = loadNote(account, noteId, language)
         val postBody = graphQlExecutor.execute(
             credentials,
             "postDetail",

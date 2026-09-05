@@ -3,6 +3,7 @@ import type { TranslationOverride } from "./translations";
 
 export const overrides: Partial<Record<Locale, TranslationOverride>> = {
   es: {
+    translationUnavailable: "La traducción aún no está disponible.",
     downloadLatestDesktop: "Descargar última versión",
     settingsTransfer: "Copia de ajustes",
     translationHealth: "Uso de traducción",
@@ -183,6 +184,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   fr: {
+    translationUnavailable: "La traduction n’est pas encore disponible.",
     downloadLatestDesktop: "Télécharger la dernière version",
     settingsTransfer: "Sauvegarde des réglages",
     translationHealth: "Utilisation de la traduction",
@@ -368,6 +370,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   pt: {
+    translationUnavailable: "A tradução ainda não está disponível.",
     downloadLatestDesktop: "Baixar última versão",
     settingsTransfer: "Backup de configurações",
     translationHealth: "Uso da tradução",
@@ -548,6 +551,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   ru: {
+    translationUnavailable: "Перевод пока недоступен.",
     downloadLatestDesktop: "Скачать последнюю версию",
     settingsTransfer: "Резервная копия настроек",
     translationHealth: "Использование перевода",

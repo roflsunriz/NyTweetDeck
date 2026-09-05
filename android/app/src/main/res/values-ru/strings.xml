@@ -269,4 +269,5 @@
     <string name="settings_transfer">Перенос настроек</string>
     <string name="settings_details">Подробности</string>
     <string name="settings_help">Справка</string>
+    <string name="translation_unavailable">Перевод пока недоступен.</string>
 </resources>

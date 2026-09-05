@@ -267,4 +267,5 @@
     <string name="settings_transfer">সেটিংস স্থানান্তর</string>
     <string name="settings_details">বিস্তারিত</string>
     <string name="settings_help">সহায়তা</string>
+    <string name="translation_unavailable">অনুবাদ এখনও উপলব্ধ নয়।</string>
 </resources>

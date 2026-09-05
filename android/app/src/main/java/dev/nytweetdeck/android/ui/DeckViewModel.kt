@@ -405,6 +405,7 @@ class DeckViewModel(
                         it.copy(
                             accounts = accounts,
                             selectedAccountId = selectedId,
+                            postTranslations = emptyMap(),
                             accountAuthStatus = AccountAuthStatus.IDLE,
                             timelines = restored.timelines,
                             notifications = restored.notifications,
@@ -456,6 +457,7 @@ class DeckViewModel(
                         mutableState.update {
                             it.copy(
                                 selectedAccountId = accountId,
+                                postTranslations = emptyMap(),
                                 timelines = restored.timelines,
                                 notifications = restored.notifications,
                                 trends = restored.trends,
@@ -871,8 +873,12 @@ class DeckViewModel(
     fun openCommunityNote(noteId: String) = communityNoteController?.open(noteId)
     fun retryCommunityNote() = communityNoteController?.retry()
     fun closeCommunityNote() = communityNoteController?.close()
-    fun requestPostTranslation(post: TranslationCandidate) = postTranslationController?.request(post)
-    fun retryPostTranslation(post: TranslationCandidate) = postTranslationController?.request(post, manual = true)
+    fun requestPostTranslation(post: TranslationCandidate) {
+        if (post.communityNote != null) communityNoteController?.translate(post) else postTranslationController?.request(post)
+    }
+    fun retryPostTranslation(post: TranslationCandidate) {
+        if (post.communityNote != null) communityNoteController?.translate(post, manual = true) else postTranslationController?.request(post, manual = true)
+    }
     fun togglePostOriginal(postId: String) = postTranslationController?.toggleOriginal(postId)
     fun hidePost(postId: String) = postMenuController.hide(postId)
     fun runUserAction(post: dev.nytweetdeck.android.model.Post, action: UserAction) = postMenuController.userAction(post, action)

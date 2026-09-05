@@ -58,6 +58,10 @@ data class CommunityNote(
     val title: String?,
     val text: String?,
     val footer: String?,
+    val noteId: String? = null,
+    val language: String? = null,
+    val isTranslatable: Boolean? = null,
+    val sources: List<CommunityNoteSource> = emptyList(),
 )
 
 data class Translation(

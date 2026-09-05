@@ -83,7 +83,7 @@ async function requestWithRetry(
   for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
     let response: Response;
     try {
-      response = await schedule(() =>
+      response = await scheduleTranslation(() =>
         fetchWithTimeout(uri, {}, translationRequestTimeoutMilliseconds),
       );
     } catch (error) {
@@ -143,7 +143,7 @@ function isPostTranslationResult(value: unknown): value is PostTranslationResult
   );
 }
 
-function schedule<T>(operation: () => Promise<T>): Promise<T> {
+export function scheduleTranslation<T>(operation: () => Promise<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     queue.push(() => {
       activeRequests += 1;

@@ -87,6 +87,9 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 - 翻訳要求は、元本文からHTTP(S) URL・独立したメンションを除いた後にUnicode Letterが残る場合だけ行う。Androidの`TranslationCandidate`には元本文を必ず渡し、通常ポスト・返信・引用で同じガードを通す。既存の失敗状態が残っていても、本文なしの投稿には再試行表示を出さない。`TranslationTextTest`と`TranslationGuardUiTest`参照。
 
+- コミュニティノートは通常ポストの翻訳APIへノートIDを渡さない。`BirdwatchFetchOneNote`を翻訳先言語で取得し、`grok_translated_community_note_with_availability.data`の`translation`・`destination_language`・`source_language`・`rich_text_entities`を扱う。2026-09-05の実Xで英語ノートをja要求すると日本語訳、en要求すると未提供となることを確認。利用可フラグと翻訳先一致を検証し、翻訳文へ原文のリンク位置を流用しない。
+- `is_community_note_translatable`も取得言語に依存する。原文言語が判明していれば設定した翻訳先との違いで判定し、UI言語で取得したfalseを別の翻訳先への禁止フラグとして使わない。
+
 ## 設定画面
 
 - Android設定は`SettingsDialog.kt`へ分離し、目的別の項目と任意開閉の「詳細情報」「使い方」で構成する。選択肢は折り返し、言語はドロップダウンを使う。新たな長文説明を常時表示へ戻さない。`SettingsOrganizationUiTest`、`DeckUiTest`、`ApkUpdateUiTest`で導線を検証する。

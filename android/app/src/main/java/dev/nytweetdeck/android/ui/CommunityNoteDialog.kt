@@ -219,7 +219,7 @@ private fun CommunityNoteReady(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         PostCard(
-            post = page.post,
+            post = page.post.copy(communityNote = null),
             onPostClick = onPostClick,
             onQuoteClick = onQuoteClick,
             onCreateQuoteClick = onCreateQuoteClick,
@@ -248,16 +248,17 @@ private fun CommunityNoteReady(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
         )
-        CommunityNoteText(
-            text = page.detail.text,
-            sources = page.detail.sources,
-            onOpenSource = onOpenSource,
+        TranslatableCommunityNote(
+            dev.nytweetdeck.android.model.CommunityNote(null, page.detail.text, null,
+                page.detail.noteId, page.detail.language, page.detail.isTranslatable, page.detail.sources),
+            translationStates, autoTranslatePosts, onTranslationNeeded, onTranslationRetry,
+            onToggleOriginal, onOpenSource,
         )
     }
 }
 
 @Composable
-private fun CommunityNoteText(
+internal fun CommunityNoteText(
     text: String,
     sources: List<CommunityNoteSource>,
     onOpenSource: (Intent) -> Unit,

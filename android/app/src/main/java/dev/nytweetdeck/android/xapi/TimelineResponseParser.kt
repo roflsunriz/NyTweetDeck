@@ -342,7 +342,11 @@ class TimelineResponseParser(
         if (title == null && noteText == null && footer == null) {
             return null
         }
-        return CommunityNote(title, noteText, footer)
+        return CommunityNote(title, noteText, footer,
+            note?.text("rest_id"), note?.text("language"),
+            (note?.get("is_community_note_translatable") as? JsonPrimitive)?.contentOrNull?.toBooleanStrictOrNull(),
+            parseNoteSources(noteText.orEmpty(), summary?.get("entities")),
+        )
     }
 
     private fun richText(node: JsonElement?): String? {

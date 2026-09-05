@@ -2,6 +2,8 @@ package dev.nytweetdeck.android.xapi
 
 import dev.nytweetdeck.android.model.CommunityNoteDetail
 import dev.nytweetdeck.android.model.CommunityNoteSource
+import dev.nytweetdeck.android.model.PostTranslation
+import kotlinx.serialization.json.booleanOrNull
 import dev.nytweetdeck.android.model.Notification
 import dev.nytweetdeck.android.model.NotificationActor
 import dev.nytweetdeck.android.model.NotificationPage
@@ -42,6 +44,7 @@ class NotificationResponseParser(
     fun parseCommunityNote(
         body: String,
         expectedNoteId: String,
+        targetLanguage: String? = null,
     ): CommunityNoteDetail = try {
         val root = json.parseToJsonElement(body) as? JsonObject
         val note = root
@@ -61,25 +64,7 @@ class NotificationResponseParser(
             throw IllegalArgumentException("コミュニティノート本文がありません。")
         }
 
-        val sources = buildList {
-            val entities = summary?.get("entities") as? JsonArray
-            entities?.forEach { entity ->
-                val source = entity as? JsonObject ?: return@forEach
-                val url = source
-                    .objectValue("ref")
-                    ?.text("url")
-                    .orEmpty()
-                if (!isSafeWebUrl(url)) {
-                    return@forEach
-                }
-                val fromIndex = source.integer("fromIndex", "from_index")
-                val toIndex = source.integer("toIndex", "to_index")
-                if (fromIndex < 0 || toIndex <= fromIndex || toIndex > text.length) {
-                    return@forEach
-                }
-                add(CommunityNoteSource(fromIndex, toIndex, url))
-            }
-        }
+        val sources = parseNoteSources(text, summary?.get("entities"))
 
         val targetPostId = note
             .objectValue("tweet_results")
@@ -89,7 +74,24 @@ class NotificationResponseParser(
         if (!POST_ID.matches(targetPostId)) {
             throw IllegalArgumentException("コミュニティノートの対象ポストIDがありません。")
         }
-        CommunityNoteDetail(noteId, text, sources, targetPostId)
+        val available = note.objectValue("grok_translated_community_note_with_availability")
+        val translated = available?.objectValue("data")
+        val destination = translated.text("destination_language")
+        val translatedText = translated.text("translation")
+        val translation = if (
+            (available?.get("is_available") as? JsonPrimitive)?.booleanOrNull == true &&
+            (translated?.get("translation_available") as? JsonPrimitive)?.booleanOrNull == true &&
+            targetLanguage != null && destination.equals(targetLanguage, ignoreCase = true) &&
+            !translatedText.isNullOrBlank()
+        ) PostTranslation(
+            "note:$noteId", translated.text("source_language").orEmpty(),
+            requireNotNull(destination), translatedText,
+            sources = parseNoteSources(translatedText, translated?.get("rich_text_entities")),
+        ) else null
+        CommunityNoteDetail(
+            noteId, text, sources, targetPostId, note.text("language"),
+            (note["is_community_note_translatable"] as? JsonPrimitive)?.booleanOrNull, translation,
+        )
     } catch (exception: Exception) {
         throw XApiException("コミュニティノート応答を解析できません。", cause = exception)
     }

@@ -1,3 +1,4 @@
+import { CommunityNoteCard } from "./community-note-card";
 import {
   BarChart3,
   Bot,
@@ -13,7 +14,7 @@ import { type KeyboardEvent, type MouseEvent, useEffect, useId, useRef, useState
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import { useRelativeTime } from "../model/relative-time";
-import type { CommunityNote, EmbeddedPost, TimelinePost } from "../model/timeline";
+import type { EmbeddedPost, TimelinePost } from "../model/timeline";
 import { postTextSegments } from "../model/post-text-segments";
 import { ComposerDialog } from "./composer-dialog";
 import { ArticleCard } from "./article-card";
@@ -280,13 +281,12 @@ export function PostCard({
         <p className="post-text">{renderPostText(visibleText, post.links)}</p>
         <PostTranslationStatus state={postTranslation} translation={translation} />
         {post.communityNote != null && (
-          <aside className="community-note-card" data-testid="community-note-card">
-            <strong>{post.communityNote.title || translation.communityNote}</strong>
-            {post.communityNote.text !== null && (
-              <p>{renderCommunityNoteText(post.communityNote)}</p>
-            )}
-            {post.communityNote.footer !== null && <small>{post.communityNote.footer}</small>}
-          </aside>
+          <CommunityNoteCard
+            note={post.communityNote}
+            accountId={accountId}
+            active={translationInViewport}
+            translation={translation}
+          />
         )}
         {post.media.length > 0 && display.mediaPreview && (
           <div className="post-media">
@@ -728,42 +728,5 @@ function Action({
 function compactNumber(value: number): string {
   return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(
     value,
-  );
-}
-
-function renderCommunityNoteText(note: CommunityNote) {
-  const text = note.text ?? "";
-  const sources = [...(note.sources ?? [])]
-    .filter(
-      (source) =>
-        source.fromIndex >= 0 && source.toIndex > source.fromIndex && source.toIndex <= text.length,
-    )
-    .sort((first, second) => first.fromIndex - second.fromIndex);
-  if (sources.length === 0) return text;
-  const content: Array<string | ReturnType<typeof createCommunityNoteLink>> = [];
-  let cursor = 0;
-  for (const source of sources) {
-    if (source.fromIndex < cursor) continue;
-    if (source.fromIndex > cursor) content.push(text.slice(cursor, source.fromIndex));
-    content.push(createCommunityNoteLink(source, text));
-    cursor = source.toIndex;
-  }
-  if (cursor < text.length) content.push(text.slice(cursor));
-  return content;
-}
-
-function createCommunityNoteLink(
-  source: { fromIndex: number; toIndex: number; url: string },
-  text: string,
-) {
-  return (
-    <a
-      key={`${source.fromIndex}:${source.toIndex}:${source.url}`}
-      href={source.url}
-      target="_blank"
-      rel="noreferrer"
-    >
-      {text.slice(source.fromIndex, source.toIndex)}
-    </a>
   );
 }

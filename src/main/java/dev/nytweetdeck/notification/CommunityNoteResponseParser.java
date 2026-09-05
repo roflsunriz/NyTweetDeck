@@ -49,7 +49,10 @@ public class CommunityNoteResponseParser {
             if (!targetPostId.matches("[0-9]{1,24}")) {
                 throw new IllegalArgumentException("コミュニティノートの対象ポストIDがありません。");
             }
-            return new ParsedNote(noteId, text, sources, targetPostId);
+            return new ParsedNote(noteId, text, sources, targetPostId,
+                    note.path("language").asString(null),
+                    note.path("is_community_note_translatable").isBoolean()
+                            ? note.path("is_community_note_translatable").asBoolean() : null);
         } catch (JacksonException | IllegalArgumentException exception) {
             throw new XApiHttpException("コミュニティノート応答を解析できません。", exception);
         }
@@ -59,6 +62,38 @@ public class CommunityNoteResponseParser {
         var value = node.get(camelCase);
         if (value == null) value = node.get(snakeCase);
         return value == null ? -1 : value.asInt(-1);
+    }
+
+    public CommunityNoteTranslation parseTranslation(String body, String noteId, String target) {
+        try {
+            var note = objectMapper.readTree(body).path("data").path("birdwatch_note_by_rest_id");
+            if (!noteId.equals(note.path("rest_id").asString(""))) {
+                throw new IllegalArgumentException("コミュニティノートIDが応答と一致しません。");
+            }
+            var translated = note.path("grok_translated_community_note_with_availability");
+            var data = translated.path("data");
+            if (!translated.path("is_available").asBoolean(false) || !data.isObject()) {
+                return new CommunityNoteTranslation(noteId, false, null, null, target, "X", java.util.List.of());
+            }
+            var text = data.path("translation").asString("");
+            if (text.isBlank() || !target.equalsIgnoreCase(data.path("destination_language").asString(""))) {
+                throw new IllegalArgumentException("コミュニティノート翻訳の本文または言語が不正です。");
+            }
+            var sources = new ArrayList<CommunityNoteDetail.Source>();
+            for (var entity : data.path("rich_text_entities")) {
+                var ref = entity.path("ref");
+                var url = ref.path("expanded_url").asString(ref.path("url").asString(""));
+                var from = integer(entity, "fromIndex", "from_index");
+                var to = integer(entity, "toIndex", "to_index");
+                if (isSafeWebUrl(url) && from >= 0 && to > from && to <= text.length()) {
+                    sources.add(new CommunityNoteDetail.Source(from, to, url));
+                }
+            }
+            return new CommunityNoteTranslation(noteId, true, text,
+                    data.path("source_language").asString(null), target, "X", sources);
+        } catch (JacksonException | IllegalArgumentException exception) {
+            throw new XApiHttpException("コミュニティノート翻訳を解析できません。", exception);
+        }
     }
 
     private static boolean isSafeWebUrl(String value) {
@@ -76,7 +111,9 @@ public class CommunityNoteResponseParser {
             String noteId,
             String text,
             java.util.List<CommunityNoteDetail.Source> sources,
-            String targetPostId) {
+            String targetPostId,
+            String language,
+            Boolean isTranslatable) {
         public ParsedNote {
             sources = java.util.List.copyOf(sources);
         }

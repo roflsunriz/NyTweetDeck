@@ -267,4 +267,5 @@
     <string name="settings_transfer">ترتیبات کی منتقلی</string>
     <string name="settings_details">تفصیلات</string>
     <string name="settings_help">مدد</string>
+    <string name="translation_unavailable">ترجمہ ابھی دستیاب نہیں ہے۔</string>
 </resources>

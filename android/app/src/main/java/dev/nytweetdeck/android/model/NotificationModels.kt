@@ -30,6 +30,9 @@ data class CommunityNoteDetail(
     val text: String,
     val sources: List<CommunityNoteSource>,
     val targetPostId: String,
+    val language: String? = null,
+    val isTranslatable: Boolean? = null,
+    val translation: PostTranslation? = null,
 )
 
 data class CommunityNotePage(

@@ -402,7 +402,11 @@ public class TimelineResponseParser {
         if (title == null && noteText == null && footer == null) {
             return null;
         }
-        return new CommunityNote(title, noteText, footer);
+        return new CommunityNote(title, noteText, footer,
+                note == null ? null : note.path("rest_id").asString(null),
+                note == null ? null : note.path("language").asString(null),
+                note != null && note.path("is_community_note_translatable").isBoolean()
+                        ? note.path("is_community_note_translatable").asBoolean() : null);
     }
 
     private static String richText(JsonNode node) {

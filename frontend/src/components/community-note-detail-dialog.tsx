@@ -7,6 +7,8 @@ import { PostCard, type TimelinePost } from "./post-card";
 interface CommunityNoteDetail {
   noteId: string;
   text: string;
+  language: string | null;
+  isTranslatable: boolean | null;
   sources: Array<{ fromIndex: number; toIndex: number; url: string }>;
   post: TimelinePost;
 }
@@ -81,6 +83,9 @@ export function CommunityNoteDetailDialog({
             post={{
               ...detail.post,
               communityNote: {
+                noteId: detail.noteId,
+                language: detail.language,
+                isTranslatable: detail.isTranslatable,
                 title: translation.communityNote,
                 text: detail.text,
                 footer: null,

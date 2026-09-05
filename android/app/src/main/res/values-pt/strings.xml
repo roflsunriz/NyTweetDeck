@@ -268,4 +268,5 @@
     <string name="settings_transfer">Transferir configurações</string>
     <string name="settings_details">Detalhes</string>
     <string name="settings_help">Ajuda</string>
+    <string name="translation_unavailable">A tradução ainda não está disponível.</string>
 </resources>

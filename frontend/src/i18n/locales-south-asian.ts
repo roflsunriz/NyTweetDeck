@@ -3,6 +3,7 @@ import type { TranslationOverride } from "./translations";
 
 export const overrides: Partial<Record<Locale, TranslationOverride>> = {
   zh: {
+    translationUnavailable: "翻译暂不可用。",
     downloadLatestDesktop: "下载最新版本",
     settingsTransfer: "设置备份",
     translationHealth: "翻译使用情况",
@@ -180,6 +181,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   hi: {
+    translationUnavailable: "अनुवाद अभी उपलब्ध नहीं है।",
     downloadLatestDesktop: "नवीनतम संस्करण डाउनलोड करें",
     settingsTransfer: "सेटिंग्स बैकअप",
     translationHealth: "अनुवाद का उपयोग",
@@ -358,6 +360,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   bn: {
+    translationUnavailable: "অনুবাদ এখনও উপলব্ধ নয়।",
     downloadLatestDesktop: "সর্বশেষ সংস্করণ ডাউনলোড করুন",
     settingsTransfer: "সেটিংস ব্যাকআপ",
     translationHealth: "অনুবাদের ব্যবহার",

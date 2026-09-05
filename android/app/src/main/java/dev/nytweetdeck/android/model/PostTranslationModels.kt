@@ -8,6 +8,7 @@ data class PostTranslation(
     val targetLanguage: String,
     val text: String,
     val provider: String = "X",
+    val sources: List<CommunityNoteSource> = emptyList(),
 )
 
 enum class TranslationOrigin {
@@ -74,6 +75,7 @@ data class PostTranslationUiState(
     val translation: PostTranslation? = null,
     val showOriginal: Boolean = false,
     val retryAfterSeconds: Long? = null,
+    val unavailable: Boolean = false,
 )
 
 data class TranslationCandidate(
@@ -81,4 +83,5 @@ data class TranslationCandidate(
     val sourceLanguage: String?,
     val preTranslated: Translation?,
     val text: String,
+    val communityNote: CommunityNote? = null,
 )

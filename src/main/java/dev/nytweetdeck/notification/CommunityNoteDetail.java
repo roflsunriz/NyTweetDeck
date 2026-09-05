@@ -7,6 +7,8 @@ public record CommunityNoteDetail(
         String noteId,
         String text,
         List<Source> sources,
+        String language,
+        Boolean isTranslatable,
         TimelinePage.Post post) {
 
     public CommunityNoteDetail {

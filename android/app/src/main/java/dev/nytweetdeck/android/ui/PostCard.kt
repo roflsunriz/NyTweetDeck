@@ -210,6 +210,8 @@ internal fun PostCard(
                 videoQuality = videoQuality,
             )
         }
+        post.communityNote?.let { TranslatableCommunityNote(it, translationStates, autoTranslatePosts,
+            onTranslationNeeded, onTranslationRetry, onToggleOriginal) }
         Spacer(Modifier.height(8.dp))
         PostActions(
             post = post,

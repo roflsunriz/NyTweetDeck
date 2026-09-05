@@ -37,4 +37,36 @@ class CommunityNoteResponseParserTest {
                 """, "555"))
                 .hasMessageContaining("解析できません");
     }
+
+    @Test
+    void parsesNativeTranslationAndItsOwnSourceOffsets() {
+        var note = parser.parseTranslation(translation("ja"), "555", "ja");
+        assertThat(note.available()).isTrue();
+        assertThat(note.text()).isEqualTo("説明 出典");
+        assertThat(note.sources()).containsExactly(new CommunityNoteDetail.Source(3, 5, "https://example.com/source"));
+        assertThatThrownBy(() -> parser.parseTranslation(translation("en"), "555", "ja"))
+                .hasMessageContaining("解析できません");
+    }
+
+    @Test
+    void treatsUnavailableAsUnprovidedWithoutUsingOriginalText() {
+        var note = parser.parseTranslation("""
+                {"data":{"birdwatch_note_by_rest_id":{"rest_id":"555",
+                "grok_translated_community_note_with_availability":{"is_available":false}}}}
+                """, "555", "ja");
+        assertThat(note.available()).isFalse();
+        assertThat(note.text()).isNull();
+        assertThat(note.sources()).isEmpty();
+    }
+
+    private String translation(String destination) {
+        return """
+                {"data":{"birdwatch_note_by_rest_id":{"rest_id":"555",
+                "grok_translated_community_note_with_availability":{"is_available":true,"data":{
+                "destination_language":"%s","source_language":"en","translation":"説明 出典",
+                "rich_text_entities":[{"from_index":"3","to_index":"5",
+                "ref":{"url":"https://t.co/short","expanded_url":"https://example.com/source"}},
+                {"from_index":"0","to_index":"2","ref":{"url":"javascript:bad"}}]}}}}}
+                """.formatted(destination);
+    }
 }

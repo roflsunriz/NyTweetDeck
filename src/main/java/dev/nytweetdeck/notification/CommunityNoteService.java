@@ -39,12 +39,22 @@ public class CommunityNoteService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "コミュニティノートの対象ポスト応答にポストがありません。"));
-        return new CommunityNoteDetail(note.noteId(), note.text(), note.sources(), post);
+        return new CommunityNoteDetail(note.noteId(), note.text(), note.sources(),
+                note.language(), note.isTranslatable(), post);
     }
 
     private static void validateNoteId(String noteId) {
         if (noteId == null || !noteId.matches("[0-9]{1,24}")) {
             throw new IllegalArgumentException("コミュニティノートIDの形式が不正です。");
         }
+    }
+
+    public CommunityNoteTranslation translate(String accountId, String noteId, String targetLanguage) {
+        validateNoteId(noteId);
+        if (!targetLanguage.matches("[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*")) {
+            throw new IllegalArgumentException("翻訳先言語の形式が不正です。");
+        }
+        var result = graphQlClient.execute(accountId, "communityNote", Map.of("note_id", noteId), targetLanguage);
+        return noteParser.parseTranslation(result.rawJson(), noteId, targetLanguage);
     }
 }

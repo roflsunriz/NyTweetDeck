@@ -271,4 +271,5 @@
     <string name="settings_transfer">نقل الإعدادات</string>
     <string name="settings_details">التفاصيل</string>
     <string name="settings_help">المساعدة</string>
+    <string name="translation_unavailable">الترجمة غير متاحة بعد.</string>
 </resources>

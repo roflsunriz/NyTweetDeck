@@ -23,4 +23,10 @@ public class CommunityNoteController {
             @RequestParam(defaultValue = "ja") String language) {
         return service.detail(accountId, noteId, language);
     }
+
+    @GetMapping("/{noteId}/translation")
+    CommunityNoteTranslation translation(@PathVariable String noteId,
+            @RequestParam String accountId, @RequestParam String targetLanguage) {
+        return service.translate(accountId, noteId, targetLanguage);
+    }
 }

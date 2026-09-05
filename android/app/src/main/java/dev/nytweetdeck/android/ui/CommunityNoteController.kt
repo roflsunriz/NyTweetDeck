@@ -5,7 +5,9 @@ import dev.nytweetdeck.android.data.CommunityNoteRepository
 import dev.nytweetdeck.android.model.CommunityNoteStatus
 import dev.nytweetdeck.android.model.CommunityNoteUiState
 import dev.nytweetdeck.android.model.DeckUiState
-import java.util.Locale
+import dev.nytweetdeck.android.model.TranslationCandidate
+import dev.nytweetdeck.android.model.PostTranslationUiState
+import dev.nytweetdeck.android.model.TranslationLoadStatus
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +23,36 @@ internal class CommunityNoteController(
     private val accountProvider: (String) -> AccountSecrets?,
     private val state: MutableStateFlow<DeckUiState>,
 ) {
+    fun translate(candidate: TranslationCandidate, manual: Boolean = false) {
+        val note = candidate.communityNote ?: return
+        val noteId = note.noteId ?: return
+        val snapshot = state.value
+        if (!manual && !snapshot.autoTranslatePosts) return
+        val target = snapshot.translationLanguageTag
+        val key = "note:$noteId"
+        if (!isCommunityNoteTranslationCandidate(note, target)) {
+            state.update { it.copy(postTranslations = it.postTranslations + (key to PostTranslationUiState(TranslationLoadStatus.SKIPPED))) }
+            return
+        }
+        if (snapshot.postTranslations[key]?.status == TranslationLoadStatus.LOADING) return
+        if (!manual && snapshot.postTranslations.containsKey(key)) return
+        val accountId = snapshot.selectedAccountId ?: return
+        val account = accountProvider(accountId) ?: return
+        state.update { it.copy(postTranslations = it.postTranslations + (key to PostTranslationUiState(TranslationLoadStatus.LOADING))) }
+        scope.launch(ioDispatcher) {
+            val result = runCatching { repository.loadNote(account, noteId, target) }
+            withContext(Dispatchers.Main.immediate) {
+                if (state.value.selectedAccountId != accountId || state.value.translationLanguageTag != target) return@withContext
+                val translated = result.fold(
+                    onSuccess = { detail -> detail.translation?.let { PostTranslationUiState(TranslationLoadStatus.READY, it) }
+                        ?: PostTranslationUiState(TranslationLoadStatus.FAILED, unavailable = true) },
+                    onFailure = { PostTranslationUiState(TranslationLoadStatus.FAILED) },
+                )
+                state.update { it.copy(postTranslations = it.postTranslations + (key to translated)) }
+            }
+        }
+    }
+
     fun open(noteId: String) {
         state.update { it.copy(communityNote = CommunityNoteUiState(CommunityNoteStatus.LOADING, noteId)) }
         load(noteId)
@@ -44,7 +76,7 @@ internal class CommunityNoteController(
                 repository.load(
                     account,
                     noteId,
-                    Locale.getDefault().toLanguageTag().ifBlank { "ja" },
+                    state.value.translationLanguageTag,
                 )
             }
             withContext(Dispatchers.Main.immediate) {

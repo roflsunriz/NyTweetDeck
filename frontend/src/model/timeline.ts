@@ -75,6 +75,9 @@ export interface PreTranslatedPost {
 }
 
 export interface CommunityNote {
+  noteId?: string | null;
+  language?: string | null;
+  isTranslatable?: boolean | null;
   title: string | null;
   text: string | null;
   footer: string | null;

@@ -267,4 +267,5 @@
     <string name="settings_transfer">सेटिंग स्थानांतरण</string>
     <string name="settings_details">विवरण</string>
     <string name="settings_help">सहायता</string>
+    <string name="translation_unavailable">अनुवाद अभी उपलब्ध नहीं है।</string>
 </resources>
