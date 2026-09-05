@@ -77,7 +77,7 @@ class PostTranslationRepositoryTest {
     }
 
     @Test
-    fun cachesPerAccountAndValidatesTheNativeResponsePostId() {
+    fun cachesPerAccountAndRejectsStreamErrors() {
         val endpoint = RecordingEndpoint { call -> success(call.postId, "翻訳-${call.accountId}") }
         val repository = PostTranslationRepository(endpoint)
 
@@ -94,7 +94,7 @@ class PostTranslationRepositoryTest {
         assertEquals(1, repository.health("account-a").cacheHits)
 
         val mismatched = PostTranslationRepository(
-            RecordingEndpoint { success("999", "wrong post") },
+            RecordingEndpoint { AuthenticatedRestClient.RestResult("""{"error":{"message":"failed"}}""", null, null) },
         )
         assertThrows(dev.nytweetdeck.android.model.PostTranslationException::class.java) {
             mismatched.translate(account("account-a"), "123", "en", "ja")
@@ -275,7 +275,7 @@ class PostTranslationRepositoryTest {
         translation: String,
         rateLimit: AuthenticatedRestClient.RateLimitInfo? = null,
     ) = AuthenticatedRestClient.RestResult(
-        body = """{"id_str":"$postId","translation":"$translation"}""",
+        body = """{"result":{"text":"$translation"}}""",
         rateLimit = rateLimit,
         retryAfterSeconds = null,
     )

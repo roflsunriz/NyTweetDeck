@@ -78,7 +78,7 @@ internal class PostTranslationController(
                 )
             }
             withContext(Dispatchers.Main.immediate) {
-                if (state.value.selectedAccountId != accountId) return@withContext
+                if (state.value.selectedAccountId != accountId || state.value.translationLanguageTag != targetLanguage) return@withContext
                 state.update { current ->
                     val translated = result.fold(
                         onSuccess = { response ->

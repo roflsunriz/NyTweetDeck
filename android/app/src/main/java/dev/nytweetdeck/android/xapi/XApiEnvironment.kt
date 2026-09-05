@@ -73,6 +73,9 @@ class XApiEnvironment(context: Context) : XSessionVerifier, XApiMetadataRefreshe
 
     fun restClient(): AuthenticatedRestClient = restClient
 
+    fun translateCommunityNote(account: dev.nytweetdeck.android.data.AccountSecrets, noteId: String, language: String) =
+        restClient.translateCommunityNote(account, noteId, language)
+
     fun livePipeline(): LivePipelineSubscriptionService = livePipelineSubscriptions
 
     override fun refreshMetadata(): XApiMetadataRefreshResult =

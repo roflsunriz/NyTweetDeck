@@ -6,28 +6,51 @@ import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.NotificationResponseParser
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XSessionCredentials
+import dev.nytweetdeck.android.xapi.AuthenticatedRestClient
+import dev.nytweetdeck.android.xapi.parseLiveNoteTranslation
+import dev.nytweetdeck.android.text.hasTranslatableText
+
+fun interface XCommunityNoteTranslationEndpoint {
+    fun translate(account: AccountSecrets, noteId: String, language: String): AuthenticatedRestClient.RestResult
+}
 
 class CommunityNoteRepository(
     private val graphQlExecutor: GraphQlExecutor,
     private val notificationParser: NotificationResponseParser = NotificationResponseParser(),
     private val timelineParser: TimelineResponseParser = TimelineResponseParser(),
+    private val liveTranslation: XCommunityNoteTranslationEndpoint? = null,
 ) {
-    // Serial requests and a bounded account/language cache prevent a column burst from flooding X.
-    private val cache = object : LinkedHashMap<Triple<String, String, String>, CommunityNoteDetail>(64, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Triple<String, String, String>, CommunityNoteDetail>?) = size > 256
-    }
+    private val memory = TranslationMemory<Triple<String, String, String>, CommunityNoteDetail>(256)
+    private val translatedMemory = TranslationMemory<Triple<String, String, String>, CommunityNoteDetail>(256)
+    private val upstreamLock = Any()
 
-    @Synchronized
     fun loadNote(account: AccountSecrets, noteId: String, language: String): CommunityNoteDetail {
         require(NOTE_ID.matches(noteId)) { "コミュニティノートIDの形式が不正です。" }
-        val key = Triple(account.accountId, noteId, language)
-        cache[key]?.let { return it }
-        val body = graphQlExecutor.execute(
-            XSessionCredentials(account.webBearerToken, account.authToken, account.csrfToken),
-            "communityNote", mapOf("note_id" to noteId), language,
-        )
-        return notificationParser.parseCommunityNote(body, noteId, language).also {
-            if (it.translation != null) cache[key] = it
+        val target = language.trim().replace('_', '-').lowercase(java.util.Locale.ROOT)
+        val key = Triple(account.accountId, noteId, target)
+        return memory.getOrLoad(key, cacheable = { it.translation != null }) {
+            // Keep note requests serial while allowing completed cache hits during a request.
+            synchronized(upstreamLock) {
+                val body = graphQlExecutor.execute(
+                    XSessionCredentials(account.webBearerToken, account.authToken, account.csrfToken),
+                    "communityNote", mapOf("note_id" to noteId), target,
+                )
+                notificationParser.parseCommunityNote(body, noteId, target)
+            }
+        }
+    }
+
+    fun translateNote(account: AccountSecrets, noteId: String, language: String): CommunityNoteDetail {
+        val target = language.trim().replace('_', '-').lowercase(java.util.Locale.ROOT)
+        return translatedMemory.getOrLoad(Triple(account.accountId, noteId, target), cacheable = { it.translation != null }) {
+            val detail = loadNote(account, noteId, target)
+            val endpoint = liveTranslation
+            if (detail.translation != null || endpoint == null || !hasTranslatableText(detail.text) ||
+                detail.language?.substringBefore('-')?.equals(target.substringBefore('-'), true) == true
+            ) detail else synchronized(upstreamLock) {
+                val response = endpoint.translate(account, noteId, target)
+                detail.copy(translation = parseLiveNoteTranslation(response.body, noteId, detail.language, target))
+            }
         }
     }
 

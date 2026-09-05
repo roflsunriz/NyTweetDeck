@@ -96,12 +96,12 @@ class AuthenticatedRestClientTest {
     }
 
     @Test
-    fun translatePostExpandsOnlyTheOfficialPathVariablesAndReturnsRateLimitMetadata() {
+    fun translatePostUsesOfficialLiveBodyAndReturnsRateLimitMetadata() {
         val resetAt = Instant.parse("2026-08-29T12:00:00Z")
         val interceptor = SequenceInterceptor(
             ResponseSpec(
                 statusCode = 200,
-                body = """{"id_str":"123","translation":"こんにちは"}""",
+                body = """{"result":{"text":"こんにちは"}}""",
                 headers = mapOf(
                     "x-rate-limit-limit" to "100",
                     "x-rate-limit-remaining" to "95",
@@ -117,12 +117,16 @@ class AuthenticatedRestClientTest {
 
         val request = require(interceptor.requests.size == 1) { "expected one request" }
             .let { interceptor.requests.single() }
-        assertTrue(request.url.encodedPath.contains("tweetId=123"))
-        assertTrue(request.url.encodedPath.contains("translationSource=Some(X)"))
+        assertEquals("https://x.com/i/api/2/grok/translation.json", request.url.toString())
+        assertEquals("POST", request.method)
+        val body = Buffer().also { request.body?.writeTo(it) }.readUtf8()
+        assertTrue(body.contains("\"content_type\":\"POST\""))
+        assertTrue(body.contains("\"id\":\"123\""))
+        assertTrue(body.contains("\"dst_lang\":\"ja-jp\""))
         assertFalse(request.url.encodedPath.contains('{'))
         assertEquals("ja-jp", request.header("X-Twitter-Client-Language"))
         assertEquals("transaction-1", request.header(TRANSACTION_HEADER))
-        assertEquals("こんにちは", result.body.substringAfter("translation\":\"").substringBefore('"'))
+        assertEquals("こんにちは", result.body.substringAfter("text\":\"").substringBefore('"'))
         assertNotNull(result.rateLimit)
         assertEquals(100, result.rateLimit?.limit)
         assertEquals(95, result.rateLimit?.remaining)
@@ -132,6 +136,20 @@ class AuthenticatedRestClientTest {
             client.translatePost(account(), "123", "Google", "ja")
         }
         assertEquals(1, interceptor.requests.size)
+    }
+
+    @Test
+    fun liveCommunityNoteUsesNoteContentTypeAndLanguageHeader() {
+        val interceptor = SequenceInterceptor(ResponseSpec(200, """{"result":{"text":"訳"}}"""))
+        val client = client(profile(), interceptor, RecordingTransactionIdService())
+        client.translateCommunityNote(account(), "55", "ja")
+        val request = interceptor.requests.single()
+        val body = Buffer().also { request.body?.writeTo(it) }.readUtf8()
+        assertEquals("POST", request.method)
+        assertEquals("https://x.com/i/api/2/grok/translation.json", request.url.toString())
+        assertEquals("{\"content_type\":\"COMMUNITY_NOTE\",\"id\":\"55\"}", body)
+        assertEquals("ja", request.header("X-Twitter-Client-Language"))
+        assertEquals("transaction-1", request.header(TRANSACTION_HEADER))
     }
 
     @Test
@@ -192,6 +210,7 @@ class AuthenticatedRestClientTest {
         restEndpoints = mapOf(
             "lookup" to "/1.1/users/show.json",
             "followUser" to "/1.1/friendships/create.json",
+            "grokTranslation" to "/2/grok/translation.json",
             "translatePost" to "/1.1/strato/column/None/tweetId={postId}," +
                 "destinationLanguage=None,translationSource=Some({translationSource})," +
                 "feature=None,timeout=None,onlyCached=None/translation/service/translateTweet",

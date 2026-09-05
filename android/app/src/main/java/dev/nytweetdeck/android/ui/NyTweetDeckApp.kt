@@ -115,7 +115,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             PostActionRepository(graphQlClient),
             PostComposerRepository(graphQlClient),
             PostDetailRepository(graphQlClient),
-            CommunityNoteRepository(graphQlClient),
+            CommunityNoteRepository(graphQlClient, liveTranslation = dev.nytweetdeck.android.data.XCommunityNoteTranslationEndpoint(environment::translateCommunityNote)),
             PostTranslationRepository(environment.restClient()),
             UserActionRepository(environment.restClient()),
             ListMembershipRepository(graphQlClient),

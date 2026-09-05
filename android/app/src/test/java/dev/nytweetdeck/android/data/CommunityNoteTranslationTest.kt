@@ -42,7 +42,7 @@ class CommunityNoteTranslationTest {
         assertTrue(isCommunityNoteTranslationCandidate(note, "ja"))
         assertFalse(isCommunityNoteTranslationCandidate(note, "en-US"))
         assertFalse(isCommunityNoteTranslationCandidate(note.copy(text = "@alice https://t.co/image"), "ja"))
-        assertFalse(isCommunityNoteTranslationCandidate(note.copy(language = null), "ja"))
+        assertTrue(isCommunityNoteTranslationCandidate(note.copy(language = null), "ja"))
         assertTrue(isCommunityNoteTranslationCandidate(note.copy(language = null, isTranslatable = true), "ja"))
     }
 

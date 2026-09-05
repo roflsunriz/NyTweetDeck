@@ -1,5 +1,7 @@
 package dev.nytweetdeck.notification;
 
+import dev.nytweetdeck.post.TranslationMemory;
+import dev.nytweetdeck.post.PostTranslationService;
 import dev.nytweetdeck.timeline.TimelineResponseParser;
 import dev.nytweetdeck.xapi.graphql.AuthenticatedGraphQlClient;
 import java.util.LinkedHashMap;
@@ -9,17 +11,21 @@ import org.springframework.stereotype.Service;
 @Service
 public class CommunityNoteService {
 
+    private final TranslationMemory<CommunityNoteTranslation> translations = new TranslationMemory<>(1_000);
     private final AuthenticatedGraphQlClient graphQlClient;
     private final CommunityNoteResponseParser noteParser;
     private final TimelineResponseParser timelineParser;
+    private final PostTranslationService liveTranslation;
 
     public CommunityNoteService(
             AuthenticatedGraphQlClient graphQlClient,
             CommunityNoteResponseParser noteParser,
-            TimelineResponseParser timelineParser) {
+            TimelineResponseParser timelineParser,
+            PostTranslationService liveTranslation) {
         this.graphQlClient = graphQlClient;
         this.noteParser = noteParser;
         this.timelineParser = timelineParser;
+        this.liveTranslation = liveTranslation;
     }
 
     public CommunityNoteDetail detail(String accountId, String noteId, String language) {
@@ -54,7 +60,12 @@ public class CommunityNoteService {
         if (!targetLanguage.matches("[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*")) {
             throw new IllegalArgumentException("翻訳先言語の形式が不正です。");
         }
-        var result = graphQlClient.execute(accountId, "communityNote", Map.of("note_id", noteId), targetLanguage);
-        return noteParser.parseTranslation(result.rawJson(), noteId, targetLanguage);
+        var target = targetLanguage.toLowerCase(java.util.Locale.ROOT);
+        var key = new TranslationMemory.Key(accountId, "note", noteId, null, target, null);
+        return translations.load(key, () -> {
+            var result = graphQlClient.execute(accountId, "communityNote", Map.of("note_id", noteId), target);
+            var translated = noteParser.parseTranslation(result.rawJson(), noteId, target);
+            return translated.available() ? translated : liveTranslation.translateCommunityNote(accountId, noteId, target);
+        }, translation -> translation.available() && translation.text() != null && !translation.text().isBlank());
     }
 }

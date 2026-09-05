@@ -12,22 +12,12 @@ import dev.nytweetdeck.android.xapi.AuthenticatedRestClient
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
-import java.time.ZoneOffset
 import java.util.ArrayDeque
-import java.util.LinkedHashMap
 import java.util.Locale
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
 
 /** Boundary for the one allowed translation source: X's native translatePost REST endpoint. */
 fun interface XPostTranslationEndpoint {
@@ -61,8 +51,7 @@ class PostTranslationRepository(
         delay = delay,
     )
 
-    private val cache = LinkedHashMap<CacheKey, PostTranslation>(128, 0.75f, true)
-    private val inFlight = ConcurrentHashMap<CacheKey, CompletableFuture<PostTranslation>>()
+    private val memory = TranslationMemory<CacheKey, PostTranslation>(MAX_CACHE_ENTRIES)
     private val accountRateLimits = ConcurrentHashMap<String, RateLimitState>()
     private val latestRateLimit = AtomicReference<RateLimitState?>(null)
     private val upstreamSlots = Semaphore(MAX_CONCURRENT_UPSTREAM, true)
@@ -115,32 +104,17 @@ class PostTranslationRepository(
         }
 
         val key = CacheKey(account.accountId, postId, normalizedSource, target)
-        cached(key)?.let { translation ->
-            cacheHits.incrementAndGet()
-            return PostTranslationResult.Translated(translation, TranslationOrigin.X_ON_DEMAND)
-        }
-        val pending = CompletableFuture<PostTranslation>()
-        val existing = inFlight.putIfAbsent(key, pending)
-        if (existing != null) {
-            joinedRequests.incrementAndGet()
-            return PostTranslationResult.Translated(join(existing), TranslationOrigin.X_ON_DEMAND)
-        }
-        try {
-            val translation = fetchFromX(account, postId, normalizedSource, target)
-            cache(key, translation)
-            pending.complete(translation)
-            return PostTranslationResult.Translated(translation, TranslationOrigin.X_ON_DEMAND)
-        } catch (exception: RuntimeException) {
-            pending.completeExceptionally(exception)
-            throw exception
-        } finally {
-            inFlight.remove(key, pending)
-        }
+        val translation = memory.getOrLoad(
+            key,
+            onHit = { cacheHits.incrementAndGet() },
+            onJoin = { joinedRequests.incrementAndGet() },
+        ) { fetchFromX(account, postId, normalizedSource, target) }
+        return PostTranslationResult.Translated(translation, TranslationOrigin.X_ON_DEMAND)
     }
 
     fun health(accountId: String? = null): TranslationHealth {
         val rateLimit = accountId?.let(accountRateLimits::get) ?: latestRateLimit.get()
-        val cacheSize = synchronized(cache) { cache.size }
+        val cacheSize = memory.size
         return TranslationHealth(
             requests = requests.get(),
             upstreamRequests = upstreamRequests.get(),
@@ -157,7 +131,7 @@ class PostTranslationRepository(
             rateLimitRemaining = rateLimit?.remaining,
             rateLimitResetAt = rateLimit?.resetAt,
             cacheEntries = cacheSize,
-            inFlightRequests = inFlight.size,
+            inFlightRequests = memory.inFlight,
         )
     }
 
@@ -223,31 +197,7 @@ class PostTranslationRepository(
         sourceLanguage: String,
         targetLanguage: String,
     ): PostTranslation {
-        val root = try {
-            JSON.parseToJsonElement(body).jsonObject
-        } catch (exception: Exception) {
-            throw PostTranslationException("X翻訳応答を解析できません。", 502, cause = exception)
-        }
-        val responsePostId = root.text("id_str")
-        if (responsePostId != null && responsePostId != postId) {
-            throw PostTranslationException("翻訳応答のポストIDが一致しません。", 502)
-        }
-        val text = root.text("translation")?.takeIf(String::isNotBlank)
-            ?: throw PostTranslationException("X翻訳応答に翻訳文がありません。", 502)
-        return PostTranslation(postId, sourceLanguage, targetLanguage, text, X_TRANSLATION_SOURCE)
-    }
-
-    private fun cached(key: CacheKey): PostTranslation? = synchronized(cache) { cache[key] }
-
-    private fun cache(key: CacheKey, translation: PostTranslation) {
-        synchronized(cache) {
-            cache[key] = translation
-            while (cache.size > MAX_CACHE_ENTRIES) {
-                val iterator = cache.entries.iterator()
-                iterator.next()
-                iterator.remove()
-            }
-        }
+        return dev.nytweetdeck.android.xapi.parseLiveTranslation(body, postId, sourceLanguage, targetLanguage)
     }
 
     private fun matchingPreTranslation(preTranslated: Translation?, targetLanguage: String): String? {
@@ -398,13 +348,6 @@ class PostTranslationRepository(
         statusCode == 429 ||
         statusCode in 500..599
 
-    private fun join(pending: CompletableFuture<PostTranslation>): PostTranslation = try {
-        pending.join()
-    } catch (exception: CompletionException) {
-        throw (exception.cause as? RuntimeException)
-            ?: PostTranslationException("X翻訳の待機に失敗しました。", 502, cause = exception)
-    }
-
     private fun recordRecentOutcome(success: Boolean) {
         synchronized(recentOutcomes) {
             recentOutcomes.addLast(success)
@@ -425,9 +368,6 @@ class PostTranslationRepository(
     private fun validatePostId(postId: String) {
         require(POST_ID.matches(postId)) { "ポストIDの形式が不正です。" }
     }
-
-    private fun JsonObject.text(name: String): String? =
-        (this[name] as? JsonPrimitive)?.contentOrNull
 
     private fun baseLanguage(language: String): String = language.substringBefore('-')
 
@@ -485,6 +425,5 @@ class PostTranslationRepository(
         val POST_ID = Regex("[0-9]{1,19}")
         val LANGUAGE_PATTERN = Regex("[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*")
         val UNDETERMINED_LANGUAGES = setOf("und", "zxx")
-        val JSON = Json { isLenient = false }
     }
 }

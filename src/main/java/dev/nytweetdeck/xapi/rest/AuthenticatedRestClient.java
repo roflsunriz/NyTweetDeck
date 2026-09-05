@@ -86,6 +86,17 @@ public class AuthenticatedRestClient {
         return send(requestBuilder.build(), endpointName);
     }
 
+    public RestResult postJson(String accountId, String endpointName, String body, String language) {
+        var path = profileService.profile().restEndpoints().get(endpointName);
+        if (path == null) throw new IllegalArgumentException("Undefined REST endpoint: " + endpointName);
+        var requestUri = URI.create("https://x.com/i/api" + path);
+        var requestBuilder = HttpRequest.newBuilder(requestUri).timeout(REQUEST_TIMEOUT)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body));
+        applyAuthentication(requestBuilder, requestUri, "POST", List.of(), accountStore.requireAccount(accountId), language);
+        return send(requestBuilder.build(), endpointName);
+    }
+
     private void applyAuthentication(
             HttpRequest.Builder requestBuilder,
             URI requestUri,

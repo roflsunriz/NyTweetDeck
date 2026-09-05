@@ -17,7 +17,7 @@ internal fun parseNoteSources(text: String, entities: JsonElement?): List<Commun
             val uri = URI(url.orEmpty())
             uri.scheme.equals("https", true) && !uri.host.isNullOrBlank() && uri.userInfo == null
         }.getOrDefault(false)
-        val url = value(ref, "expanded_url")?.takeIf(::safe)
+        val url = (value(ref, "expanded_url") ?: value(ref, "expandedUrl"))?.takeIf(::safe)
             ?: value(ref, "url")?.takeIf(::safe) ?: return@mapNotNull null
         val from = (value(source, "from_index") ?: value(source, "fromIndex"))?.toIntOrNull()
             ?: return@mapNotNull null

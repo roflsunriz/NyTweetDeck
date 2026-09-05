@@ -8,7 +8,6 @@ import dev.nytweetdeck.xapi.rest.AuthenticatedRestClient.RateLimitInfo;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -19,26 +18,27 @@ import tools.jackson.databind.json.JsonMapper;
 class PostTranslationServiceTest {
 
     @Test
-    void translatesOnlyThroughTheNativeXWebStratoSourceAndCachesTheResult() {
+    void translatesThroughTheNativeXLiveEndpointAndCachesTheResult() {
         var requestedPostId = new AtomicReference<String>();
         var requestedLanguage = new AtomicReference<String>();
         var calls = new int[1];
         var restClient = new AuthenticatedRestClient(null, null, null) {
             @Override
-            public RestResult get(
+            public RestResult postJson(
                     String accountId,
                     String endpointName,
-                    Map<String, String> pathVariables,
-                    Map<String, String> parameters,
+                    String body,
                     String language) {
                 calls[0]++;
-                assertThat(endpointName).isEqualTo("translatePost");
-                requestedPostId.set(pathVariables.get("postId"));
-                assertThat(pathVariables).containsEntry("translationSource", "X");
+                assertThat(endpointName).isEqualTo("grokTranslation");
+                var payload = JsonMapper.builder().build().readTree(body);
+                requestedPostId.set(payload.path("id").asString());
+                assertThat(payload.path("content_type").asString()).isEqualTo("POST");
+                assertThat(payload.path("dst_lang").asString()).isEqualTo("ja");
                 requestedLanguage.set(language);
                 return new RestResult(
                         endpointName,
-                        "{\"id_str\":\"123\",\"translation\":\"こんにちは世界\"}");
+                        "{\"result\":{\"content_type\":\"POST\",\"text\":\"こんにちは世界\"}}");
             }
         };
         var mapper = JsonMapper.builder().build();
@@ -69,21 +69,35 @@ class PostTranslationServiceTest {
     }
 
     @Test
+    void joinsOnlyPostChunksAndRejectsEmptyOrFailedStreams() {
+        var service = new PostTranslationService(null, JsonMapper.builder().build());
+        var translated = service.parse("""
+                {"result":{"content_type":"POST","text":"Hello "}}
+                {"result":{"content_type":"POLL","text":"Not post text"}}
+                {"result":{"content_type":"POST","text":"world"}}
+                """, "123", "en", "ja");
+        assertThat(translated.text()).isEqualTo("Hello world");
+        for (var body : java.util.List.of("", "{\"result\":{\"content_type\":\"POLL\",\"text\":\"poll\"}}", "{\"error\":\"failed\"}", "{\"result\":")) {
+            assertThatThrownBy(() -> service.parse(body, "123", "en", "ja"))
+                    .isInstanceOf(dev.nytweetdeck.xapi.http.XApiHttpException.class);
+        }
+    }
+
+    @Test
     void reservesTheLastFivePercentOfTheObservedXTranslationAllowance() {
         var calls = new int[1];
         var resetAt = Instant.parse("2026-08-27T16:00:00Z");
         var restClient = new AuthenticatedRestClient(null, null, null) {
             @Override
-            public RestResult get(
+            public RestResult postJson(
                     String accountId,
                     String endpointName,
-                    Map<String, String> pathVariables,
-                    Map<String, String> parameters,
+                    String body,
                     String language) {
                 calls[0]++;
                 return new RestResult(
                         endpointName,
-                        "{\"id_str\":\"123\",\"translation\":\"翻訳\"}",
+                        "{\"result\":{\"content_type\":\"POST\",\"text\":\"翻訳\"}}",
                         new RateLimitInfo(100, 5, resetAt));
             }
         };
@@ -115,11 +129,10 @@ class PostTranslationServiceTest {
         var release = new CountDownLatch(1);
         var restClient = new AuthenticatedRestClient(null, null, null) {
             @Override
-            public RestResult get(
+            public RestResult postJson(
                     String accountId,
                     String endpointName,
-                    Map<String, String> pathVariables,
-                    Map<String, String> parameters,
+                    String body,
                     String language) {
                 calls[0]++;
                 started.countDown();
@@ -133,7 +146,7 @@ class PostTranslationServiceTest {
                 }
                 return new RestResult(
                         endpointName,
-                        "{\"id_str\":\"123\",\"translation\":\"翻訳\"}");
+                        "{\"result\":{\"content_type\":\"POST\",\"text\":\"翻訳\"}}");
             }
         };
         var service = new PostTranslationService(restClient, JsonMapper.builder().build());

@@ -1,5 +1,7 @@
 package dev.nytweetdeck.post;
 
+import dev.nytweetdeck.notification.CommunityNoteTranslation;
+import dev.nytweetdeck.notification.CommunityNoteResponseParser;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import dev.nytweetdeck.xapi.rest.AuthenticatedRestClient;
 import dev.nytweetdeck.xapi.rest.AuthenticatedRestClient.RateLimitInfo;
@@ -7,11 +9,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,15 +31,8 @@ public class PostTranslationService {
     private final AuthenticatedRestClient restClient;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-    private final Map<CacheKey, TranslationResult> cache = Collections.synchronizedMap(
-            new LinkedHashMap<>(128, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<CacheKey, TranslationResult> eldest) {
-                    return size() > MAX_CACHE_ENTRIES;
-                }
-            });
-    private final Map<CacheKey, CompletableFuture<TranslationResult>> inFlight =
-            new ConcurrentHashMap<>();
+    private final TranslationMemory<TranslationResult> memory = new TranslationMemory<>(MAX_CACHE_ENTRIES);
+    private final TranslationMemory<CommunityNoteTranslation> noteMemory = new TranslationMemory<>(MAX_CACHE_ENTRIES);
     private final Map<String, RateLimitState> accountRateLimits = new ConcurrentHashMap<>();
     private final AtomicReference<RateLimitState> latestRateLimitState = new AtomicReference<>();
     private final AtomicLong requests = new AtomicLong();
@@ -80,56 +71,54 @@ public class PostTranslationService {
         if (baseLanguage(source).equals(baseLanguage(target))) {
             throw new IllegalArgumentException("元言語と翻訳先言語が同じです。");
         }
-        var key = new CacheKey(accountId, postId, source, target);
-        var cached = cache.get(key);
-        if (cached != null) {
-            cacheHits.incrementAndGet();
-            return cached;
-        }
-        var pending = new CompletableFuture<TranslationResult>();
-        var existing = inFlight.putIfAbsent(key, pending);
-        if (existing != null) {
-            joinedRequests.incrementAndGet();
-            return join(existing);
-        }
-        try {
+        var key = new TranslationMemory.Key(accountId, "post", postId, source, target, null);
+        return memory.load(key, () -> {
             ensureRateLimitAvailable(accountId);
             upstreamRequests.incrementAndGet();
             try {
-                var response = restClient.get(
-                        accountId,
-                        "translatePost",
-                        Map.of("postId", postId, "translationSource", TRANSLATION_SOURCE),
-                        Map.of(),
-                        target);
+                var body = objectMapper.writeValueAsString(Map.of("content_type", "POST", "id", postId, "dst_lang", target));
+                var response = restClient.postJson(accountId, "grokTranslation", body, target);
                 updateRateLimit(accountId, response.rateLimit());
                 var translated = parse(response.rawJson(), postId, source, target);
-                cache.put(key, translated);
                 upstreamSuccesses.incrementAndGet();
                 recordRecentOutcome(true);
-                pending.complete(translated);
                 return translated;
             } catch (RuntimeException exception) {
                 recordUpstreamFailure(accountId, exception);
-                pending.completeExceptionally(exception);
                 throw exception;
             }
-        } catch (RuntimeException exception) {
-            pending.completeExceptionally(exception);
-            throw exception;
-        } finally {
-            inFlight.remove(key, pending);
+        }, result -> true, cacheHits::incrementAndGet, joinedRequests::incrementAndGet);
+    }
+
+    public CommunityNoteTranslation translateCommunityNote(String accountId, String noteId, String targetLanguage) {
+        if (noteId == null || !noteId.matches("[0-9]{1,24}")) {
+            throw new IllegalArgumentException("コミュニティノートIDの形式が不正です。");
         }
+        var target = normalizeLanguage(targetLanguage, "翻訳先言語");
+        requests.incrementAndGet();
+        var key = new TranslationMemory.Key(accountId, "note", noteId, null, target, null);
+        return noteMemory.load(key, () -> {
+            ensureRateLimitAvailable(accountId);
+            upstreamRequests.incrementAndGet();
+            try {
+                var body = objectMapper.writeValueAsString(Map.of("content_type", "COMMUNITY_NOTE", "id", noteId));
+                var response = restClient.postJson(accountId, "grokTranslation", body, target);
+                updateRateLimit(accountId, response.rateLimit());
+                var translated = new CommunityNoteResponseParser(objectMapper).parseLiveTranslation(response.rawJson(), noteId, target);
+                upstreamSuccesses.incrementAndGet();
+                recordRecentOutcome(true);
+                return translated;
+            } catch (RuntimeException exception) {
+                recordUpstreamFailure(accountId, exception);
+                throw exception;
+            }
+        }, result -> result.available(), cacheHits::incrementAndGet, joinedRequests::incrementAndGet);
     }
 
     public TranslationHealth health() {
         var upstream = upstreamRequests.get();
         var successes = upstreamSuccesses.get();
         var rateLimit = latestRateLimitState.get();
-        int cacheSize;
-        synchronized (cache) {
-            cacheSize = cache.size();
-        }
         return new TranslationHealth(
                 requests.get(),
                 upstream,
@@ -145,8 +134,8 @@ public class PostTranslationService {
                 rateLimit == null ? null : rateLimit.limit(),
                 rateLimit == null ? null : rateLimit.remaining(),
                 rateLimit == null ? null : rateLimit.resetAt(),
-                cacheSize,
-                inFlight.size());
+                memory.size() + noteMemory.size(),
+                memory.pendingCount() + noteMemory.pendingCount());
     }
 
     TranslationResult parse(
@@ -155,17 +144,20 @@ public class PostTranslationService {
             String sourceLanguage,
             String targetLanguage) {
         try {
-            var root = objectMapper.readTree(body);
-            var responsePostId = text(root, "id_str");
-            if (responsePostId != null && !postId.equals(responsePostId)) {
-                throw new XApiHttpException("翻訳応答のポストIDが一致しません。", 502);
+            var translation = new StringBuilder();
+            for (var line : body.lines().filter(value -> !value.isBlank()).toList()) {
+                var chunk = objectMapper.readTree(line);
+                if (chunk.hasNonNull("error")) throw new XApiHttpException("Xライブ翻訳に失敗しました。", 502);
+                var result = chunk.path("result");
+                if ("POST".equals(result.path("content_type").asString(""))) {
+                    translation.append(result.path("text").asString(""));
+                }
             }
-            var translation = text(root, "translation");
-            if (translation == null || translation.isBlank()) {
+            if (translation.toString().isBlank()) {
                 throw new XApiHttpException("X翻訳応答に翻訳文がありません。", 502);
             }
             return new TranslationResult(
-                    postId, sourceLanguage, targetLanguage, translation, TRANSLATION_SOURCE);
+                    postId, sourceLanguage, targetLanguage, translation.toString(), TRANSLATION_SOURCE);
         } catch (JacksonException exception) {
             throw new XApiHttpException("X翻訳応答を解析できません。", exception);
         }
@@ -236,17 +228,6 @@ public class PostTranslationService {
         }
     }
 
-    private static TranslationResult join(CompletableFuture<TranslationResult> pending) {
-        try {
-            return pending.join();
-        } catch (CompletionException exception) {
-            if (exception.getCause() instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            throw exception;
-        }
-    }
-
     private synchronized void recordRecentOutcome(boolean successful) {
         recentOutcomes.addLast(successful);
         while (recentOutcomes.size() > RECENT_OUTCOME_LIMIT) {
@@ -265,17 +246,6 @@ public class PostTranslationService {
     private static Double percentage(long successful, long total) {
         return total == 0 ? null : Math.round(successful * 1_000.0 / total) / 10.0;
     }
-
-    private static String text(tools.jackson.databind.JsonNode node, String field) {
-        var value = node == null ? null : node.get(field);
-        return value == null || value.isNull() ? null : value.asString(null);
-    }
-
-    private record CacheKey(
-            String accountId,
-            String postId,
-            String sourceLanguage,
-            String targetLanguage) {}
 
     private record RateLimitState(
             Integer limit,

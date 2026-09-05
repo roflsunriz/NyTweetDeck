@@ -93,7 +93,8 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 - 翻訳要求は、元本文からHTTP(S) URL・独立したメンションを除いた後にUnicode Letterが残る場合だけ行う。Androidの`TranslationCandidate`には元本文を必ず渡し、通常ポスト・返信・引用で同じガードを通す。既存の失敗状態が残っていても、本文なしの投稿には再試行表示を出さない。`TranslationTextTest`と`TranslationGuardUiTest`参照。
 
-- コミュニティノートは通常ポストの翻訳APIへノートIDを渡さない。`BirdwatchFetchOneNote`を翻訳先言語で取得し、`grok_translated_community_note_with_availability.data`の`translation`・`destination_language`・`source_language`・`rich_text_entities`を扱う。2026-09-05の実Xで英語ノートをja要求すると日本語訳、en要求すると未提供となることを確認。利用可フラグと翻訳先一致を検証し、翻訳文へ原文のリンク位置を流用しない。
+- ノートは`BirdwatchFetchOneNote`の同梱訳を優先し、未提供なら`https://x.com/i/api/2/grok/translation.json`へPOSTする。NOTEは`content_type: COMMUNITY_NOTE,id`と翻訳先ヘッダー、ポストは`content_type: POST,id,dst_lang`を使用する。ノートIDをPOST種別として送らない。同梱訳はsnake_case、ライブ応答の出典はcamelCaseも使うため、翻訳文へ原文のリンク位置を流用しない。
+- ライブ応答はNDJSONのtextを連結し、エラー行・空本文は成功として保存しない。成功のみを共通`TranslationMemory`でメモリ保持し、同時要求を共有する。ポスト/ノート・アカウント・翻訳先を混同せず、失敗や未提供を成功キャッシュに残さない。再表示テストとAQUOSの`LiveTranslationMemoryTest`を参照。
 - `is_community_note_translatable`も取得言語に依存する。原文言語が判明していれば設定した翻訳先との違いで判定し、UI言語で取得したfalseを別の翻訳先への禁止フラグとして使わない。
 
 ## 設定画面

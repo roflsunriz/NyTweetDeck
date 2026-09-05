@@ -69,4 +69,22 @@ class CommunityNoteResponseParserTest {
                 {"from_index":"0","to_index":"2","ref":{"url":"javascript:bad"}}]}}}}}
                 """.formatted(destination);
     }
+
+    @Test
+    void parsesLiveChunksAndTheirTranslatedLinkOffsets() {
+        var result = parser.parseLiveTranslation("""
+                {"result":{"text":"説明 "}}
+                {"result":{"text":"出典","rich_text_entities":[{"fromIndex":3,"toIndex":5,"ref":{"url":"https://t.co/short","expandedUrl":"https://example.com/live"}}]}}
+                """, "555", "ja");
+        assertThat(result.text()).isEqualTo("説明 出典");
+        assertThat(result.sources()).containsExactly(new CommunityNoteDetail.Source(3, 5, "https://example.com/live"));
+    }
+
+    @Test
+    void rejectsFailedTruncatedAndEmptyLiveStreams() {
+        for (var body : java.util.List.of("", "{\"result\":{}}", "{\"error\":\"failed\"}", "{\"result\":{\"text\":\"partial\"}}\n{\"error\":\"failed\"}", "{\"result\":")) {
+            assertThatThrownBy(() -> parser.parseLiveTranslation(body, "555", "ja"))
+                    .hasMessageContaining("解析できません");
+        }
+    }
 }

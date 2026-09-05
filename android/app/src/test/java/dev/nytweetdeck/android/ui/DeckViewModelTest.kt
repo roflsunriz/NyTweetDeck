@@ -771,7 +771,7 @@ class DeckViewModelTest {
                 XPostTranslationEndpoint { _, postId, translationSource, target ->
                     source = translationSource
                     AuthenticatedRestClient.RestResult(
-                        """{"id_str":"$postId","translation":"translated-$target"}""",
+                        """{"result":{"text":"translated-$target"}}""",
                         null,
                         null,
                     )

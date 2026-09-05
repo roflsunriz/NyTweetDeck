@@ -40,7 +40,7 @@ internal class CommunityNoteController(
         val account = accountProvider(accountId) ?: return
         state.update { it.copy(postTranslations = it.postTranslations + (key to PostTranslationUiState(TranslationLoadStatus.LOADING))) }
         scope.launch(ioDispatcher) {
-            val result = runCatching { repository.loadNote(account, noteId, target) }
+            val result = runCatching { repository.translateNote(account, noteId, target) }
             withContext(Dispatchers.Main.immediate) {
                 if (state.value.selectedAccountId != accountId || state.value.translationLanguageTag != target) return@withContext
                 val translated = result.fold(

@@ -51,6 +51,11 @@ class CommunityNoteTranslationControllerTest {
             controller.translate(candidate, manual = true)
             advanceUntilIdle()
             assertEquals(TranslationLoadStatus.READY, state.value.postTranslations["note:55"]!!.status)
+            state.value = state.value.copy(postTranslations = emptyMap())
+            controller.translate(candidate)
+            advanceUntilIdle()
+            assertEquals(TranslationLoadStatus.READY, state.value.postTranslations["note:55"]!!.status)
+            assertEquals(listOf("ja", "ja"), calls)
             state.value = state.value.copy(translationLanguageTag = "es", postTranslations = emptyMap())
             changeTarget = true
             controller.translate(candidate)

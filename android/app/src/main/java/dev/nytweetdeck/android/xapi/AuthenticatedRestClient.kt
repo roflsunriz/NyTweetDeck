@@ -15,6 +15,8 @@ import okhttp3.Request
 import okhttp3.Headers
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class AuthenticatedRestClient(
     client: OkHttpClient,
@@ -135,39 +137,56 @@ class AuthenticatedRestClient(
     ): RestResult {
         require(POST_ID.matches(postId)) { "ポストIDの形式が不正です。" }
         require(translationSource == X_TRANSLATION_SOURCE) { "翻訳元はXだけを指定できます。" }
+        return translateLive(account, postId, "POST", language)
+    }
+
+    /** The official live Community Note route uses the request language header. */
+    fun translateCommunityNote(account: AccountSecrets, noteId: String, language: String): RestResult {
+        require(noteId.matches(Regex("[0-9]{1,24}"))) { "コミュニティノートIDの形式が不正です。" }
+        return translateLive(account, noteId, "COMMUNITY_NOTE", language)
+    }
+
+    private fun translateLive(account: AccountSecrets, id: String, contentType: String, language: String): RestResult {
         val profile = profileProvider()
-        val template = profile.restEndpoints[TRANSLATE_POST_ENDPOINT]
-            ?: throw XApiException("X REST定義に${TRANSLATE_POST_ENDPOINT}がありません。", 503)
-        val path = expandTranslationPath(template, postId, translationSource)
-        val normalizedLanguage = normalizeLanguage(language)
-        val unsignedRequest = Request.Builder()
-            .url(profile.restBaseUrl.toHttpUrl().newBuilder().encodedPath(path).build())
+        val endpointKey = "grokTranslation"
+        val path = profile.restEndpoints[endpointKey]
+            ?: throw XApiException("X REST定義に${endpointKey}がありません。", 503)
+        val target = normalizeLanguage(language)
+        val fields = mutableMapOf("content_type" to JsonPrimitive(contentType), "id" to JsonPrimitive(id))
+        if (contentType == "POST") fields["dst_lang"] = JsonPrimitive(target)
+        val body = JsonObject(fields)
+        val request = Request.Builder()
+            .url(("https://x.com/i/api" + path).toHttpUrl())
             .header("Authorization", "Bearer ${account.webBearerToken}")
             .header("Cookie", "auth_token=${account.authToken}; ct0=${account.csrfToken}")
             .header("X-CSRF-Token", account.csrfToken)
             .header("X-Twitter-Auth-Type", "OAuth2Session")
             .header("X-Twitter-Active-User", "yes")
-            .header("X-Twitter-Client-Language", normalizedLanguage)
-            .header("Accept-Language", normalizedLanguage)
+            .header("X-Twitter-Client-Language", target)
+            .header("Accept-Language", target)
             .header("Origin", "https://x.com")
             .header("Referer", "https://x.com/")
             .header("User-Agent", userAgent)
             .header("Accept", "application/json")
-            .get()
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
+        return executeNativeTranslation(request, endpointKey)
+    }
+
+    private fun executeNativeTranslation(unsignedRequest: Request, endpointKey: String): RestResult {
         for (attempt in 0 until MAX_TRANSACTION_ATTEMPTS) {
             val request = try {
-                withTransactionHeader(unsignedRequest, "REST ${TRANSLATE_POST_ENDPOINT}")
+                withTransactionHeader(unsignedRequest, "REST ${endpointKey}")
             } catch (exception: Exception) {
                 throw RestRequestException(
-                    endpointKey = TRANSLATE_POST_ENDPOINT,
+                    endpointKey = endpointKey,
                     statusCode = 0,
                     retryAfterSeconds = null,
                     rateLimit = null,
                     cause = exception,
                 )
             }
-            val response = executeTranslationRequest(request)
+            val response = executeTranslationRequest(request, endpointKey)
             val rateLimit = rateLimitInfo(response.headers)
             val retryAfter = retryAfterSeconds(response.headers)
             if (isSignatureRejected(request, response)) {
@@ -176,7 +195,7 @@ class AuthenticatedRestClient(
                     continue
                 }
                 throw RestRequestException(
-                    endpointKey = TRANSLATE_POST_ENDPOINT,
+                    endpointKey = endpointKey,
                     statusCode = 502,
                     retryAfterSeconds = retryAfter,
                     rateLimit = rateLimit,
@@ -184,7 +203,7 @@ class AuthenticatedRestClient(
             }
             if (response.statusCode !in 200..299) {
                 throw RestRequestException(
-                    endpointKey = TRANSLATE_POST_ENDPOINT,
+                    endpointKey = endpointKey,
                     statusCode = response.statusCode,
                     retryAfterSeconds = retryAfter,
                     rateLimit = rateLimit,
@@ -193,7 +212,7 @@ class AuthenticatedRestClient(
             return RestResult(response.body, rateLimit, retryAfter)
         }
         throw RestRequestException(
-            endpointKey = TRANSLATE_POST_ENDPOINT,
+            endpointKey = endpointKey,
             statusCode = 502,
             retryAfterSeconds = null,
             rateLimit = null,
@@ -233,13 +252,13 @@ class AuthenticatedRestClient(
         throw XApiException("REST ${endpointKey}の通信に失敗しました。", cause = exception)
     }
 
-    private fun executeTranslationRequest(request: Request): ApiResponse = try {
+    private fun executeTranslationRequest(request: Request, endpointKey: String): ApiResponse = try {
         client.newCall(request).execute().use { response ->
             ApiResponse(response.code, response.body.string(), response.headers)
         }
     } catch (exception: Exception) {
         throw RestRequestException(
-            endpointKey = TRANSLATE_POST_ENDPOINT,
+            endpointKey = endpointKey,
             statusCode = 0,
             retryAfterSeconds = null,
             rateLimit = null,
@@ -299,20 +318,6 @@ class AuthenticatedRestClient(
         return normalizedLanguage
     }
 
-    private fun expandTranslationPath(template: String, postId: String, translationSource: String): String {
-        require(template.countSubstring("{postId}") == 1) { "翻訳RESTパスのpostId定義が不正です。" }
-        require(template.countSubstring("{translationSource}") == 1) {
-            "翻訳RESTパスのtranslationSource定義が不正です。"
-        }
-        val path = template
-            .replace("{postId}", postId)
-            .replace("{translationSource}", translationSource)
-        require(path.startsWith('/') && !path.contains('{') && !path.contains('}') && path.length <= MAX_PATH_LENGTH) {
-            "翻訳RESTパスが不正です。"
-        }
-        return path
-    }
-
     private fun rateLimitInfo(headers: Headers): RateLimitInfo? {
         val limit = headers["x-rate-limit-limit"].toNonNegativeIntOrNull()
         val remaining = headers["x-rate-limit-remaining"].toNonNegativeIntOrNull()
@@ -341,26 +346,11 @@ class AuthenticatedRestClient(
         ?.takeIf { value -> value >= 0 }
         ?.let { value -> runCatching { Instant.ofEpochSecond(value) }.getOrNull() }
 
-    private fun String.countSubstring(value: String): Int {
-        var count = 0
-        var start = 0
-        while (true) {
-            val index = indexOf(value, start)
-            if (index < 0) {
-                return count
-            }
-            count += 1
-            start = index + value.length
-        }
-    }
-
     private companion object {
         const val MAX_TRANSACTION_ATTEMPTS = 2
         const val SIGNATURE_ERROR_CODE = 344
         const val TRANSACTION_HEADER = "X-Client-Transaction-Id"
-        const val TRANSLATE_POST_ENDPOINT = "translatePost"
         const val X_TRANSLATION_SOURCE = "X"
-        const val MAX_PATH_LENGTH = 1_500
         val POST_ID = Regex("[0-9]{1,19}")
         val LANGUAGE_PATTERN = Regex("[a-z]{2,3}(?:-[a-z0-9]{2,8})*")
     }

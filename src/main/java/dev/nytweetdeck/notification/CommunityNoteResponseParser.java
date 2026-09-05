@@ -96,6 +96,34 @@ public class CommunityNoteResponseParser {
         }
     }
 
+    public CommunityNoteTranslation parseLiveTranslation(String body, String noteId, String target) {
+        try {
+            var text = new StringBuilder();
+            var entities = new ArrayList<JsonNode>();
+            for (var line : body.lines().filter(value -> !value.isBlank()).toList()) {
+                var chunk = objectMapper.readTree(line);
+                if (chunk.hasNonNull("error")) throw new IllegalArgumentException("X live translation failed");
+                var result = chunk.path("result");
+                if (result.path("text").isString()) text.append(result.path("text").asString());
+                for (var entity : result.path("rich_text_entities")) entities.add(entity);
+            }
+            if (text.toString().isBlank()) throw new IllegalArgumentException("X live translation is empty");
+            var sources = new ArrayList<CommunityNoteDetail.Source>();
+            for (var entity : entities) {
+                var ref = entity.path("ref");
+                var url = ref.path("expandedUrl").asString(ref.path("url").asString(""));
+                var from = integer(entity, "fromIndex", "from_index");
+                var to = integer(entity, "toIndex", "to_index");
+                if (isSafeWebUrl(url) && from >= 0 && to > from && to <= text.length()) {
+                    sources.add(new CommunityNoteDetail.Source(from, to, url));
+                }
+            }
+            return new CommunityNoteTranslation(noteId, true, text.toString(), null, target, "X", sources);
+        } catch (JacksonException | IllegalArgumentException exception) {
+            throw new XApiHttpException("コミュニティノートのライブ翻訳を解析できません。", exception);
+        }
+    }
+
     private static boolean isSafeWebUrl(String value) {
         try {
             var uri = URI.create(value);

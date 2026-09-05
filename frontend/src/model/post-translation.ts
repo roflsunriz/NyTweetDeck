@@ -1,5 +1,6 @@
 import type { Locale } from "./layout";
 import { fetchWithTimeout } from "./fetch-with-timeout";
+import { TranslationMemory, translationMemoryKey } from "./translation-memory";
 
 export interface PostTranslationResult {
   postId: string;
@@ -10,7 +11,17 @@ export interface PostTranslationResult {
 }
 
 const unavailableLanguages = new Set(["und", "zxx", "qme", "qam", "art"]);
-const requests = new Map<string, Promise<PostTranslationResult>>();
+const memory = new TranslationMemory<PostTranslationResult>();
+
+export function cachedPostTranslation(scope: {
+  accountId: string;
+  postId: string;
+  sourceLanguage: string;
+  targetLanguage: Locale;
+  text?: string;
+}): PostTranslationResult | undefined {
+  return memory.get(translationMemoryKey({ ...scope, kind: "post", id: scope.postId }));
+}
 const queue: Array<() => void> = [];
 let activeRequests = 0;
 const maxConcurrentRequests = 2;
@@ -46,40 +57,51 @@ export function loadPostTranslation({
   postId,
   sourceLanguage,
   targetLanguage,
-  force = false,
+  text,
   onRetryScheduled,
 }: {
   accountId: string;
   postId: string;
   sourceLanguage: string;
   targetLanguage: Locale;
-  force?: boolean;
+  text?: string;
   onRetryScheduled?: (delaySeconds: number) => void;
 }): Promise<PostTranslationResult> {
-  const key = `${accountId}:${postId}:${targetLanguage}`;
-  if (force) requests.delete(key);
-  const existing = requests.get(key);
-  if (existing !== undefined) return existing;
-  const params = new URLSearchParams({ accountId, sourceLanguage, targetLanguage });
-  const request = requestWithRetry(
-    `/api/v1/posts/${encodeURIComponent(postId)}/translation?${params}`,
-    onRetryScheduled,
-  ).catch((error: unknown) => {
-    requests.delete(key);
-    throw error;
+  const key = translationMemoryKey({
+    accountId,
+    kind: "post",
+    id: postId,
+    sourceLanguage,
+    targetLanguage,
+    text,
   });
-  requests.set(key, request);
-  if (requests.size > 500) {
-    const oldest = requests.keys().next().value;
-    if (oldest !== undefined && oldest !== key) requests.delete(oldest);
-  }
-  return request;
+  const params = new URLSearchParams({ accountId, sourceLanguage, targetLanguage });
+  return memory.load(
+    key,
+    () =>
+      requestTranslationWithRetry(
+        `/api/v1/posts/${encodeURIComponent(postId)}/translation?${params}`,
+        onRetryScheduled,
+      ).then((result) => {
+        if (!isPostTranslationResult(result)) throw new Error("Invalid X translation response");
+        if (
+          result.postId !== postId ||
+          result.sourceLanguage.toLowerCase().replaceAll("_", "-") !==
+            sourceLanguage.toLowerCase().replaceAll("_", "-") ||
+          result.targetLanguage !== targetLanguage
+        ) {
+          throw new Error("Invalid X translation response scope");
+        }
+        return result;
+      }),
+    (result) => result.text.trim().length > 0,
+  );
 }
 
-async function requestWithRetry(
+export async function requestTranslationWithRetry(
   uri: string,
   onRetryScheduled?: (delaySeconds: number) => void,
-): Promise<PostTranslationResult> {
+): Promise<unknown> {
   for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
     let response: Response;
     try {
@@ -92,11 +114,7 @@ async function requestWithRetry(
       continue;
     }
     if (response.ok) {
-      const result: unknown = await response.json();
-      if (!isPostTranslationResult(result)) {
-        throw new Error("Invalid X translation response");
-      }
-      return result;
+      return response.json();
     }
     if (!isRetryableStatus(response.status) || attempt >= maximumAttempts - 1) {
       throw new Error(`HTTP ${response.status}`);
@@ -139,6 +157,7 @@ function isPostTranslationResult(value: unknown): value is PostTranslationResult
     typeof result.sourceLanguage === "string" &&
     typeof result.targetLanguage === "string" &&
     typeof result.text === "string" &&
+    result.text.trim().length > 0 &&
     result.provider === "X"
   );
 }

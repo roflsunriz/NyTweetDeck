@@ -20,6 +20,14 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## ライブ翻訳フォールバックとメモリ再利用（2026-09-05）
+
+- 最新の[X公式Birdwatch実装](https://abs.twimg.com/responsive-web/client-web/bundle.Birdwatch.6ab8c5d4038eb3b4a.js)と共有Grok実装で、`POST /2/grok/translation.json`を確認した。ノートは`COMMUNITY_NOTE`とID、ポストは`POST`・ID・`dst_lang`を送る。実通信先は`https://x.com/i/api/2/grok/translation.json`。ノートの日本語/フランス語ヘッダーでそれぞれの訳が返ることを実Xで確認した。
+- 同梱訳がないノートだけライブ翻訳へ進む。NDJSONの本文・出典を連結し、途中エラー・空本文を成功扱いしない。ポストの`POLL`内容を本文に混ぜない。ノートのcamelCase出典位置を安全なURLとして扱い、原文の位置を流用しない。
+- 各プラットフォームの共通`TranslationMemory`で成功LRUとpendingを分離し、同時要求を共有する。失敗/未提供は成功保存せず、アカウント・種別・ID・翻訳先を分離する。上限と再起動でキャッシュが失われること、保存済み成功の再表示では要求も読み込み表示も増えないことを検証する。
+- フロントエンド201件、Java150件、Android265件、lint/型/ビルドが成功。専用Chromeでポスト/ノートの初回2要求、閉じて再表示後の追加要求0・読み込み表示0を確認した。AQUOSの実Xを含む4テストが成功し、同梱なしノート取得1回→ライブ1回、ポストライブ1回、再取得は同じ成功結果を再利用した。
+- Windowsの旧版で同梱訳なしを確認したベンガル語ノートも更新後のライブ翻訳で取得でき、出典3件を保持した。ノート・ポストの再取得時の追加上流要求は0件だった。Windows/AQUOSへ反映して配布物ハッシュ一致、HTTP/HTTPS ready、AQUOS非debuggable releaseを確認した。Pixel 10aは操作していない。
+
 ## 詳細の返信とおすすめの分離（2026-09-05）
 
 - 実Xで`tweetdetailrelatedtweets-`モジュールのおすすめ4件が旧解析の会話postsへ混入することを確認した。会話専用の`parseConversation`で`relatedPosts`へ分離し、通常タイムラインの解析を維持する。

@@ -9,5 +9,5 @@ internal fun isCommunityNoteTranslationCandidate(note: CommunityNote, target: St
     val source = note.language?.lowercase(Locale.ROOT)?.substringBefore('-')
     val destination = target.lowercase(Locale.ROOT).substringBefore('-')
     // X's translatable flag describes the request language, not the independently selected target.
-    return if (source.isNullOrBlank() || source == "und") note.isTranslatable == true else source != destination
+    return source.isNullOrBlank() || source == "und" || source != destination
 }
