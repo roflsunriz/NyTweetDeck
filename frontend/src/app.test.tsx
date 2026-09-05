@@ -497,6 +497,86 @@ describe("NyTweetDeck shell", () => {
     expect(screen.queryByRole("heading", { name: "アカウントを選択" })).toBeNull();
   });
 
+  test("jumps only the selected timeline to the top without fetching or changing post order", async () => {
+    let timelineLoads = 0;
+    globalThis.fetch = withSharedLayoutApi(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/accounts")) {
+        return Response.json([
+          { accountId: "account-1", userId: "42", username: "alice", displayName: "Alice" },
+        ]);
+      }
+      if (url.includes("/api/v1/timelines/")) {
+        timelineLoads += 1;
+        return Response.json({
+          posts: [
+            {
+              id: "1",
+              text: "timeline post",
+              language: "ja",
+              createdAt: null,
+              author: {
+                id: "42",
+                username: "alice",
+                displayName: "Alice",
+                avatarUrl: null,
+                verified: false,
+              },
+              repostedBy: null,
+              replyCount: 0,
+              repostCount: 0,
+              quoteCount: 0,
+              likeCount: 0,
+              bookmarkCount: 0,
+              viewCount: 0,
+              liked: false,
+              reposted: false,
+              bookmarked: false,
+              replyToPostId: null,
+              replyToUsername: null,
+              quotedPost: null,
+              media: [],
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+      return Response.json({ connected: true, topicCount: 0 });
+    });
+    sharedSnapshot = {
+      revision: 1,
+      layout: {
+        ...createDefaultLayout(),
+        columns: [
+          { id: "home", kind: "home", target: null, label: null, sort: "top" },
+          { id: "following", kind: "following", target: null, label: null, sort: "latest" },
+        ],
+      },
+    };
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await waitFor(() => expect(screen.getAllByTestId("timeline-scroll")).toHaveLength(2));
+    const scrolls = screen.getAllByTestId("timeline-scroll");
+    for (const scroll of scrolls) scroll.scrollTop = 900;
+    const buttons = container.querySelectorAll<HTMLButtonElement>(
+      '[data-action="scroll-column-top"]',
+    );
+    const firstButton = buttons[0];
+    const secondButton = buttons[1];
+    if (!firstButton || !secondButton) throw new Error("先頭移動ボタンがありません。");
+    expect(firstButton.previousElementSibling?.className).toBe("column-sort-control");
+    const requestsBefore = timelineLoads;
+    await user.click(firstButton);
+    expect(scrolls.map((scroll) => scroll.scrollTop)).toEqual([0, 900]);
+    secondButton.focus();
+    await user.keyboard("{Enter}");
+    expect(scrolls.map((scroll) => scroll.scrollTop)).toEqual([0, 0]);
+    await user.click(firstButton);
+    expect(timelineLoads).toBe(requestsBefore);
+    expect((screen.getByTestId("column-sort-home") as HTMLSelectElement).value).toBe("top");
+    expect((screen.getByTestId("column-sort-following") as HTMLSelectElement).value).toBe("latest");
+  });
+
   test("reorders navigation and columns through drag and drop and persists the order", async () => {
     const user = userEvent.setup();
     render(<App />);

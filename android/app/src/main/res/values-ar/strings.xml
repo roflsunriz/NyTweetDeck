@@ -263,4 +263,5 @@
     <string name="apk_update_started">بدأ تنزيل APK. افتح إشعار اكتمال التنزيل للتحديث.</string>
     <string name="apk_update_failed">تعذر الحصول على أحدث APK. تحقق من الاتصال وحاول مجددًا.</string>
     <string name="apk_update_up_to_date">أنت تستخدم أحدث إصدار.</string>
+    <string name="column_scroll_top">الانتقال إلى أعلى الخط الزمني</string>
 </resources>

@@ -1,4 +1,5 @@
 import {
+  ArrowUpToLine,
   BadgeCheck,
   Bell,
   BriefcaseBusiness,
@@ -571,19 +572,37 @@ function AppContent() {
                               : `${columnText.title}: ${column.label ?? column.target}`}
                           </h2>
                           {isTimelineColumn(column.kind) && (
-                            <label className="column-sort-control">
-                              <span>{translation.columnSort}</span>
-                              <select
-                                data-testid={`column-sort-${column.id}`}
-                                value={column.sort ?? "latest"}
-                                onChange={(event) =>
-                                  setColumnSort(column.id, event.target.value as ColumnSort)
-                                }
+                            <div className="column-timeline-controls">
+                              <label className="column-sort-control">
+                                <span>{translation.columnSort}</span>
+                                <select
+                                  data-testid={`column-sort-${column.id}`}
+                                  value={column.sort ?? "latest"}
+                                  onChange={(event) =>
+                                    setColumnSort(column.id, event.target.value as ColumnSort)
+                                  }
+                                >
+                                  <option value="latest">{translation.columnSortLatest}</option>
+                                  <option value="top">{translation.columnSortTop}</option>
+                                </select>
+                              </label>
+                              <button
+                                className="icon-button column-scroll-top"
+                                data-action="scroll-column-top"
+                                type="button"
+                                aria-label={translation.columnScrollTop}
+                                title={translation.columnScrollTop}
+                                onClick={(event) => {
+                                  const timeline = event.currentTarget
+                                    .closest(".deck-column")
+                                    ?.querySelector<HTMLElement>(".timeline-content");
+                                  if (timeline !== null && timeline !== undefined)
+                                    timeline.scrollTop = 0;
+                                }}
                               >
-                                <option value="latest">{translation.columnSortLatest}</option>
-                                <option value="top">{translation.columnSortTop}</option>
-                              </select>
-                            </label>
+                                <ArrowUpToLine aria-hidden="true" size={16} />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>

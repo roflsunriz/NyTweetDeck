@@ -3,6 +3,7 @@ import type { TranslationOverride } from "./translations";
 
 export const overrides: Partial<Record<Locale, TranslationOverride>> = {
   zh: {
+    columnScrollTop: "返回时间线顶部",
     addColumn: "添加栏目",
     addColumnDescription: "选择要显示的信息类型。",
     columnTarget: "目标",
@@ -169,6 +170,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   hi: {
+    columnScrollTop: "टाइमलाइन के शीर्ष पर जाएँ",
     addColumn: "कॉलम जोड़ें",
     addColumnDescription: "वह जानकारी चुनें जिसे आप दिखाना चाहते हैं।",
     columnTarget: "लक्ष्य",
@@ -336,6 +338,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   bn: {
+    columnScrollTop: "টাইমলাইনের শুরুতে যান",
     addColumn: "কলাম যোগ করুন",
     addColumnDescription: "যে ধরনের তথ্য দেখাতে চান তা বেছে নিন।",
     columnTarget: "লক্ষ্য",

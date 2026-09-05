@@ -38,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -353,6 +354,15 @@ private fun DeckColumnCard(
     onClearNewPosts: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scrollScope = rememberCoroutineScope()
+    val timelineListState = if (hasSession && isTimelineColumn(column.kind) &&
+        timelineState?.status == TimelineLoadStatus.READY && timelineState.posts.isNotEmpty()
+    ) {
+        rememberRestoredLazyListState(
+            scrollPosition,
+            timelineItemKeys(timelineState, orderedTimelinePosts(timelineState.posts, column.kind, column.sort)),
+        )
+    } else null
     Card(
         modifier = modifier
             .width(width)
@@ -427,6 +437,13 @@ private fun DeckColumnCard(
                                         .height(28.dp)
                                         .testTag("column-sort-top-${column.id}"),
                                 )
+                                IconButton(
+                                    onClick = { scrollScope.launch { timelineListState?.scrollToItem(0) } },
+                                    enabled = timelineListState != null,
+                                    modifier = Modifier.testTag("column-scroll-top-${column.id}"),
+                                ) {
+                                    Icon(Icons.Default.VerticalAlignTop, stringResource(R.string.column_scroll_top))
+                                }
                             }
                         }
                     }
@@ -466,12 +483,12 @@ private fun DeckColumnCard(
                             onLoadMore,
                         )
                         else -> TimelineBody(
+                            listState = timelineListState,
                              state = timelineState,
                              columnKind = column.kind,
                             onRetry = onRetry,
                             onLoadMore = onLoadMore,
                             onClearNewPosts = onClearNewPosts,
-                            scrollPosition = scrollPosition,
                             onScrollPositionChanged = onScrollPositionChanged,
                             onPostClick = onPostClick,
                             onQuoteClick = onQuoteClick,
@@ -545,12 +562,12 @@ private fun DeckColumnCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TimelineBody(
+    listState: LazyListState?,
     state: ColumnTimelineState?,
     columnKind: ColumnKind,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onClearNewPosts: () -> Unit,
-    scrollPosition: ColumnScrollPosition?,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
@@ -601,10 +618,7 @@ private fun TimelineBody(
                 Text(stringResource(R.string.timeline_empty), Modifier.testTag("timeline-empty"))
             } else {
                 val orderedPosts = orderedTimelinePosts(readyState.posts, columnKind, columnSort)
-                val listState = rememberRestoredLazyListState(
-                    scrollPosition,
-                    timelineItemKeys(readyState, orderedPosts),
-                )
+                val listState = requireNotNull(listState)
                 ObserveListScrollPosition(listState, onScrollPositionChanged)
                 LaunchedEffect(listState, readyState.nextCursor, readyState.isLoadingMore) {
                     snapshotFlow {

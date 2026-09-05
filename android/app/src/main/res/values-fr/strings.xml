@@ -260,4 +260,5 @@
     <string name="apk_update_started">Le téléchargement de l’APK a commencé. Ouvrez la notification une fois terminé pour mettre à jour.</string>
     <string name="apk_update_failed">Impossible d’obtenir le dernier APK. Vérifiez la connexion et réessayez.</string>
     <string name="apk_update_up_to_date">Vous utilisez la dernière version.</string>
+    <string name="column_scroll_top">Aller en haut du fil</string>
 </resources>

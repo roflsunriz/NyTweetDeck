@@ -20,6 +20,13 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## カラムの先頭移動（2026-09-05）
+
+- 並び順の隣の上向き矢印で、対象カラムの先頭へ移動する。別カラムの位置、トップ／最新の設定を維持し、再取得しないことを確認する。
+- Androidの`ColumnScrollTopTest`をAQUOSで実行し、2カラムをそれぞれ下へスクロールして先頭へ戻す操作と連打、他カラムの位置保持、再取得・並び順変更0回を確認した。単体249件・debug/release Lint・APKビルドも成功。修正済み非debuggable releaseの上書き後、実際のカラムでも先頭への復帰を確認した。
+- Webはフロントエンド177件とJava138件が成功。実Chromeで1440×900・390×844・320×568の日本語、768×1024のアラビア語、390×844のウルドゥー語を操作し、対象スクロール位置0、他カラムの位置保持、追加通信0、並び順維持を確認。狭幅ではヘッダーを折り返してタイトルとボタンの重なりを防ぐ。
+- 両版の稼働配布物を更新し、ビルド済み配布物とのSHA-256一致を確認した。Windowsは既存自動起動タスクで再起動し、HTTP/HTTPSのready応答を確認。Androidは既存署名・認証・設定を維持して非debuggable releaseへ戻した。
+
 ## 返信詳細の終端（2026-09-05）
 
 - AQUOS SH-R80Pの実X応答で、返信終端後にも新しいBottom cursorが返る一方、`TimelineTerminateTimeline / Bottom`が含まれることを確認した。修正前は空の追加ページを3回取得してもcursorが変わり続けた。AndroidとJavaの解析は終了指示を優先し、指示順・投稿件数に依存させない。Top終了だけの場合と終了指示のない空ページは継続可能に保つ。

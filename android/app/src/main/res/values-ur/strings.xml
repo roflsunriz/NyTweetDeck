@@ -259,4 +259,5 @@
     <string name="apk_update_started">APK ڈاؤن لوڈ شروع ہو گیا۔ اپ ڈیٹ کے لیے مکمل ڈاؤن لوڈ کی اطلاع کھولیں۔</string>
     <string name="apk_update_failed">تازہ ترین APK حاصل نہیں ہو سکا۔ کنکشن چیک کر کے دوبارہ کوشش کریں۔</string>
     <string name="apk_update_up_to_date">آپ تازہ ترین ورژن استعمال کر رہے ہیں۔</string>
+    <string name="column_scroll_top">ٹائم لائن کے آغاز پر جائیں</string>
 </resources>

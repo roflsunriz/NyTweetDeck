@@ -50,6 +50,7 @@ export interface Translation {
   filterExcludeReposts: string;
   noFilteredPosts: string;
   columnSort: string;
+  columnScrollTop: string;
   columnSortLatest: string;
   columnSortTop: string;
   userProfile: string;
@@ -280,6 +281,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     filterExcludeReposts: "リポストを除く",
     noFilteredPosts: "条件に一致するポストはありません。",
     columnSort: "ポストの並び順",
+    columnScrollTop: "タイムラインの一番上へ",
     columnSortLatest: "最新",
     columnSortTop: "トップ",
     userProfile: "ユーザープロフィール",
@@ -563,6 +565,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     filterExcludeReposts: "Exclude reposts",
     noFilteredPosts: "No posts match this filter.",
     columnSort: "Post order",
+    columnScrollTop: "Go to top of timeline",
     columnSortLatest: "Latest",
     columnSortTop: "Top",
     userProfile: "User profile",

@@ -3,6 +3,7 @@ import type { TranslationOverride } from "./translations";
 
 export const overrides: Partial<Record<Locale, TranslationOverride>> = {
   es: {
+    columnScrollTop: "Ir al inicio de la cronología",
     addColumn: "Añadir columna",
     addColumnDescription: "Elige el tipo de información que quieres mostrar.",
     columnTarget: "Destino",
@@ -172,6 +173,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   fr: {
+    columnScrollTop: "Aller en haut du fil",
     addColumn: "Ajouter une colonne",
     addColumnDescription: "Choisissez le type d’informations à afficher.",
     columnTarget: "Cible",
@@ -346,6 +348,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   pt: {
+    columnScrollTop: "Ir para o início da timeline",
     addColumn: "Adicionar coluna",
     addColumnDescription: "Escolha o tipo de informação que deseja exibir.",
     columnTarget: "Destino",
@@ -515,6 +518,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   ru: {
+    columnScrollTop: "Перейти к началу ленты",
     addColumn: "Добавить колонку",
     addColumnDescription: "Выберите тип информации для отображения.",
     columnTarget: "Объект",
