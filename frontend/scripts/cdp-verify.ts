@@ -1436,6 +1436,19 @@ if (rightEdgeSnapshot.imageIndex !== "0") {
 const edgePreviousIndex = await client.evaluate<string>(
   'document.querySelector(".image-viewer-viewport")?.getAttribute("data-image-index") ?? ""',
 );
+// The first image must remain selected when moving beyond its outer edge.
+await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "ArrowLeft" });
+await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowLeft" });
+await client.evaluate(
+  "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+);
+if (
+  (await client.evaluate(
+    'document.querySelector(".image-viewer-viewport")?.getAttribute("data-image-index")',
+  )) !== "0"
+) {
+  throw new Error("The image viewer wrapped past its first image.");
+}
 const imageMoved = await client.evaluate<boolean>(`(() => {
   const viewport = document.querySelector(".image-viewer-viewport");
   if (!(viewport instanceof HTMLElement)) return false;

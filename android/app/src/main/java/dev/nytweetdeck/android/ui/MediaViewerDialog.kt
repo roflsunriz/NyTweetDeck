@@ -199,15 +199,23 @@ private fun PhotoViewer(
         val nextScale = (scale * zoomChange).coerceIn(0.1f, 8f)
         val isZoomed = nextScale > 1.05f
         val rawNextOffset = Offset(offset.x + panChange.x, offset.y + panChange.y)
-        val nextOffset = if (isZoomed) rawNextOffset else Offset(rawNextOffset.x, 0f)
+        val nextOffset = if (isZoomed) rawNextOffset else Offset(
+            when {
+                currentIndex == 0 && rawNextOffset.x > 0f -> 0f
+                currentIndex == mediaItems.lastIndex && rawNextOffset.x < 0f -> 0f
+                else -> rawNextOffset.x
+            },
+            0f,
+        )
         val pageDirection = if (isZoomed) 0 else {
             photoPageDirectionForDrag(nextOffset.x, viewportWidth)
         }
+        val destination = adjacentPhotoIndex(currentIndex, mediaItems.size, pageDirection)
         when {
-            !navigationLocked && mediaItems.size > 1 && pageDirection != 0 -> {
+            !navigationLocked && destination != null && pageDirection != 0 -> {
                 navigationLocked = true
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                currentIndex = wrappedPhotoIndex(currentIndex, mediaItems.size, pageDirection)
+                currentIndex = destination
                 scale = 1f
                 offset = Offset(
                     nextOffset.x + if (pageDirection > 0) viewportWidth else -viewportWidth,
@@ -242,8 +250,8 @@ private fun PhotoViewer(
     }
     val displayOffset = if (transformState.isTransformInProgress) offset else offsetAnim.value
     val currentMedia = mediaItems.getOrNull(currentIndex) ?: initialMedia
-    val previousIndex = wrappedPhotoIndex(currentIndex, mediaItems.size, -1)
-    val nextIndex = wrappedPhotoIndex(currentIndex, mediaItems.size, 1)
+    val previousIndex = adjacentPhotoIndex(currentIndex, mediaItems.size, -1)
+    val nextIndex = adjacentPhotoIndex(currentIndex, mediaItems.size, 1)
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -253,12 +261,14 @@ private fun PhotoViewer(
             .testTag("media-image"),
         contentAlignment = Alignment.Center,
     ) {
-        if (mediaItems.size > 1) {
+        if (previousIndex != null) {
             PhotoPage(
                 media = mediaItems[previousIndex],
                 translationX = displayOffset.x - viewportWidth,
                 testTag = "media-image-previous-index-$previousIndex",
             )
+        }
+        if (nextIndex != null) {
             PhotoPage(
                 media = mediaItems[nextIndex],
                 translationX = displayOffset.x + viewportWidth,
@@ -353,10 +363,8 @@ internal fun photoPageDirectionForDrag(dragOffset: Float, viewportWidth: Float):
     else -> 0
 }
 
-internal fun wrappedPhotoIndex(currentIndex: Int, count: Int, pageDirection: Int): Int {
-    if (count <= 0) return 0
-    return (currentIndex + pageDirection).mod(count)
-}
+internal fun adjacentPhotoIndex(currentIndex: Int, count: Int, pageDirection: Int): Int? =
+    (currentIndex + pageDirection).takeIf { currentIndex in 0 until count && it in 0 until count }
 
 internal fun safeMediaUri(value: String?): Uri? {
     if (value.isNullOrBlank()) return null

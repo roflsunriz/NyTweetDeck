@@ -1,6 +1,7 @@
 package dev.nytweetdeck.android.ui
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MediaViewerDialogTest {
@@ -15,10 +16,15 @@ class MediaViewerDialogTest {
     }
 
     @Test
-    fun wrapsAdjacentPhotoIndexesAtBothEnds() {
-        assertEquals(1, wrappedPhotoIndex(0, 2, 1))
-        assertEquals(0, wrappedPhotoIndex(1, 2, 1))
-        assertEquals(1, wrappedPhotoIndex(0, 2, -1))
-        assertEquals(0, wrappedPhotoIndex(0, 0, 1))
+    fun adjacentPhotoIndexesStopAtBothEnds() {
+        for (count in listOf(1, 2, 4)) {
+            assertNull(adjacentPhotoIndex(0, count, -1))
+            assertNull(adjacentPhotoIndex(count - 1, count, 1))
+            for (index in 0 until count - 1) {
+                assertEquals(index + 1, adjacentPhotoIndex(index, count, 1))
+                assertEquals(index, adjacentPhotoIndex(index + 1, count, -1))
+            }
+        }
+        assertNull(adjacentPhotoIndex(0, 0, 1))
     }
 }

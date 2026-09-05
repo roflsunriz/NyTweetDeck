@@ -63,41 +63,64 @@ test("supports toolbar, wheel, double-click, and keyboard zoom/reset operations"
   expect(viewport.dataset.panX).toBe("0");
 });
 
-test("switches to next/previous images at the corresponding drag boundary and wraps", async () => {
-  renderViewer({ src: sources[1], sources });
-  const user = userEvent.setup();
-  const { image, viewport } = viewerElements();
-  mockViewportBounds(viewport, 0, 300);
-  expect(image.src).toContain("second.jpg");
-  expect(viewport.dataset.imageIndex).toBe("1");
-
-  fireEvent(viewport, pointerEvent("pointerdown", 150, 100, 1));
-  fireEvent(viewport, pointerEvent("pointermove", 80, 100, 1));
-  expect(viewport.dataset.panX).toBe("-70");
-  fireEvent(viewport, pointerEvent("pointermove", 0, 100, 1));
-  expect(image.src).toContain("third.jpg");
-  expect(viewport.dataset.imageIndex).toBe("2");
-  expect(viewport.dataset.panX).toBe("0");
-
-  fireEvent(viewport, pointerEvent("pointerdown", 150, 100, 1));
-  fireEvent(viewport, pointerEvent("pointermove", 0, 100, 1));
-  expect(image.src).toContain("first.jpg");
-  expect(viewport.dataset.imageIndex).toBe("0");
-
-  fireEvent(viewport, pointerEvent("pointerdown", 150, 100, 1));
-  fireEvent(viewport, pointerEvent("pointermove", 300, 100, 1));
-  expect(image.src).toContain("third.jpg");
-  expect(viewport.dataset.imageIndex).toBe("2");
-
-  await user.click(screen.getByRole("button", { name: "次の画像" }));
-  expect(image.src).toContain("first.jpg");
-  await user.click(screen.getByRole("button", { name: "前の画像" }));
-  expect(image.src).toContain("third.jpg");
-  await user.keyboard("{ArrowLeft}");
-  expect(image.src).toContain("second.jpg");
-  await user.keyboard("{ArrowRight}");
-  expect(image.src).toContain("third.jpg");
-});
+for (const count of [1, 2, 4]) {
+  test(`bounds ${count} images for drag, buttons and keys from the last image`, async () => {
+    const siblings = [...sources, "https://pbs.twimg.com/media/fourth.jpg"].slice(0, count);
+    renderViewer({ src: siblings[count - 1], sources: siblings });
+    const user = userEvent.setup();
+    const { viewport } = viewerElements();
+    mockViewportBounds(viewport, 0, 300);
+    const swipe = (x: number) => {
+      fireEvent(viewport, pointerEvent("pointerdown", 150, 100, 1));
+      fireEvent(viewport, pointerEvent("pointermove", x, 100, 1));
+      fireEvent(viewport, pointerEvent("pointerup", x, 100, 0));
+    };
+    const buttons = screen.getAllByRole("button");
+    expect(viewport.dataset.imageCount).toBe(String(count));
+    expect(viewport.dataset.imageIndex).toBe(String(count - 1));
+    await user.keyboard("+");
+    const zoom = viewport.dataset.zoom;
+    await user.keyboard("{ArrowRight}");
+    expect(viewport.dataset.zoom).toBe(zoom);
+    swipe(0);
+    expect(viewport.dataset.imageIndex).toBe(String(count - 1));
+    if (count > 1) {
+      const previous = buttons[0] as HTMLButtonElement;
+      const next = buttons[1] as HTMLButtonElement;
+      expect(next.disabled).toBe(true);
+      await user.click(next);
+      expect(viewport.dataset.imageIndex).toBe(String(count - 1));
+      for (let index = count - 2; index >= 0; index--) {
+        swipe(300);
+        expect(viewport.dataset.imageIndex).toBe(String(index));
+        expect(viewport.dataset.zoom).toBe("1");
+      }
+      expect(previous.disabled).toBe(true);
+      await user.click(previous);
+      await user.keyboard("{ArrowLeft}");
+      swipe(300);
+      expect(viewport.dataset.imageIndex).toBe("0");
+      await user.click(next);
+      expect(viewport.dataset.imageIndex).toBe("1");
+      await user.keyboard("{ArrowLeft}");
+      expect(viewport.dataset.imageIndex).toBe("0");
+      for (let index = 1; index < count; index++) {
+        swipe(0);
+        expect(viewport.dataset.imageIndex).toBe(String(index));
+      }
+      await user.click(previous);
+      expect(viewport.dataset.imageIndex).toBe(String(count - 2));
+      await user.keyboard("{ArrowRight}");
+      expect(viewport.dataset.imageIndex).toBe(String(count - 1));
+    } else {
+      await user.keyboard("{ArrowLeft}");
+      swipe(300);
+      expect(viewport.dataset.imageIndex).toBe("0");
+      expect(buttons).toHaveLength(4);
+    }
+    expect(viewport.querySelectorAll("img")).toHaveLength(1);
+  });
+}
 
 test("cancels an active drag when zoom/reset wins and closes exactly once with Escape", async () => {
   const onClose = mock(() => undefined);

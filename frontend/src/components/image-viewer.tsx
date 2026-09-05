@@ -73,10 +73,12 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
   const navigate = useCallback(
     (offset: number) => {
       if (imageSources.length <= 1) return;
-      setImageIndex((current) => (current + offset + imageSources.length) % imageSources.length);
+      const next = imageIndex + offset;
+      if (next < 0 || next >= imageSources.length) return;
+      setImageIndex(next);
       reset();
     },
-    [imageSources.length, reset],
+    [imageIndex, imageSources.length, reset],
   );
 
   const setZoomAround = useCallback(
@@ -371,6 +373,7 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
               <button
                 type="button"
                 aria-label={translation.previousImage}
+                disabled={imageIndex === 0}
                 onClick={() => navigate(-1)}
               >
                 <ChevronLeft aria-hidden="true" size={19} />
@@ -378,7 +381,12 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
               <span className="image-viewer-position" aria-live="polite">
                 {imageIndex + 1} / {imageSources.length}
               </span>
-              <button type="button" aria-label={translation.nextImage} onClick={() => navigate(1)}>
+              <button
+                type="button"
+                aria-label={translation.nextImage}
+                disabled={imageIndex === imageSources.length - 1}
+                onClick={() => navigate(1)}
+              >
                 <ChevronRight aria-hidden="true" size={19} />
               </button>
             </>

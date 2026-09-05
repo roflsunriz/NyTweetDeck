@@ -20,6 +20,13 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 画像の有限な並び（2026-09-05）
+
+- 画像ビューアは投稿の枚数の範囲だけで移動し、先頭の前に末尾画像、末尾の後に先頭画像を配置しない。Androidの隣接ページとWebのボタン・キーボード・ドラッグのすべてで循環を除去する。
+- `MediaViewerDialogTest`で1/2/4枚の前後インデックス、`MediaViewerUiTest`の画像3ケースをAQUOSで実行し、端のスワイプで移動しないこと、2枚の隣接重複がないこと、4枚目から開いて1枚目まで戻れること、リセット・閉じるを確認した。
+- Android単体251件・debug/release Lint/ビルド、フロントエンド187件・lint/型/整形/ビルド、Java138件が成功。専用Chromeの390/1440幅×1/2/4枚で端・逆移動・拡大・パン・Escを確認し、実行時エラー0件だった。UIテストはテスト用メディアデータ・fixtureを使用した。
+- 両稼働版をバックアップして更新し、Androidは非debuggable releaseの起動とAPKハッシュ一致、WindowsはJARハッシュ一致と再起動後HTTP/HTTPS readyを確認した。認証・設定は維持した。
+
 ## 設定の整理（2026-09-05）
 
 - 表示・翻訳・メディアなどのグループから従来の項目を操作でき、補足説明と診断を閉じた初期状態でも設定変更・更新・書き出し・読み込みへ到達できることを確認する。保存競合や取得失敗は説明内へ隠さず表示する。

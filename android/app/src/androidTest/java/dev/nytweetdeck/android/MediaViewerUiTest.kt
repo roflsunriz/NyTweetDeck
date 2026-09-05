@@ -44,6 +44,9 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("media-viewer").assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").assertIsDisplayed()
         composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image-previous-index-1", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeRight() }
+        composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag(
             "media-image-next-index-1",
             useUnmergedTree = true,
@@ -57,12 +60,53 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
         composeRule.onNodeWithTag("media-image-index-1", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image-next-index-0", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag("media-image-index-1", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").performTouchInput { swipeRight() }
         composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-image").performTouchInput { doubleClick() }
         composeRule.onNodeWithTag("media-reset").performClick()
         composeRule.onNodeWithTag("media-close").performClick()
         composeRule.onNodeWithTag("post-1").assertIsDisplayed()
+    }
+
+    @Test
+    fun fourPhotosOpenedAtTheLastPhotoNeverWrapAndCanReturnToTheFirst() {
+        composeRule.activity.setContent {
+            NyTweetDeckTheme {
+                PostCard(post = photoPost().copy(media = (1..4).map { index ->
+                    photoPost().media.first().copy(id = "photo-$index")
+                }))
+            }
+        }
+        composeRule.onNodeWithTag("post-media-1-photo-4").performClick()
+        composeRule.onNodeWithTag("media-image-index-3", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image-next-index-0", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag("media-image-index-3", useUnmergedTree = true).assertIsDisplayed()
+        for (index in 2 downTo 0) {
+            composeRule.onNodeWithTag("media-image").performTouchInput { swipeRight() }
+            composeRule.onNodeWithTag("media-image-index-$index", useUnmergedTree = true).assertIsDisplayed()
+        }
+        composeRule.onNodeWithTag("media-image-previous-index-3", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeRight() }
+        composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-close").performClick()
+    }
+
+    @Test
+    fun singlePhotoHasNoRepeatedNeighbors() {
+        composeRule.activity.setContent {
+            NyTweetDeckTheme { PostCard(post = photoPost().copy(media = photoPost().media.take(1))) }
+        }
+        composeRule.onNodeWithTag("post-media-1-photo-1").performClick()
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeRight() }
+        composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-image-previous-index-0", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag("media-image-next-index-0", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag("media-close").performClick()
     }
 
     @Test
