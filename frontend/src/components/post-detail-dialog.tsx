@@ -54,7 +54,7 @@ export function PostDetailDialog({
   const [showPossibleSpam, setShowPossibleSpam] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
-  const requestedCursors = useRef(new Set<string>());
+  const replyRequests = useRef({ cursors: new Set<string>(), loading: false, active: true });
   const { locale, replySort, setReplySort } = usePostTranslationSettings();
 
   useEffect(() => {
@@ -69,7 +69,8 @@ export function PostDetailDialog({
     setShowPossibleSpam(false);
     setLoadingMore(false);
     setLoadMoreError(false);
-    requestedCursors.current.clear();
+    const requests = { cursors: new Set<string>(), loading: false, active: true };
+    replyRequests.current = requests;
     void loadPostDetail(accountId, postId, locale, replySort)
       .then((value) => {
         if (active) setDetail(value);
@@ -82,21 +83,26 @@ export function PostDetailDialog({
       });
     return () => {
       active = false;
+      requests.active = false;
     };
   }, [accountId, initialPost, locale, postId, replySort, translation.timelineLoadError]);
 
   const loadMoreReplies = async () => {
     const cursor = detail?.nextCursor?.trim();
-    if (cursor === undefined || cursor.length === 0 || loadingMore) return;
-    if (requestedCursors.current.has(cursor)) {
+    const requests = replyRequests.current;
+    if (cursor === undefined || cursor.length === 0 || requests.loading || !requests.active) return;
+    if (requests.cursors.has(cursor)) {
       setDetail((current) => (current === null ? current : { ...current, nextCursor: null }));
       return;
     }
-    requestedCursors.current.add(cursor);
+    requests.cursors.add(cursor);
+    requests.loading = true;
     setLoadingMore(true);
     setLoadMoreError(false);
     try {
       const next = await loadPostDetail(accountId, postId, locale, replySort, cursor);
+      if (!requests.active) return;
+      const nextCursor = next.nextCursor?.trim() || null;
       setDetail((current) => {
         if (current === null) return current;
         const replies = new Map(current.replies.map((reply) => [reply.id, reply]));
@@ -106,14 +112,15 @@ export function PostDetailDialog({
         return {
           ...current,
           replies: [...replies.values()],
-          nextCursor: next.nextCursor,
+          nextCursor: nextCursor !== null && requests.cursors.has(nextCursor) ? null : nextCursor,
         };
       });
     } catch {
-      requestedCursors.current.delete(cursor);
-      setLoadMoreError(true);
+      requests.cursors.delete(cursor);
+      if (requests.active) setLoadMoreError(true);
     } finally {
-      setLoadingMore(false);
+      requests.loading = false;
+      if (requests.active) setLoadingMore(false);
     }
   };
 

@@ -25,10 +25,12 @@ internal class PostDetailController(
 ) {
     private val history = ArrayDeque<PostDetailUiState>()
     private val requestedReplyCursors = mutableMapOf<String, MutableSet<String>>()
+    private var requestGeneration = 0L
 
     fun open(postId: String, knownPost: Post? = null) {
         val current = state.value.postDetail
         if (current.postId == postId && current.status != PostDetailStatus.CLOSED) return
+        requestGeneration++
         if (current.status != PostDetailStatus.CLOSED) {
             if (history.size == MAX_DETAIL_HISTORY) history.removeFirst()
             history.addLast(current)
@@ -64,6 +66,7 @@ internal class PostDetailController(
     fun reload() {
         val detail = state.value.postDetail
         val postId = detail.postId ?: return
+        requestGeneration++
         val knownPost = detail.page?.post
         requestedReplyCursors[postId] = mutableSetOf()
         state.update { current ->
@@ -71,7 +74,11 @@ internal class PostDetailController(
                 postDetail = if (detail.page == null) {
                     PostDetailUiState(PostDetailStatus.LOADING, postId)
                 } else {
-                    detail.copy(isLoadingMore = true, loadMoreFailed = false)
+                    detail.copy(
+                        page = detail.page.copy(nextCursor = null),
+                        isLoadingMore = true,
+                        loadMoreFailed = false,
+                    )
                 },
             )
         }
@@ -101,6 +108,7 @@ internal class PostDetailController(
         state.update { current ->
             current.copy(postDetail = detail.copy(isLoadingMore = true, loadMoreFailed = false))
         }
+        val generation = requestGeneration
         scope.launch(ioDispatcher) {
             val result = runCatching {
                 repository.load(
@@ -113,7 +121,9 @@ internal class PostDetailController(
                 )
             }
             withContext(Dispatchers.Main.immediate) {
-                if (state.value.selectedAccountId != accountId) return@withContext
+                if (requestGeneration != generation || state.value.selectedAccountId != accountId ||
+                    state.value.postDetail.postId != page.post.id
+                ) return@withContext
                 state.update { current ->
                     val currentPage = current.postDetail.page ?: return@update current
                     result.fold(
@@ -160,11 +170,18 @@ internal class PostDetailController(
     }
 
     fun close() {
+        requestGeneration++
         val previous = history.removeLastOrNull()
         state.update { it.copy(postDetail = previous ?: PostDetailUiState()) }
+        // A result for a hidden detail cannot update the active route. Restart any
+        // interrupted request when returning to its saved page instead of restoring a spinner.
+        if (previous?.status == PostDetailStatus.LOADING || previous?.isLoadingMore == true) {
+            reload()
+        }
     }
 
     fun reset() {
+        requestGeneration++
         history.clear()
         requestedReplyCursors.clear()
         state.update { it.copy(postDetail = PostDetailUiState()) }
@@ -172,6 +189,7 @@ internal class PostDetailController(
 
     private fun load(postId: String, knownPost: Post? = null) {
         val snapshot = state.value
+        val generation = requestGeneration
         val accountId = snapshot.selectedAccountId ?: return fail(postId)
         val account = accountProvider(accountId) ?: return fail(postId)
         scope.launch(ioDispatcher) {
@@ -185,7 +203,9 @@ internal class PostDetailController(
                 )
             }
             withContext(Dispatchers.Main.immediate) {
-                if (state.value.selectedAccountId != accountId || state.value.postDetail.postId != postId) {
+                if (requestGeneration != generation || state.value.selectedAccountId != accountId ||
+                    state.value.postDetail.postId != postId
+                ) {
                     return@withContext
                 }
                 state.update { current ->

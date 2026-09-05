@@ -13,6 +13,28 @@ class TimelineResponseParserTest {
     private val parser = TimelineResponseParser()
 
     @Test
+    fun bottomTerminationOverridesCursorRegardlessOfInstructionOrderOrPostCount() {
+        val end = """{"type":"TimelineTerminateTimeline","direction":"Bottom"}"""
+        for (tweet in listOf("", """{"entryId":"tweet-123","content":{"itemContent":{"tweet_results":{"result":{"__typename":"Tweet","rest_id":"123","legacy":{"full_text":"reply"}}}}}},""")) {
+            val entries = """{"type":"TimelineAddEntries","entries":[$tweet{"entryId":"cursor-bottom-0","content":{"cursorType":"Bottom","value":"fresh-cursor"}}]}"""
+            for (instructions in listOf("$entries,$end", "$end,$entries")) {
+                val body = """{"data":{"threaded_conversation_with_injections_v2":{"instructions":[$instructions]}}}"""
+                assertNull(parser.parseInResponseOrder(body).nextCursor)
+                assertNull(parser.parse(body).nextCursor)
+                assertEquals(if (tweet.isEmpty()) 0 else 1, parser.parse(body).posts.size)
+            }
+        }
+    }
+
+    @Test
+    fun topTerminationAndEmptyPagesWithoutBottomTerminationKeepTheNextCursor() {
+        for (end in listOf("", """,{"type":"TimelineTerminateTimeline","direction":"Top"}""")) {
+            val body = """{"instructions":[{"type":"TimelineAddEntries","entries":[{"content":{"cursorType":"Bottom","value":"next-cursor"}}]}$end]}"""
+            assertEquals("next-cursor", parser.parseInResponseOrder(body).nextCursor)
+        }
+    }
+
+    @Test
     fun normalizesPostsMediaMetricsAndCursorFromGraphQlUrtResponse() {
         val page = parser.parse(fixture("timeline-response.json"))
 

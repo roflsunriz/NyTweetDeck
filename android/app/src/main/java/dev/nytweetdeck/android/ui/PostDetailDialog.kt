@@ -246,14 +246,14 @@ private fun DetailReady(
             .distinctUntilChanged()
             .collect { savedScrollPositions[page.post.id] = it }
     }
-    LaunchedEffect(listState, page.nextCursor, state.isLoadingMore) {
+    LaunchedEffect(listState, page.nextCursor, state.isLoadingMore, state.loadMoreFailed) {
         snapshotFlow {
             val layout = listState.layoutInfo
             val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
             layout.totalItemsCount > 0 && lastVisible >= layout.totalItemsCount - 3
         }
             .distinctUntilChanged()
-            .filter { it && page.nextCursor != null && !state.isLoadingMore }
+            .filter { it && !page.nextCursor.isNullOrBlank() && !state.isLoadingMore && !state.loadMoreFailed }
             .collect { onLoadMore() }
     }
     val deemphasizedCount = page.replies.count { it.quality.isDeemphasized }
@@ -265,7 +265,7 @@ private fun DetailReady(
         ?.post
         ?.id
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().testTag("post-detail-replies"),
         state = listState,
     ) {
         page.contextPosts.forEach { contextPost ->
@@ -332,11 +332,11 @@ private fun DetailReady(
                 onReplySortChange = onReplySortChange,
             )
         }
-        if (page.replies.isEmpty()) {
+        if (page.replies.isEmpty() && !state.isLoadingMore && !state.loadMoreFailed) {
             item(key = "empty-replies") {
                 Text(
                     text = stringResource(R.string.replies_empty),
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(20.dp).testTag("empty-replies"),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -391,6 +391,7 @@ private fun DetailReady(
             isLoadingMore = state.isLoadingMore,
             loadMoreFailed = state.loadMoreFailed,
             onLoadMore = onLoadMore,
+            onRetry = if (page.nextCursor.isNullOrBlank()) onRetry else onLoadMore,
         )
     }
 }
@@ -474,6 +475,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.DetailLoadMoreFooter(
     isLoadingMore: Boolean,
     loadMoreFailed: Boolean,
     onLoadMore: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     when {
         isLoadingMore -> item(key = "loading-more-replies") {
@@ -489,7 +491,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.DetailLoadMoreFooter(
         }
         loadMoreFailed -> item(key = "load-more-replies-failed") {
             TextButton(
-                onClick = onLoadMore,
+                onClick = onRetry,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("load-more-replies"),
@@ -497,7 +499,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.DetailLoadMoreFooter(
                 Text(stringResource(R.string.retry_load_more_replies))
             }
         }
-        nextCursor != null -> item(key = "load-more-replies") {
+        !nextCursor.isNullOrBlank() -> item(key = "load-more-replies") {
             TextButton(
                 onClick = onLoadMore,
                 modifier = Modifier

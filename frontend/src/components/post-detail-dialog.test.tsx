@@ -246,6 +246,121 @@ test("shows reply ancestors and loads older replies from a timeline detail", asy
   expect(screen.queryByRole("button", { name: "さらに返信を読み込む" })).toBeNull();
 });
 
+for (const replyCount of [0, 3]) {
+  test(`finishes ${replyCount}-reply pages when the cursor repeats`, async () => {
+    let requests = 0;
+    globalThis.fetch = (async () => {
+      requests += 1;
+      return Response.json({
+        post: timelinePost("900", "focal post"),
+        replies: Array.from({ length: replyCount }, (_, i) =>
+          timelinePost(String(901 + i), `reply ${i}`),
+        ),
+        nextCursor: "older",
+      });
+    }) as unknown as typeof fetch;
+    const { container } = render(
+      <PostDetailDialog
+        postId="900"
+        accountId="account-1"
+        translation={translate("ja")}
+        onClose={() => undefined}
+      />,
+    );
+    await screen.findByText("focal post");
+    await userEvent
+      .setup()
+      .click(container.querySelector(".detail-load-more button") as HTMLButtonElement);
+    await waitFor(() => expect(container.querySelector(".detail-load-more")).toBeNull());
+    expect(requests).toBe(2);
+    expect(container.querySelectorAll("[data-reply-thread-id]").length).toBe(replyCount);
+  });
+}
+
+test("continues empty pages with new cursors and permits retry after a failure", async () => {
+  const cursors: (string | null)[] = [];
+  globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+    const cursor = new URL(String(input), "http://localhost").searchParams.get("cursor");
+    cursors.push(cursor);
+    if (cursors.length === 2) return new Response(null, { status: 503 });
+    return Response.json({
+      post: timelinePost("900", "focal post"),
+      replies: cursor === "second" ? [timelinePost("901", "last reply")] : [],
+      nextCursor: cursor === null ? "first" : cursor === "first" ? "second" : null,
+    });
+  }) as unknown as typeof fetch;
+  const { container } = render(
+    <PostDetailDialog
+      postId="900"
+      accountId="account-1"
+      translation={translate("ja")}
+      onClose={() => undefined}
+    />,
+  );
+  await screen.findByText("focal post");
+  const clickMore = () =>
+    fireEvent.click(container.querySelector(".detail-load-more button") as HTMLButtonElement);
+  clickMore();
+  await waitFor(() =>
+    expect(container.querySelector(".detail-load-more .inline-error")).not.toBeNull(),
+  );
+  clickMore();
+  await waitFor(() =>
+    expect(
+      (container.querySelector(".detail-load-more button") as HTMLButtonElement).disabled,
+    ).toBe(false),
+  );
+  expect(container.querySelector(".detail-load-more .inline-error")).toBeNull();
+  clickMore();
+  await screen.findByText("last reply");
+  expect(container.querySelector(".detail-load-more")).toBeNull();
+  expect(cursors).toEqual([null, "first", "first", "second"]);
+});
+
+for (const failure of [false, true]) {
+  test(`ignores old page ${failure ? "failure" : "response"} after switching posts`, async () => {
+    let completeOld: (response: Response) => void = () => {
+      throw new Error("missing old request");
+    };
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.searchParams.has("cursor"))
+        return new Promise<Response>((resolve) => {
+          completeOld = resolve;
+        });
+      const id = url.pathname.endsWith("900") ? "900" : "950";
+      return Response.json({
+        post: timelinePost(id, `post ${id}`),
+        replies: [],
+        nextCursor: "older",
+      });
+    }) as unknown as typeof fetch;
+    const props = {
+      accountId: "account-1",
+      translation: translate("ja"),
+      onClose: () => undefined,
+    };
+    const { container, rerender } = render(<PostDetailDialog {...props} postId="900" />);
+    await screen.findByText("post 900");
+    fireEvent.click(container.querySelector(".detail-load-more button") as HTMLButtonElement);
+    rerender(<PostDetailDialog {...props} postId="950" />);
+    await screen.findByText("post 950");
+    completeOld(
+      failure
+        ? new Response(null, { status: 503 })
+        : Response.json({
+            post: timelinePost("900", "old post"),
+            replies: [timelinePost("901", "obsolete reply")],
+            nextCursor: null,
+          }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("obsolete reply")).toBeNull();
+    expect(container.querySelector(".inline-error")).toBeNull();
+    expect(container.querySelector(".detail-load-more button")).not.toBeNull();
+  });
+}
+
 for (const viewport of [
   { width: 390, locale: "ar" as const, direction: "rtl" as const },
   { width: 1440, locale: "ja" as const, direction: "ltr" as const },

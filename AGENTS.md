@@ -76,3 +76,7 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - フロントエンドのバンドルには Bun bundler を使用する
 - Java LTS 17・21・25を正式対応とし、Java 17 bytecodeを生成する
 - CIではactions/setup-javaが公式対応する非推奨でない全JDKディストリビューションを17・21・25で固定検証する
+
+## 返信ページ終端の判定
+
+- Xは返信終端でも新しいBottom cursorを返す。2026-09-05のAQUOS実機で、`TimelineTerminateTimeline`の`direction: Bottom`とcursorが同じ応答に含まれることを確認した。Android/Javaの`TimelineResponseParser`ではこの終了指示をcursorより優先する。空ページや表示上の返信件数だけを根拠に終了判定しない。回帰・実機検証は`verification.md`参照。

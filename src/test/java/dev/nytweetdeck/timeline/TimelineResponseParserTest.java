@@ -12,6 +12,46 @@ class TimelineResponseParserTest {
             new TimelineResponseParser(JsonMapper.builder().build());
 
     @Test
+    void honorsExplicitBottomTerminationRegardlessOfInstructionOrderAndPostCount() {
+        var terminal = """
+                {"type":"TimelineTerminateTimeline","direction":"Bottom"}
+                """;
+        for (var postEntry : new String[] {"", """
+                {"entryId":"tweet-900","content":{"itemContent":{"tweet_results":{"result":{
+                "__typename":"Tweet","rest_id":"900","legacy":{"full_text":"fixture"}}}}}},
+                """}) {
+            var entries = """
+                    {"type":"TimelineAddEntries","entries":[%s
+                    {"entryId":"cursor-bottom-0","content":{"cursorType":"Bottom","value":"fresh-cursor"}}]}
+                    """.formatted(postEntry);
+            for (var instructions : new String[] {terminal + "," + entries, entries + "," + terminal}) {
+                var body = "{\"data\":{\"threaded_conversation_with_injections_v2\":{\"instructions\":["
+                        + instructions + "]}}}";
+                var page = parser.parseInResponseOrder(body);
+                assertThat(page.nextCursor()).isNull();
+                assertThat(page.posts()).hasSize(postEntry.isEmpty() ? 0 : 1);
+                assertThat(parser.parse(body).nextCursor()).isNull();
+            }
+        }
+    }
+
+    @Test
+    void retainsCursorOnEmptyPagesWithoutExplicitBottomTermination() {
+        for (var instruction : new String[] {"", """
+                {"type":"TimelineTerminateTimeline","direction":"Top"},
+                """}) {
+            var body = """
+                    {"data":{"threaded_conversation_with_injections_v2":{"instructions":[%s
+                    {"type":"TimelineAddEntries","entries":[
+                    {"entryId":"cursor-bottom-0","content":{"cursorType":"Bottom","value":"fresh-cursor"}}]}]}}}
+                    """.formatted(instruction);
+            var page = parser.parseInResponseOrder(body);
+            assertThat(page.nextCursor()).isEqualTo("fresh-cursor");
+            assertThat(page.posts()).isEmpty();
+        }
+    }
+
+    @Test
     void normalizesPostsMediaMetricsAndCursorFromGraphQlUrtResponse() throws Exception {
         String body;
         try (var input = getClass().getResourceAsStream("/fixtures/timeline-response.json")) {

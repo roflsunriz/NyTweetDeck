@@ -57,7 +57,7 @@ public class TimelineResponseParser {
         try {
             var root = objectMapper.readTree(body);
             var posts = new LinkedHashMap<String, Post>();
-            var cursor = new String[1];
+            var cursor = new CursorState();
             visit(root, posts, cursor, null);
             var sortedPosts = new ArrayList<>(posts.values());
             if (sortChronologically) {
@@ -66,7 +66,7 @@ public class TimelineResponseParser {
                                 Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(Post::id, Comparator.reverseOrder()));
             }
-            return new TimelinePage(sortedPosts, cursor[0]);
+            return new TimelinePage(sortedPosts, cursor.bottomTerminated ? null : cursor.value);
         } catch (JacksonException | IllegalArgumentException exception) {
             throw new XApiHttpException("タイムライン応答を解析できません。", exception);
         }
@@ -75,7 +75,7 @@ public class TimelineResponseParser {
     private void visit(
             JsonNode node,
             Map<String, Post> posts,
-            String[] cursor,
+            CursorState cursor,
             String inheritedConversationSection) {
         if (node == null || node.isNull()) {
             return;
@@ -625,17 +625,28 @@ public class TimelineResponseParser {
         }
     }
 
-    private static void findCursor(JsonNode node, String[] cursor) {
+    private static final class CursorState {
+        private String value;
+        private boolean bottomTerminated;
+    }
+
+    private static void findCursor(JsonNode node, CursorState cursor) {
+        if ("TimelineTerminateTimeline".equals(text(node, "type"))
+                && "Bottom".equalsIgnoreCase(text(node, "direction"))) {
+            // X can return a fresh Bottom cursor alongside this terminal instruction.
+            // Keep the terminal flag independent of instruction traversal order.
+            cursor.bottomTerminated = true;
+        }
         var cursorType = firstNonNull(text(node, "cursorType"), text(node, "cursor_type"));
         if ("Bottom".equalsIgnoreCase(cursorType)) {
-            cursor[0] = text(node, "value");
+            cursor.value = text(node, "value");
             return;
         }
         var entryId = firstNonNull(text(node, "entryId"), text(node, "entry_id"));
         if (entryId != null && entryId.toLowerCase(Locale.ROOT).contains("cursor-bottom")) {
             var content = node.get("content");
             if (content != null && text(content, "value") != null) {
-                cursor[0] = text(content, "value");
+                cursor.value = text(content, "value");
             }
         }
     }

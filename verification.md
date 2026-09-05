@@ -20,6 +20,19 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 返信詳細の終端（2026-09-05）
+
+- AQUOS SH-R80Pの実X応答で、返信終端後にも新しいBottom cursorが返る一方、`TimelineTerminateTimeline / Bottom`が含まれることを確認した。修正前は空の追加ページを3回取得してもcursorが変わり続けた。AndroidとJavaの解析は終了指示を優先し、指示順・投稿件数に依存させない。Top終了だけの場合と終了指示のない空ページは継続可能に保つ。
+- `PostDetailControllerTest`で追加取得終了、明示再試行、詳細切替・閉じる・並び替え中の古い応答を確認する。`PostDetailPaginationUiTest`で0件・8返信の終端、初回/追加失敗後の再試行、並び替えを操作する。LazyColumnの画面外項目はリストのキーでスクロールしてから確認する。
+- `LiveReplyTerminationTest`は保存済みセッションで実Xを読み取り、実Controller/画面へ接続する。有限返信と0件候補を上限付きで探し、末尾スクロール・追加取得操作後の通信回数不変と読み込み表示消失を確認する。実0件候補が見つからない場合はその旨を明示し、実測した空応答構造の合成値によるテストと区別する。ログには件数と終了状態だけを出し、本文・ID・認証情報は出さない。
+- 今回はAQUOSで実返信0件と複数返信の両方を確認し、上記実機テスト7件成功。フロントエンド176件、Java138件、Android単体249件、Android debug/release Lintとビルドが成功。ヘッドレスChromeでは390/1440幅で終端・空ページ継続・失敗後再試行の10ケースが成功。依存監査はBun66件・Maven70件・Gradle36件で既知の未撤回脆弱性なし。
+- 修正ソースのrelease APKを既存と同じ署名で実機へ上書きし、再起動後のAPK SHA-256一致と非debuggableを確認した。Windowsも既存JARをバックアップして更新・自動起動タスクから再起動し、HTTP/HTTPS両方のready応答と稼働JARのハッシュ一致を確認。稼働APIの実X取得でも0返信・13返信の終端cursorがnullになることを確認した。
+
+```powershell
+Set-Location .\android
+.\run-aquos-live-tests.ps1 -TestClasses dev.nytweetdeck.android.PostDetailPaginationUiTest,dev.nytweetdeck.android.LiveReplyTerminationTest
+```
+
 ## 更新ボタン（2026-09-05）
 
 - デスクトップ: 現在版は配布JARのMaven build-infoから取得。同一版・旧版・数値桁上がり・公開順の逆転・不明版・SNAPSHOTをJava回帰テストで確認する。

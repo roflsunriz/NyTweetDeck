@@ -44,7 +44,7 @@ class TimelineResponseParser(
         if (sortChronologically) {
             normalizedPosts.sortWith(::compareNewestFirst)
         }
-        TimelinePage(normalizedPosts.toList(), cursor.value)
+        TimelinePage(normalizedPosts.toList(), cursor.value.takeUnless { cursor.bottomTerminated })
     } catch (exception: XApiException) {
         throw exception
     } catch (exception: Exception) {
@@ -495,6 +495,11 @@ class TimelineResponseParser(
         (this[name] as? JsonPrimitive)?.longOrNull
 
     private fun findCursor(node: JsonObject, cursor: CursorHolder) {
+        // X can return a fresh Bottom cursor alongside an explicit end instruction.
+        // Keep the instruction separately so entry/instruction order cannot reopen paging.
+        if (node.text("type") == "TimelineTerminateTimeline" && node.text("direction") == "Bottom") {
+            cursor.bottomTerminated = true
+        }
         val cursorType = firstNonNull(node.text("cursorType"), node.text("cursor_type"))
         if (cursorType.equals("Bottom", ignoreCase = true)) {
             cursor.value = node.text("value")
@@ -569,6 +574,7 @@ class TimelineResponseParser(
 
     private class CursorHolder {
         var value: String? = null
+        var bottomTerminated: Boolean = false
     }
 
     private companion object {
