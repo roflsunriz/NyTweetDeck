@@ -1,5 +1,5 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { translate } from "../i18n/translations";
@@ -11,6 +11,167 @@ import { PostTranslationProvider } from "./post-translation-context";
 const originalFetch = globalThis.fetch;
 const originalInnerWidth = window.innerWidth;
 const originalDirection = document.documentElement.dir;
+
+test("resumes an unfinished reply page after navigating away and Back", async () => {
+  let finishPage: ((value: Response) => void) | undefined;
+  const page = new Promise<Response>((resolve) => {
+    finishPage = resolve;
+  });
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("cursor=next")) return page;
+    const id = url.includes("/posts/901?") ? "901" : "900";
+    return Response.json({
+      post: timelinePost(id, `focal ${id}`),
+      replies: [timelinePost("901", "child")],
+      nextCursor: id === "900" ? "next" : null,
+    });
+  }) as typeof fetch;
+  const { container } = render(
+    <PostDetailDialog
+      postId="900"
+      accountId="account-1"
+      translation={translate("ja")}
+      onClose={() => undefined}
+    />,
+  );
+  const user = userEvent.setup();
+  await screen.findByText("child");
+  const load = container.querySelector<HTMLButtonElement>(".detail-load-more button");
+  if (load === null) throw new Error("Missing pagination");
+  await user.click(load);
+  await user.click(screen.getByText("child"));
+  await screen.findByText("focal 901");
+  await user.keyboard("{Escape}");
+  await screen.findByText("focal 900");
+  const retry = container.querySelector<HTMLButtonElement>(".detail-load-more button");
+  if (retry === null) throw new Error("Missing resumed pagination");
+  await user.click(retry);
+  await act(async () => {
+    finishPage?.(
+      Response.json({
+        post: timelinePost("900", "focal 900"),
+        replies: [timelinePost("902", "resumed page reply")],
+        nextCursor: null,
+      }),
+    );
+  });
+  expect(await screen.findByText("resumed page reply")).toBeDefined();
+});
+
+test("does not reset nested navigation when the root post updates, and resumes unfinished detail on Back", async () => {
+  const root = {
+    ...timelinePost("900", "root loading"),
+    quotedPost: timelinePost("800", "quoted ancestor"),
+  };
+  let resolveRoot: ((response: Response) => void) | undefined;
+  const rootResponse = new Promise<Response>((resolve) => {
+    resolveRoot = resolve;
+  });
+  globalThis.fetch = (async (input: RequestInfo | URL) =>
+    String(input).includes("/posts/900?")
+      ? rootResponse
+      : Response.json({
+          post: timelinePost("800", "ancestor loaded"),
+          replies: [],
+          nextCursor: null,
+        })) as typeof fetch;
+  const props = {
+    postId: "900",
+    accountId: "account-1",
+    translation: translate("ja"),
+    onClose: () => undefined,
+  };
+  const { container, rerender } = render(<PostDetailDialog {...props} initialPost={root} />);
+  const user = userEvent.setup();
+  await screen.findByText("root loading");
+  const quoted = container.querySelector<HTMLButtonElement>(".quoted-post-open");
+  if (quoted === null) throw new Error("Missing quote");
+  await user.click(quoted);
+  await screen.findByText("ancestor loaded");
+  rerender(<PostDetailDialog {...props} initialPost={{ ...root, likeCount: 10 }} />);
+  expect(
+    container.querySelector("[data-detail-post-id]")?.getAttribute("data-detail-post-id"),
+  ).toBe("800");
+  await user.keyboard("{Escape}");
+  await screen.findByText("root loading");
+  await act(async () => {
+    resolveRoot?.(
+      Response.json({
+        post: root,
+        replies: [timelinePost("901", "resumed reply")],
+        nextCursor: null,
+      }),
+    );
+  });
+  expect(await screen.findByText("resumed reply")).toBeDefined();
+});
+
+test("follows replies repeatedly and restores each detail and scroll through Back and Escape", async () => {
+  const closed = mock(() => undefined);
+  const requests: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    requests.push(url);
+    const id = url.match(/posts\/(\d+)/u)?.[1] ?? "900";
+    return Response.json({
+      post: timelinePost(id, `focal ${id}`),
+      contextPosts: [],
+      replies: [timelinePost(String(Number(id) + 1), `child ${Number(id) + 1}`)],
+      nextCursor: null,
+    });
+  }) as typeof fetch;
+  const user = userEvent.setup();
+  const { container } = render(
+    <PostDetailDialog
+      postId="900"
+      accountId="account-1"
+      translation={translate("ja")}
+      onClose={closed}
+    />,
+  );
+  await screen.findByText("child 901");
+  const panel = container.querySelector<HTMLElement>(".modal-panel");
+  if (panel === null) throw new Error("Missing detail panel");
+  panel.scrollTop = 200;
+  await user.click(screen.getByText("child 901"));
+  await screen.findByText("child 902");
+  expect(window.location.hash).toBe("#/post/901");
+  panel.scrollTop = 300;
+  const card = container.querySelector<HTMLElement>('[data-reply-thread-id="902"] .post-card');
+  if (card === null) throw new Error("Missing reply card");
+  card.focus();
+  await user.keyboard("{Enter}");
+  await screen.findByText("child 903");
+  expect(window.location.hash).toBe("#/post/902");
+  await user.click(screen.getByText("child 903"));
+  await screen.findByText("child 904");
+  await user.keyboard("{Escape}");
+  await screen.findByText("child 903");
+  await act(async () => {
+    window.history.back();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  await screen.findByText("child 902");
+  expect(panel.scrollTop).toBe(300);
+  await user.keyboard("{Escape}");
+  await screen.findByText("child 901");
+  expect(panel.scrollTop).toBe(200);
+  expect(closed).not.toHaveBeenCalled();
+  expect(requests.filter((url) => /\/posts\/\d+\?/u.test(url)).length).toBe(4);
+  const reply = container.querySelector<HTMLElement>(
+    '[data-reply-thread-id="901"] [data-post-action="reply"]',
+  );
+  if (reply === null) throw new Error("Missing reply action");
+  await user.click(reply);
+  expect(container.querySelector(".composer-form")).not.toBeNull();
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(container.querySelector(".composer-form")).toBeNull());
+  expect(
+    container.querySelector("[data-detail-post-id]")?.getAttribute("data-detail-post-id"),
+  ).toBe("900");
+  expect(closed).not.toHaveBeenCalled();
+});
 
 afterEach(() => {
   cleanup();

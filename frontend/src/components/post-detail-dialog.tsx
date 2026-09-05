@@ -1,5 +1,5 @@
 import { ChevronDown, ShieldAlert } from "lucide-react";
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import {
   defaultDisplayPreferences,
@@ -9,7 +9,7 @@ import {
 import { loadPostDetail, type PostDetail } from "../model/post-detail";
 import { buildReplyThreadLayout, type ReplyThreadLayoutItem } from "../model/reply-thread-layout";
 import type { TimelinePost } from "../model/timeline";
-import { useOverlayRoute } from "../model/use-overlay-route";
+import { usePostDetailNavigation } from "../model/use-post-detail-navigation";
 import { ComposerDialog } from "./composer-dialog";
 import { Modal } from "./modal";
 import { PostCard } from "./post-card";
@@ -23,7 +23,6 @@ interface PostDetailDialogProps {
   translation: Translation;
   onClose: () => void;
   display?: DisplayPreferences;
-  onOpenPost?: (postId: string) => void;
   onOpenUser?: (userId: string) => void;
 }
 
@@ -36,16 +35,27 @@ const REPLY_THREAD_STEP = 18;
 const COMPACT_REPLY_THREAD_STEP = 14;
 
 export function PostDetailDialog({
-  postId,
-  initialPost,
+  postId: rootPostId,
+  initialPost: rootInitialPost,
   accountId,
   translation,
   onClose,
   display = defaultDisplayPreferences,
-  onOpenPost,
   onOpenUser,
 }: PostDetailDialogProps) {
-  const close = useOverlayRoute(`post/${encodeURIComponent(postId)}`, onClose);
+  const { postId, initialPost, open, close } = usePostDetailNavigation(
+    rootPostId,
+    rootInitialPost,
+    onClose,
+  );
+  const contentRef = useRef<HTMLDivElement>(null);
+  const cachedDetails = useRef(
+    new Map<
+      string,
+      { detail: PostDetail; scrollTop: number; showPossibleSpam: boolean; cursors: Set<string> }
+    >(),
+  );
+  const pendingScroll = useRef<number | null>(null);
   const [detail, setDetail] = useState<PostDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,21 +66,31 @@ export function PostDetailDialog({
   const [loadMoreError, setLoadMoreError] = useState(false);
   const replyRequests = useRef({ cursors: new Set<string>(), loading: false, active: true });
   const { locale, replySort, setReplySort } = usePostTranslationSettings();
+  const detailCacheKey = `${accountId}:${locale}:${replySort}:${postId}`;
 
   useEffect(() => {
     let active = true;
+    const cached = cachedDetails.current.get(detailCacheKey);
+    pendingScroll.current = cached?.scrollTop ?? 0;
     setDetail(
-      initialPost?.id === postId
-        ? { post: initialPost, contextPosts: [], replies: [], nextCursor: null }
-        : null,
+      cached?.detail ??
+        (initialPost?.id === postId
+          ? { post: initialPost, contextPosts: [], replies: [], nextCursor: null }
+          : null),
     );
     setLoadingDetail(true);
     setError(null);
-    setShowPossibleSpam(false);
+    setShowPossibleSpam(cached?.showPossibleSpam ?? false);
     setLoadingMore(false);
     setLoadMoreError(false);
-    const requests = { cursors: new Set<string>(), loading: false, active: true };
+    const requests = { cursors: new Set(cached?.cursors), loading: false, active: true };
     replyRequests.current = requests;
+    if (cached !== undefined) {
+      setLoadingDetail(false);
+      return () => {
+        requests.active = false;
+      };
+    }
     void loadPostDetail(accountId, postId, locale, replySort)
       .then((value) => {
         if (active) setDetail(value);
@@ -85,7 +105,40 @@ export function PostDetailDialog({
       active = false;
       requests.active = false;
     };
-  }, [accountId, initialPost, locale, postId, replySort, translation.timelineLoadError]);
+  }, [
+    accountId,
+    detailCacheKey,
+    initialPost,
+    locale,
+    postId,
+    replySort,
+    translation.timelineLoadError,
+  ]);
+
+  useLayoutEffect(() => {
+    if (detail?.post.id !== postId || pendingScroll.current === null) return;
+    const panel = contentRef.current?.closest(".modal-panel");
+    if (panel !== null && panel !== undefined) panel.scrollTop = pendingScroll.current;
+    pendingScroll.current = null;
+  }, [detail, postId]);
+
+  const onOpenPost = (nextId: string) => {
+    if (detail !== null && !loadingDetail && error === null)
+      cachedDetails.current.set(detailCacheKey, {
+        detail,
+        scrollTop: contentRef.current?.closest(".modal-panel")?.scrollTop ?? 0,
+        showPossibleSpam,
+        cursors: new Set(
+          [...replyRequests.current.cursors].filter(
+            (cursor) => !replyRequests.current.loading || cursor !== detail.nextCursor?.trim(),
+          ),
+        ),
+      });
+    const post = [detail?.post, ...(detail?.contextPosts ?? []), ...(detail?.replies ?? [])].find(
+      (item) => item?.id === nextId,
+    );
+    open(nextId, post);
+  };
 
   const loadMoreReplies = async () => {
     const cursor = detail?.nextCursor?.trim();
@@ -148,7 +201,7 @@ export function PostDetailDialog({
         onClose={close}
         presentation="route"
       >
-        <div className="post-detail-content">
+        <div className="post-detail-content" ref={contentRef} data-detail-post-id={postId}>
           {error !== null && detail === null ? (
             <p className="setup-error">{error}</p>
           ) : detail === null ? (
@@ -213,6 +266,7 @@ export function PostDetailDialog({
                       accountId={accountId}
                       translation={translation}
                       display={display}
+                      onOpenPost={onOpenPost}
                       onOpenQuotedPost={onOpenPost}
                       onOpenUser={onOpenUser}
                       onOpenImage={openImage}
@@ -246,6 +300,7 @@ export function PostDetailDialog({
                             accountId={accountId}
                             translation={translation}
                             display={display}
+                            onOpenPost={onOpenPost}
                             onOpenQuotedPost={onOpenPost}
                             onOpenUser={onOpenUser}
                             onOpenImage={openImage}
@@ -306,6 +361,7 @@ interface ReplyThreadPostProps {
   accountId: string;
   translation: Translation;
   display: DisplayPreferences;
+  onOpenPost: (postId: string) => void;
   onOpenQuotedPost?: (postId: string) => void;
   onOpenUser?: (userId: string) => void;
   onOpenImage: (media: TimelinePost["media"][number], siblings: TimelinePost["media"]) => void;
@@ -316,6 +372,7 @@ function ReplyThreadPost({
   accountId,
   translation,
   display,
+  onOpenPost,
   onOpenQuotedPost,
   onOpenUser,
   onOpenImage,
@@ -357,6 +414,7 @@ function ReplyThreadPost({
         accountId={accountId}
         translation={translation}
         display={display}
+        onOpen={() => onOpenPost(thread.reply.id)}
         onOpenQuotedPost={onOpenQuotedPost}
         onOpenUser={onOpenUser}
         onOpenImage={onOpenImage}

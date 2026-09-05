@@ -20,12 +20,29 @@ export function useOverlayRoute(route: string, onClose: () => void): () => void 
     const state = isRecord(window.history.state) ? window.history.state : {};
     const nextUrl = new URL(window.location.href);
     nextUrl.hash = `/${route}`;
-    window.history.pushState({ ...state, nytdOverlayToken: token }, "", nextUrl.href);
+    const ancestors = Array.isArray(state.nytdOverlayAncestors) ? state.nytdOverlayAncestors : [];
+    window.history.pushState(
+      {
+        ...state,
+        nytdOverlayToken: token,
+        nytdOverlayAncestors: [...ancestors, state.nytdOverlayToken].filter(
+          (value) => typeof value === "string",
+        ),
+      },
+      "",
+      nextUrl.href,
+    );
     const handlePopState = () => {
       if (!activeRef.current) return;
       if (isRecord(window.history.state) && window.history.state.nytdOverlayToken === token) {
         return;
       }
+      if (
+        isRecord(window.history.state) &&
+        Array.isArray(window.history.state.nytdOverlayAncestors) &&
+        window.history.state.nytdOverlayAncestors.includes(token)
+      )
+        return;
       activeRef.current = false;
       onCloseRef.current();
     };
@@ -45,6 +62,11 @@ export function useOverlayRoute(route: string, onClose: () => void): () => void 
 
   return useCallback(() => {
     if (!activeRef.current) return;
+    if (
+      isRecord(window.history.state) &&
+      window.history.state.nytdOverlayToken !== tokenRef.current
+    )
+      return;
     activeRef.current = false;
     const token = tokenRef.current;
     if (isRecord(window.history.state) && window.history.state.nytdOverlayToken === token) {

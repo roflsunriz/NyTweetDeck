@@ -197,7 +197,6 @@ export function UserProfileDialog({
             translation={translation}
             display={display}
             onClose={() => setSelectedPostId(null)}
-            onOpenPost={setSelectedPostId}
           />
         )}
       </div>

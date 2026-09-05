@@ -80,3 +80,5 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 ## 返信ページ終端の判定
 
 - Xは返信終端でも新しいBottom cursorを返す。2026-09-05のAQUOS実機で、`TimelineTerminateTimeline`の`direction: Bottom`とcursorが同じ応答に含まれることを確認した。Android/Javaの`TimelineResponseParser`ではこの終了指示をcursorより優先する。空ページや表示上の返信件数だけを根拠に終了判定しない。回帰・実機検証は`verification.md`参照。
+
+- Androidの返信内遷移は`PostCard`→`DeckViewModel.openPostDetail`→`PostDetailController`で既に接続され、返信ポストも`findLoadedPost`の対象になる。詳細の返信をたどる変更では、カードの外枠だけでなく本文への実タップとOSの戻るを検証する。`RecursiveReplyNavigationTest`が3段階の往復と返信作成・いいねの独立動作を対象にする。

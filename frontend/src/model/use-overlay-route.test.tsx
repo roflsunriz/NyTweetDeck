@@ -31,6 +31,19 @@ test("close action returns to the previous route exactly once", async () => {
   expect(onClose).toHaveBeenCalledTimes(1);
 });
 
+test("keeps ancestor overlays open when returning between descendant routes", async () => {
+  const parentClose = mock(() => undefined);
+  const childClose = mock(() => undefined);
+  const grandchildClose = mock(() => undefined);
+  render(<Harness route="user/42" onClose={parentClose} />);
+  render(<Harness route="post/100" onClose={childClose} />);
+  render(<Harness route="compose" onClose={grandchildClose} />);
+  window.history.back();
+  await waitFor(() => expect(grandchildClose).toHaveBeenCalledTimes(1));
+  expect(parentClose).not.toHaveBeenCalled();
+  expect(childClose).not.toHaveBeenCalled();
+});
+
 function Harness({ route, onClose }: { route: string; onClose: () => void }) {
   const close = useOverlayRoute(route, onClose);
   return (

@@ -221,7 +221,6 @@ export function NotificationsColumn({
           translation={translation}
           display={display}
           onClose={() => setSelectedPostId(null)}
-          onOpenPost={setSelectedPostId}
           onOpenUser={setSelectedUserId}
         />
       )}

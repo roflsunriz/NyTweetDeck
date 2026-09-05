@@ -544,7 +544,6 @@ function TimelineColumnContent({
           translation={translation}
           display={display}
           onClose={() => setSelectedPostId(null)}
-          onOpenPost={setSelectedPostId}
           onOpenUser={setSelectedUserId}
         />
       )}
