@@ -57,6 +57,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
@@ -166,7 +167,14 @@ internal fun DeckContent(
         }
 
         val deckListState = rememberLazyListState()
+        var previousNavigation by remember {
+            mutableStateOf(state.selectedMenu to state.columns.size)
+        }
         LaunchedEffect(deckListState, state.selectedMenu, state.columns.size) {
+            val navigation = state.selectedMenu to state.columns.size
+            // Restoring the deck is not a menu selection. Keep the initial/restored position.
+            if (navigation == previousNavigation) return@LaunchedEffect
+            previousNavigation = navigation
             val selectedIndex = state.columns.indexOfLast { it.kind == state.selectedMenu }
             if (selectedIndex >= 0) {
                 if (state.reduceMotion) deckListState.scrollToItem(selectedIndex)
