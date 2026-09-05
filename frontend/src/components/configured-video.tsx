@@ -61,6 +61,8 @@ export function ConfiguredVideo({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const loopRef = useRef(loop);
   const loadActiveRef = useRef(false);
+  const playbackZoneActiveRef = useRef(false);
+  const fullscreenActiveRef = useRef(false);
   const pictureInPictureRef = useRef(false);
   const controlsTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const stallTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
@@ -283,10 +285,16 @@ export function ConfiguredVideo({
     const player = playerRef.current;
     if (player === null || typeof globalThis.IntersectionObserver === "undefined") return;
     const scrollRoot = player.closest("[data-media-scroll-root]");
-    setInPlaybackZone(false);
     const observer = new IntersectionObserver(
       (entries) => {
         const active = entries.some((entry) => entry.target === player && entry.isIntersecting);
+        playbackZoneActiveRef.current = active;
+        if (
+          fullscreen ||
+          fullscreenActiveRef.current ||
+          player.contains(document.fullscreenElement)
+        )
+          return;
         setInPlaybackZone(active);
         if (active) setMediaConnected(true);
       },
@@ -298,18 +306,24 @@ export function ConfiguredVideo({
     );
     observer.observe(player);
     return () => observer.disconnect();
-  }, []);
+  }, [fullscreen]);
 
   useEffect(() => {
     const player = playerRef.current;
     if (player === null || typeof globalThis.IntersectionObserver === "undefined") return;
     const scrollRoot = player.closest("[data-media-scroll-root]");
-    setMediaConnected(false);
     const observer = new IntersectionObserver(
       (entries) => {
         const active = entries.some((entry) => entry.target === player && entry.isIntersecting);
         loadActiveRef.current = active;
-        if (!active && pictureInPictureRef.current) return;
+        if (
+          !active &&
+          (pictureInPictureRef.current ||
+            fullscreen ||
+            fullscreenActiveRef.current ||
+            player.contains(document.fullscreenElement))
+        )
+          return;
         setMediaConnected(active);
         if (!active) {
           clearStallRecovery();
@@ -330,7 +344,7 @@ export function ConfiguredVideo({
     );
     observer.observe(player);
     return () => observer.disconnect();
-  }, [clearStallRecovery]);
+  }, [clearStallRecovery, fullscreen]);
 
   useEffect(() => {
     if (controlsTimerRef.current !== null) globalThis.clearTimeout(controlsTimerRef.current);
@@ -365,8 +379,13 @@ export function ConfiguredVideo({
   }, [loop]);
 
   useEffect(() => {
-    const onFullscreenChange = () =>
-      setFullscreen(document.fullscreenElement === playerRef.current);
+    const onFullscreenChange = () => {
+      const active = playerRef.current?.contains(document.fullscreenElement) ?? false;
+      fullscreenActiveRef.current = active;
+      setFullscreen(active);
+      // Recreate both observers on the state change. Exit needs a fresh measurement:
+      // a false intersection recorded in the top layer does not describe the inline player.
+    };
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
@@ -390,7 +409,11 @@ export function ConfiguredVideo({
     const leave = () => {
       pictureInPictureRef.current = false;
       setPictureInPicture(false);
-      if (!loadActiveRef.current && typeof globalThis.IntersectionObserver !== "undefined") {
+      if (
+        !loadActiveRef.current &&
+        !fullscreenActiveRef.current &&
+        typeof globalThis.IntersectionObserver !== "undefined"
+      ) {
         setInPlaybackZone(false);
         setMediaConnected(false);
       }
@@ -421,6 +444,7 @@ export function ConfiguredVideo({
     if (!mediaConnected) return;
     const video = videoRef.current;
     if (video === null) return;
+    if (fullscreenActiveRef.current || pictureInPictureRef.current) return;
     if (!autoPlay || !inPlaybackZone) {
       video.pause();
       return;
@@ -475,9 +499,25 @@ export function ConfiguredVideo({
     setControlError(null);
     try {
       if (document.fullscreenElement === player) await document.exitFullscreen();
-      else await player.requestFullscreen();
+      else {
+        // Protect the video while requestFullscreen is moving it into the top layer,
+        // before fullscreenchange and the observer callbacks have settled.
+        fullscreenActiveRef.current = true;
+        await player.requestFullscreen();
+      }
     } catch {
-      setFullscreen(document.fullscreenElement === player);
+      const active = player.contains(document.fullscreenElement);
+      fullscreenActiveRef.current = active;
+      setFullscreen(active);
+      if (!active) {
+        setInPlaybackZone(playbackZoneActiveRef.current);
+        setMediaConnected(
+          loadActiveRef.current ||
+            playbackZoneActiveRef.current ||
+            pictureInPictureRef.current ||
+            typeof globalThis.IntersectionObserver === "undefined",
+        );
+      }
       setControlError(translation.videoControlFailed);
     }
   };
@@ -673,6 +713,7 @@ export function ConfiguredVideo({
           <button
             type="button"
             aria-label={fullscreen ? translation.exitFullscreen : translation.enterFullscreen}
+            data-video-action="fullscreen"
             aria-pressed={fullscreen}
             onClick={() => void toggleFullscreen()}
           >

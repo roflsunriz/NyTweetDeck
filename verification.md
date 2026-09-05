@@ -20,6 +20,13 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## デスクトップ動画の全画面（2026-09-05）
+
+- 専用Chromeと再生可能なローカルWebMを使い、旧実装で全画面時にvideoが削除されサムネイルへ置換されることを再現した。修正後は自動再生ON・OFFからの手動再生・手動一時停止の3ケースで同じvideo/srcを維持し、再生中は時間が進み、停止中は位置と停止状態を維持することを確認した。
+- 全画面から戻った直後も同じvideoを保ち、その後カラムを画面外へスクロールすると正常に解放することを確認する。`configured-video-fullscreen.test.tsx`ではfullscreenchange前の非交差通知、全画面中、終了直後、終了後の非表示を順に検証する。既存テストでFullscreen API拒否とPiP操作も確認する。
+- フロントエンド195件、Java140件、lint/型/整形/ビルドが成功。最終ソースでも専用Chromeの実Fullscreen APIを使った3ケースを再確認し、同一動画の再生位置・一時停止状態が維持された。検証動画はローカルfixtureで、ユーザーのFirefox実プロファイルには触れていない。
+- Windows稼働JARをバックアップ後に更新して既存自動起動タスクから再起動し、ビルド済みJARとのハッシュ一致とHTTP/HTTPS readyを確認した。ブラウザで開いたままのページには再読み込みで適用する。Androidの変更はない。
+
 ## コミュニティノートの翻訳（2026-09-05）
 
 - X公式Web資産と実X応答から、`grok_translated_community_note_with_availability`の`is_available`、`data.translation`、`destination_language`、`source_language`、`rich_text_entities`を確認した。ノートIDを通常ポスト翻訳へ流用せず、`BirdwatchFetchOneNote`を翻訳先言語で取得する。
