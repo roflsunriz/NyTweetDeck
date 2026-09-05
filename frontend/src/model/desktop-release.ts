@@ -5,6 +5,8 @@ export interface DesktopRelease {
   assetName: string;
   downloadUrl: string;
   sizeBytes: number | null;
+  currentVersion: string;
+  updateAvailable: boolean;
 }
 
 export async function loadLatestDesktopRelease(): Promise<DesktopRelease> {
@@ -37,6 +39,12 @@ export function parseDesktopRelease(value: unknown): DesktopRelease {
     throw new Error("invalid release URL");
   }
   const sizeBytes = candidate.sizeBytes;
+  if (
+    typeof candidate.currentVersion !== "string" ||
+    typeof candidate.updateAvailable !== "boolean"
+  ) {
+    throw new Error("invalid update status");
+  }
   if (sizeBytes !== null && (!Number.isSafeInteger(sizeBytes) || Number(sizeBytes) < 0)) {
     throw new Error("invalid release size");
   }
@@ -45,6 +53,8 @@ export function parseDesktopRelease(value: unknown): DesktopRelease {
     assetName,
     downloadUrl: downloadUrl.href,
     sizeBytes: sizeBytes as number | null,
+    currentVersion: candidate.currentVersion,
+    updateAvailable: candidate.updateAvailable,
   };
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import type {
   AccentColor,
@@ -10,7 +10,11 @@ import type {
   Theme,
 } from "../model/layout";
 import { supportedLocales } from "../model/layout";
-import { downloadDesktopRelease, loadLatestDesktopRelease } from "../model/desktop-release";
+import {
+  type DesktopRelease,
+  downloadDesktopRelease,
+  loadLatestDesktopRelease,
+} from "../model/desktop-release";
 import { exportLayoutSettings, importLayoutSettings } from "../model/layout-transfer";
 import { Modal } from "./modal";
 
@@ -242,16 +246,44 @@ export function SettingsDialog({
 const maximumSettingsFileBytes = 256 * 1_024;
 
 function DesktopUpdateSettings({ translation }: { translation: Translation }) {
-  const [status, setStatus] = useState<"checking" | "started" | "failed" | null>(null);
+  const [status, setStatus] = useState<"checking" | "ready" | "current" | "started" | "failed">(
+    "checking",
+  );
+  const [release, setRelease] = useState<DesktopRelease | null>(null);
+  const busy = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    void loadLatestDesktopRelease()
+      .then((latest) => {
+        if (!active) return;
+        setRelease(latest);
+        setStatus(latest.updateAvailable ? "ready" : "current");
+      })
+      .catch(() => {
+        if (active) setStatus("failed");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const downloadLatest = async () => {
-    if (status === "checking") return;
+    if (busy.current || (status !== "ready" && status !== "failed")) return;
+    busy.current = true;
     setStatus("checking");
     try {
-      downloadDesktopRelease(await loadLatestDesktopRelease());
+      const latest = release ?? (await loadLatestDesktopRelease());
+      setRelease(latest);
+      if (!latest.updateAvailable) {
+        setStatus("current");
+        return;
+      }
+      downloadDesktopRelease(latest);
       setStatus("started");
     } catch {
       setStatus("failed");
+      busy.current = false;
     }
   };
 
@@ -263,13 +295,14 @@ function DesktopUpdateSettings({ translation }: { translation: Translation }) {
         className="secondary-button"
         data-testid="download-latest-desktop"
         type="button"
-        disabled={status === "checking"}
+        disabled={status !== "ready" && status !== "failed"}
         onClick={() => void downloadLatest()}
       >
         {status === "checking"
           ? translation.checkingLatestDesktop
           : translation.downloadLatestDesktop}
       </button>
+      {status === "current" && <p className="setup-success">{translation.desktopUpToDate}</p>}
       {status === "started" && (
         <p className="setup-success">{translation.desktopDownloadStarted}</p>
       )}

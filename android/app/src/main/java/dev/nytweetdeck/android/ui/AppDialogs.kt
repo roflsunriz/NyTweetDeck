@@ -1,5 +1,7 @@
 package dev.nytweetdeck.android.ui
 
+import dev.nytweetdeck.android.update.ApkUpdateStatus
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -92,13 +94,6 @@ internal enum class TransferStatus {
     NONE,
     EXPORT_SUCCESS,
     IMPORT_SUCCESS,
-    FAILED,
-}
-
-internal enum class ApkUpdateStatus {
-    NONE,
-    CHECKING,
-    DOWNLOAD_STARTED,
     FAILED,
 }
 
@@ -807,7 +802,7 @@ internal fun SettingsDialog(
                 )
                 Button(
                     onClick = onDownloadLatestApk,
-                    enabled = apkUpdateStatus != ApkUpdateStatus.CHECKING,
+                    enabled = apkUpdateStatus.canDownload,
                     modifier = Modifier.fillMaxWidth().testTag("download-latest-apk"),
                 ) {
                     if (apkUpdateStatus == ApkUpdateStatus.CHECKING) {
@@ -838,7 +833,11 @@ internal fun SettingsDialog(
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.testTag("apk-update-status"),
                     )
-                    ApkUpdateStatus.NONE, ApkUpdateStatus.CHECKING -> Unit
+                    ApkUpdateStatus.UP_TO_DATE -> Text(
+                        text = stringResource(R.string.apk_update_up_to_date),
+                        modifier = Modifier.testTag("apk-update-status"),
+                    )
+                    ApkUpdateStatus.NONE, ApkUpdateStatus.CHECKING, ApkUpdateStatus.AVAILABLE -> Unit
                 }
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Button(

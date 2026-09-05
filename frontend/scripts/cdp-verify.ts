@@ -1,3 +1,4 @@
+import { installUpdateFixture, verifyUpdateButton } from "./update-button-cdp";
 import { resolve } from "node:path";
 import {
   CdpClient,
@@ -47,6 +48,7 @@ const reload = () => reloadPage(client);
 const waitForCondition = (expression: string, timeoutMilliseconds?: number) =>
   waitForPageCondition(client, expression, timeoutMilliseconds);
 
+await installUpdateFixture(client);
 await navigate();
 await waitForCondition('document.querySelector(".app-shell") !== null');
 await client.evaluate("localStorage.clear()");
@@ -1629,6 +1631,13 @@ if (alternateLayout.display?.videoVolume !== 35)
   throw new Error("アドレス間設定共有に失敗しました。");
 results.push({ view: "address-independent-settings", alternateUrl, videoVolume: 35 });
 
+await verifyUpdateButton(client);
+results.push({
+  view: "update-button",
+  widths: [1440, 390],
+  currentDownloads: 0,
+  availableDownloads: 1,
+});
 console.info(JSON.stringify(results, null, 2));
 if (browserErrors.length > 0) {
   throw new Error(`ブラウザエラーを検出しました:\n${browserErrors.join("\n")}`);

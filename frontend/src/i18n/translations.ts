@@ -200,6 +200,7 @@ export interface Translation {
   checkingLatestDesktop: string;
   desktopDownloadStarted: string;
   desktopDownloadFailed: string;
+  desktopUpToDate: string;
   exportSettings: string;
   importSettings: string;
   settingsImported: string;
@@ -432,6 +433,7 @@ const translations: Partial<Record<Locale, Translation>> = {
       "GitHub Releasesから最新の安定版デスクトップZIPを直接ダウンロードします。",
     downloadLatestDesktop: "GitHubから最新版をダウンロード",
     checkingLatestDesktop: "最新版を確認中…",
+    desktopUpToDate: "最新バージョンを使用しています。",
     desktopDownloadStarted: "最新版のダウンロードを開始しました。",
     desktopDownloadFailed: "最新版を取得できませんでした。通信状態を確認して再試行してください。",
     exportSettings: "設定をエクスポート",
@@ -713,6 +715,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     appUpdateDescription: "Download the latest stable desktop ZIP directly from GitHub Releases.",
     downloadLatestDesktop: "Download latest from GitHub",
     checkingLatestDesktop: "Checking for the latest version…",
+    desktopUpToDate: "You are using the latest version.",
     desktopDownloadStarted: "The latest release download has started.",
     desktopDownloadFailed: "Could not get the latest release. Check your connection and try again.",
     exportSettings: "Export settings",

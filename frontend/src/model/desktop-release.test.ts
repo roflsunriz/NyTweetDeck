@@ -9,6 +9,8 @@ test("accepts only the exact desktop release asset from this GitHub repository",
       downloadUrl:
         "https://github.com/roflsunriz/NyTweetDeck/releases/download/v1.4.1/NyTweetDeck-v1.4.1.zip",
       sizeBytes: 123456,
+      currentVersion: "1.4.0",
+      updateAvailable: true,
     }),
   ).toEqual({
     tagName: "v1.4.1",
@@ -16,6 +18,8 @@ test("accepts only the exact desktop release asset from this GitHub repository",
     downloadUrl:
       "https://github.com/roflsunriz/NyTweetDeck/releases/download/v1.4.1/NyTweetDeck-v1.4.1.zip",
     sizeBytes: 123456,
+    currentVersion: "1.4.0",
+    updateAvailable: true,
   });
 
   for (const invalid of [

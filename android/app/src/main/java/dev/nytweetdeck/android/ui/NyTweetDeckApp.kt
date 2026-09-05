@@ -39,6 +39,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.nytweetdeck.android.BuildConfig
+import dev.nytweetdeck.android.update.ApkUpdateController
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.auth.LoginActivity
 import dev.nytweetdeck.android.data.DirectMessageRepository
@@ -125,12 +127,44 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var openDialog by remember { mutableStateOf<OpenDialog?>(null) }
     var transferStatus by remember { mutableStateOf(TransferStatus.NONE) }
-    var apkUpdateStatus by remember { mutableStateOf(ApkUpdateStatus.NONE) }
     var followNotification by remember { mutableStateOf<DeckNotification?>(null) }
     var postMenuPost by remember { mutableStateOf<Post?>(null) }
     var temporaryMainNavigationVisible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    val gitHubReleaseClient = remember { GitHubReleaseClient() }
+    val apkUpdateController = remember(context) {
+        val client = GitHubReleaseClient()
+        ApkUpdateController(
+            currentVersion = BuildConfig.VERSION_NAME,
+            latestApk = { withContext(Dispatchers.IO) { client.latestStableAndroidApk() } },
+            download = { apk ->
+                withContext(Dispatchers.IO) {
+                    val manager = requireNotNull(context.getSystemService(DownloadManager::class.java))
+                    val id = manager.enqueue(
+                        DownloadManager.Request(apk.downloadUrl.toUri())
+                            .setTitle(apk.assetName)
+                            .setDescription(apk.tagName)
+                            .setMimeType("application/vnd.android.package-archive")
+                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, apk.assetName),
+                    )
+                    // Keep the action disabled after success, but allow retries after an OS download failure.
+                    while (true) {
+                        val downloadStatus = manager.query(DownloadManager.Query().setFilterById(id)).use { cursor ->
+                            check(cursor.moveToFirst()) { "APK download was removed" }
+                            cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                        }
+                        check(downloadStatus != DownloadManager.STATUS_FAILED) { "APK download failed" }
+                        if (downloadStatus == DownloadManager.STATUS_SUCCESSFUL) break
+                        delay(1_000)
+                    }
+                }
+            },
+        )
+    }
+    val apkUpdateStatus by apkUpdateController.status.collectAsStateWithLifecycle()
+    LaunchedEffect(openDialog) {
+        if (openDialog == OpenDialog.SETTINGS) apkUpdateController.check()
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(state.isInitializing, state.appLanguageTag) {
         if (!state.isInitializing && AppLocaleController.currentLanguageTag(context) != state.appLanguageTag) {
@@ -510,35 +544,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 onRefreshXApiMetadata = viewModel::refreshXApiMetadata,
                 apkUpdateStatus = apkUpdateStatus,
                 onDownloadLatestApk = {
-                    if (apkUpdateStatus != ApkUpdateStatus.CHECKING) {
-                        apkUpdateStatus = ApkUpdateStatus.CHECKING
-                        coroutineScope.launch {
-                            apkUpdateStatus = runCatching {
-                                val apk = withContext(Dispatchers.IO) {
-                                    gitHubReleaseClient.latestStableAndroidApk()
-                                }
-                                val manager = requireNotNull(
-                                    context.getSystemService(DownloadManager::class.java),
-                                )
-                                manager.enqueue(
-                                    DownloadManager.Request(apk.downloadUrl.toUri())
-                                        .setTitle(apk.assetName)
-                                        .setDescription(apk.tagName)
-                                        .setMimeType("application/vnd.android.package-archive")
-                                        .setNotificationVisibility(
-                                            DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
-                                        )
-                                        .setDestinationInExternalPublicDir(
-                                            Environment.DIRECTORY_DOWNLOADS,
-                                            apk.assetName,
-                                        ),
-                                )
-                            }.fold(
-                                onSuccess = { ApkUpdateStatus.DOWNLOAD_STARTED },
-                                onFailure = { ApkUpdateStatus.FAILED },
-                            )
-                        }
-                    }
+                    coroutineScope.launch { apkUpdateController.downloadLatest() }
                 },
                 onDismiss = { openDialog = null },
             )

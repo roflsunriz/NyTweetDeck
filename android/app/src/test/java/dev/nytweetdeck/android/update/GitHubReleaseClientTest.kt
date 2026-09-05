@@ -61,6 +61,16 @@ class GitHubReleaseClientTest {
         }
     }
 
+    @Test
+    fun choosesHighestVersionEvenIfAnOlderReleaseWasPublishedLater() {
+        val releases = listOf("0.2.10" to "2026-09-01", "0.2.9" to "2026-09-05").joinToString(",") { (version, day) ->
+            """{"tag_name":"android-v$version","published_at":"${day}T00:00:00Z","draft":false,"prerelease":false,"assets":[
+              {"name":"NyTweetDeck-Android-v$version.apk","state":"uploaded","browser_download_url":"https://github.com/roflsunriz/NyTweetDeck/releases/download/android-v$version/NyTweetDeck-Android-v$version.apk"}
+            ]}"""
+        }
+        assertEquals("android-v0.2.10", client(JsonInterceptor("[$releases]")).latestStableAndroidApk().tagName)
+    }
+
     private fun client(interceptor: JsonInterceptor) = GitHubReleaseClient(
         OkHttpClient.Builder().addInterceptor(interceptor).build(),
     )

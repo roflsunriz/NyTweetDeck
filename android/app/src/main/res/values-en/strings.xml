@@ -260,4 +260,5 @@
     <string name="apk_update_checking">Checking for the latest version…</string>
     <string name="apk_update_started">APK download started. Open the completed-download notification to update.</string>
     <string name="apk_update_failed">Could not get the latest APK. Check your connection and try again.</string>
+    <string name="apk_update_up_to_date">You are using the latest version.</string>
 </resources>

@@ -258,4 +258,5 @@
     <string name="apk_update_checking">সর্বশেষ সংস্করণ পরীক্ষা করা হচ্ছে…</string>
     <string name="apk_update_started">APK ডাউনলোড শুরু হয়েছে। আপডেট করতে সম্পন্ন ডাউনলোডের বিজ্ঞপ্তি খুলুন।</string>
     <string name="apk_update_failed">সর্বশেষ APK পাওয়া যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।</string>
+    <string name="apk_update_up_to_date">আপনি সর্বশেষ সংস্করণ ব্যবহার করছেন।</string>
 </resources>

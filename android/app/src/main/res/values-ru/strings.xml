@@ -260,4 +260,5 @@
     <string name="apk_update_checking">Проверка последней версии…</string>
     <string name="apk_update_started">Загрузка APK началась. После завершения откройте уведомление для обновления.</string>
     <string name="apk_update_failed">Не удалось получить последний APK. Проверьте подключение и повторите попытку.</string>
+    <string name="apk_update_up_to_date">Вы используете последнюю версию.</string>
 </resources>

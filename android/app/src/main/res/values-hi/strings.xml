@@ -258,4 +258,5 @@
     <string name="apk_update_checking">नवीनतम संस्करण जाँचा जा रहा है…</string>
     <string name="apk_update_started">APK डाउनलोड शुरू हो गया। अपडेट करने के लिए पूर्ण डाउनलोड की सूचना खोलें।</string>
     <string name="apk_update_failed">नवीनतम APK नहीं मिल सका। कनेक्शन जाँचें और फिर प्रयास करें।</string>
+    <string name="apk_update_up_to_date">आप नवीनतम संस्करण का उपयोग कर रहे हैं।</string>
 </resources>

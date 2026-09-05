@@ -49,7 +49,13 @@ internal class GitHubReleaseClient(
             runCatching { Json.parseToJsonElement(source.readUtf8()).jsonArray }
                 .getOrElse { throw IOException("GitHub Releases API response is invalid.", it) }
         }
-        return releases.mapNotNull(::releaseApk).maxByOrNull(PublishedApk::publishedAt)?.apk
+        return releases.mapNotNull(::releaseApk).maxWithOrNull { left, right ->
+            when {
+                left.apk.isNewerThan(right.apk.tagName.removePrefix("android-v")) -> 1
+                right.apk.isNewerThan(left.apk.tagName.removePrefix("android-v")) -> -1
+                else -> left.publishedAt.compareTo(right.publishedAt)
+            }
+        }?.apk
             ?: throw IOException("A stable Android APK release was not found.")
     }
 

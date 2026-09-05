@@ -259,4 +259,5 @@
     <string name="apk_update_checking">最新版を確認中…</string>
     <string name="apk_update_started">APKのダウンロードを開始しました。完了通知から開いて更新してください。</string>
     <string name="apk_update_failed">最新版APKを取得できませんでした。通信状態を確認して再試行してください。</string>
+    <string name="apk_update_up_to_date">最新バージョンを使用しています。</string>
 </resources>

@@ -20,6 +20,14 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 更新ボタン（2026-09-05）
+
+- デスクトップ: 現在版は配布JARのMaven build-infoから取得。同一版・旧版・数値桁上がり・公開順の逆転・不明版・SNAPSHOTをJava回帰テストで確認する。
+- フロントエンド: 設定表示時の確認、確認中と最新版の無効化、失敗後の再試行、新版ダウンロード後の無効化をDOMテストで確認する。`verify-ui.ps1`ではヘッドレスChromeの1440px/390pxで同一イベント内の二連続クリックも実行し、新版の開始回数が1、最新版が0になることを確認する。GitHub応答とダウンロードだけを置き換え、外部ファイルを保存しない。
+- Android: `ApkUpdateControllerTest`で版比較、重複確認・ダウンロード抑止、設定再表示、通信失敗からの再試行を確認する。`ApkUpdateUiTest`で確認中・最新版・開始後の無効化、新版と失敗時の操作を確認する。
+- 実施結果: フロントエンド171件、Java136件、Android単体240件、ヘッドレスChrome UI、AndroidエミュレーターUI 1件が成功。Bun 66パッケージ、Maven 70件、Gradle 36件の監査で既知の未撤回脆弱性なし。
+- 接続実機がないため実機でのAPKダウンロード・インストールは未実施。OSのダウンロード完了通知からの上書きインストールは従来経路を維持する。
+
 ## X公式Webリファレンスsandbox
 
 公式資産captureのURL許可境界、query・fragment除去、保存名・SHA-256、loopback限定通信を単体テストで確認します。raw CDP付き専用Chromeが起動中の場合はオフラインsandboxも実行し、外部HTTP・HTTPS・WebSocket・FTP遮断、Cookie・Storage空、合成mock投入を確認します。
