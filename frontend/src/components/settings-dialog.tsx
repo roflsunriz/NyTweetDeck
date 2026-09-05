@@ -50,195 +50,227 @@ export function SettingsDialog({
   return (
     <Modal title={translation.settings} closeLabel={translation.close} onClose={onClose}>
       <div className="settings-form">
-        <label>
-          <span>{translation.language}</span>
-          <select
-            data-testid="setting-language"
-            value={locale}
-            onChange={(event) => onLocaleChange(event.target.value as Locale)}
-          >
-            {supportedLocales.map((supportedLocale) => (
-              <option key={supportedLocale} value={supportedLocale}>
-                {translation.localeName[supportedLocale]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{translation.translationLanguage}</span>
-          <select
-            data-testid="setting-translation-language"
-            value={translationLocale}
-            onChange={(event) => onTranslationLocaleChange(event.target.value as Locale)}
-          >
-            {supportedLocales.map((supportedLocale) => (
-              <option key={supportedLocale} value={supportedLocale}>
-                {translation.localeName[supportedLocale]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{translation.theme}</span>
-          <select
-            data-testid="setting-theme"
-            value={theme}
-            onChange={(event) => onThemeChange(event.target.value as Theme)}
-          >
-            <option value="system">{translation.themeName.system}</option>
-            <option value="light">{translation.themeName.light}</option>
-            <option value="dark">{translation.themeName.dark}</option>
-          </select>
-        </label>
-        <h3>{translation.displayAndAccessibility}</h3>
-        <label>
-          <span>{translation.fontSize}</span>
-          <select
-            data-testid="setting-font-size"
-            value={display.fontSize}
-            onChange={(event) =>
-              onDisplayChange({ ...display, fontSize: event.target.value as FontSize })
-            }
-          >
-            {(["small", "default", "large"] as const).map((value) => (
-              <option key={value} value={value}>
-                {translation.fontSizeName[value]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{translation.accentColor}</span>
-          <select
-            data-testid="setting-accent-color"
-            value={display.accentColor}
-            onChange={(event) =>
-              onDisplayChange({ ...display, accentColor: event.target.value as AccentColor })
-            }
-          >
-            {(["blue", "yellow", "pink", "purple", "orange", "green"] as const).map((value) => (
-              <option key={value} value={value}>
-                {translation.accentColorName[value]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{translation.density}</span>
-          <select
-            data-testid="setting-density"
-            value={display.density}
-            onChange={(event) =>
-              onDisplayChange({ ...display, density: event.target.value as Density })
-            }
-          >
-            {(["comfortable", "compact"] as const).map((value) => (
-              <option key={value} value={value}>
-                {translation.densityName[value]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <ToggleSetting
-          id="auto-translate-posts"
-          label={translation.autoTranslatePosts}
-          checked={display.autoTranslatePosts}
-          onChange={(checked) => onDisplayChange({ ...display, autoTranslatePosts: checked })}
-        />
-        <ToggleSetting
-          id="reduce-motion"
-          label={translation.reduceMotion}
-          checked={display.reduceMotion}
-          onChange={(checked) => onDisplayChange({ ...display, reduceMotion: checked })}
-        />
-        <ToggleSetting
-          id="media-preview"
-          label={translation.mediaPreview}
-          checked={display.mediaPreview}
-          onChange={(checked) => onDisplayChange({ ...display, mediaPreview: checked })}
-        />
-        <ToggleSetting
-          id="video-autoplay"
-          label={translation.videoAutoplay}
-          checked={display.videoAutoplay}
-          onChange={(checked) => onDisplayChange({ ...display, videoAutoplay: checked })}
-        />
-        <ToggleSetting
-          id="auto-refresh-timelines"
-          label={translation.autoRefreshTimelines}
-          checked={display.autoRefreshTimelines}
-          onChange={(checked) => onDisplayChange({ ...display, autoRefreshTimelines: checked })}
-        />
-        <ToggleSetting
-          id="video-loop"
-          label={translation.videoLoop}
-          checked={display.videoLoop}
-          onChange={(checked) => onDisplayChange({ ...display, videoLoop: checked })}
-        />
-        <label className="video-volume-setting">
-          <span>
-            {translation.videoVolume}: <output>{display.videoVolume}%</output>
-          </span>
-          <input
-            data-testid="setting-video-volume"
-            type="range"
-            min="0"
-            max="100"
-            step="5"
-            value={display.videoVolume}
-            onChange={(event) =>
-              onDisplayChange({ ...display, videoVolume: Number(event.target.value) })
-            }
+        <section
+          className="settings-group"
+          data-testid="settings-display"
+          aria-labelledby="settings-display-title"
+        >
+          <h3 id="settings-display-title">{translation.settingsDisplay}</h3>
+          <label>
+            <span>{translation.language}</span>
+            <select
+              data-testid="setting-language"
+              value={locale}
+              onChange={(event) => onLocaleChange(event.target.value as Locale)}
+            >
+              {supportedLocales.map((supportedLocale) => (
+                <option key={supportedLocale} value={supportedLocale}>
+                  {translation.localeName[supportedLocale]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{translation.theme}</span>
+            <select
+              data-testid="setting-theme"
+              value={theme}
+              onChange={(event) => onThemeChange(event.target.value as Theme)}
+            >
+              <option value="system">{translation.themeName.system}</option>
+              <option value="light">{translation.themeName.light}</option>
+              <option value="dark">{translation.themeName.dark}</option>
+            </select>
+          </label>
+          <label>
+            <span>{translation.fontSize}</span>
+            <select
+              data-testid="setting-font-size"
+              value={display.fontSize}
+              onChange={(event) =>
+                onDisplayChange({ ...display, fontSize: event.target.value as FontSize })
+              }
+            >
+              {(["small", "default", "large"] as const).map((value) => (
+                <option key={value} value={value}>
+                  {translation.fontSizeName[value]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{translation.accentColor}</span>
+            <select
+              data-testid="setting-accent-color"
+              value={display.accentColor}
+              onChange={(event) =>
+                onDisplayChange({ ...display, accentColor: event.target.value as AccentColor })
+              }
+            >
+              {(["blue", "yellow", "pink", "purple", "orange", "green"] as const).map((value) => (
+                <option key={value} value={value}>
+                  {translation.accentColorName[value]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{translation.density}</span>
+            <select
+              data-testid="setting-density"
+              value={display.density}
+              onChange={(event) =>
+                onDisplayChange({ ...display, density: event.target.value as Density })
+              }
+            >
+              {(["comfortable", "compact"] as const).map((value) => (
+                <option key={value} value={value}>
+                  {translation.densityName[value]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <ToggleSetting
+            id="reduce-motion"
+            label={translation.reduceMotion}
+            checked={display.reduceMotion}
+            onChange={(checked) => onDisplayChange({ ...display, reduceMotion: checked })}
           />
-        </label>
-        <label>
-          <span>{translation.videoQuality}</span>
-          <select
-            data-testid="setting-video-quality"
-            value={display.videoQuality}
-            onChange={(event) =>
-              onDisplayChange({
-                ...display,
-                videoQuality: event.target.value as DisplayPreferences["videoQuality"],
-              })
-            }
-          >
-            <option value="auto">{translation.videoQualityAuto}</option>
-            <option value="low">{translation.videoQualityLow}</option>
-            <option value="medium">{translation.videoQualityMedium}</option>
-            <option value="high">{translation.videoQualityHigh}</option>
-          </select>
-        </label>
-        <label>
-          <span>{translation.navigationPosition}</span>
-          <select
-            data-testid="setting-navigation-position"
-            value={display.navigationPosition}
-            onChange={(event) =>
-              onDisplayChange({
-                ...display,
-                navigationPosition: event.target.value as DisplayPreferences["navigationPosition"],
-              })
-            }
-          >
-            <option value="left">{translation.navigationPositionLeft}</option>
-            <option value="bottom">{translation.navigationPositionBottom}</option>
-          </select>
-        </label>
-        <ToggleSetting
-          id="show-main-navigation"
-          label={translation.showMainNavigation}
-          checked={display.showMainNavigation}
-          onChange={(checked) => onDisplayChange({ ...display, showMainNavigation: checked })}
+        </section>
+        <section
+          className="settings-group"
+          data-testid="settings-translation"
+          aria-labelledby="settings-translation-title"
+        >
+          <h3 id="settings-translation-title">{translation.settingsTranslation}</h3>
+          <ToggleSetting
+            id="auto-translate-posts"
+            label={translation.autoTranslatePosts}
+            checked={display.autoTranslatePosts}
+            onChange={(checked) => onDisplayChange({ ...display, autoTranslatePosts: checked })}
+          />
+          <label>
+            <span>{translation.translationLanguage}</span>
+            <select
+              data-testid="setting-translation-language"
+              value={translationLocale}
+              onChange={(event) => onTranslationLocaleChange(event.target.value as Locale)}
+            >
+              {supportedLocales.map((supportedLocale) => (
+                <option key={supportedLocale} value={supportedLocale}>
+                  {translation.localeName[supportedLocale]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <TranslationHealthSettings translation={translation} />
+        </section>
+        <section
+          className="settings-group"
+          data-testid="settings-media"
+          aria-labelledby="settings-media-title"
+        >
+          <h3 id="settings-media-title">{translation.settingsMedia}</h3>
+          <ToggleSetting
+            id="media-preview"
+            label={translation.mediaPreview}
+            checked={display.mediaPreview}
+            onChange={(checked) => onDisplayChange({ ...display, mediaPreview: checked })}
+          />
+          <ToggleSetting
+            id="video-autoplay"
+            label={translation.videoAutoplay}
+            checked={display.videoAutoplay}
+            onChange={(checked) => onDisplayChange({ ...display, videoAutoplay: checked })}
+          />
+          <ToggleSetting
+            id="video-loop"
+            label={translation.videoLoop}
+            checked={display.videoLoop}
+            onChange={(checked) => onDisplayChange({ ...display, videoLoop: checked })}
+          />
+          <label className="video-volume-setting">
+            <span>
+              {translation.videoVolume}: <output>{display.videoVolume}%</output>
+            </span>
+            <input
+              data-testid="setting-video-volume"
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={display.videoVolume}
+              onChange={(event) =>
+                onDisplayChange({ ...display, videoVolume: Number(event.target.value) })
+              }
+            />
+          </label>
+          <label>
+            <span>{translation.videoQuality}</span>
+            <select
+              data-testid="setting-video-quality"
+              value={display.videoQuality}
+              onChange={(event) =>
+                onDisplayChange({
+                  ...display,
+                  videoQuality: event.target.value as DisplayPreferences["videoQuality"],
+                })
+              }
+            >
+              <option value="auto">{translation.videoQualityAuto}</option>
+              <option value="low">{translation.videoQualityLow}</option>
+              <option value="medium">{translation.videoQualityMedium}</option>
+              <option value="high">{translation.videoQualityHigh}</option>
+            </select>
+          </label>
+        </section>
+        <section
+          className="settings-group"
+          data-testid="settings-navigation"
+          aria-labelledby="settings-navigation-title"
+        >
+          <h3 id="settings-navigation-title">{translation.settingsNavigation}</h3>
+          <ToggleSetting
+            id="auto-refresh-timelines"
+            label={translation.autoRefreshTimelines}
+            checked={display.autoRefreshTimelines}
+            onChange={(checked) => onDisplayChange({ ...display, autoRefreshTimelines: checked })}
+          />
+          <label>
+            <span>{translation.navigationPosition}</span>
+            <select
+              data-testid="setting-navigation-position"
+              value={display.navigationPosition}
+              onChange={(event) =>
+                onDisplayChange({
+                  ...display,
+                  navigationPosition: event.target
+                    .value as DisplayPreferences["navigationPosition"],
+                })
+              }
+            >
+              <option value="left">{translation.navigationPositionLeft}</option>
+              <option value="bottom">{translation.navigationPositionBottom}</option>
+            </select>
+          </label>
+          <ToggleSetting
+            id="show-main-navigation"
+            label={translation.showMainNavigation}
+            checked={display.showMainNavigation}
+            onChange={(checked) => onDisplayChange({ ...display, showMainNavigation: checked })}
+          />
+          {!display.showMainNavigation && (
+            <p className="settings-hint">{translation.showMainNavigationDescription}</p>
+          )}
+        </section>
+        <LayoutTransferSettings
+          layout={layout}
+          translation={translation}
+          onImport={onLayoutImport}
         />
-        <p className="inline-warning" style={{ gridColumn: "1 / -1", marginTop: "-8px" }}>
-          {translation.showMainNavigationDescription}
-        </p>
+        <DesktopUpdateSettings translation={translation} />
+        <ApiMetadataSettings translation={translation} />
       </div>
-      <LayoutTransferSettings layout={layout} translation={translation} onImport={onLayoutImport} />
-      <DesktopUpdateSettings translation={translation} />
-      <TranslationHealthSettings translation={translation} />
-      <ApiMetadataSettings translation={translation} />
     </Modal>
   );
 }
@@ -290,7 +322,10 @@ function DesktopUpdateSettings({ translation }: { translation: Translation }) {
   return (
     <section className="metadata-settings" data-testid="desktop-update-settings">
       <h3>{translation.appUpdate}</h3>
-      <p>{translation.appUpdateDescription}</p>
+      <details className="settings-help">
+        <summary>{translation.settingsDetails}</summary>
+        <p>{translation.appUpdateDescription}</p>
+      </details>
       <button
         className="secondary-button"
         data-testid="download-latest-desktop"
@@ -345,42 +380,44 @@ function LayoutTransferSettings({
   };
 
   return (
-    <section className="metadata-settings" data-testid="layout-transfer-settings">
-      <h3>{translation.settingsTransfer}</h3>
-      <p>{translation.settingsTransferDescription}</p>
-      <div className="settings-transfer-actions">
-        <button
-          className="secondary-button"
-          data-testid="export-settings"
-          type="button"
-          onClick={exportSettings}
-        >
-          {translation.exportSettings}
-        </button>
-        <label className="secondary-button settings-import-button">
-          {translation.importSettings}
-          <input
-            data-testid="import-settings"
-            type="file"
-            accept="application/json,.json"
-            onChange={(event) => {
-              void importSettings(event.target.files?.[0]);
-              event.target.value = "";
-            }}
-          />
-        </label>
+    <details className="settings-disclosure" data-testid="layout-transfer-settings">
+      <summary>{translation.settingsTransfer}</summary>
+      <div className="settings-disclosure-content">
+        <p>{translation.settingsTransferDescription}</p>
+        <div className="settings-transfer-actions">
+          <button
+            className="secondary-button"
+            data-testid="export-settings"
+            type="button"
+            onClick={exportSettings}
+          >
+            {translation.exportSettings}
+          </button>
+          <label className="secondary-button settings-import-button">
+            {translation.importSettings}
+            <input
+              data-testid="import-settings"
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => {
+                void importSettings(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+        {status === "imported" && (
+          <p className="setup-success" data-testid="settings-import-status">
+            {translation.settingsImported}
+          </p>
+        )}
+        {status === "failed" && (
+          <p className="inline-warning" data-testid="settings-import-status">
+            {translation.settingsImportFailed}
+          </p>
+        )}
       </div>
-      {status === "imported" && (
-        <p className="setup-success" data-testid="settings-import-status">
-          {translation.settingsImported}
-        </p>
-      )}
-      {status === "failed" && (
-        <p className="inline-warning" data-testid="settings-import-status">
-          {translation.settingsImportFailed}
-        </p>
-      )}
-    </section>
+    </details>
   );
 }
 
@@ -416,28 +453,36 @@ function TranslationHealthSettings({ translation }: { translation: Translation }
   }, []);
 
   return (
-    <section className="metadata-settings" data-testid="translation-health">
-      <h3>{translation.translationHealth}</h3>
-      <p>{translation.translationHealthDescription}</p>
-      {requestFailed ? (
+    <section className="settings-status" data-testid="translation-health">
+      <details className="settings-disclosure">
+        <summary>{translation.translationHealth}</summary>
+        <div className="settings-disclosure-content">
+          <p>{translation.translationHealthDescription}</p>
+          {health !== null && health.upstreamRequests > 0 ? (
+            <>
+              <p className="setup-success">
+                {translation.translationHealthSummary(
+                  health.upstreamSuccessRate ?? 0,
+                  health.upstreamSuccesses,
+                  health.upstreamRequests,
+                )}
+              </p>
+              {health.rateLimit !== null && health.rateLimitRemaining !== null && (
+                <small>
+                  {translation.translationRateLimitSummary(
+                    health.rateLimitRemaining,
+                    health.rateLimit,
+                  )}
+                </small>
+              )}
+            </>
+          ) : health !== null && !requestFailed ? (
+            <p>{translation.translationHealthNoRequests}</p>
+          ) : null}
+        </div>
+      </details>
+      {requestFailed && (
         <p className="inline-warning">{translation.translationHealthUnavailable}</p>
-      ) : health !== null && health.upstreamRequests > 0 ? (
-        <>
-          <p className="setup-success">
-            {translation.translationHealthSummary(
-              health.upstreamSuccessRate ?? 0,
-              health.upstreamSuccesses,
-              health.upstreamRequests,
-            )}
-          </p>
-          {health.rateLimit !== null && health.rateLimitRemaining !== null && (
-            <small>
-              {translation.translationRateLimitSummary(health.rateLimitRemaining, health.rateLimit)}
-            </small>
-          )}
-        </>
-      ) : (
-        <p>{translation.translationHealthNoRequests}</p>
       )}
     </section>
   );
@@ -480,28 +525,35 @@ function ApiMetadataSettings({ translation }: { translation: Translation }) {
   };
 
   return (
-    <section className="metadata-settings">
-      <h3>{translation.apiMetadata}</h3>
-      <p>{translation.apiMetadataDescription}</p>
-      <p className={status?.successful ? "setup-success" : "inline-warning"}>
-        {requestFailed || (status !== null && status.errorCode !== null)
-          ? translation.apiMetadataFailed
-          : status?.successful
-            ? translation.apiMetadataCurrent
-            : translation.apiMetadataFallback}
-      </p>
-      {status?.sourceVersion !== null && status?.sourceVersion !== undefined && (
-        <small>{status.sourceVersion}</small>
+    <section className="settings-status">
+      <details className="settings-disclosure" data-testid="api-metadata-details">
+        <summary>{translation.apiMetadata}</summary>
+        <div className="settings-disclosure-content">
+          <p>{translation.apiMetadataDescription}</p>
+          {!requestFailed && !status?.errorCode && (
+            <p className={status?.successful ? "setup-success" : "settings-hint"}>
+              {status?.successful
+                ? translation.apiMetadataCurrent
+                : translation.apiMetadataFallback}
+            </p>
+          )}
+          {status?.sourceVersion !== null && status?.sourceVersion !== undefined && (
+            <small>{status.sourceVersion}</small>
+          )}
+          <button
+            className="secondary-button"
+            data-testid="refresh-api-metadata"
+            type="button"
+            disabled={status?.refreshing === true}
+            onClick={refresh}
+          >
+            {status?.refreshing === true ? translation.loading : translation.apiMetadataUpdate}
+          </button>
+        </div>
+      </details>
+      {(requestFailed || status?.errorCode) && (
+        <p className="inline-warning">{translation.apiMetadataFailed}</p>
       )}
-      <button
-        className="secondary-button"
-        data-testid="refresh-api-metadata"
-        type="button"
-        disabled={status?.refreshing === true}
-        onClick={refresh}
-      >
-        {status?.refreshing === true ? translation.loading : translation.apiMetadataUpdate}
-      </button>
     </section>
   );
 }

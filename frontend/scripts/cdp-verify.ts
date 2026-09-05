@@ -223,6 +223,10 @@ if (!settingsClicked) {
 }
 await waitForCondition("document.querySelector('[role=\"dialog\"]') !== null");
 await waitForCondition('document.querySelector("[data-testid=refresh-api-metadata]") !== null');
+await client.evaluate(
+  'document.querySelector("[data-testid=layout-transfer-settings] > summary").click()',
+);
+await waitForCondition('document.querySelector("[data-testid=layout-transfer-settings]").open');
 const exportClicked = await client.evaluate<boolean>(`(() => {
   window.__qaExportedSettingsBlob = null;
   window.__qaExportedSettingsName = null;

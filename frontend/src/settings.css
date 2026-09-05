@@ -1,0 +1,140 @@
+.settings-form {
+  display: grid;
+  gap: 22px;
+  padding: 20px;
+}
+
+.settings-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-group + .settings-group {
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-form h3 {
+  margin: 0 0 2px;
+  font-size: 0.9rem;
+}
+
+.settings-form label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 36px;
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.settings-form label span {
+  overflow-wrap: anywhere;
+}
+
+.settings-form select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding-block: 6px;
+  padding-inline: 10px 26px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.settings-form .toggle-setting {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.toggle-setting input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.settings-form input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.settings-disclosure,
+.settings-help {
+  min-width: 0;
+  font-size: 0.86rem;
+}
+
+.settings-disclosure > summary,
+.settings-help > summary {
+  padding-block: 10px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.settings-disclosure > summary {
+  font-weight: 650;
+}
+
+.settings-disclosure > summary:focus-visible,
+.settings-help > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.settings-disclosure-content {
+  display: grid;
+  gap: 10px;
+  padding-block: 4px 8px;
+}
+
+.settings-form p,
+.settings-form small {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.settings-hint,
+.settings-help,
+.settings-disclosure-content > p:first-child {
+  color: var(--text-muted);
+}
+
+.settings-form .metadata-settings {
+  margin: 0;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+}
+
+.settings-form .secondary-button {
+  justify-self: start;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.settings-form .settings-import-button {
+  display: inline-flex;
+  color: var(--text);
+}
+
+@media (max-width: 400px) {
+  .settings-form {
+    padding: 16px;
+  }
+
+  .settings-form label:not(.toggle-setting):not(.settings-import-button) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+}

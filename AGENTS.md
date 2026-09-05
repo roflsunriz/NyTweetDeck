@@ -86,3 +86,8 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 ## 翻訳対象の本文
 
 - 翻訳要求は、元本文からHTTP(S) URL・独立したメンションを除いた後にUnicode Letterが残る場合だけ行う。Androidの`TranslationCandidate`には元本文を必ず渡し、通常ポスト・返信・引用で同じガードを通す。既存の失敗状態が残っていても、本文なしの投稿には再試行表示を出さない。`TranslationTextTest`と`TranslationGuardUiTest`参照。
+
+## 設定画面
+
+- Android設定は`SettingsDialog.kt`へ分離し、目的別の項目と任意開閉の「詳細情報」「使い方」で構成する。選択肢は折り返し、言語はドロップダウンを使う。新たな長文説明を常時表示へ戻さない。`SettingsOrganizationUiTest`、`DeckUiTest`、`ApkUpdateUiTest`で導線を検証する。
+- AQUOSの設定ドロップダウンはComposeがidleでもOSフォーカス移動が未完了のことがある。閉じる実機テストはWindowManagerの入力先がActivityからPopupへ移ったことを待ってからシステムの戻るキーを送る。`SettingsOrganizationUiTest`参照。通常画面の戻るへ無条件に展開せず、Popup上のテストに限定する。

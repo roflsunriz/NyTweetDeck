@@ -46,8 +46,8 @@
     <string name="timeline_load_failed">Не удалось загрузить ленту.</string>
     <string name="timeline_empty">Нет публикаций для отображения.</string>
     <string name="retry">Повторить</string>
-    <string name="export_settings">Export settings</string>
-    <string name="import_settings">Import settings</string>
+    <string name="export_settings">Экспорт настроек</string>
+    <string name="import_settings">Импорт настроек</string>
     <string name="export_settings_success">The settings JSON was saved.</string>
     <string name="import_settings_success">Settings imported and saved automatically.</string>
     <string name="settings_transfer_failed">Import failed. Select a valid NyTweetDeck settings JSON file.</string>
@@ -167,7 +167,7 @@
     <string name="community_note_loading">Loading Community Note</string>
     <string name="community_note_failed">Не удалось загрузить Примечание сообщества и связанную публикацию.</string>
     <string name="community_note_retry">Retry</string>
-    <string name="setting_auto_translate">Automatically translate posts that use another language</string>
+    <string name="setting_auto_translate">Автоперевод</string>
     <string name="translation_loading">Translating nearby posts with X…</string>
     <string name="translation_failed">Translation failed. Showing the original post.</string>
     <string name="translation_retry">Retry translation</string>
@@ -191,7 +191,7 @@
     <string name="message_time_hours">%1$d h</string>
     <string name="message_time_days">%1$d d</string>
     <string name="message_time_date">%1$d/%2$d</string>
-    <string name="setting_language">Язык</string>
+    <string name="setting_language">Язык интерфейса</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -235,15 +235,15 @@
     <string name="post_link_copied">Приложение для отправки не найдено, поэтому ссылка на пост скопирована.</string>
     <string name="inline_video_fullscreen">Открыть видео на весь экран</string>
     <string name="media_viewer_rotate_landscape">Повернуть в альбомный режим</string>
-    <string name="setting_translation_language">Язык перевода постов</string>
+    <string name="setting_translation_language">Язык перевода</string>
     <string name="setting_feed_updates">Обновление лент</string>
     <string name="setting_auto_refresh">Автоматически обновлять ленты</string>
     <string name="setting_auto_refresh_desc">Начальная загрузка, ручное обновление и обновления реакций в реальном времени продолжаются даже при отключении.</string>
     <string name="setting_video_quality">Качество видео по умолчанию</string>
-    <string name="setting_navigation_position">Расположение основной навигации</string>
+    <string name="setting_navigation_position">Расположение меню</string>
     <string name="navigation_position_left">Сбоку</string>
     <string name="navigation_position_bottom">Снизу</string>
-    <string name="show_main_navigation">Всегда показывать основную навигацию</string>
+    <string name="show_main_navigation">Всегда показывать меню</string>
     <string name="show_main_navigation_desc">Отключите, чтобы скрывать её автоматически. Проведите внутрь от бокового края, вверх от нижнего края для нижней навигации или нажмите кнопку меню. Через три секунды она скроется.</string>
     <string name="reveal_main_navigation">Показать основную навигацию</string>
     <string name="video_quality_menu">Качество видео</string>
@@ -256,10 +256,17 @@
     <string name="apk_update_section">Обновления приложения</string>
     <string name="apk_update_current_version">Текущая версия: %1$s</string>
     <string name="apk_update_description">Скачивает последний стабильный Android APK из GitHub Releases в папку «Загрузки».</string>
-    <string name="apk_update_download">Скачать последний APK с GitHub</string>
+    <string name="apk_update_download">Скачать обновление</string>
     <string name="apk_update_checking">Проверка последней версии…</string>
     <string name="apk_update_started">Загрузка APK началась. После завершения откройте уведомление для обновления.</string>
     <string name="apk_update_failed">Не удалось получить последний APK. Проверьте подключение и повторите попытку.</string>
     <string name="apk_update_up_to_date">Вы используете последнюю версию.</string>
     <string name="column_scroll_top">В начало ленты</string>
+    <string name="settings_display">Внешний вид</string>
+    <string name="settings_feed_translation">Обновления и перевод</string>
+    <string name="settings_media">Медиа</string>
+    <string name="settings_navigation">Навигация</string>
+    <string name="settings_transfer">Перенос настроек</string>
+    <string name="settings_details">Подробности</string>
+    <string name="settings_help">Справка</string>
 </resources>

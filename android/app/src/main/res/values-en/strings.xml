@@ -65,8 +65,8 @@
     <string name="timeline_load_failed">The timeline could not be loaded.</string>
     <string name="timeline_empty">There are no posts to display.</string>
     <string name="retry">Retry</string>
-    <string name="export_settings">Export settings JSON</string>
-    <string name="import_settings">Import settings JSON</string>
+    <string name="export_settings">Export settings</string>
+    <string name="import_settings">Import settings</string>
     <string name="export_settings_success">The settings JSON was saved.</string>
     <string name="import_settings_success">The settings JSON was imported.</string>
     <string name="settings_transfer_failed">The settings JSON could not be processed. Check the file format.</string>
@@ -190,7 +190,7 @@
     <string name="community_note_loading">Loading Community Note</string>
     <string name="community_note_failed">Could not load Community Note.</string>
     <string name="community_note_retry">Retry</string>
-    <string name="setting_auto_translate">Automatically translate posts</string>
+    <string name="setting_auto_translate">Auto-translate</string>
     <string name="translation_loading">Translating…</string>
     <string name="translation_failed">Could not translate this post.</string>
     <string name="translation_retry">Retry translation</string>
@@ -214,7 +214,7 @@
     <string name="message_time_hours">%1$d h</string>
     <string name="message_time_days">%1$d d</string>
     <string name="message_time_date">%1$d/%2$d</string>
-    <string name="setting_language">Language</string>
+    <string name="setting_language">Display language</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -235,15 +235,15 @@
     <string name="post_link_copied">No share target was available, so the post link was copied.</string>
     <string name="inline_video_fullscreen">Open video fullscreen</string>
     <string name="media_viewer_rotate_landscape">Rotate to landscape</string>
-    <string name="setting_translation_language">Post translation language</string>
+    <string name="setting_translation_language">Translate into</string>
     <string name="setting_feed_updates">Feed updates</string>
     <string name="setting_auto_refresh">Automatically refresh feeds</string>
     <string name="setting_auto_refresh_desc">Initial loading, manual refresh, and live engagement updates continue when this is off.</string>
     <string name="setting_video_quality">Default video quality</string>
-    <string name="setting_navigation_position">Main navigation position</string>
+    <string name="setting_navigation_position">Menu position</string>
     <string name="navigation_position_left">Side</string>
     <string name="navigation_position_bottom">Bottom</string>
-    <string name="show_main_navigation">Always show main navigation</string>
+    <string name="show_main_navigation">Always show menu</string>
     <string name="show_main_navigation_desc">Turn this off to auto-hide it. Swipe inward from the side edge, swipe up from the bottom edge for bottom navigation, or use the menu button to reveal it temporarily. It hides after three seconds.</string>
     <string name="reveal_main_navigation">Reveal main navigation</string>
     <string name="video_quality_menu">Video quality</string>
@@ -256,10 +256,17 @@
     <string name="apk_update_section">App updates</string>
     <string name="apk_update_current_version">Current version: %1$s</string>
     <string name="apk_update_description">Downloads the latest stable Android APK from GitHub Releases to your Downloads folder.</string>
-    <string name="apk_update_download">Download latest APK from GitHub</string>
+    <string name="apk_update_download">Download update</string>
     <string name="apk_update_checking">Checking for the latest version…</string>
     <string name="apk_update_started">APK download started. Open the completed-download notification to update.</string>
     <string name="apk_update_failed">Could not get the latest APK. Check your connection and try again.</string>
     <string name="apk_update_up_to_date">You are using the latest version.</string>
     <string name="column_scroll_top">Go to top of timeline</string>
+    <string name="settings_display">Appearance</string>
+    <string name="settings_feed_translation">Updates and translation</string>
+    <string name="settings_media">Media</string>
+    <string name="settings_navigation">Navigation</string>
+    <string name="settings_transfer">Transfer settings</string>
+    <string name="settings_details">Details</string>
+    <string name="settings_help">Help</string>
 </resources>

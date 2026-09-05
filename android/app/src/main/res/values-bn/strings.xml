@@ -46,8 +46,8 @@
     <string name="timeline_load_failed">টাইমলাইন লোড করা যায়নি।</string>
     <string name="timeline_empty">দেখানোর মতো কোনো পোস্ট নেই।</string>
     <string name="retry">আবার চেষ্টা করুন</string>
-    <string name="export_settings">Export settings</string>
-    <string name="import_settings">Import settings</string>
+    <string name="export_settings">সেটিংস রপ্তানি করুন</string>
+    <string name="import_settings">সেটিংস আমদানি করুন</string>
     <string name="export_settings_success">The settings JSON was saved.</string>
     <string name="import_settings_success">Settings imported and saved automatically.</string>
     <string name="settings_transfer_failed">Import failed. Select a valid NyTweetDeck settings JSON file.</string>
@@ -167,7 +167,7 @@
     <string name="community_note_loading">Loading Community Note</string>
     <string name="community_note_failed">কমিউনিটি নোট ও সংশ্লিষ্ট পোস্ট লোড করা যায়নি।</string>
     <string name="community_note_retry">Retry</string>
-    <string name="setting_auto_translate">Automatically translate posts that use another language</string>
+    <string name="setting_auto_translate">স্বয়ংক্রিয় অনুবাদ</string>
     <string name="translation_loading">Translating nearby posts with X…</string>
     <string name="translation_failed">Translation failed. Showing the original post.</string>
     <string name="translation_retry">Retry translation</string>
@@ -191,7 +191,7 @@
     <string name="message_time_hours">%1$d h</string>
     <string name="message_time_days">%1$d d</string>
     <string name="message_time_date">%1$d/%2$d</string>
-    <string name="setting_language">ভাষা</string>
+    <string name="setting_language">প্রদর্শনের ভাষা</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -233,15 +233,15 @@
     <string name="post_link_copied">শেয়ারের কোনো গন্তব্য পাওয়া যায়নি, তাই পোস্টের লিংক কপি করা হয়েছে।</string>
     <string name="inline_video_fullscreen">ভিডিও পূর্ণ স্ক্রিনে খুলুন</string>
     <string name="media_viewer_rotate_landscape">ল্যান্ডস্কেপে ঘোরান</string>
-    <string name="setting_translation_language">পোস্ট অনুবাদের ভাষা</string>
+    <string name="setting_translation_language">অনুবাদের ভাষা</string>
     <string name="setting_feed_updates">ফিড আপডেট</string>
     <string name="setting_auto_refresh">ফিড স্বয়ংক্রিয়ভাবে রিফ্রেশ করুন</string>
     <string name="setting_auto_refresh_desc">এটি বন্ধ থাকলেও প্রাথমিক লোড, ম্যানুয়াল রিফ্রেশ এবং লাইভ প্রতিক্রিয়া আপডেট চলতে থাকে।</string>
     <string name="setting_video_quality">ডিফল্ট ভিডিও মান</string>
-    <string name="setting_navigation_position">প্রধান নেভিগেশনের অবস্থান</string>
+    <string name="setting_navigation_position">মেনুর অবস্থান</string>
     <string name="navigation_position_left">পাশে</string>
     <string name="navigation_position_bottom">নিচে</string>
-    <string name="show_main_navigation">প্রধান নেভিগেশন সবসময় দেখান</string>
+    <string name="show_main_navigation">মেনু সবসময় দেখান</string>
     <string name="show_main_navigation_desc">স্বয়ংক্রিয়ভাবে লুকাতে এটি বন্ধ করুন। পাশের নেভিগেশনের জন্য প্রান্ত থেকে ভেতরে, নিচের নেভিগেশনের জন্য নিচ থেকে ওপরে সোয়াইপ করুন, অথবা মেনু বোতাম ব্যবহার করুন। তিন সেকেন্ড পরে এটি লুকাবে।</string>
     <string name="reveal_main_navigation">প্রধান নেভিগেশন দেখান</string>
     <string name="video_quality_menu">ভিডিওর মান</string>
@@ -254,10 +254,17 @@
     <string name="apk_update_section">অ্যাপ আপডেট</string>
     <string name="apk_update_current_version">বর্তমান সংস্করণ: %1$s</string>
     <string name="apk_update_description">GitHub Releases থেকে সর্বশেষ স্থিতিশীল Android APK ডাউনলোড ফোল্ডারে সংরক্ষণ করে।</string>
-    <string name="apk_update_download">GitHub থেকে সর্বশেষ APK ডাউনলোড করুন</string>
+    <string name="apk_update_download">আপডেট ডাউনলোড করুন</string>
     <string name="apk_update_checking">সর্বশেষ সংস্করণ পরীক্ষা করা হচ্ছে…</string>
     <string name="apk_update_started">APK ডাউনলোড শুরু হয়েছে। আপডেট করতে সম্পন্ন ডাউনলোডের বিজ্ঞপ্তি খুলুন।</string>
     <string name="apk_update_failed">সর্বশেষ APK পাওয়া যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।</string>
     <string name="apk_update_up_to_date">আপনি সর্বশেষ সংস্করণ ব্যবহার করছেন।</string>
     <string name="column_scroll_top">টাইমলাইনের শুরুতে যান</string>
+    <string name="settings_display">প্রদর্শন</string>
+    <string name="settings_feed_translation">আপডেট ও অনুবাদ</string>
+    <string name="settings_media">মিডিয়া</string>
+    <string name="settings_navigation">নেভিগেশন</string>
+    <string name="settings_transfer">সেটিংস স্থানান্তর</string>
+    <string name="settings_details">বিস্তারিত</string>
+    <string name="settings_help">সহায়তা</string>
 </resources>

@@ -155,7 +155,11 @@ export interface Translation {
   language: string;
   translationLanguage: string;
   theme: string;
-  displayAndAccessibility: string;
+  settingsDisplay: string;
+  settingsTranslation: string;
+  settingsMedia: string;
+  settingsNavigation: string;
+  settingsDetails: string;
   fontSize: string;
   accentColor: string;
   density: string;
@@ -240,6 +244,11 @@ export type TranslationOverride = Partial<Translation>;
 
 const translations: Partial<Record<Locale, Translation>> = {
   ja: {
+    settingsDisplay: "表示",
+    settingsTranslation: "翻訳",
+    settingsMedia: "画像と動画",
+    settingsNavigation: "タイムラインとメニュー",
+    settingsDetails: "詳細",
     appName: "NyTweetDeck",
     addColumn: "カラムを追加",
     addColumnDescription: "表示したい情報の種類を選択してください。",
@@ -341,7 +350,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     openOnX: "Xで記事を開く",
     articleLoadError: "記事の全文を読み込めませんでした。",
     askGrok: "Grokに聞く",
-    autoTranslatePosts: "表示言語と異なるポストを自動翻訳",
+    autoTranslatePosts: "自動翻訳",
     enableAutoTranslation: "すべてのカラムで自動翻訳をオンにする",
     disableAutoTranslation: "すべてのカラムで自動翻訳をオフにする",
     showOriginal: "原文を表示",
@@ -385,14 +394,13 @@ const translations: Partial<Record<Locale, Translation>> = {
       `${count}件のスパムの可能性のあるリプライを${expanded ? "折り畳む" : "表示"}`,
     closeDetail: "詳細を閉じる",
     language: "表示言語",
-    translationLanguage: "投稿の翻訳先言語",
+    translationLanguage: "翻訳先の言語",
     theme: "テーマ",
-    displayAndAccessibility: "アクセシビリティ、表示、データ使用量",
     fontSize: "文字サイズ",
     accentColor: "色",
     density: "表示密度",
     reduceMotion: "動きを減らす",
-    mediaPreview: "画像と動画のプレビューを表示",
+    mediaPreview: "画像・動画のプレビュー",
     videoAutoplay: "動画を自動再生",
     autoRefreshTimelines: "タイムラインを自動更新",
     videoLoop: "動画をループ再生",
@@ -402,10 +410,10 @@ const translations: Partial<Record<Locale, Translation>> = {
     videoQualityLow: "低",
     videoQualityMedium: "中",
     videoQualityHigh: "高",
-    navigationPosition: "ナビゲーションの位置",
+    navigationPosition: "メニューの位置",
     navigationPositionLeft: "左側",
     navigationPositionBottom: "下側",
-    showMainNavigation: "メインナビゲーションを常時表示",
+    showMainNavigation: "メニューを常に表示",
     showMainNavigationDescription:
       "オフにすると自動収納します。画面端へのポインター移動またはメニューボタンで一時表示し、ポインターが外れてから3秒後に隠れます。",
     revealMainNavigation: "メインナビゲーションを一時表示",
@@ -427,13 +435,13 @@ const translations: Partial<Record<Locale, Translation>> = {
     apiMetadataCurrent: "X公式Webの最新定義を使用中です。",
     apiMetadataFallback: "同梱された検証済み定義を使用中です。",
     apiMetadataFailed: "更新できませんでした。直前の検証済み定義を維持しています。",
-    settingsTransfer: "設定のインポート・エクスポート",
+    settingsTransfer: "設定のバックアップ",
     settingsTransferDescription:
       "メニュー、カラム、表示設定、検索履歴をJSONで移動します。アカウント情報や認証情報は含みません。",
     appUpdate: "アプリの更新",
     appUpdateDescription:
       "GitHub Releasesから最新の安定版デスクトップZIPを直接ダウンロードします。",
-    downloadLatestDesktop: "GitHubから最新版をダウンロード",
+    downloadLatestDesktop: "最新版をダウンロード",
     checkingLatestDesktop: "最新版を確認中…",
     desktopUpToDate: "最新バージョンを使用しています。",
     desktopDownloadStarted: "最新版のダウンロードを開始しました。",
@@ -448,7 +456,7 @@ const translations: Partial<Record<Locale, Translation>> = {
       "共有設定を保存できませんでした。変更は他のアドレスへまだ反映されていません。",
     sharedSettingsConflict:
       "別のNyTweetDeck画面で設定が更新されたため、最新の共有設定を読み込みました。",
-    translationHealth: "X自動翻訳の稼働状況",
+    translationHealth: "翻訳の利用状況",
     translationHealthDescription:
       "画面に近いポストだけを翻訳し、レート制限時は解除後に自動再試行します。値はNyTweetDeck起動後の集計です。",
     translationHealthNoRequests: "この起動中には、まだリアルタイム翻訳通信がありません。",
@@ -525,6 +533,11 @@ const translations: Partial<Record<Locale, Translation>> = {
     },
   },
   en: {
+    settingsDisplay: "Display",
+    settingsTranslation: "Translation",
+    settingsMedia: "Images and videos",
+    settingsNavigation: "Timeline and menu",
+    settingsDetails: "Details",
     appName: "NyTweetDeck",
     addColumn: "Add column",
     addColumnDescription: "Choose the kind of information you want to display.",
@@ -625,7 +638,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     openOnX: "Open article on X",
     articleLoadError: "Could not load the full article.",
     askGrok: "Ask Grok",
-    autoTranslatePosts: "Automatically translate posts that use another language",
+    autoTranslatePosts: "Automatic translation",
     enableAutoTranslation: "Turn on automatic translation for every column",
     disableAutoTranslation: "Turn off automatic translation for every column",
     showOriginal: "Show original",
@@ -669,14 +682,13 @@ const translations: Partial<Record<Locale, Translation>> = {
       `${expanded ? "Collapse" : "Show"} ${count} possible spam replies`,
     closeDetail: "Close details",
     language: "Language",
-    translationLanguage: "Post translation language",
+    translationLanguage: "Translate into",
     theme: "Theme",
-    displayAndAccessibility: "Accessibility, display, and data usage",
     fontSize: "Font size",
     accentColor: "Color",
     density: "Display density",
     reduceMotion: "Reduce motion",
-    mediaPreview: "Show image and video previews",
+    mediaPreview: "Image and video previews",
     videoAutoplay: "Autoplay videos",
     autoRefreshTimelines: "Automatically refresh timelines",
     videoLoop: "Loop videos",
@@ -686,10 +698,10 @@ const translations: Partial<Record<Locale, Translation>> = {
     videoQualityLow: "Low",
     videoQualityMedium: "Medium",
     videoQualityHigh: "High",
-    navigationPosition: "Navigation position",
+    navigationPosition: "Menu position",
     navigationPositionLeft: "Left",
     navigationPositionBottom: "Bottom",
-    showMainNavigation: "Always show main navigation",
+    showMainNavigation: "Always show menu",
     showMainNavigationDescription:
       "Turn this off to auto-hide it. Move the pointer to the screen edge or use the menu button to reveal it; it hides three seconds after the pointer leaves.",
     revealMainNavigation: "Reveal main navigation",
@@ -711,12 +723,12 @@ const translations: Partial<Record<Locale, Translation>> = {
     apiMetadataCurrent: "Using the latest definitions from X's official web assets.",
     apiMetadataFallback: "Using the bundled verified definitions.",
     apiMetadataFailed: "Update failed. The last verified definitions remain active.",
-    settingsTransfer: "Import or export settings",
+    settingsTransfer: "Settings backup",
     settingsTransferDescription:
       "Move menus, columns, display preferences, and search history as JSON. Account and credential data are never included.",
     appUpdate: "App updates",
     appUpdateDescription: "Download the latest stable desktop ZIP directly from GitHub Releases.",
-    downloadLatestDesktop: "Download latest from GitHub",
+    downloadLatestDesktop: "Download latest version",
     checkingLatestDesktop: "Checking for the latest version…",
     desktopUpToDate: "You are using the latest version.",
     desktopDownloadStarted: "The latest release download has started.",
@@ -730,7 +742,7 @@ const translations: Partial<Record<Locale, Translation>> = {
       "Could not save shared settings. Changes are not yet available at other addresses.",
     sharedSettingsConflict:
       "Settings changed in another NyTweetDeck window, so the latest shared settings were loaded.",
-    translationHealth: "X automatic translation status",
+    translationHealth: "Translation usage",
     translationHealthDescription:
       "Only nearby posts are translated. Rate-limited requests retry automatically after the limit resets. Values cover this NyTweetDeck session.",
     translationHealthNoRequests: "No real-time translation requests have run in this session yet.",

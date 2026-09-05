@@ -46,8 +46,8 @@
     <string name="timeline_load_failed">تعذّر تحميل الخط الزمني.</string>
     <string name="timeline_empty">لا توجد منشورات لعرضها.</string>
     <string name="retry">إعادة المحاولة</string>
-    <string name="export_settings">Export settings</string>
-    <string name="import_settings">Import settings</string>
+    <string name="export_settings">تصدير الإعدادات</string>
+    <string name="import_settings">استيراد الإعدادات</string>
     <string name="export_settings_success">The settings JSON was saved.</string>
     <string name="import_settings_success">Settings imported and saved automatically.</string>
     <string name="settings_transfer_failed">Import failed. Select a valid NyTweetDeck settings JSON file.</string>
@@ -167,7 +167,7 @@
     <string name="community_note_loading">Loading Community Note</string>
     <string name="community_note_failed">تعذر تحميل ملاحظة المجتمع والمنشور المرتبط بها.</string>
     <string name="community_note_retry">Retry</string>
-    <string name="setting_auto_translate">Automatically translate posts that use another language</string>
+    <string name="setting_auto_translate">الترجمة التلقائية</string>
     <string name="translation_loading">Translating nearby posts with X…</string>
     <string name="translation_failed">Translation failed. Showing the original post.</string>
     <string name="translation_retry">Retry translation</string>
@@ -191,7 +191,7 @@
     <string name="message_time_hours">%1$d h</string>
     <string name="message_time_days">%1$d d</string>
     <string name="message_time_date">%1$d/%2$d</string>
-    <string name="setting_language">اللغة</string>
+    <string name="setting_language">لغة العرض</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -237,15 +237,15 @@
     <string name="post_link_copied">لم تتوفر وجهة للمشاركة، لذا تم نسخ رابط المنشور.</string>
     <string name="inline_video_fullscreen">فتح الفيديو بملء الشاشة</string>
     <string name="media_viewer_rotate_landscape">التدوير إلى الوضع الأفقي</string>
-    <string name="setting_translation_language">لغة ترجمة المنشورات</string>
+    <string name="setting_translation_language">الترجمة إلى</string>
     <string name="setting_feed_updates">تحديثات الخلاصة</string>
     <string name="setting_auto_refresh">تحديث الخلاصات تلقائيًا</string>
     <string name="setting_auto_refresh_desc">يستمر التحميل الأولي والتحديث اليدوي وتحديثات التفاعل المباشرة عند إيقاف هذا الخيار.</string>
     <string name="setting_video_quality">جودة الفيديو الافتراضية</string>
-    <string name="setting_navigation_position">موضع شريط التنقل الرئيسي</string>
+    <string name="setting_navigation_position">موضع القائمة</string>
     <string name="navigation_position_left">جانبي</string>
     <string name="navigation_position_bottom">سفلي</string>
-    <string name="show_main_navigation">إظهار شريط التنقل الرئيسي دائمًا</string>
+    <string name="show_main_navigation">إظهار القائمة دائمًا</string>
     <string name="show_main_navigation_desc">أوقف هذا الخيار لإخفائه تلقائيًا. اسحب إلى الداخل من الحافة الجانبية، أو إلى أعلى من الحافة السفلية للتنقل السفلي، أو استخدم زر القائمة. سيختفي بعد ثلاث ثوانٍ.</string>
     <string name="reveal_main_navigation">إظهار شريط التنقل الرئيسي</string>
     <string name="video_quality_menu">جودة الفيديو</string>
@@ -258,10 +258,17 @@
     <string name="apk_update_section">تحديثات التطبيق</string>
     <string name="apk_update_current_version">الإصدار الحالي: %1$s</string>
     <string name="apk_update_description">ينزّل أحدث ملف APK مستقر لنظام Android من GitHub Releases إلى مجلد التنزيلات.</string>
-    <string name="apk_update_download">تنزيل أحدث APK من GitHub</string>
+    <string name="apk_update_download">تنزيل التحديث</string>
     <string name="apk_update_checking">جارٍ البحث عن أحدث إصدار…</string>
     <string name="apk_update_started">بدأ تنزيل APK. افتح إشعار اكتمال التنزيل للتحديث.</string>
     <string name="apk_update_failed">تعذر الحصول على أحدث APK. تحقق من الاتصال وحاول مجددًا.</string>
     <string name="apk_update_up_to_date">أنت تستخدم أحدث إصدار.</string>
     <string name="column_scroll_top">الانتقال إلى أعلى الخط الزمني</string>
+    <string name="settings_display">المظهر</string>
+    <string name="settings_feed_translation">التحديث والترجمة</string>
+    <string name="settings_media">الوسائط</string>
+    <string name="settings_navigation">التنقل</string>
+    <string name="settings_transfer">نقل الإعدادات</string>
+    <string name="settings_details">التفاصيل</string>
+    <string name="settings_help">المساعدة</string>
 </resources>

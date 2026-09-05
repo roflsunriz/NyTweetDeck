@@ -46,8 +46,8 @@
     <string name="timeline_load_failed">टाइमलाइन लोड नहीं हो सकी।</string>
     <string name="timeline_empty">दिखाने के लिए कोई पोस्ट नहीं है।</string>
     <string name="retry">फिर प्रयास करें</string>
-    <string name="export_settings">Export settings</string>
-    <string name="import_settings">Import settings</string>
+    <string name="export_settings">सेटिंग निर्यात करें</string>
+    <string name="import_settings">सेटिंग आयात करें</string>
     <string name="export_settings_success">The settings JSON was saved.</string>
     <string name="import_settings_success">Settings imported and saved automatically.</string>
     <string name="settings_transfer_failed">Import failed. Select a valid NyTweetDeck settings JSON file.</string>
@@ -167,7 +167,7 @@
     <string name="community_note_loading">Loading Community Note</string>
     <string name="community_note_failed">कम्युनिटी नोट और संबंधित पोस्ट लोड नहीं हो सके।</string>
     <string name="community_note_retry">Retry</string>
-    <string name="setting_auto_translate">Automatically translate posts that use another language</string>
+    <string name="setting_auto_translate">स्वचालित अनुवाद</string>
     <string name="translation_loading">Translating nearby posts with X…</string>
     <string name="translation_failed">Translation failed. Showing the original post.</string>
     <string name="translation_retry">Retry translation</string>
@@ -191,7 +191,7 @@
     <string name="message_time_hours">%1$d h</string>
     <string name="message_time_days">%1$d d</string>
     <string name="message_time_date">%1$d/%2$d</string>
-    <string name="setting_language">भाषा</string>
+    <string name="setting_language">प्रदर्शन भाषा</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -233,15 +233,15 @@
     <string name="post_link_copied">कोई शेयर लक्ष्य उपलब्ध नहीं था, इसलिए पोस्ट लिंक कॉपी कर दिया गया।</string>
     <string name="inline_video_fullscreen">वीडियो फ़ुल स्क्रीन में खोलें</string>
     <string name="media_viewer_rotate_landscape">लैंडस्केप में घुमाएँ</string>
-    <string name="setting_translation_language">पोस्ट अनुवाद भाषा</string>
+    <string name="setting_translation_language">अनुवाद की भाषा</string>
     <string name="setting_feed_updates">फ़ीड अपडेट</string>
     <string name="setting_auto_refresh">फ़ीड अपने-आप रीफ़्रेश करें</string>
     <string name="setting_auto_refresh_desc">इसे बंद करने पर भी शुरुआती लोड, मैन्युअल रीफ़्रेश और लाइव प्रतिक्रिया अपडेट जारी रहते हैं।</string>
     <string name="setting_video_quality">डिफ़ॉल्ट वीडियो गुणवत्ता</string>
-    <string name="setting_navigation_position">मुख्य नेविगेशन की स्थिति</string>
+    <string name="setting_navigation_position">मेनू की स्थिति</string>
     <string name="navigation_position_left">किनारा</string>
     <string name="navigation_position_bottom">नीचे</string>
-    <string name="show_main_navigation">मुख्य नेविगेशन हमेशा दिखाएँ</string>
+    <string name="show_main_navigation">मेनू हमेशा दिखाएँ</string>
     <string name="show_main_navigation_desc">इसे बंद करने पर नेविगेशन अपने-आप छिपेगा। साइड नेविगेशन के लिए किनारे से अंदर स्वाइप करें, नीचे वाले नेविगेशन के लिए नीचे से ऊपर स्वाइप करें, या मेनू बटन दबाएँ। यह तीन सेकंड बाद छिप जाएगा।</string>
     <string name="reveal_main_navigation">मुख्य नेविगेशन दिखाएँ</string>
     <string name="video_quality_menu">वीडियो गुणवत्ता</string>
@@ -254,10 +254,17 @@
     <string name="apk_update_section">ऐप अपडेट</string>
     <string name="apk_update_current_version">वर्तमान संस्करण: %1$s</string>
     <string name="apk_update_description">GitHub Releases से नवीनतम स्थिर Android APK को डाउनलोड फ़ोल्डर में सहेजता है।</string>
-    <string name="apk_update_download">GitHub से नवीनतम APK डाउनलोड करें</string>
+    <string name="apk_update_download">अपडेट डाउनलोड करें</string>
     <string name="apk_update_checking">नवीनतम संस्करण जाँचा जा रहा है…</string>
     <string name="apk_update_started">APK डाउनलोड शुरू हो गया। अपडेट करने के लिए पूर्ण डाउनलोड की सूचना खोलें।</string>
     <string name="apk_update_failed">नवीनतम APK नहीं मिल सका। कनेक्शन जाँचें और फिर प्रयास करें।</string>
     <string name="apk_update_up_to_date">आप नवीनतम संस्करण का उपयोग कर रहे हैं।</string>
     <string name="column_scroll_top">टाइमलाइन के शीर्ष पर जाएँ</string>
+    <string name="settings_display">दिखावट</string>
+    <string name="settings_feed_translation">अपडेट और अनुवाद</string>
+    <string name="settings_media">मीडिया</string>
+    <string name="settings_navigation">नेविगेशन</string>
+    <string name="settings_transfer">सेटिंग स्थानांतरण</string>
+    <string name="settings_details">विवरण</string>
+    <string name="settings_help">सहायता</string>
 </resources>

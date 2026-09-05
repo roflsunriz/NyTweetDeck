@@ -46,8 +46,8 @@
     <string name="timeline_load_failed">ٹائم لائن لوڈ نہیں ہو سکی۔</string>
     <string name="timeline_empty">دکھانے کے لیے کوئی پوسٹ نہیں ہے۔</string>
     <string name="retry">دوبارہ کوشش کریں</string>
-    <string name="export_settings">Export settings</string>
-    <string name="import_settings">Import settings</string>
+    <string name="export_settings">ترتیبات برآمد کریں</string>
+    <string name="import_settings">ترتیبات درآمد کریں</string>
     <string name="export_settings_success">The settings JSON was saved.</string>
     <string name="import_settings_success">Settings imported and saved automatically.</string>
     <string name="settings_transfer_failed">Import failed. Select a valid NyTweetDeck settings JSON file.</string>
@@ -167,7 +167,7 @@
     <string name="community_note_loading">Loading Community Note</string>
     <string name="community_note_failed">کمیونٹی نوٹ اور متعلقہ پوسٹ لوڈ نہیں ہو سکے۔</string>
     <string name="community_note_retry">Retry</string>
-    <string name="setting_auto_translate">Automatically translate posts that use another language</string>
+    <string name="setting_auto_translate">خودکار ترجمہ</string>
     <string name="translation_loading">Translating nearby posts with X…</string>
     <string name="translation_failed">Translation failed. Showing the original post.</string>
     <string name="translation_retry">Retry translation</string>
@@ -191,7 +191,7 @@
     <string name="message_time_hours">%1$d h</string>
     <string name="message_time_days">%1$d d</string>
     <string name="message_time_date">%1$d/%2$d</string>
-    <string name="setting_language">زبان</string>
+    <string name="setting_language">ڈسپلے کی زبان</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -233,15 +233,15 @@
     <string name="post_link_copied">شیئر کرنے کی کوئی منزل دستیاب نہیں تھی، اس لیے پوسٹ کا لنک کاپی کر دیا گیا۔</string>
     <string name="inline_video_fullscreen">ویڈیو فل اسکرین میں کھولیں</string>
     <string name="media_viewer_rotate_landscape">لینڈ اسکیپ میں گھمائیں</string>
-    <string name="setting_translation_language">پوسٹس کے ترجمے کی زبان</string>
+    <string name="setting_translation_language">ترجمے کی زبان</string>
     <string name="setting_feed_updates">فیڈ اپ ڈیٹس</string>
     <string name="setting_auto_refresh">فیڈز خودکار طور پر تازہ کریں</string>
     <string name="setting_auto_refresh_desc">اسے بند کرنے پر بھی ابتدائی لوڈ، دستی ریفریش اور براہ راست ردعمل کی اپ ڈیٹس جاری رہتی ہیں۔</string>
     <string name="setting_video_quality">ڈیفالٹ ویڈیو کوالٹی</string>
-    <string name="setting_navigation_position">مرکزی نیویگیشن کی جگہ</string>
+    <string name="setting_navigation_position">مینو کی جگہ</string>
     <string name="navigation_position_left">کنارے پر</string>
     <string name="navigation_position_bottom">نیچے</string>
-    <string name="show_main_navigation">مرکزی نیویگیشن ہمیشہ دکھائیں</string>
+    <string name="show_main_navigation">مینو ہمیشہ دکھائیں</string>
     <string name="show_main_navigation_desc">خودکار طور پر چھپانے کے لیے اسے بند کریں۔ سائیڈ نیویگیشن کے لیے کنارے سے اندر، نیچے والی نیویگیشن کے لیے نچلے کنارے سے اوپر سوائپ کریں، یا مینو بٹن استعمال کریں۔ یہ تین سیکنڈ بعد چھپ جائے گی۔</string>
     <string name="reveal_main_navigation">مرکزی نیویگیشن دکھائیں</string>
     <string name="video_quality_menu">ویڈیو کوالٹی</string>
@@ -254,10 +254,17 @@
     <string name="apk_update_section">ایپ اپ ڈیٹس</string>
     <string name="apk_update_current_version">موجودہ ورژن: %1$s</string>
     <string name="apk_update_description">GitHub Releases سے تازہ ترین مستحکم Android APK کو ڈاؤن لوڈز فولڈر میں محفوظ کرتا ہے۔</string>
-    <string name="apk_update_download">GitHub سے تازہ ترین APK ڈاؤن لوڈ کریں</string>
+    <string name="apk_update_download">اپ ڈیٹ ڈاؤن لوڈ کریں</string>
     <string name="apk_update_checking">تازہ ترین ورژن چیک ہو رہا ہے…</string>
     <string name="apk_update_started">APK ڈاؤن لوڈ شروع ہو گیا۔ اپ ڈیٹ کے لیے مکمل ڈاؤن لوڈ کی اطلاع کھولیں۔</string>
     <string name="apk_update_failed">تازہ ترین APK حاصل نہیں ہو سکا۔ کنکشن چیک کر کے دوبارہ کوشش کریں۔</string>
     <string name="apk_update_up_to_date">آپ تازہ ترین ورژن استعمال کر رہے ہیں۔</string>
     <string name="column_scroll_top">ٹائم لائن کے آغاز پر جائیں</string>
+    <string name="settings_display">ظاہری شکل</string>
+    <string name="settings_feed_translation">اپ ڈیٹس اور ترجمہ</string>
+    <string name="settings_media">میڈیا</string>
+    <string name="settings_navigation">نیویگیشن</string>
+    <string name="settings_transfer">ترتیبات کی منتقلی</string>
+    <string name="settings_details">تفصیلات</string>
+    <string name="settings_help">مدد</string>
 </resources>

@@ -238,11 +238,6 @@
     grid-template-columns: 1fr;
   }
 
-  .settings-form label {
-    grid-template-columns: 1fr;
-    gap: 7px;
-  }
-
   .detail-replies-header {
     align-items: stretch;
     flex-direction: column;
@@ -485,14 +480,6 @@
   transition-duration: 0.01ms;
 }
 
-.settings-form h3 {
-  grid-column: 1 / -1;
-  margin: 12px 0 0;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-  font-size: 0.88rem;
-}
-
 .column-sort-control {
   display: inline-flex;
   align-items: center;
@@ -517,12 +504,6 @@
   color: var(--text);
   font-size: 0.62rem;
   line-height: 1;
-}
-
-.toggle-setting input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--accent);
 }
 
 .video-volume-setting output {
@@ -909,10 +890,6 @@ button.deck-feed-item:focus-visible {
 .metadata-settings h3,
 .metadata-settings p {
   margin: 0;
-}
-
-.metadata-settings > p:first-of-type {
-  color: var(--text-muted);
 }
 
 .settings-transfer-actions {

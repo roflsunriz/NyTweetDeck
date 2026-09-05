@@ -12,6 +12,16 @@ describe("translation coverage", () => {
       expect(translate(locale).appName).toBe("NyTweetDeck");
       expect(translate(locale).settings.length).toBeGreaterThan(0);
       expect(translate(locale).nav.home.length).toBeGreaterThan(0);
+      for (const key of [
+        "settingsDisplay",
+        "settingsTranslation",
+        "settingsMedia",
+        "settingsNavigation",
+        "settingsDetails",
+      ] as const) {
+        expect(translate(locale)[key].length).toBeGreaterThan(0);
+        if (locale !== "en") expect(translate(locale)[key]).not.toBe(english[key]);
+      }
       if (locale !== "en") {
         expect(translate(locale).settings).not.toBe(english.settings);
         expect(translate(locale).column.home.title).not.toBe(english.column.home.title);

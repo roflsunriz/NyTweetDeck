@@ -46,8 +46,8 @@
     <string name="timeline_load_failed">Não foi possível carregar a timeline.</string>
     <string name="timeline_empty">Não há posts para exibir.</string>
     <string name="retry">Tentar novamente</string>
-    <string name="export_settings">Export settings</string>
-    <string name="import_settings">Import settings</string>
+    <string name="export_settings">Exportar configurações</string>
+    <string name="import_settings">Importar configurações</string>
     <string name="export_settings_success">The settings JSON was saved.</string>
     <string name="import_settings_success">Settings imported and saved automatically.</string>
     <string name="settings_transfer_failed">Import failed. Select a valid NyTweetDeck settings JSON file.</string>
@@ -167,7 +167,7 @@
     <string name="community_note_loading">Loading Community Note</string>
     <string name="community_note_failed">Não foi possível carregar a Nota da Comunidade e o post.</string>
     <string name="community_note_retry">Retry</string>
-    <string name="setting_auto_translate">Automatically translate posts that use another language</string>
+    <string name="setting_auto_translate">Tradução automática</string>
     <string name="translation_loading">Translating nearby posts with X…</string>
     <string name="translation_failed">Translation failed. Showing the original post.</string>
     <string name="translation_retry">Retry translation</string>
@@ -191,7 +191,7 @@
     <string name="message_time_hours">%1$d h</string>
     <string name="message_time_days">%1$d d</string>
     <string name="message_time_date">%1$d/%2$d</string>
-    <string name="setting_language">Idioma</string>
+    <string name="setting_language">Idioma da interface</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -234,15 +234,15 @@
     <string name="post_link_copied">Nenhum destino de compartilhamento estava disponível; o link do post foi copiado.</string>
     <string name="inline_video_fullscreen">Abrir vídeo em tela cheia</string>
     <string name="media_viewer_rotate_landscape">Girar para paisagem</string>
-    <string name="setting_translation_language">Idioma de tradução das publicações</string>
+    <string name="setting_translation_language">Traduzir para</string>
     <string name="setting_feed_updates">Atualizações do feed</string>
     <string name="setting_auto_refresh">Atualizar feeds automaticamente</string>
     <string name="setting_auto_refresh_desc">O carregamento inicial, a atualização manual e as interações em tempo real continuam quando esta opção está desativada.</string>
     <string name="setting_video_quality">Qualidade de vídeo padrão</string>
-    <string name="setting_navigation_position">Posição da navegação principal</string>
+    <string name="setting_navigation_position">Posição do menu</string>
     <string name="navigation_position_left">Lateral</string>
     <string name="navigation_position_bottom">Inferior</string>
-    <string name="show_main_navigation">Mostrar sempre a navegação principal</string>
+    <string name="show_main_navigation">Sempre mostrar o menu</string>
     <string name="show_main_navigation_desc">Desative para ocultá-la automaticamente. Deslize para dentro a partir da borda lateral, para cima a partir da borda inferior na navegação inferior, ou use o botão de menu. Ela se oculta após três segundos.</string>
     <string name="reveal_main_navigation">Mostrar a navegação principal</string>
     <string name="video_quality_menu">Qualidade do vídeo</string>
@@ -255,10 +255,17 @@
     <string name="apk_update_section">Atualizações do app</string>
     <string name="apk_update_current_version">Versão atual: %1$s</string>
     <string name="apk_update_description">Baixa o APK Android estável mais recente do GitHub Releases para a pasta Downloads.</string>
-    <string name="apk_update_download">Baixar o APK mais recente do GitHub</string>
+    <string name="apk_update_download">Baixar atualização</string>
     <string name="apk_update_checking">Procurando a versão mais recente…</string>
     <string name="apk_update_started">O download do APK começou. Abra a notificação quando terminar para atualizar.</string>
     <string name="apk_update_failed">Não foi possível obter o APK mais recente. Verifique a conexão e tente novamente.</string>
     <string name="apk_update_up_to_date">Você está usando a versão mais recente.</string>
     <string name="column_scroll_top">Ir para o início da linha do tempo</string>
+    <string name="settings_display">Aparência</string>
+    <string name="settings_feed_translation">Atualizações e tradução</string>
+    <string name="settings_media">Mídia</string>
+    <string name="settings_navigation">Navegação</string>
+    <string name="settings_transfer">Transferir configurações</string>
+    <string name="settings_details">Detalhes</string>
+    <string name="settings_help">Ajuda</string>
 </resources>

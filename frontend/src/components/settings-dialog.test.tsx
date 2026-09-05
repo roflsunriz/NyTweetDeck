@@ -152,3 +152,32 @@ test("downloads the latest validated desktop release from settings", async () =>
   expect(requestedUrls).toContain("/api/v1/updates/desktop/latest");
   expect(screen.getByText("最新版のダウンロードを開始しました。")).toBeDefined();
 });
+
+test("keeps explanations folded while diagnostics errors remain visible", async () => {
+  globalThis.fetch = (async (_input) => new Response(null, { status: 503 })) as typeof fetch;
+  showSettings();
+  const details = [...document.querySelectorAll(".settings-form details")];
+  expect(details).toHaveLength(4);
+  expect(details.every((element) => !(element as HTMLDetailsElement).open)).toBe(true);
+  expect(document.querySelectorAll(".settings-group")).toHaveLength(4);
+  expect(document.querySelector("[data-testid=settings-navigation] .settings-hint") === null).toBe(
+    true,
+  );
+  await waitFor(() =>
+    expect(screen.getByText(translate("ja").translationHealthUnavailable)).toBeDefined(),
+  );
+  for (const message of [
+    translate("ja").translationHealthUnavailable,
+    translate("ja").apiMetadataFailed,
+  ]) {
+    expect(screen.getByText(message).closest("details")).toBeNull();
+  }
+  for (const disclosure of details) {
+    const summary = disclosure.querySelector("summary");
+    if (summary === null) throw new Error("Missing disclosure label");
+    await userEvent.click(summary);
+    expect((disclosure as HTMLDetailsElement).open).toBe(true);
+    await userEvent.click(summary);
+    expect((disclosure as HTMLDetailsElement).open).toBe(false);
+  }
+});

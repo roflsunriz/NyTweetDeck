@@ -65,8 +65,8 @@
     <string name="timeline_load_failed">タイムラインを読み込めませんでした。</string>
     <string name="timeline_empty">表示できるポストはありません。</string>
     <string name="retry">再試行</string>
-    <string name="export_settings">設定JSONをエクスポート</string>
-    <string name="import_settings">設定JSONをインポート</string>
+    <string name="export_settings">設定を書き出す</string>
+    <string name="import_settings">設定を読み込む</string>
     <string name="export_settings_success">設定JSONを保存しました。</string>
     <string name="import_settings_success">設定JSONを読み込みました。</string>
     <string name="settings_transfer_failed">設定JSONを処理できませんでした。ファイル形式を確認してください。</string>
@@ -189,7 +189,7 @@
     <string name="community_note_loading">コミュニティノートを読み込んでいます</string>
     <string name="community_note_failed">コミュニティノートを読み込めませんでした。</string>
     <string name="community_note_retry">再試行</string>
-    <string name="setting_auto_translate">ポストを自動翻訳</string>
+    <string name="setting_auto_translate">自動翻訳</string>
     <string name="translation_loading">翻訳中…</string>
     <string name="translation_failed">翻訳できませんでした。</string>
     <string name="translation_retry">翻訳を再試行</string>
@@ -213,7 +213,7 @@
     <string name="message_time_hours">%1$d時間</string>
     <string name="message_time_days">%1$d日</string>
     <string name="message_time_date">%1$d月%2$d日</string>
-    <string name="setting_language">言語</string>
+    <string name="setting_language">表示言語</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -234,15 +234,15 @@
     <string name="post_link_copied">共有先を開けなかったため、ポストのリンクをコピーしました。</string>
     <string name="inline_video_fullscreen">動画を全画面表示</string>
     <string name="media_viewer_rotate_landscape">横向きに回転</string>
-    <string name="setting_translation_language">投稿の翻訳先言語</string>
+    <string name="setting_translation_language">翻訳先の言語</string>
     <string name="setting_feed_updates">フィード更新</string>
     <string name="setting_auto_refresh">フィードを自動更新</string>
     <string name="setting_auto_refresh_desc">オフにしても初回読み込み、手動更新、リアルタイムの反応更新は継続します。</string>
     <string name="setting_video_quality">動画の既定画質</string>
-    <string name="setting_navigation_position">メインナビゲーションの位置</string>
+    <string name="setting_navigation_position">メニューの位置</string>
     <string name="navigation_position_left">サイド</string>
     <string name="navigation_position_bottom">下部</string>
-    <string name="show_main_navigation">メインナビゲーションを常時表示</string>
+    <string name="show_main_navigation">メニューを常に表示</string>
     <string name="show_main_navigation_desc">オフにすると自動収納します。サイド配置は画面端から内側へ、下部配置は下端から上へスワイプするか、メニューボタンで一時表示できます。3秒後に自動的に隠れます。</string>
     <string name="reveal_main_navigation">メインナビゲーションを一時表示</string>
     <string name="video_quality_menu">動画の画質</string>
@@ -255,10 +255,17 @@
     <string name="apk_update_section">アプリの更新</string>
     <string name="apk_update_current_version">現在のバージョン：%1$s</string>
     <string name="apk_update_description">GitHub Releasesから最新の安定版Android APKをダウンロードフォルダーへ保存します。</string>
-    <string name="apk_update_download">GitHubから最新版APKをダウンロード</string>
+    <string name="apk_update_download">最新版をダウンロード</string>
     <string name="apk_update_checking">最新版を確認中…</string>
     <string name="apk_update_started">APKのダウンロードを開始しました。完了通知から開いて更新してください。</string>
     <string name="apk_update_failed">最新版APKを取得できませんでした。通信状態を確認して再試行してください。</string>
     <string name="apk_update_up_to_date">最新バージョンを使用しています。</string>
     <string name="column_scroll_top">タイムラインの先頭へ</string>
+    <string name="settings_display">表示</string>
+    <string name="settings_feed_translation">更新と翻訳</string>
+    <string name="settings_media">メディア</string>
+    <string name="settings_navigation">ナビゲーション</string>
+    <string name="settings_transfer">設定の移行</string>
+    <string name="settings_details">詳細情報</string>
+    <string name="settings_help">使い方</string>
 </resources>

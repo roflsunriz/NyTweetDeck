@@ -138,6 +138,7 @@ class LiveReadOnlyParitySmokeTest {
         verifyMediaDownload(downloadManager, downloadsBefore)
 
         composeRule.onNodeWithTag("settings").performClick()
+        composeRule.onNodeWithTag("settings-details").performScrollTo().performClick()
         composeRule.onNodeWithTag("live-pipeline-status").performScrollTo()
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.live_pipeline_connected),

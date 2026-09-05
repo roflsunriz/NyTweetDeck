@@ -46,8 +46,8 @@
     <string name="timeline_load_failed">无法加载时间线。</string>
     <string name="timeline_empty">没有可显示的帖子。</string>
     <string name="retry">重试</string>
-    <string name="export_settings">Export settings</string>
-    <string name="import_settings">Import settings</string>
+    <string name="export_settings">导出设置</string>
+    <string name="import_settings">导入设置</string>
     <string name="export_settings_success">The settings JSON was saved.</string>
     <string name="import_settings_success">Settings imported and saved automatically.</string>
     <string name="settings_transfer_failed">Import failed. Select a valid NyTweetDeck settings JSON file.</string>
@@ -167,7 +167,7 @@
     <string name="community_note_loading">Loading Community Note</string>
     <string name="community_note_failed">无法加载社群附注及其相关帖子。</string>
     <string name="community_note_retry">Retry</string>
-    <string name="setting_auto_translate">Automatically translate posts that use another language</string>
+    <string name="setting_auto_translate">自动翻译</string>
     <string name="translation_loading">Translating nearby posts with X…</string>
     <string name="translation_failed">Translation failed. Showing the original post.</string>
     <string name="translation_retry">Retry translation</string>
@@ -191,7 +191,7 @@
     <string name="message_time_hours">%1$d h</string>
     <string name="message_time_days">%1$d d</string>
     <string name="message_time_date">%1$d/%2$d</string>
-    <string name="setting_language">显示语言</string>
+    <string name="setting_language">界面语言</string>
     <string name="language_ja">日本語</string>
     <string name="language_en">English</string>
     <string name="language_zh">中文</string>
@@ -232,15 +232,15 @@
     <string name="post_link_copied">没有可用的分享目标，因此已复制帖子链接。</string>
     <string name="inline_video_fullscreen">全屏播放视频</string>
     <string name="media_viewer_rotate_landscape">旋转为横屏</string>
-    <string name="setting_translation_language">帖子翻译语言</string>
+    <string name="setting_translation_language">翻译目标语言</string>
     <string name="setting_feed_updates">信息流更新</string>
     <string name="setting_auto_refresh">自动刷新信息流</string>
     <string name="setting_auto_refresh_desc">关闭后，首次加载、手动刷新和实时互动更新仍会继续。</string>
     <string name="setting_video_quality">默认视频画质</string>
-    <string name="setting_navigation_position">主导航位置</string>
+    <string name="setting_navigation_position">菜单位置</string>
     <string name="navigation_position_left">侧边</string>
     <string name="navigation_position_bottom">底部</string>
-    <string name="show_main_navigation">始终显示主导航</string>
+    <string name="show_main_navigation">始终显示菜单</string>
     <string name="show_main_navigation_desc">关闭后会自动隐藏。侧边导航可从屏幕侧边向内滑动，底部导航可从底边向上滑动，也可使用菜单按钮暂时显示。三秒后会再次隐藏。</string>
     <string name="reveal_main_navigation">暂时显示主导航</string>
     <string name="video_quality_menu">视频画质</string>
@@ -253,10 +253,17 @@
     <string name="apk_update_section">应用更新</string>
     <string name="apk_update_current_version">当前版本：%1$s</string>
     <string name="apk_update_description">从 GitHub Releases 将最新的稳定版 Android APK 下载到“下载”文件夹。</string>
-    <string name="apk_update_download">从 GitHub 下载最新版 APK</string>
+    <string name="apk_update_download">下载更新</string>
     <string name="apk_update_checking">正在检查最新版本…</string>
     <string name="apk_update_started">APK 已开始下载。完成后请从通知中打开并更新。</string>
     <string name="apk_update_failed">无法获取最新版 APK。请检查网络后重试。</string>
     <string name="apk_update_up_to_date">您已在使用最新版本。</string>
     <string name="column_scroll_top">返回时间线顶部</string>
+    <string name="settings_display">显示</string>
+    <string name="settings_feed_translation">更新与翻译</string>
+    <string name="settings_media">媒体</string>
+    <string name="settings_navigation">导航</string>
+    <string name="settings_transfer">迁移设置</string>
+    <string name="settings_details">详细信息</string>
+    <string name="settings_help">使用说明</string>
 </resources>
