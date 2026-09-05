@@ -20,6 +20,13 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 1.5.0 / Android 0.3.0 公開前検証（2026-09-05）
+
+- フロントエンド201件、Java150件のテスト、Androidの単体テストとdebug/release Lint、両版のリリースビルドが成功した。
+- Bun 66件、Maven 70件、Gradle 36件の依存関係を公開直前に監査し、既知の未撤回脆弱性は0件だった。
+- 1.5.0のパッケージ済みJARで`verify-ui.ps1`が成功した。デスクトップ・タブレット・モバイル・RTL、設定保存、コミュニティノート、更新ボタンを確認した。
+- AndroidのversionCodeを10、versionNameを0.3.0に更新し、両リリースのCHANGELOG抽出を確認した。Pixel 10aは操作対象外とする。
+
 ## ライブ翻訳フォールバックとメモリ再利用（2026-09-05）
 
 - 最新の[X公式Birdwatch実装](https://abs.twimg.com/responsive-web/client-web/bundle.Birdwatch.6ab8c5d4038eb3b4a.js)と共有Grok実装で、`POST /2/grok/translation.json`を確認した。ノートは`COMMUNITY_NOTE`とID、ポストは`POST`・ID・`dst_lang`を送る。実通信先は`https://x.com/i/api/2/grok/translation.json`。ノートの日本語/フランス語ヘッダーでそれぞれの訳が返ることを実Xで確認した。
