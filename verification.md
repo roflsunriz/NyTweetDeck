@@ -20,6 +20,14 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 本文のない投稿の翻訳ガード（2026-09-05）
+
+- HTTP(S) URLと独立メンションを除いた元本文にUnicode Letterが残らなければ翻訳しない。画像のみ、メンション＋画像URL、空白、絵文字・数字・記号だけの通常ポスト・返信・引用を対象外とする。メンション付き文章、ハッシュタグ、各言語の文字、メールアドレスは除外しない。URL後の全角空白・NBSPで区切られた文章も保持する。
+- Androidは`TranslationTextTest`で境界条件、`DeckViewModelTest`で自動要求と手動再試行の両方が上流要求0回のままSKIPPEDになることを確認する。`TranslationGuardUiTest`はAQUOSで成功し、画像付きメンションと引用には要求・過去の失敗表示を出さず、通常本文だけを翻訳候補にすることを確認した。
+- 同じガードをWebの`usePostTranslation`へ接続し、引用も含め不要な通信をキュー登録前に除外する。本文を無理に推測しないため、メンション記号のない通常の単語をユーザーIDとみなして削除しない。
+- フロントエンド184件、Java138件、Android251件、各lint/型検査/ビルドが成功。専用Chromeの1440/390幅で対象外の要求0・文章ありだけ要求1・画像維持・失敗表示なしを確認した。Chrome/Android実機UIはテスト応答・コールバックで検証し、不要な実X翻訳を発生させていない。
+- 両版の稼働物をバックアップして反映し、WindowsはHTTP/HTTPSのreadyとJARハッシュ一致、Androidは起動・非debuggable release・インストール済みAPKハッシュ一致を確認した。認証・設定は維持した。
+
 ## 返信を再帰的にたどる（2026-09-05）
 
 - 詳細の返信本文を押して3段階以上進み、選んだ返信が詳細の中心となり、その返信への返信一覧が表示されることを確認する。戻る操作で一段ずつ復帰し、最後に元のカラムへ戻る。

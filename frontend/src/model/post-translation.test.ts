@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  hasTranslatableText,
   loadPostTranslation,
   shouldTranslatePost,
   translationTargetsLocale,
@@ -12,6 +13,43 @@ afterEach(() => {
 });
 
 describe("post translation language matching", () => {
+  test("skips text made only of mentions, media URLs, whitespace, numbers or symbols", () => {
+    for (const text of [
+      "",
+      " \n\t",
+      "@user",
+      "@user_123 @second",
+      "＠user",
+      "@user https://t.co/photo",
+      "HTTPS://t.co/photo",
+      "@user\n＠second https://t.co/photo 🎉",
+      "123 … ! 🎉",
+      "(@user) @123456789012345",
+    ]) {
+      expect(hasTranslatableText(text)).toBe(false);
+    }
+  });
+
+  test("preserves prose, hashtags, email addresses and non-ASCII letters", () => {
+    for (const text of [
+      "@user Hello! https://t.co/photo",
+      "@user #Hello",
+      "@user ありがとう",
+      "@user مرحبا",
+      "@user नमस्ते",
+      "@user Привет",
+      "@user 你好",
+      "name@example.com",
+      "username",
+      "@abcdefghijklmnop",
+      "https://t.co/photo　ありがとう",
+      "https://t.co/photo\u00a0Hello",
+      "𐐀",
+    ]) {
+      expect(hasTranslatableText(text)).toBe(true);
+    }
+  });
+
   test("translates only when a known post language differs from the UI language", () => {
     expect(shouldTranslatePost("en", "ja")).toBe(true);
     expect(shouldTranslatePost("pt-BR", "ja")).toBe(true);

@@ -19,6 +19,13 @@ const translationRequestTimeoutMilliseconds = 45_000;
 const maximumRateLimitWaitMilliseconds = 60 * 60 * 1_000;
 const retryDelaysMilliseconds = [750, 2_000, 5_000] as const;
 
+export function hasTranslatableText(text: string): boolean {
+  const prose = text
+    .replace(/https?:\/\/\S+/giu, "")
+    .replace(/(?<![\p{L}\p{N}_])[@＠][A-Za-z0-9_]{1,15}(?![A-Za-z0-9_])/gu, "");
+  return /\p{L}/u.test(prose);
+}
+
 export function shouldTranslatePost(sourceLanguage: string | null, locale: Locale): boolean {
   const source = normalizeBaseLanguage(sourceLanguage);
   const target = normalizeBaseLanguage(locale);

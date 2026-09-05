@@ -80,4 +80,5 @@ data class TranslationCandidate(
     val postId: String,
     val sourceLanguage: String?,
     val preTranslated: Translation?,
+    val text: String,
 )

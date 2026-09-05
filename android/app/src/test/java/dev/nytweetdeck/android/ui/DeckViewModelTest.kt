@@ -788,7 +788,14 @@ class DeckViewModelTest {
 
             viewModel.setTranslationLanguage("fr")
             val sourceLanguage = "en"
-            viewModel.requestPostTranslation(TranslationCandidate("123", sourceLanguage, null))
+            val mentionOnly = TranslationCandidate("122", sourceLanguage, null, "@alice https://t.co/photo")
+            viewModel.requestPostTranslation(mentionOnly)
+            viewModel.retryPostTranslation(mentionOnly)
+            advanceUntilIdle()
+            assertEquals(TranslationLoadStatus.SKIPPED, viewModel.state.value.postTranslations["122"]?.status)
+            assertEquals(null, source)
+            assertEquals(0L, viewModel.state.value.translationHealth?.upstreamRequests)
+            viewModel.requestPostTranslation(TranslationCandidate("123", sourceLanguage, null, "Translate this post"))
             assertEquals(TranslationLoadStatus.LOADING, viewModel.state.value.postTranslations["123"]?.status)
             advanceUntilIdle()
 

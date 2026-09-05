@@ -404,12 +404,14 @@ private fun TranslatablePostBody(
     onToggleOriginal: (String) -> Unit,
     tag: String,
 ) {
-    val candidate = remember(postId, sourceLanguage, preTranslated) {
-        TranslationCandidate(postId, sourceLanguage, preTranslated)
+    val hasText = dev.nytweetdeck.android.text.hasTranslatableText(originalText)
+    val candidate = remember(postId, sourceLanguage, preTranslated, originalText) {
+        TranslationCandidate(postId, sourceLanguage, preTranslated, originalText)
     }
-    val translationState = translationStates[postId]
-    LaunchedEffect(postId, autoTranslatePosts, translationState?.status) {
+    val translationState = translationStates[postId]?.takeIf { hasText }
+    LaunchedEffect(postId, originalText, autoTranslatePosts, translationState?.status) {
         if (
+            hasText &&
             autoTranslatePosts &&
             (translationState == null || translationState.status == TranslationLoadStatus.IDLE)
         ) {

@@ -8,6 +8,7 @@ import dev.nytweetdeck.android.model.PostTranslationException
 import dev.nytweetdeck.android.model.PostTranslationResult
 import dev.nytweetdeck.android.model.PostTranslationUiState
 import dev.nytweetdeck.android.model.TranslationLoadStatus
+import dev.nytweetdeck.android.text.hasTranslatableText
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +48,14 @@ internal class PostTranslationController(
     fun request(post: TranslationCandidate, manual: Boolean = false) {
         val snapshot = state.value
         if (!manual && !snapshot.autoTranslatePosts) return
+        if (!hasTranslatableText(post.text)) {
+            state.update { current ->
+                current.copy(postTranslations = current.postTranslations + (
+                    post.postId to PostTranslationUiState(TranslationLoadStatus.SKIPPED)
+                ))
+            }
+            return
+        }
         if (snapshot.postTranslations[post.postId]?.status == TranslationLoadStatus.LOADING) return
         val accountId = snapshot.selectedAccountId ?: return
         val account = accountProvider(accountId) ?: return

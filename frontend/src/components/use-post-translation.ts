@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  hasTranslatableText,
   loadPostTranslation,
   shouldTranslatePost,
   translationTargetsLocale,
@@ -51,9 +52,9 @@ export function usePostTranslation({
       ? preTranslated
       : null;
   const needed =
-    text.trim().length > 0 &&
+    hasTranslatableText(text) &&
     (availablePreTranslation !== null || shouldTranslatePost(language, translationLocale));
-  const translatedText = availablePreTranslation?.text ?? fetchedText;
+  const translatedText = needed ? (availablePreTranslation?.text ?? fetchedText) : null;
   const provider = availablePreTranslation?.provider ?? fetchedProvider;
   const visibleText =
     autoTranslatePosts && translatedText !== null && !showOriginal ? translatedText : text;
