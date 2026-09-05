@@ -1132,3 +1132,23 @@ button.deck-feed-item:focus-visible {
     grid-template-columns: repeat(5, minmax(5.2rem, 1fr));
   }
 }
+
+.detail-related-posts {
+  margin-top: 20px;
+  border-top: 2px solid var(--border);
+}
+
+.detail-related-posts > header {
+  padding: 16px 12px;
+}
+
+.detail-related-posts > header h3,
+.detail-related-posts > header p {
+  margin: 0;
+}
+
+.detail-related-posts > header p {
+  margin-top: 4px;
+  opacity: 0.65;
+  font-size: 0.85rem;
+}

@@ -269,4 +269,6 @@
     <string name="settings_details">詳細情報</string>
     <string name="settings_help">使い方</string>
     <string name="translation_unavailable">翻訳はまだ提供されていません。</string>
+    <string name="related_posts_title">もっと見つける</string>
+    <string name="related_posts_source">Xから</string>
 </resources>

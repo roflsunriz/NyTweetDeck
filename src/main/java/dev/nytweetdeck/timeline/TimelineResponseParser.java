@@ -58,7 +58,7 @@ public class TimelineResponseParser {
             var root = objectMapper.readTree(body);
             var posts = new LinkedHashMap<String, Post>();
             var cursor = new CursorState();
-            visit(root, posts, cursor, null);
+            visit(root, posts, cursor, null, null, false);
             var sortedPosts = new ArrayList<>(posts.values());
             if (sortChronologically) {
                 sortedPosts.sort(Comparator.comparing(
@@ -72,17 +72,35 @@ public class TimelineResponseParser {
         }
     }
 
+    public ConversationPage parseConversation(String body) {
+        try {
+            var posts = new LinkedHashMap<String, Post>();
+            var related = new LinkedHashMap<String, Post>();
+            var cursor = new CursorState();
+            visit(objectMapper.readTree(body), posts, cursor, null, related, false);
+            related.keySet().removeAll(posts.keySet());
+            return new ConversationPage(List.copyOf(posts.values()), List.copyOf(related.values()),
+                    cursor.bottomTerminated ? null : cursor.value);
+        } catch (JacksonException | IllegalArgumentException exception) {
+            throw new XApiHttpException("タイムライン応答を解析できません。", exception);
+        }
+    }
+
+    public record ConversationPage(List<Post> posts, List<Post> relatedPosts, String nextCursor) {}
+
     private void visit(
             JsonNode node,
             Map<String, Post> posts,
             CursorState cursor,
-            String inheritedConversationSection) {
+            String inheritedConversationSection,
+            Map<String, Post> relatedPosts,
+            boolean inheritedRelated) {
         if (node == null || node.isNull()) {
             return;
         }
         if (node.isArray()) {
             for (JsonNode child : node) {
-                visit(child, posts, cursor, inheritedConversationSection);
+                visit(child, posts, cursor, inheritedConversationSection, relatedPosts, inheritedRelated);
             }
             return;
         }
@@ -94,18 +112,27 @@ public class TimelineResponseParser {
             return;
         }
 
+        var related = inheritedRelated || isRelatedEntry(node);
         var conversationSection = firstNonBlank(
                 conversationSection(node), inheritedConversationSection);
         findCursor(node, cursor);
         var tweetNode = unwrapTweet(node);
         if (isTweet(tweetNode)) {
             var post = parsePost(tweetNode, node, conversationSection);
-            posts.putIfAbsent(post.id(), post);
+            (related && relatedPosts != null ? relatedPosts : posts).putIfAbsent(post.id(), post);
             return;
         }
         for (Map.Entry<String, JsonNode> property : node.properties()) {
-            visit(property.getValue(), posts, cursor, conversationSection);
+            visit(property.getValue(), posts, cursor, conversationSection, relatedPosts, related);
         }
+    }
+
+    private static boolean isRelatedEntry(JsonNode node) {
+        for (var field : new String[] {"entryId", "entry_id", "moduleEntryId", "module_entry_id"}) {
+            var id = text(node, field);
+            if (id != null && id.startsWith("tweetdetailrelatedtweets-")) return true;
+        }
+        return false;
     }
 
     private static JsonNode unwrapTweet(JsonNode node) {

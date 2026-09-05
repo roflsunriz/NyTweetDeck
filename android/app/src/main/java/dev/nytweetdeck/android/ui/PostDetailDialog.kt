@@ -246,11 +246,12 @@ private fun DetailReady(
             .distinctUntilChanged()
             .collect { savedScrollPositions[page.post.id] = it }
     }
-    LaunchedEffect(listState, page.nextCursor, state.isLoadingMore, state.loadMoreFailed) {
+    LaunchedEffect(listState, page.nextCursor, page.relatedPosts.size, state.isLoadingMore, state.loadMoreFailed) {
         snapshotFlow {
             val layout = listState.layoutInfo
             val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
-            layout.totalItemsCount > 0 && lastVisible >= layout.totalItemsCount - 3
+            val relatedItems = if (page.relatedPosts.isEmpty()) 0 else page.relatedPosts.size + 1
+            layout.totalItemsCount > 0 && lastVisible >= layout.totalItemsCount - relatedItems - 3
         }
             .distinctUntilChanged()
             .filter { it && !page.nextCursor.isNullOrBlank() && !state.isLoadingMore && !state.loadMoreFailed }
@@ -393,6 +394,46 @@ private fun DetailReady(
             onLoadMore = onLoadMore,
             onRetry = if (page.nextCursor.isNullOrBlank()) onRetry else onLoadMore,
         )
+        if (page.relatedPosts.isNotEmpty()) {
+            item(key = "related-posts-heading") {
+                Column(Modifier.fillMaxWidth().testTag("related-posts-heading")) {
+                    HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceContainer)
+                    Column(Modifier.padding(16.dp)) {
+                        Text(stringResource(R.string.related_posts_title), style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.related_posts_source), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            items(page.relatedPosts, key = { "related-" + it.id }) { relatedPost ->
+                PostCard(
+                    post = relatedPost,
+                    onPostClick = onPostClick,
+                    onQuoteClick = onQuoteClick,
+                    onCreateQuoteClick = onCreateQuoteClick,
+                    onAuthorClick = onAuthorClick,
+                    onReplyClick = onReplyClick,
+                    onRepostClick = onRepostClick,
+                    onLikeClick = onLikeClick,
+                    onImpressionClick = onImpressionClick,
+                    onBookmarkClick = onBookmarkClick,
+                    onShareClick = onShareClick,
+                    onDownloadClick = onDownloadClick,
+                    onArticleClick = onArticleClick,
+                    onMenuClick = onPostMenuClick,
+                    translationStates = translationStates,
+                    autoTranslatePosts = autoTranslatePosts,
+                    onTranslationNeeded = onTranslationNeeded,
+                    onTranslationRetry = onTranslationRetry,
+                    onToggleOriginal = onToggleOriginal,
+                    mediaPreview = mediaPreview,
+                    videoAutoplay = videoAutoplay,
+                    videoLoop = videoLoop,
+                    videoVolume = videoVolume,
+                    videoQuality = videoQuality,
+                )
+            }
+        }
     }
 }
 

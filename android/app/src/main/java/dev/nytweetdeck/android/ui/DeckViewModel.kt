@@ -951,6 +951,7 @@ class DeckViewModel(
         val snapshot = mutableState.value
         snapshot.postDetail.page?.let { page ->
             if (page.post.id == postId) return page.post
+            page.relatedPosts.firstOrNull { it.id == postId }?.let { return it }
             page.contextPosts.firstOrNull { it.id == postId }?.let { return it }
             page.replies.firstOrNull { it.post.id == postId }?.post?.let { return it }
         }

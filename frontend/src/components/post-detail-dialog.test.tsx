@@ -12,6 +12,85 @@ const originalFetch = globalThis.fetch;
 const originalInnerWidth = window.innerWidth;
 const originalDirection = document.documentElement.dir;
 
+test("shows recommendations after an empty reply list without inventing replies", async () => {
+  globalThis.fetch = (async () =>
+    Response.json({
+      post: timelinePost("900", "root only"),
+      replies: [],
+      relatedPosts: [timelinePost("902", "related only")],
+      nextCursor: null,
+    })) as unknown as typeof fetch;
+  const { container } = render(
+    <PostDetailDialog
+      postId="900"
+      accountId="account-1"
+      translation={translate("en")}
+      onClose={() => undefined}
+    />,
+  );
+  await screen.findByText("related only");
+  expect(container.querySelectorAll(".reply-thread-item").length).toBe(0);
+  expect(container.querySelector(".detail-related-posts")?.textContent).toContain("Discover more");
+  expect(container.querySelector(".detail-load-more")).toBeNull();
+});
+
+test("keeps related posts separate across pages and nested navigation", async () => {
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("/posts/902?"))
+      return Response.json({
+        post: timelinePost("902", "opened recommendation"),
+        replies: [],
+        nextCursor: null,
+      });
+    if (url.includes("cursor=next"))
+      return Response.json({
+        post: timelinePost("900", "root"),
+        replies: [timelinePost("903", "promoted to reply")],
+        relatedPosts: [
+          timelinePost("901", "duplicate reply"),
+          timelinePost("904", "next recommendation"),
+        ],
+        nextCursor: null,
+      });
+    return Response.json({
+      post: timelinePost("900", "root"),
+      replies: [timelinePost("901", "real reply")],
+      relatedPosts: [
+        { ...timelinePost("902", "recommendation"), conversationSection: "LowQuality" },
+        timelinePost("903", "initial recommendation"),
+      ],
+      nextCursor: "next",
+    });
+  }) as typeof fetch;
+  const { container } = render(
+    <PostDetailDialog
+      postId="900"
+      accountId="account-1"
+      translation={translate("ja")}
+      onClose={() => undefined}
+    />,
+  );
+  const user = userEvent.setup();
+  await screen.findByText("recommendation");
+  const section = container.querySelector('[data-testid="detail-related-posts"]');
+  expect(section?.querySelectorAll(".reply-thread-item").length).toBe(0);
+  expect(section?.textContent).toContain("もっと見つける");
+  expect(container.querySelectorAll(".possible-spam-replies").length).toBe(0);
+  const load = container.querySelector<HTMLButtonElement>(".detail-load-more button");
+  if (!load) throw new Error("Missing pagination");
+  await user.click(load);
+  await screen.findByText("next recommendation");
+  expect(container.querySelectorAll(".reply-thread-item").length).toBe(2);
+  expect(screen.queryByText("duplicate reply")).toBeNull();
+  expect(screen.queryByText("initial recommendation")).toBeNull();
+  await user.click(screen.getByText("recommendation"));
+  await screen.findByText("opened recommendation");
+  await user.keyboard("{Escape}");
+  await screen.findByText("next recommendation");
+  expect(container.querySelectorAll(".reply-thread-item").length).toBe(2);
+});
+
 test("resumes an unfinished reply page after navigating away and Back", async () => {
   let finishPage: ((value: Response) => void) | undefined;
   const page = new Promise<Response>((resolve) => {

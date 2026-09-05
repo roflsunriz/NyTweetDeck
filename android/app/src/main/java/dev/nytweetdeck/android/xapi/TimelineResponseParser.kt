@@ -34,17 +34,21 @@ class TimelineResponseParser(
 
     fun parseInResponseOrder(body: String): TimelinePage = parse(body, sortChronologically = false)
 
-    private fun parse(body: String, sortChronologically: Boolean): TimelinePage = try {
+    fun parseConversation(body: String): TimelinePage = parse(body, sortChronologically = false, separateRelated = true)
+
+    private fun parse(body: String, sortChronologically: Boolean, separateRelated: Boolean = false): TimelinePage = try {
         val root = json.parseToJsonElement(body)
         val posts = LinkedHashMap<String, Post>()
+        val relatedPosts = LinkedHashMap<String, Post>()
         val cursor = CursorHolder()
-        visit(root, posts, cursor, inheritedConversationSection = null)
+        visit(root, posts, relatedPosts, cursor, inheritedConversationSection = null, inheritedRelated = false, separateRelated = separateRelated)
 
         val normalizedPosts = posts.values.toMutableList()
         if (sortChronologically) {
             normalizedPosts.sortWith(::compareNewestFirst)
         }
-        TimelinePage(normalizedPosts.toList(), cursor.value.takeUnless { cursor.bottomTerminated })
+        TimelinePage(normalizedPosts.toList(), cursor.value.takeUnless { cursor.bottomTerminated },
+            relatedPosts.values.filter { it.id !in posts })
     } catch (exception: XApiException) {
         throw exception
     } catch (exception: Exception) {
@@ -54,12 +58,15 @@ class TimelineResponseParser(
     private fun visit(
         node: JsonElement?,
         posts: MutableMap<String, Post>,
+        relatedPosts: MutableMap<String, Post>,
         cursor: CursorHolder,
         inheritedConversationSection: String?,
+        inheritedRelated: Boolean,
+        separateRelated: Boolean,
     ) {
         when (node) {
             is JsonArray -> node.forEach {
-                visit(it, posts, cursor, inheritedConversationSection)
+                visit(it, posts, relatedPosts, cursor, inheritedConversationSection, inheritedRelated, separateRelated)
             }
 
             is JsonObject -> {
@@ -71,15 +78,17 @@ class TimelineResponseParser(
                     conversationSection(node),
                     inheritedConversationSection,
                 )
-                findCursor(node, cursor)
+                val related = inheritedRelated || separateRelated && listOf("entryId", "entry_id", "moduleEntryId")
+                    .any { node.text(it)?.startsWith("tweetdetailrelatedtweets-") == true }
+                if (!related) findCursor(node, cursor)
                 val tweet = unwrapTweet(node)
                 if (isTweet(tweet)) {
                     val post = parsePost(requireNotNull(tweet), node, conversationSection)
-                    posts.putIfAbsent(post.id, post)
+                    (if (related) relatedPosts else posts).putIfAbsent(post.id, post)
                     return
                 }
                 node.values.forEach {
-                    visit(it, posts, cursor, conversationSection)
+                    visit(it, posts, relatedPosts, cursor, conversationSection, related, separateRelated)
                 }
             }
 

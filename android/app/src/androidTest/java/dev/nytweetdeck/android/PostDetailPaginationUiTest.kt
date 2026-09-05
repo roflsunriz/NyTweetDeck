@@ -27,6 +27,22 @@ class PostDetailPaginationUiTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
+    fun relatedPostHasSeparateHeadingAndOpensWithoutReplyThreadDecoration() {
+        val initial = detail(cursor = null)
+        val state = mutableStateOf(initial.copy(page = initial.page!!.copy(relatedPosts = listOf(post("801")))))
+        var opened: String? = null
+        showDetail(state, onLoadMore = {}, onPostClick = { opened = it })
+        composeRule.onNodeWithTag("empty-replies").assertIsDisplayed()
+        composeRule.onNodeWithTag("post-detail-replies").performScrollToKey("related-posts-heading")
+        composeRule.onNodeWithTag("related-posts-heading").assertIsDisplayed()
+        composeRule.onNodeWithTag("post-detail-replies").performScrollToKey("related-801")
+        composeRule.onNodeWithTag("reply-thread-content-801").assertDoesNotExist()
+        composeRule.onNodeWithTag("post-801").performClick()
+        assertEquals("801", opened)
+        composeRule.onNodeWithTag("load-more-replies").assertDoesNotExist()
+    }
+
+    @Test
     fun failedAutomaticPageWaitsForExplicitRetryThenRemovesFooterAtEnd() {
         val state = mutableStateOf(detail(cursor = "next"))
         var requests = 0
@@ -122,6 +138,7 @@ class PostDetailPaginationUiTest {
         onLoadMore: () -> Unit,
         onRetry: () -> Unit = {},
         onSortChange: (RankingMode) -> Unit = {},
+        onPostClick: (String) -> Unit = {},
     ) {
         composeRule.activity.setContent {
             NyTweetDeckTheme {
@@ -133,7 +150,7 @@ class PostDetailPaginationUiTest {
                     onLoadMore = onLoadMore,
                     onReplySortChange = onSortChange,
                     onToggleDeemphasized = {},
-                    onPostClick = {},
+                    onPostClick = onPostClick,
                     onQuoteClick = {},
                     onReplyClick = {},
                     onRepostClick = {},

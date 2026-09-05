@@ -42,7 +42,7 @@ class PostDetailRepository(
         } else {
             null
         }
-        val conversationPage = responseParser.parseInResponseOrder(
+        val conversationPage = responseParser.parseConversation(
             graphQlExecutor.execute(
                 credentials = credentials,
                 purpose = "conversation",
@@ -70,6 +70,7 @@ class PostDetailRepository(
             nextCursor = conversationPage.nextCursor,
             rankingMode = rankingMode,
             contextPosts = contextPosts,
+            relatedPosts = conversationPage.relatedPosts.filter { it.id != postId && it.id !in contextIds },
         )
     }
 
@@ -82,7 +83,7 @@ class PostDetailRepository(
     ): List<Post> {
         var parentId = focalPost.replyToPostId ?: return emptyList()
         require(POST_ID.matches(parentId)) { "返信元ポストIDの形式が不正です。" }
-        val page = responseParser.parseInResponseOrder(
+        val page = responseParser.parseConversation(
             graphQlExecutor.execute(
                 credentials = credentials,
                 purpose = "conversation",

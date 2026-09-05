@@ -272,4 +272,6 @@
     <string name="settings_details">التفاصيل</string>
     <string name="settings_help">المساعدة</string>
     <string name="translation_unavailable">الترجمة غير متاحة بعد.</string>
+    <string name="related_posts_title">اكتشف المزيد</string>
+    <string name="related_posts_source">من X</string>
 </resources>

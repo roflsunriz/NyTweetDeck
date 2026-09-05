@@ -749,7 +749,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
 
 private fun dev.nytweetdeck.android.model.DeckUiState.findPost(postId: String): Post? {
     val detailPosts = postDetail.page?.let { page ->
-        sequenceOf(page.post) + page.replies.asSequence().map { it.post }
+        sequenceOf(page.post) + page.replies.asSequence().map { it.post } + page.relatedPosts.asSequence()
     } ?: emptySequence()
     return timelines.values.asSequence().flatMap { it.posts.asSequence() }
         .plus(detailPosts)

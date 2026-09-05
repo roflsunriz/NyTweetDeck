@@ -134,9 +134,12 @@ export function PostDetailDialog({
           ),
         ),
       });
-    const post = [detail?.post, ...(detail?.contextPosts ?? []), ...(detail?.replies ?? [])].find(
-      (item) => item?.id === nextId,
-    );
+    const post = [
+      detail?.post,
+      ...(detail?.contextPosts ?? []),
+      ...(detail?.replies ?? []),
+      ...(detail?.relatedPosts ?? []),
+    ].find((item) => item?.id === nextId);
     open(nextId, post);
   };
 
@@ -162,8 +165,16 @@ export function PostDetailDialog({
         for (const reply of next.replies) {
           replies.set(reply.id, reply);
         }
+        const excluded = new Set([
+          current.post.id,
+          ...(current.contextPosts ?? []).map((post) => post.id),
+          ...replies.keys(),
+        ]);
+        const related = new Map((current.relatedPosts ?? []).map((post) => [post.id, post]));
+        for (const post of next.relatedPosts ?? []) related.set(post.id, post);
         return {
           ...current,
+          relatedPosts: [...related.values()].filter((post) => !excluded.has(post.id)),
           replies: [...replies.values()],
           nextCursor: nextCursor !== null && requests.cursors.has(nextCursor) ? null : nextCursor,
         };
@@ -309,6 +320,27 @@ export function PostDetailDialog({
                     </section>
                   )}
                 </>
+              )}
+              {(detail.relatedPosts?.length ?? 0) > 0 && (
+                <section className="detail-related-posts" data-testid="detail-related-posts">
+                  <header>
+                    <h3>{translation.discoverMore}</h3>
+                    <p>{translation.fromX}</p>
+                  </header>
+                  {detail.relatedPosts?.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      accountId={accountId}
+                      translation={translation}
+                      display={display}
+                      onOpen={() => onOpenPost(post.id)}
+                      onOpenQuotedPost={onOpenPost}
+                      onOpenUser={onOpenUser}
+                      onOpenImage={openImage}
+                    />
+                  ))}
+                </section>
               )}
               {detail.nextCursor !== null && (
                 <div className="detail-load-more">

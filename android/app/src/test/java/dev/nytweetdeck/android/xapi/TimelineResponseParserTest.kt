@@ -13,6 +13,17 @@ class TimelineResponseParserTest {
     private val parser = TimelineResponseParser()
 
     @Test
+    fun onlyConversationParsingSeparatesRelatedChildEntryIds() {
+        val response = """{"entries":[{"entry_id":"tweetdetailrelatedtweets-123-tweet-801",
+            "content":{"tweet_results":{"result":{"__typename":"Tweet","rest_id":"801",
+            "legacy":{"full_text":"recommended post"}}}}}]}"""
+        assertEquals(listOf("801"), parser.parseInResponseOrder(response).posts.map { it.id })
+        val conversation = parser.parseConversation(response)
+        assertEquals(emptyList<String>(), conversation.posts.map { it.id })
+        assertEquals(listOf("801"), conversation.relatedPosts.map { it.id })
+    }
+
+    @Test
     fun bottomTerminationOverridesCursorRegardlessOfInstructionOrderOrPostCount() {
         val end = """{"type":"TimelineTerminateTimeline","direction":"Bottom"}"""
         for (tweet in listOf("", """{"entryId":"tweet-123","content":{"itemContent":{"tweet_results":{"result":{"__typename":"Tweet","rest_id":"123","legacy":{"full_text":"reply"}}}}}},""")) {

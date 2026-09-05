@@ -136,6 +136,9 @@ internal class PostActionController(
                             } else {
                                 page.post
                             },
+                            relatedPosts = page.relatedPosts.map { post ->
+                                if (post.id == postId) post.withActionActive(action, active) else post
+                            },
                             replies = page.replies.map { reply ->
                                 if (reply.post.id == postId) {
                                     reply.copy(post = reply.post.withActionActive(action, active))
@@ -167,6 +170,7 @@ private fun findPost(state: DeckUiState, postId: String): Post? =
     state.timelines.values.asSequence().flatMap { it.posts.asSequence() }
         .plus(state.notifications.values.asSequence().flatMap { it.page?.posts.orEmpty().asSequence() })
         .plus(listOfNotNull(state.postDetail.page?.post).asSequence())
+        .plus(state.postDetail.page?.relatedPosts.orEmpty().asSequence())
         .plus(state.postDetail.page?.replies.orEmpty().asSequence().map { it.post })
         .firstOrNull { it.id == postId }
 

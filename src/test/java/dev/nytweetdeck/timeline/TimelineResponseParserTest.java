@@ -12,6 +12,26 @@ class TimelineResponseParserTest {
             new TimelineResponseParser(JsonMapper.builder().build());
 
     @Test
+    void separatesRelatedModulesAndAddedItemsWithoutChangingOrdinaryTimelines() {
+        var tweet = "{\"__typename\":\"Tweet\",\"rest_id\":\"%s\",\"legacy\":{\"full_text\":\"fixture\"}}";
+        for (var field : new String[] {"entryId", "entry_id", "moduleEntryId", "module_entry_id"}) {
+            for (var relatedFirst : new boolean[] {true, false}) {
+                var related = "{\"" + field + "\":\"tweetdetailrelatedtweets-42\",\"items\":["
+                        + tweet.formatted("901") + "," + tweet.formatted("902") + "]}";
+                var reply = tweet.formatted("901");
+                var body = "[" + (relatedFirst ? related + "," + reply : reply + "," + related) + "]";
+                var page = parser.parseConversation(body);
+                assertThat(page.posts()).extracting(TimelinePage.Post::id).containsExactly("901");
+                assertThat(page.relatedPosts()).extracting(TimelinePage.Post::id).containsExactly("902");
+                assertThat(parser.parse(body).posts()).hasSize(2);
+                var onlyRelated = parser.parseConversation("[" + related + "]");
+                assertThat(onlyRelated.posts()).isEmpty();
+                assertThat(onlyRelated.relatedPosts()).hasSize(2);
+            }
+        }
+    }
+
+    @Test
     void honorsExplicitBottomTerminationRegardlessOfInstructionOrderAndPostCount() {
         var terminal = """
                 {"type":"TimelineTerminateTimeline","direction":"Bottom"}

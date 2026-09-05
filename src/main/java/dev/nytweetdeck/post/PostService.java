@@ -56,7 +56,7 @@ public class PostService {
         var conversationVariables = conversationVariables(postId, cursor, replySort);
         var conversationResult = graphQlClient.execute(
                 accountId, "conversation", conversationVariables, language);
-        var conversationPage = responseParser.parseInResponseOrder(conversationResult.rawJson());
+        var conversationPage = responseParser.parseConversation(conversationResult.rawJson());
         var focal = postPage.posts().stream()
                 .filter(post -> post.id().equals(postId))
                 .findFirst()
@@ -73,7 +73,10 @@ public class PostService {
         var replies = conversationPage.posts().stream()
                 .filter(post -> !post.id().equals(postId) && !contextIds.contains(post.id()))
                 .toList();
-        return new PostDetail(focal, replies, conversationPage.nextCursor(), contextPosts);
+        var relatedPosts = conversationPage.relatedPosts().stream()
+                .filter(post -> !post.id().equals(postId) && !contextIds.contains(post.id()))
+                .toList();
+        return new PostDetail(focal, replies, conversationPage.nextCursor(), contextPosts, relatedPosts);
     }
 
     private List<TimelinePage.Post> loadConversationContext(
@@ -85,7 +88,7 @@ public class PostService {
         validatePostId(parentId);
         var result = graphQlClient.execute(
                 accountId, "conversation", conversationVariables(parentId, null, replySort), language);
-        var page = responseParser.parseInResponseOrder(result.rawJson());
+        var page = responseParser.parseConversation(result.rawJson());
         var postsById = new LinkedHashMap<String, TimelinePage.Post>();
         page.posts().forEach(post -> postsById.putIfAbsent(post.id(), post));
         var context = new ArrayList<TimelinePage.Post>();
@@ -180,15 +183,22 @@ public class PostService {
             TimelinePage.Post post,
             List<TimelinePage.Post> replies,
             String nextCursor,
-            List<TimelinePage.Post> contextPosts) {
+            List<TimelinePage.Post> contextPosts,
+            List<TimelinePage.Post> relatedPosts) {
         public PostDetail(
                 TimelinePage.Post post, List<TimelinePage.Post> replies, String nextCursor) {
-            this(post, replies, nextCursor, List.of());
+            this(post, replies, nextCursor, List.of(), List.of());
+        }
+
+        public PostDetail(TimelinePage.Post post, List<TimelinePage.Post> replies,
+                String nextCursor, List<TimelinePage.Post> contextPosts) {
+            this(post, replies, nextCursor, contextPosts, List.of());
         }
 
         public PostDetail {
             replies = List.copyOf(replies);
             contextPosts = List.copyOf(contextPosts);
+            relatedPosts = List.copyOf(relatedPosts);
         }
     }
 }

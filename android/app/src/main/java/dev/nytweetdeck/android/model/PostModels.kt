@@ -4,6 +4,7 @@ package dev.nytweetdeck.android.model
 data class TimelinePage(
     val posts: List<Post>,
     val nextCursor: String?,
+    val relatedPosts: List<Post> = emptyList(),
 )
 
 data class Post(

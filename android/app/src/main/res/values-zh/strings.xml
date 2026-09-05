@@ -267,4 +267,6 @@
     <string name="settings_details">详细信息</string>
     <string name="settings_help">使用说明</string>
     <string name="translation_unavailable">暂未提供翻译。</string>
+    <string name="related_posts_title">发现更多</string>
+    <string name="related_posts_source">来自 X</string>
 </resources>

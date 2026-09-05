@@ -3,6 +3,8 @@ import type { TranslationOverride } from "./translations";
 
 export const overrides: Partial<Record<Locale, TranslationOverride>> = {
   ar: {
+    discoverMore: "اكتشف المزيد",
+    fromX: "من X",
     translationUnavailable: "الترجمة غير متاحة بعد.",
     downloadLatestDesktop: "تنزيل أحدث إصدار",
     settingsTransfer: "نسخة احتياطية للإعدادات",
@@ -183,6 +185,8 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   ur: {
+    discoverMore: "مزید دریافت کریں",
+    fromX: "X سے",
     translationUnavailable: "ترجمہ ابھی دستیاب نہیں ہے۔",
     downloadLatestDesktop: "تازہ ترین ورژن ڈاؤن لوڈ کریں",
     settingsTransfer: "ترتیبات کا بیک اپ",

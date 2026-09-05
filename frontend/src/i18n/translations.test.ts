@@ -19,6 +19,8 @@ describe("translation coverage", () => {
         "settingsNavigation",
         "settingsDetails",
         "translationUnavailable",
+        "discoverMore",
+        "fromX",
       ] as const) {
         expect(translate(locale)[key].length).toBeGreaterThan(0);
         if (locale !== "en") expect(translate(locale)[key]).not.toBe(english[key]);

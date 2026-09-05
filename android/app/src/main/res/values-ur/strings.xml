@@ -268,4 +268,6 @@
     <string name="settings_details">تفصیلات</string>
     <string name="settings_help">مدد</string>
     <string name="translation_unavailable">ترجمہ ابھی دستیاب نہیں ہے۔</string>
+    <string name="related_posts_title">مزید دریافت کریں</string>
+    <string name="related_posts_source">X سے</string>
 </resources>

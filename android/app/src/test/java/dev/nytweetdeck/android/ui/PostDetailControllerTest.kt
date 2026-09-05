@@ -24,6 +24,40 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PostDetailControllerTest {
     @Test
+    fun paginationMergesRelatedSeparatelyAndPromotesDuplicateToReply() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val executor = GraphQlExecutor { _, _, variables, _ ->
+                val additional = variables["cursor"] != null
+                val reply = if (additional) "801" else "201"
+                val related = if (additional) "802" else "801"
+                """{"entries":[
+                    {"entryId":"reply-$reply","content":{"tweet_results":{"result":${tweet(reply, "reply")}}}},
+                    {"entryId":"tweetdetailrelatedtweets-123","content":{"items":[
+                        {"item":{"tweet_results":{"result":${tweet(related, "related")}}}},
+                        {"item":{"tweet_results":{"result":${tweet("801", "duplicate")}}}}
+                    ]}},
+                    {"entryId":"cursor-bottom","content":{"value":"${if (additional) "" else "next"}"}}
+                ]}"""
+            }
+            val state = MutableStateFlow(DeckUiState(selectedAccountId = "7"))
+            val controller = PostDetailController(PostDetailRepository(executor), this, dispatcher, { account() }, state)
+            controller.open("123", TimelineResponseParser().parse(detailResponse()).posts.single())
+            advanceUntilIdle()
+            assertEquals(listOf("201"), state.value.postDetail.page?.replies?.map { it.post.id })
+            assertEquals(listOf("801"), state.value.postDetail.page?.relatedPosts?.map { it.id })
+            controller.loadMore()
+            advanceUntilIdle()
+            assertEquals(listOf("201", "801"), state.value.postDetail.page?.replies?.map { it.post.id })
+            assertEquals(listOf("802"), state.value.postDetail.page?.relatedPosts?.map { it.id })
+            assertNull(state.value.postDetail.page?.nextCursor)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun knownFocalPostIsShownImmediatelyAndIsNotRefetched() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

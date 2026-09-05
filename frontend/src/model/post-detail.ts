@@ -5,6 +5,7 @@ export interface PostDetail {
   post: TimelinePost;
   contextPosts?: TimelinePost[];
   replies: TimelinePost[];
+  relatedPosts?: TimelinePost[];
   nextCursor: string | null;
 }
 

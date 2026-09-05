@@ -144,6 +144,8 @@ export interface Translation {
   postFailed: string;
   postDetail: string;
   replies: string;
+  discoverMore: string;
+  fromX: string;
   replySort: string;
   replySortRelevance: string;
   replySortRecency: string;
@@ -385,6 +387,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     postFailed: "ポストを送信できませんでした。",
     postDetail: "ポストの詳細",
     replies: "返信",
+    discoverMore: "もっと見つける",
+    fromX: "Xから",
     replySort: "返信の並び順",
     replySortRelevance: "関連度",
     replySortRecency: "最新",
@@ -674,6 +678,8 @@ const translations: Partial<Record<Locale, Translation>> = {
     postFailed: "Could not publish the post.",
     postDetail: "Post details",
     replies: "Replies",
+    discoverMore: "Discover more",
+    fromX: "From X",
     replySort: "Reply order",
     replySortRelevance: "Relevance",
     replySortRecency: "Latest",

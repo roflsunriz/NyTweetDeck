@@ -268,4 +268,6 @@
     <string name="settings_details">বিস্তারিত</string>
     <string name="settings_help">সহায়তা</string>
     <string name="translation_unavailable">অনুবাদ এখনও উপলব্ধ নয়।</string>
+    <string name="related_posts_title">আরও খুঁজুন</string>
+    <string name="related_posts_source">X থেকে</string>
 </resources>

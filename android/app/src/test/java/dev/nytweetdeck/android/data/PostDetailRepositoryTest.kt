@@ -13,6 +13,38 @@ import org.junit.Test
 
 class PostDetailRepositoryTest {
     @Test
+    fun relatedModuleRemainsSeparateAndConversationWinsDuplicates() {
+        val related = """{"entryId":"tweetdetailrelatedtweets-123","content":{"items":[
+            {"item":{"itemContent":{"tweet_results":{"result":${tweet("801", "related")}}}}},
+            {"entry_id":"tweetdetailrelatedtweets-123-tweet-701","item":{"itemContent":{"tweet_results":{"result":${tweet("701", "duplicate")}}}}}
+        ]}}"""
+        val repository = PostDetailRepository(RecordingGraphQlExecutor(
+            detailResponse("123"), conversationEnvelope(listOf(related,
+                conversationEntry("701", "reply", "HighQuality", "123"))),
+        ))
+        val page = repository.load(account(), "123")
+        assertEquals(listOf("701"), page.replies.map { it.post.id })
+        assertEquals(listOf("801"), page.relatedPosts.map { it.id })
+        assertEquals("reply", page.replies.single().post.text)
+        assertTrue(page.contextPosts.isEmpty())
+    }
+
+    @Test
+    fun relatedOnlyAddedModuleDoesNotBecomeAReplyOrReopenTerminatedCursor() {
+        val response = """{"instructions":[
+            {"type":"TimelineAddToModule","moduleEntryId":"tweetdetailrelatedtweets-123",
+             "moduleItems":[{"item":{"itemContent":{"tweet_results":{"result":${tweet("802", "related")}}}}}]},
+            {"type":"TimelineTerminateTimeline","direction":"Bottom"},
+            {"entries":[{"entryId":"cursor-bottom-1","content":{"value":"new-cursor"}}]}
+        ]}"""
+        val page = PostDetailRepository(RecordingGraphQlExecutor(detailResponse("123"), response))
+            .load(account(), "123", cursor = "previous")
+        assertTrue(page.replies.isEmpty())
+        assertEquals(listOf("802"), page.relatedPosts.map { it.id })
+        assertEquals(null, page.nextCursor)
+    }
+
+    @Test
     fun loadsFocalAndRepliesInConversationResponseOrderWithQualityHints() {
         val executor = RecordingGraphQlExecutor(
             detail = detailResponse("123"),

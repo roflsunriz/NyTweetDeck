@@ -20,6 +20,13 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 詳細の返信とおすすめの分離（2026-09-05）
+
+- 実Xで`tweetdetailrelatedtweets-`モジュールのおすすめ4件が旧解析の会話postsへ混入することを確認した。会話専用の`parseConversation`で`relatedPosts`へ分離し、通常タイムラインの解析を維持する。
+- 初回・追加モジュール・関連のみの応答、重複ID、祖先探索、終端を検証する。実際の返信を重複時に優先し、おすすめ由来のcursorを返信の継続へ流用しない。
+- フロントエンド197件、Java142件、Android259件、lint/型/整形/ビルドが成功。Chromeの1440/390幅で独立した見出し、返信線・スパム折り畳みからの分離、追加ページの重複除外、おすすめ→詳細→戻るを確認した。AQUOSの`PostDetailPaginationUiTest`6件も成功した。
+- WindowsとAQUOSの稼働版へ反映し、配布物ハッシュ一致、Windows HTTP/HTTPS ready、AQUOS非debuggable releaseを確認した。稼働APIでは返信3件・おすすめ4件・両配列の重複0件を確認した。Pixel 10aは別タスク使用中のため、ユーザー指示以降の反映対象から除外した。
+
 ## デスクトップ動画の全画面（2026-09-05）
 
 - 専用Chromeと再生可能なローカルWebMを使い、旧実装で全画面時にvideoが削除されサムネイルへ置換されることを再現した。修正後は自動再生ON・OFFからの手動再生・手動一時停止の3ケースで同じvideo/srcを維持し、再生中は時間が進み、停止中は位置と停止状態を維持することを確認した。

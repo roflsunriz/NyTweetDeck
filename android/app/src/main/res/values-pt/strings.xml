@@ -269,4 +269,6 @@
     <string name="settings_details">Detalhes</string>
     <string name="settings_help">Ajuda</string>
     <string name="translation_unavailable">A tradução ainda não está disponível.</string>
+    <string name="related_posts_title">Descubra mais</string>
+    <string name="related_posts_source">Do X</string>
 </resources>

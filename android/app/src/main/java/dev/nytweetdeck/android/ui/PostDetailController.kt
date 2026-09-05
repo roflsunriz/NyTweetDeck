@@ -138,6 +138,10 @@ internal class PostDetailController(
                                 postDetail = current.postDetail.copy(
                                     page = currentPage.copy(
                                         replies = merged.values.toList(),
+                                        relatedPosts = (currentPage.relatedPosts + next.relatedPosts)
+                                            .distinctBy { it.id }
+                                            .filter { it.id !in merged && it.id != currentPage.post.id &&
+                                                currentPage.contextPosts.none { context -> context.id == it.id } },
                                         nextCursor = nextCursor,
                                     ),
                                     isLoadingMore = false,

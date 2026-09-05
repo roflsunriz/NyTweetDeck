@@ -110,6 +110,20 @@ class PostServiceTest {
         assertThat(client.conversationVariables).containsEntry("focalTweetId", "100");
     }
 
+    @Test
+    void keepsRecommendationsOutOfRepliesAndAncestorContextOnEveryPage() {
+        var focal = "{\"__typename\":\"Tweet\",\"rest_id\":\"124\",\"legacy\":{\"full_text\":\"focal\",\"in_reply_to_status_id_str\":\"100\"}}";
+        var recommendations = "{\"entryId\":\"tweetdetailrelatedtweets-1\",\"items\":[{\"__typename\":\"Tweet\",\"rest_id\":\"100\",\"legacy\":{\"full_text\":\"recommended ancestor ID\"}}]}";
+        var client = new RecordingGraphQlClient(focal, recommendations, recommendations);
+        var service = new PostService(client, new TimelineResponseParser(JsonMapper.builder().build()), null);
+        for (var cursor : new String[] {"", "next"}) {
+            var detail = service.detail("account", "124", cursor);
+            assertThat(detail.contextPosts()).isEmpty();
+            assertThat(detail.replies()).isEmpty();
+            assertThat(detail.relatedPosts()).extracting(TimelinePage.Post::id).containsExactly("100");
+        }
+    }
+
     private static final class RecordingGraphQlClient extends AuthenticatedGraphQlClient {
         private final String focal;
         private final String conversation;

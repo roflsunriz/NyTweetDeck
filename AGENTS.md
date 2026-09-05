@@ -77,11 +77,17 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - Java LTS 17・21・25を正式対応とし、Java 17 bytecodeを生成する
 - CIではactions/setup-javaが公式対応する非推奨でない全JDKディストリビューションを17・21・25で固定検証する
 
+## Android端末の作業分離
+
+- 返信とおすすめを分離する本作業では、実機検証と反映をAQUOSに限定する。Pixel 10aは別タスクで使用中のため、本作業から操作・更新・復旧しない。複数端末接続時はadbへ対象シリアルを必ず明示し、他タスクの端末を選ばない。
+
 ## 返信ページ終端の判定
 
 - Xは返信終端でも新しいBottom cursorを返す。2026-09-05のAQUOS実機で、`TimelineTerminateTimeline`の`direction: Bottom`とcursorが同じ応答に含まれることを確認した。Android/Javaの`TimelineResponseParser`ではこの終了指示をcursorより優先する。空ページや表示上の返信件数だけを根拠に終了判定しない。回帰・実機検証は`verification.md`参照。
 
 - Androidの返信内遷移は`PostCard`→`DeckViewModel.openPostDetail`→`PostDetailController`で既に接続され、返信ポストも`findLoadedPost`の対象になる。詳細の返信をたどる変更では、カードの外枠だけでなく本文への実タップとOSの戻るを検証する。`RecursiveReplyNavigationTest`が3段階の往復と返信作成・いいねの独立動作を対象にする。
+
+- 詳細応答の`tweetdetailrelatedtweets-`モジュールは「もっと見つける」のおすすめで、返信ではない。`entryId`/`entry_id`および追加モジュールの所属IDで区別し、会話専用解析で`relatedPosts`へ分離する。返信線・品質別折り畳み・祖先探索へ混ぜず、実際の返信とIDが重複した場合は返信を優先する。
 
 ## 翻訳対象の本文
 
