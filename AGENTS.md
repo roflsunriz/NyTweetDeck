@@ -113,5 +113,5 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 ## Android動画の全画面とメモリ
 
 - 全画面表示中はインライン側のExoPlayerを解放し、同時デコードを全画面の1本だけにする。高ビットレート動画で二重デコードになるとPixel 10aの256MBヒープで`MediaCodec.getOutputBuffer`のOOMが起き、再起動後の自動再生で繰り返し落ちる。`InlineVideoPlayer`の`suspended`→`MediaPreview`/`MediaTile`の`videosSuspended`（`PostCard`/`QuoteCard`では`selectedMedia != null`）で画面外と同じ解放経路を使い、閉じれば再生成する。`MediaViewerUiTest`の`suspended`検証参照。
-- Pixel 10aは別タスク用で原則操作しないが、全画面OOM修正（2026-09-06）に限りユーザーが操作・更新を許可した。adbはシリアル（`63131JEA301496`）を必ず明示する。debug/releaseは同一署名（安定debugキーストア）のため`install -r`でデータ保持のまま上書きでき、releaseは`NYTD_ANDROID_KEYSTORE`等を渡した`assembleRelease`で署名済み`app-release.apk`を作る。検証後は非debuggable releaseへ戻し、端末APKのハッシュをビルド物と照合する。
+- Pixel 10aは別タスク用で原則操作しないが、全画面OOM修正と共有翻訳版の反映（2026-09-06）に限りユーザーが操作・更新を許可した。adbはシリアル（`63131JEA301496`）を必ず明示する。debug/releaseは同一署名（安定debugキーストア）のため`install -r`でデータ保持のまま上書きでき、releaseは`NYTD_ANDROID_KEYSTORE`等を渡した`assembleRelease`で署名済み`app-release.apk`を作る。検証後は非debuggable releaseへ戻し、端末APKのハッシュをビルド物と照合する。
 - 実機Composeテストの注意：ボタンの内容説明は結合後ツリーで参照する（非結合ツリーのボタン単体には説明が載らない）。`autoAdvance = false`時はクリック後の再描画へ`advanceTimeBy`を足す。`safeMediaUri`がtwimg限定のためfixture動画では実デコード検証ができず、実動画は`LiveVideoPlaybackSmokeTest`（読み取り専用）で行う。
