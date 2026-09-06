@@ -27,6 +27,7 @@ Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease a
 - Android版は`PostShare.kt`の`translatedShareBody`と`translated`指定、`ShareMenuButton`の`share-menu-details-translated-`項目、11言語の`strings.xml`へ`post_share_copy_details_translated`を追加した。`strings.xml`編集時はリポジトリのLF改行を維持し、行末の迷子CRを残さない。
 - フロントエンド207件（翻訳版の整形2件とメニュー分岐を含む）、Androidの単体テストと`lintDebug`/`lintRelease`、`assembleDebugAndroidTest`/`assembleRelease`、Java150件のテストが成功し、`bun audit`の脆弱性は0件だった。
 - 未実行の検証：Pixel 10aの共有メニュー再試行は今回の変更用に許可を得ていないため実行しない。計装テストの追加分はコンパイルを通し、次回実機時に実行する。
+- Windows稼働版へ反映した。旧JARを`.bak`へ退避し、修正済みJAR（SHA-256一致）へ置換してpwsh 7の切り離し起動で再起動した。新PIDの起動・HTTP/HTTPSの200応答・配信中の新バンドル内の`share-details-translated`/`shareCopyDetailsTranslated`を確認した。認証・設定・証明書は変更していない。
 
 ## 全画面動画のOOMクラッシュ修正（2026-09-06）
 
