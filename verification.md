@@ -27,6 +27,7 @@ Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease a
 - Android版は`PostTranslationController.translatedBodyForShare`を追加し、`PostTranslationRepository`のプールと速度制限を使う。`DeckViewModel`経由で解決し、`NyTweetDeckApp`で本文・引用本文をそろえて整形・複写する。共有メニューの翻訳項目は投稿IDと時刻表示だけを渡す。
 - フロントエンド213件（解決順・プール再利用・失敗/打ち切りフォールバック・全文組み立てを含む）、Androidの単体テスト（プリ翻訳優先・プール再利用・失敗/打ち切り・対象外の検証を含む新規`PostTranslationShareTest`5件を含む）と`lintDebug`/`lintRelease`、`assembleDebugAndroidTest`/`assembleRelease`、Java150件のテストが成功し、`bun audit`の脆弱性は0件だった。フロントエンド全件は1回だけ単発失敗（212/213）が出たが、直後の2回は213/213で成功し、再現しないタイミング失敗として扱う。
 - 未実行の検証：Pixel 10aへの反映と実機の共有メニュー再試行は今回の変更用に許可を得ていないため実行しない。計装テストの追加分はコンパイルを通し、次回実機時に実行する。
+- Windows稼働版へ反映した。旧JARを`.bak`へ退避し、修正済みJAR（SHA-256一致）へ置換してpwsh 7の切り離し起動で再起動した。新PIDの起動・HTTP/HTTPSの200応答・配信中の新バンドル内のフォールバック処理（`Share translation timed out`と`share-details-translated`）を確認した。認証・設定・証明書は変更していない。
 
 ## 共有メニューの翻訳版コピー（2026-09-06）
 
