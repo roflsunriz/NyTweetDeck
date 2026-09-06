@@ -123,17 +123,28 @@ internal fun formatDetailedShareText(
     return lines.joinToString("\n")
 }
 
+/** X公式のGrokプリ翻訳をそのまま使う。訳文がない場合は原文へ戻す。 */
+internal fun translatedShareBody(
+    text: String,
+    preTranslated: dev.nytweetdeck.android.model.Translation?,
+): String {
+    val translated = preTranslated?.text?.trim().orEmpty()
+    return translated.ifBlank { text.trim() }
+}
+
 /**
  * 詳細コピー形式を作る。元ポストのメディアだけを含め、引用先のメディアとURLは含めない。
  * 引用ポストの本文は大なり記号で引用し、末尾は元ポストのURLだけにする。
+ * translatedが真の場合は本文と引用本文をGrokプリ翻訳へ置き換える。
  */
 internal fun formatDetailedPostShare(
     post: Post,
     absoluteTime: String?,
     relativeTime: String?,
+    translated: Boolean = false,
 ): String? {
     val url = postShareUrl(post.id) ?: return null
-    return formatDetailedPostShare(post, post.quotedPost, absoluteTime, relativeTime, url)
+    return formatDetailedPostShare(post, post.quotedPost, absoluteTime, relativeTime, url, translated)
 }
 
 internal fun formatDetailedPostShare(
@@ -142,13 +153,16 @@ internal fun formatDetailedPostShare(
     absoluteTime: String?,
     relativeTime: String?,
     postUrl: String,
+    translated: Boolean = false,
 ): String = formatDetailedShareText(
     authorLabel = shareAuthorLabel(post.author),
-    body = post.text,
+    body = if (translated) translatedShareBody(post.text, post.preTranslated) else post.text,
     mediaLinks = directShareMediaLinks(post.media),
     absoluteTime = absoluteTime,
     relativeTime = relativeTime,
     quotedAuthorLabel = quotedPost?.let { shareAuthorLabel(it.author) },
-    quotedBody = quotedPost?.text,
+    quotedBody = quotedPost?.let {
+        if (translated) translatedShareBody(it.text, it.preTranslated) else it.text
+    },
     postUrl = postUrl,
 )

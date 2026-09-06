@@ -117,6 +117,19 @@ class PostCardInteractionUiTest {
         composeRule.onNodeWithTag("share-menu-url-101").performClick()
         assertEquals("101", sharedPost)
         assertNull(openedPost)
+
+        // プリ翻訳がない投稿の翻訳版は原文へ戻り、ライブ翻訳を混ぜない。
+        copiedDetails = null
+        composeRule.onNodeWithTag("post-action-share-101").performClick()
+        composeRule.onNodeWithTag("share-menu-details-translated-101").performClick()
+        val fallback = copiedDetails
+        assertNull(openedPost)
+        composeRule.runOnIdle {
+            assert(fallback != null)
+            assert(fallback!!.contains("改行を含む本文"))
+            assert(!fallback.contains("翻訳された本文"))
+            assert(fallback.endsWith("https://x.com/i/status/101"))
+        }
     }
 
     @Test

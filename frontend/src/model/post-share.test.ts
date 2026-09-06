@@ -70,4 +70,52 @@ describe("formatDetailedShare", () => {
   test("postShareUrlはユーザー名形式のURLを作る", () => {
     expect(postShareUrl(basePost())).toBe("https://x.com/alice/status/123");
   });
+
+  test("翻訳版はGrokプリ翻訳をそのまま使い引用にも適用する", () => {
+    const text = formatDetailedShare(
+      {
+        ...basePost(),
+        text: "Original body",
+        preTranslated: {
+          text: "翻訳された本文",
+          sourceLanguage: "en",
+          targetLanguage: "ja",
+          provider: "Grok",
+        },
+        quotedPost: {
+          id: "122",
+          text: "Quoted original",
+          language: "en",
+          createdAt: null,
+          author: {
+            id: "24",
+            username: "quoted",
+            displayName: "Quoted Author",
+            avatarUrl: null,
+            verified: false,
+          },
+          preTranslated: {
+            text: "翻訳された引用",
+            sourceLanguage: "en",
+            targetLanguage: "ja",
+            provider: "Grok",
+          },
+          media: [],
+        },
+      },
+      "ja",
+      new Date("2026-09-06T15:00:00.000Z").getTime(),
+      { translated: true },
+    );
+    expect(text).toContain("翻訳された本文");
+    expect(text).not.toContain("Original body");
+    expect(text).toContain("> 翻訳された引用");
+    expect(text).not.toContain("Quoted original");
+    expect(text.endsWith("https://x.com/alice/status/123")).toBe(true);
+  });
+
+  test("プリ翻訳がない場合は翻訳版でも原文へ戻す", () => {
+    const text = formatDetailedShare(basePost(), "ja", Date.now(), { translated: true });
+    expect(text).toContain("本文テスト");
+  });
 });

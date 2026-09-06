@@ -157,6 +157,11 @@ export function PostCard({
   const copyWithDetails = async () => {
     await navigator.clipboard.writeText(formatDetailedShare(post, locale));
   };
+  const copyWithTranslatedDetails = async () => {
+    await navigator.clipboard.writeText(
+      formatDetailedShare(post, locale, Date.now(), { translated: true }),
+    );
+  };
   const openFromCard = (event: MouseEvent<HTMLElement>) => {
     if (onOpen === undefined) {
       return;
@@ -424,8 +429,10 @@ export function PostCard({
             label={translation.share}
             urlLabel={translation.shareCopyUrl}
             detailsLabel={translation.shareCopyDetails}
+            translatedDetailsLabel={translation.shareCopyDetailsTranslated}
             onCopyUrl={copyUrlOnly}
             onCopyDetails={copyWithDetails}
+            onCopyTranslatedDetails={copyWithTranslatedDetails}
           />
           {post.media[0] !== undefined && (
             <a
@@ -652,14 +659,18 @@ function ShareMenu({
   label,
   urlLabel,
   detailsLabel,
+  translatedDetailsLabel,
   onCopyUrl,
   onCopyDetails,
+  onCopyTranslatedDetails,
 }: {
   label: string;
   urlLabel: string;
   detailsLabel: string;
+  translatedDetailsLabel: string;
   onCopyUrl: () => void;
   onCopyDetails: () => void;
+  onCopyTranslatedDetails: () => void;
 }) {
   const menuId = useId();
   const [open, setOpen] = useState(false);
@@ -706,6 +717,14 @@ function ShareMenu({
             onClick={() => closeAndRun(onCopyDetails)}
           >
             {detailsLabel}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            data-post-action="share-details-translated"
+            onClick={() => closeAndRun(onCopyTranslatedDetails)}
+          >
+            {translatedDetailsLabel}
           </button>
         </div>
       )}

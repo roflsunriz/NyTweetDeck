@@ -91,6 +91,7 @@
     <string name="post_bookmark">Сохранить в историю</string>
     <string name="post_share_copy_url">Скопировать только ссылку</string>
     <string name="post_share_copy_details">Скопировать с деталями</string>
+    <string name="post_share_copy_details_translated">Скопировать с деталями (перевод)</string>
     <string name="post_details_copied">Детали поста скопированы.</string>
     <string name="post_share">Поделиться</string>
     <string name="post_download">Скачать медиа</string>

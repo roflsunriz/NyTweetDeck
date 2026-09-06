@@ -316,6 +316,14 @@ describe("post actions", () => {
     expect(details).toContain("> 引用元");
     expect(details).toContain("> 2行目");
     expect(details.endsWith("https://x.com/alice/status/100")).toBe(true);
+
+    await user.click(shareTrigger);
+    await user.click(screen.getByRole("menuitem", { name: "詳細形式でコピー（翻訳）" }));
+    expect(written).toHaveLength(3);
+    const translated = written[2] ?? "";
+    expect(translated).toContain("Alice@alice");
+    expect(translated).toContain("共有テスト本文");
+    expect(translated.endsWith("https://x.com/alice/status/100")).toBe(true);
     await user.keyboard("{Escape}");
     expect(shareTrigger.getAttribute("aria-expanded")).toBe("false");
   });

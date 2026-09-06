@@ -915,6 +915,16 @@ private fun ShareMenuButton(
                 },
                 modifier = Modifier.testTag("share-menu-details-" + post.id),
             )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.post_share_copy_details_translated)) },
+                onClick = {
+                    expanded = false
+                    formatDetailedPostShare(post, absoluteTime, relativeLabel, translated = true)
+                        ?.let(onShareDetailsCopy)
+                        ?: onShareClick(post.id)
+                },
+                modifier = Modifier.testTag("share-menu-details-translated-" + post.id),
+            )
         }
     }
 }

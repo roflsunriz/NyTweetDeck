@@ -20,6 +20,14 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 共有メニューの翻訳版コピー（2026-09-06）
+
+- 共有メニューを3分岐にし、詳細形式の翻訳版コピーを追加した。本文と引用本文をX公式のGrokプリ翻訳（`preTranslated`）へそのまま置き換え、訳文がない場合は原文へ戻す。新たな翻訳通信は行わず、ライブ翻訳の結果も混ぜない。
+- デスクトップ版は`post-share.ts`の`translatedShareBody`と`formatDetailedShare`の`translated`指定、`ShareMenu`の`share-details-translated`項目、日英辞書の`shareCopyDetailsTranslated`を追加した。他言語は英語へフォールバックする。
+- Android版は`PostShare.kt`の`translatedShareBody`と`translated`指定、`ShareMenuButton`の`share-menu-details-translated-`項目、11言語の`strings.xml`へ`post_share_copy_details_translated`を追加した。`strings.xml`編集時はリポジトリのLF改行を維持し、行末の迷子CRを残さない。
+- フロントエンド207件（翻訳版の整形2件とメニュー分岐を含む）、Androidの単体テストと`lintDebug`/`lintRelease`、`assembleDebugAndroidTest`/`assembleRelease`、Java150件のテストが成功し、`bun audit`の脆弱性は0件だった。
+- 未実行の検証：Pixel 10aの共有メニュー再試行は今回の変更用に許可を得ていないため実行しない。計装テストの追加分はコンパイルを通し、次回実機時に実行する。
+
 ## 全画面動画のOOMクラッシュ修正（2026-09-06）
 
 - Pixel 10a（63131JEA301496）の実機でAoE4動画の全画面ボタン押下時にアプリが落ちるとの報告を受け、端末操作の許可を得て調査した。`logcat --buffer=crash`に当日12:03の`dev.nytweetdeck.android`の`OutOfMemoryError`（`MediaCodec.getOutputBuffer`、ExoPlayer:Playbackスレッド、ヒープ上限256MB）を確認し、その後再起動→自動再生→OOMを2回繰り返していた。

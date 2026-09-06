@@ -96,6 +96,7 @@ export interface Translation {
   share: string;
   shareCopyUrl: string;
   shareCopyDetails: string;
+  shareCopyDetailsTranslated: string;
   downloadMedia: string;
   viewMedia: string;
   fullSizeImage: string;
@@ -341,6 +342,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     share: "共有",
     shareCopyUrl: "URLのみコピー",
     shareCopyDetails: "詳細形式でコピー",
+    shareCopyDetailsTranslated: "詳細形式でコピー（翻訳）",
     downloadMedia: "メディアをダウンロード",
     viewMedia: "メディアを表示",
     fullSizeImage: "画像をフルサイズで表示",
@@ -634,6 +636,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     share: "Share",
     shareCopyUrl: "Copy link only",
     shareCopyDetails: "Copy with details",
+    shareCopyDetailsTranslated: "Copy with details (translated)",
     downloadMedia: "Download media",
     viewMedia: "View media",
     fullSizeImage: "View full-size image",

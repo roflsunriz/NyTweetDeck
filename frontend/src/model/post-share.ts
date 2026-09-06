@@ -1,4 +1,10 @@
-import type { EmbeddedPost, TimelineAuthor, TimelineMedia, TimelinePost } from "./timeline";
+import type {
+  EmbeddedPost,
+  PreTranslatedPost,
+  TimelineAuthor,
+  TimelineMedia,
+  TimelinePost,
+} from "./timeline";
 import { formatRelativeTime } from "./relative-time";
 
 export interface ShareablePost {
@@ -8,6 +14,7 @@ export interface ShareablePost {
   author: TimelineAuthor;
   media: Pick<TimelineMedia, "url">[];
   quotedPost: EmbeddedPost | null;
+  preTranslated?: PreTranslatedPost | null;
 }
 
 export function postShareUrl(post: Pick<TimelinePost, "id" | "author">): string {
@@ -57,16 +64,32 @@ function quoteTextLines(text: string): string[] {
 }
 
 /**
+ * X公式のGrokプリ翻訳をそのまま使う。本文がない場合は原文へ戻す。
+ */
+export function translatedShareBody(
+  text: string,
+  preTranslated: PreTranslatedPost | null | undefined,
+): string {
+  const translated = preTranslated?.text.trim() ?? "";
+  return translated.length > 0 ? translated : text.trim();
+}
+
+/**
  * 共有ボタンの詳細コピー形式を作る。
  * 元ポストのメディアだけを含め、引用先のメディアとURLは含めない。
+ * translatedが真の場合は本文と引用本文をGrokプリ翻訳へ置き換える。
  */
 export function formatDetailedShare(
   post: ShareablePost,
   locale: string,
   nowMilliseconds = Date.now(),
+  options: { translated?: boolean } = {},
 ): string {
   const lines: string[] = [authorHandle(post.author)];
-  const body = post.text.trim();
+  const body =
+    options.translated === true
+      ? translatedShareBody(post.text, post.preTranslated)
+      : post.text.trim();
   if (body.length > 0) {
     lines.push(body);
   }
@@ -85,9 +108,12 @@ export function formatDetailedShare(
   const quoted = post.quotedPost;
   if (quoted !== null) {
     lines.push(authorHandle(quoted.author));
-    const quotedBody = quoted.text.trim();
+    const quotedBody =
+      options.translated === true
+        ? translatedShareBody(quoted.text, quoted.preTranslated)
+        : quoted.text.trim();
     if (quotedBody.length > 0) {
-      lines.push(...quoteTextLines(quoted.text.trim()));
+      lines.push(...quoteTextLines(quotedBody));
     }
   }
   lines.push(postShareUrl(post));

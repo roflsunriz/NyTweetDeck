@@ -104,6 +104,47 @@ class PostShareDetailsTest {
     }
 
     @Test
+    fun translatedShareUsesPretranslationAsIs() {
+        val target = post().copy(
+            text = "Original body",
+            preTranslated = dev.nytweetdeck.android.model.Translation(
+                text = "翻訳された本文",
+                sourceLanguage = "en",
+                targetLanguage = "ja",
+                provider = "Grok",
+            ),
+            quotedPost = EmbeddedPost(
+                id = "122",
+                text = "Quoted original",
+                language = "en",
+                createdAt = null,
+                author = Author(id = "24", username = "quoted", displayName = "Quoted", avatarUrl = null, verified = false),
+                preTranslated = dev.nytweetdeck.android.model.Translation(
+                    text = "翻訳された引用",
+                    sourceLanguage = "en",
+                    targetLanguage = "ja",
+                    provider = "Grok",
+                ),
+                article = null,
+                media = emptyList(),
+                links = emptyList(),
+            ),
+        )
+        val text = formatDetailedPostShare(target, "2026-09-06 21:00:00", "3時間", translated = true)!!
+        assertTrue(text.contains("翻訳された本文"))
+        assertFalse(text.contains("Original body"))
+        assertTrue(text.contains("> 翻訳された引用"))
+        assertFalse(text.contains("Quoted original"))
+        assertEquals("https://x.com/i/status/123", text.split("\n").last())
+    }
+
+    @Test
+    fun translatedShareFallsBackToOriginalWithoutPretranslation() {
+        val text = formatDetailedPostShare(post(), "2026-09-06 21:00:00", "3時間", translated = true)!!
+        assertTrue(text.contains("本文テスト"))
+    }
+
+    @Test
     fun formatsAbsoluteTimeInSystemZone() {
         val absolute = formatShareAbsoluteTime(
             "2026-09-06T12:00:00Z",

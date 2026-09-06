@@ -113,6 +113,7 @@
     <string name="post_bookmark">履歴に保存</string>
     <string name="post_share_copy_url">URLのみコピー</string>
     <string name="post_share_copy_details">詳細形式でコピー</string>
+    <string name="post_share_copy_details_translated">詳細形式でコピー（翻訳）</string>
     <string name="post_details_copied">ポストの詳細形式をコピーしました。</string>
     <string name="post_share">共有</string>
     <string name="post_download">メディアをダウンロード</string>
