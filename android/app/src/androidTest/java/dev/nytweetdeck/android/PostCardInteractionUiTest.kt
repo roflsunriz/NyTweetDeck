@@ -33,6 +33,8 @@ class PostCardInteractionUiTest {
     private var createdQuote: String? = null
     private var toggledTranslation: String? = null
     private var openedAuthor: String? = null
+    private var sharedPost: String? = null
+    private var copiedDetails: String? = null
 
     @Before
     fun showQuotedRepost() {
@@ -45,6 +47,8 @@ class PostCardInteractionUiTest {
                     onQuoteClick = { openedQuote = it },
                     onCreateQuoteClick = { createdQuote = it },
                     onAuthorClick = { openedAuthor = it.id },
+                    onShareClick = { sharedPost = it },
+                    onShareDetailsCopy = { copiedDetails = it },
                     translationStates = mapOf(
                         "101" to PostTranslationUiState(
                             TranslationLoadStatus.READY,
@@ -89,6 +93,29 @@ class PostCardInteractionUiTest {
     fun authorHeaderUsesAnIndependentInternalTarget() {
         composeRule.onNodeWithTag("post-author-7", useUnmergedTree = true).performClick()
         assertEquals("7", openedAuthor)
+        assertNull(openedPost)
+    }
+
+    @Test
+    fun shareButtonOffersUrlOnlyAndDetailedCopies() {
+        composeRule.onNodeWithTag("post-action-share-101").performClick()
+        composeRule.onNodeWithTag("share-menu-101").assertIsDisplayed()
+        composeRule.onNodeWithTag("share-menu-details-101").performClick()
+        val details = copiedDetails
+        assertNull(sharedPost)
+        assertNull(openedPost)
+        composeRule.runOnIdle {
+            assert(details != null)
+            assert(details!!.contains("投稿者@author"))
+            assert(details.contains("改行を含む本文"))
+            assert(details.contains("引用元@quoted"))
+            assert(details.contains("> 引用本文"))
+            assert(details.endsWith("https://x.com/i/status/101"))
+        }
+
+        composeRule.onNodeWithTag("post-action-share-101").performClick()
+        composeRule.onNodeWithTag("share-menu-url-101").performClick()
+        assertEquals("101", sharedPost)
         assertNull(openedPost)
     }
 

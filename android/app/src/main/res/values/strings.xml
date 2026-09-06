@@ -111,6 +111,9 @@
     <string name="post_like">いいね</string>
     <string name="post_impressions">インプレッション</string>
     <string name="post_bookmark">履歴に保存</string>
+    <string name="post_share_copy_url">URLのみコピー</string>
+    <string name="post_share_copy_details">詳細形式でコピー</string>
+    <string name="post_details_copied">ポストの詳細形式をコピーしました。</string>
     <string name="post_share">共有</string>
     <string name="post_download">メディアをダウンロード</string>
     <string name="post_time_now">たった今</string>

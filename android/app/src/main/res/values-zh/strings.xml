@@ -89,6 +89,9 @@
     <string name="post_like">喜欢</string>
     <string name="post_impressions">浏览量</string>
     <string name="post_bookmark">保存到历史记录</string>
+    <string name="post_share_copy_url">仅复制链接</string>
+    <string name="post_share_copy_details">复制详细信息</string>
+    <string name="post_details_copied">已复制帖子详细信息。</string>
     <string name="post_share">分享</string>
     <string name="post_download">下载媒体</string>
     <string name="post_time_now">now</string>

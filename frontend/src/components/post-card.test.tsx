@@ -256,6 +256,70 @@ describe("post actions", () => {
     expect(screen.queryByRole("menuitem", { name: "このポストに興味がない" })).toBeNull();
   });
 
+  test("offers URL-only and detailed copies from the share menu", async () => {
+    const written: string[] = [];
+    const user = userEvent.setup();
+    render(
+      <PostCard
+        post={{
+          ...post(),
+          text: "共有テスト本文",
+          media: [
+            {
+              id: "photo-1",
+              type: "photo",
+              url: "https://pbs.twimg.com/media/share.jpg",
+              previewUrl: "https://pbs.twimg.com/media/share.jpg",
+            },
+          ],
+          quotedPost: {
+            id: "99",
+            text: "引用元\n2行目",
+            language: "ja",
+            createdAt: null,
+            author: {
+              id: "24",
+              username: "quoted",
+              displayName: "Quoted",
+              avatarUrl: null,
+              verified: false,
+            },
+            media: [],
+          },
+        }}
+        accountId="account-1"
+        translation={translate("ja")}
+      />,
+    );
+
+    const shareTrigger = screen.getByRole("button", { name: "共有" });
+    expect(shareTrigger.getAttribute("aria-expanded")).toBe("false");
+    await user.click(shareTrigger);
+    expect(shareTrigger.getAttribute("aria-expanded")).toBe("true");
+    // happy-domのnavigator.clipboardはrender時に再登録されるため、利用直前に差し替える。
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: async (text: string) => void written.push(text) },
+    });
+    const urlItem = screen.getByRole("menuitem", { name: "URLのみコピー" });
+    fireEvent.click(urlItem);
+    await waitFor(() => expect(written).toEqual(["https://x.com/alice/status/100"]));
+
+    await user.click(shareTrigger);
+    await user.click(screen.getByRole("menuitem", { name: "詳細形式でコピー" }));
+    expect(written).toHaveLength(2);
+    const details = written[1] ?? "";
+    expect(details).toContain("Alice@alice");
+    expect(details).toContain("共有テスト本文");
+    expect(details).toContain("https://pbs.twimg.com/media/share.jpg");
+    expect(details).toContain("Quoted@quoted");
+    expect(details).toContain("> 引用元");
+    expect(details).toContain("> 2行目");
+    expect(details.endsWith("https://x.com/alice/status/100")).toBe(true);
+    await user.keyboard("{Escape}");
+    expect(shareTrigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
   test("shows the at-username and hashtags and offers repost and quote choices", async () => {
     const user = userEvent.setup();
     const taggedPost = { ...post(), text: "hello #NyTweetDeck" };

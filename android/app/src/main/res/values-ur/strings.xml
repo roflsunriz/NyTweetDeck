@@ -89,6 +89,9 @@
     <string name="post_like">پسند</string>
     <string name="post_impressions">مشاہدات</string>
     <string name="post_bookmark">تاریخ میں محفوظ کریں</string>
+    <string name="post_share_copy_url">صرف لنک کاپی کریں</string>
+    <string name="post_share_copy_details">تفصیل کے ساتھ کاپی کریں</string>
+    <string name="post_details_copied">پوسٹ کی تفصیل کاپی کر لی گئی۔</string>
     <string name="post_share">شیئر کریں</string>
     <string name="post_download">میڈیا ڈاؤن لوڈ کریں</string>
     <string name="post_time_now">now</string>

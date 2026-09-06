@@ -20,6 +20,14 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 共有ボタンの2分岐メニュー（2026-09-06）
+
+- デスクトップ版とAndroid版の共有ボタンを2分岐メニューにした。一方は従来のURLのみコピー、もう一方は「ユーザー名@ユーザーID、本文、メディアのダイレクトリンク、絶対時刻（相対時刻）、引用があれば引用元のユーザー名@ユーザーIDと大なり記号引用、末尾に元ポストのURL」の詳細形式コピーで、引用先のメディアとURLは含めない。
+- デスクトップ版は`frontend/src/model/post-share.ts`に整形を集約し、`post-card.tsx`の共有ボタンを`ShareMenu`（`data-post-action="share-url"`/`"share-details"`）へ置換した。表示言語のロケールで絶対時刻を作り、相対時刻は既存の`formatRelativeTime`を使う。新規キー`shareCopyUrl`/`shareCopyDetails`は日英辞書へ追加し、他言語は英語へフォールバックする。
+- Android版は`PostShare.kt`に整形（`formatDetailedPostShare`/`formatShareAbsoluteTime`/`shareAuthorLabel`）とクリップボード複写を追加し、`PostCard`の共有操作を`ShareMenuButton`（`share-menu-`/`share-menu-url-`/`share-menu-details-`）へ置換した。URL分岐は従来の共有シート経路を維持し、詳細分岐は整形文を複写して`post_details_copied`を表示する。11言語の`strings.xml`へ3キーを追加した。
+- フロントエンド205件（新規`post-share.test.ts`3件と共有メニューUIテストを含む）が成功し、lint/整形/型/ビルドと`bun audit`（脆弱性0件）が成功した。Androidは`testDebugUnitTest`（新規`PostShareDetailsTest`4件を含む）と`lintDebug`/`lintRelease`、`assembleDebugAndroidTest`/`assembleRelease`が成功した。
+- 未実行の検証：新規`PostCardInteractionUiTest.shareButtonOffersUrlOnlyAndDetailedCopies`は接続端末がなく実行できない（`adb devices`で0件）。コンパイルは`assembleDebugAndroidTest`で確認済みで、AQUOS接続時に実行する。実ブラウザでの共有メニュー目視と実機クリップボード確認も未実施で、稼働反映時に確認する。
+
 ## 1.5.0 / Android 0.3.0 公開前検証（2026-09-05）
 
 - フロントエンド201件、Java150件のテスト、Androidの単体テストとdebug/release Lint、両版のリリースビルドが成功した。

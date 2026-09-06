@@ -89,6 +89,9 @@
     <string name="post_like">পছন্দ</string>
     <string name="post_impressions">দেখা হয়েছে</string>
     <string name="post_bookmark">ইতিহাসে সংরক্ষণ করুন</string>
+    <string name="post_share_copy_url">শুধু লিংক কপি করুন</string>
+    <string name="post_share_copy_details">বিস্তারিতসহ কপি করুন</string>
+    <string name="post_details_copied">পোস্টের বিবরণ কপি করা হয়েছে।</string>
     <string name="post_share">শেয়ার করুন</string>
     <string name="post_download">মিডিয়া ডাউনলোড করুন</string>
     <string name="post_time_now">now</string>

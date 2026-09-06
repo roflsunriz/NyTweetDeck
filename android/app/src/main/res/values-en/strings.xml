@@ -112,6 +112,9 @@
     <string name="post_like">Like</string>
     <string name="post_impressions">Impressions</string>
     <string name="post_bookmark">Save to history</string>
+    <string name="post_share_copy_url">Copy link only</string>
+    <string name="post_share_copy_details">Copy with details</string>
+    <string name="post_details_copied">Post details copied.</string>
     <string name="post_share">Share</string>
     <string name="post_download">Download media</string>
     <string name="post_time_now">now</string>

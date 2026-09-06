@@ -13,6 +13,7 @@ import {
 import { type KeyboardEvent, type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
+import { formatDetailedShare, postShareUrl } from "../model/post-share";
 import { useRelativeTime } from "../model/relative-time";
 import type { EmbeddedPost, TimelinePost } from "../model/timeline";
 import { postTextSegments } from "../model/post-text-segments";
@@ -63,7 +64,7 @@ export function PostCard({
   const cardRef = useRef<HTMLElement | null>(null);
   const { autoTranslatePosts, setAutoTranslatePosts } = usePostTranslationSettings();
   const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
-  const postUrl = `https://x.com/${post.author.username}/status/${post.id}`;
+  const postUrl = postShareUrl(post);
   const postTranslation = usePostTranslation({
     accountId,
     postId: post.id,
@@ -149,12 +150,12 @@ export function PostCard({
     return () => observer.disconnect();
   }, [post.id]);
 
-  const share = async () => {
-    if (navigator.share !== undefined) {
-      await navigator.share({ title: post.author.displayName, text: post.text, url: postUrl });
-    } else {
-      await navigator.clipboard.writeText(postUrl);
-    }
+  const locale = document.documentElement.lang || "en";
+  const copyUrlOnly = async () => {
+    await navigator.clipboard.writeText(postUrl);
+  };
+  const copyWithDetails = async () => {
+    await navigator.clipboard.writeText(formatDetailedShare(post, locale));
   };
   const openFromCard = (event: MouseEvent<HTMLElement>) => {
     if (onOpen === undefined) {
@@ -419,14 +420,13 @@ export function PostCard({
               })
             }
           />
-          <button
-            type="button"
-            className="post-action"
-            aria-label={translation.share}
-            onClick={share}
-          >
-            <Share2 aria-hidden="true" size={16} />
-          </button>
+          <ShareMenu
+            label={translation.share}
+            urlLabel={translation.shareCopyUrl}
+            detailsLabel={translation.shareCopyDetails}
+            onCopyUrl={copyUrlOnly}
+            onCopyDetails={copyWithDetails}
+          />
           {post.media[0] !== undefined && (
             <a
               className="post-action"
@@ -641,6 +641,71 @@ function RepostMenu({
           <button type="button" role="menuitem" onClick={() => closeAndRun(onQuote)}>
             <MessageCircle aria-hidden="true" size={16} />
             {quoteLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShareMenu({
+  label,
+  urlLabel,
+  detailsLabel,
+  onCopyUrl,
+  onCopyDetails,
+}: {
+  label: string;
+  urlLabel: string;
+  detailsLabel: string;
+  onCopyUrl: () => void;
+  onCopyDetails: () => void;
+}) {
+  const menuId = useId();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+  const closeAndRun = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+  return (
+    <div className="share-menu">
+      <button
+        type="button"
+        className="post-action"
+        data-post-action="share"
+        aria-controls={menuId}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={label}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Share2 aria-hidden="true" size={16} />
+      </button>
+      {open && (
+        <div id={menuId} role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            data-post-action="share-url"
+            onClick={() => closeAndRun(onCopyUrl)}
+          >
+            {urlLabel}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            data-post-action="share-details"
+            onClick={() => closeAndRun(onCopyDetails)}
+          >
+            {detailsLabel}
           </button>
         </div>
       )}

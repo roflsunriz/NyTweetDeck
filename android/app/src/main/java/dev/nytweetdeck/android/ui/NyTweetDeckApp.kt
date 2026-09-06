@@ -312,6 +312,19 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             PostShareOutcome.SHARED -> Unit
         }
     }
+    val copyShareDetails: (String) -> Unit = { text ->
+        runCatching { copyShareText(context, sharePostLabel, text) }
+            .onSuccess {
+                Toast.makeText(
+                    context, R.string.post_details_copied, Toast.LENGTH_SHORT,
+                ).show()
+            }
+            .onFailure {
+                Toast.makeText(
+                    context, R.string.post_action_failed, Toast.LENGTH_SHORT,
+                ).show()
+            }
+    }
     val replyToPost: (String) -> Unit = { postId ->
         viewModel.openComposer(ComposerMode.REPLY, postId)
         openDialog = OpenDialog.COMPOSER
@@ -412,6 +425,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                             viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
                         },
                         onShareClick = sharePost,
+                        onShareDetailsCopy = copyShareDetails,
                         onDownloadClick = downloadPostMedia,
                         videoAutoplay = state.videoAutoplay,
                         videoLoop = state.videoLoop,
@@ -586,6 +600,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onLikeClick = { viewModel.togglePostAction(it, PostActionType.LIKE) },
             onBookmarkClick = { viewModel.togglePostAction(it, PostActionType.BOOKMARK) },
             onShareClick = sharePost,
+            onShareDetailsCopy = copyShareDetails,
             onDownloadClick = downloadPostMedia,
             onArticleClick = viewModel::openArticle,
             onPostMenuClick = { postMenuPost = it },
@@ -626,6 +641,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 viewModel.togglePostAction(postId, PostActionType.BOOKMARK)
             },
             onShareClick = sharePost,
+            onShareDetailsCopy = copyShareDetails,
             onDownloadClick = downloadPostMedia,
             mediaPreview = state.mediaPreview,
             onArticleClick = viewModel::openArticle,
@@ -681,6 +697,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onLikeClick = { viewModel.togglePostAction(it, PostActionType.LIKE) },
             onBookmarkClick = { viewModel.togglePostAction(it, PostActionType.BOOKMARK) },
             onShareClick = sharePost,
+            onShareDetailsCopy = copyShareDetails,
             onDownloadClick = downloadPostMedia,
             onArticleClick = viewModel::openArticle,
             onPostMenuClick = { postMenuPost = it },

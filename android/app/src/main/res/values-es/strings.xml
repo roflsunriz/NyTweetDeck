@@ -89,6 +89,9 @@
     <string name="post_like">Me gusta</string>
     <string name="post_impressions">Visualizaciones</string>
     <string name="post_bookmark">Guardar en historial</string>
+    <string name="post_share_copy_url">Copiar solo el enlace</string>
+    <string name="post_share_copy_details">Copiar con detalles</string>
+    <string name="post_details_copied">Detalles del post copiados.</string>
     <string name="post_share">Compartir</string>
     <string name="post_download">Descargar contenido multimedia</string>
     <string name="post_time_now">now</string>

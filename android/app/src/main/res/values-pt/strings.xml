@@ -89,6 +89,9 @@
     <string name="post_like">Curtir</string>
     <string name="post_impressions">Visualizações</string>
     <string name="post_bookmark">Salvar no histórico</string>
+    <string name="post_share_copy_url">Copiar somente o link</string>
+    <string name="post_share_copy_details">Copiar com detalhes</string>
+    <string name="post_details_copied">Detalhes do post copiados.</string>
     <string name="post_share">Compartilhar</string>
     <string name="post_download">Baixar mídia</string>
     <string name="post_time_now">now</string>

@@ -4,6 +4,15 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import dev.nytweetdeck.android.model.Author
+import dev.nytweetdeck.android.model.EmbeddedPost
+import dev.nytweetdeck.android.model.Media
+import dev.nytweetdeck.android.model.Post
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 internal enum class PostShareOutcome { SHARED, COPIED, INVALID }
 
@@ -33,3 +42,113 @@ internal fun sharePostOrCopy(
     clipboard.setPrimaryClip(ClipData.newPlainText(chooserTitle, url))
     return PostShareOutcome.COPIED
 }
+
+internal fun copyShareText(context: Context, label: String, text: String) {
+    val clipboard = context.getSystemService(ClipboardManager::class.java)
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+}
+
+internal fun shareAuthorLabel(author: Author): String {
+    val display = author.displayName.trim()
+    val handle = author.username.trim().removePrefix("@")
+    val fallback = author.id.trim()
+    val name = display.ifBlank { handle.ifBlank { fallback } }
+    return "$name@${handle.ifBlank { fallback }}"
+}
+
+internal fun directShareMediaLinks(media: List<Media>): List<String> {
+    val links = mutableListOf<String>()
+    for (item in media) {
+        val url = (item.url ?: item.previewUrl)?.trim().orEmpty()
+        if (url.isNotEmpty() && url !in links) {
+            links.add(url)
+        }
+    }
+    return links
+}
+
+private val SHARE_ABSOLUTE_FORMAT =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US)
+
+internal fun formatShareAbsoluteTime(
+    createdAt: String?,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): String? {
+    val value = createdAt?.trim()?.takeIf(String::isNotEmpty) ?: return null
+    val instant = runCatching { Instant.parse(value) }.getOrNull()
+        ?: runCatching {
+            ZonedDateTime.parse(
+                value,
+                DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss Z yyyy", Locale.ENGLISH),
+            ).toInstant()
+        }.getOrNull()
+        ?: return null
+    return instant.atZone(zoneId).format(SHARE_ABSOLUTE_FORMAT)
+}
+
+internal fun formatDetailedShareText(
+    authorLabel: String,
+    body: String,
+    mediaLinks: List<String>,
+    absoluteTime: String?,
+    relativeTime: String?,
+    quotedAuthorLabel: String?,
+    quotedBody: String?,
+    postUrl: String,
+): String {
+    val lines = mutableListOf(authorLabel)
+    if (body.trim().isNotEmpty()) {
+        lines.add(body.trim())
+    }
+    lines.addAll(mediaLinks)
+    val timeLine = when {
+        !absoluteTime.isNullOrBlank() && !relativeTime.isNullOrBlank() ->
+            "$absoluteTime ($relativeTime)"
+        !absoluteTime.isNullOrBlank() -> absoluteTime
+        !relativeTime.isNullOrBlank() -> relativeTime
+        else -> null
+    }
+    if (timeLine != null) {
+        lines.add(timeLine)
+    }
+    if (quotedAuthorLabel != null) {
+        lines.add(quotedAuthorLabel)
+        if (!quotedBody.isNullOrBlank()) {
+            quotedBody.trim().split("\n").forEach { line ->
+                lines.add("> ${line.trimEnd()}")
+            }
+        }
+    }
+    lines.add(postUrl)
+    return lines.joinToString("\n")
+}
+
+/**
+ * 詳細コピー形式を作る。元ポストのメディアだけを含め、引用先のメディアとURLは含めない。
+ * 引用ポストの本文は大なり記号で引用し、末尾は元ポストのURLだけにする。
+ */
+internal fun formatDetailedPostShare(
+    post: Post,
+    absoluteTime: String?,
+    relativeTime: String?,
+): String? {
+    val url = postShareUrl(post.id) ?: return null
+    return formatDetailedPostShare(post, post.quotedPost, absoluteTime, relativeTime, url)
+}
+
+internal fun formatDetailedPostShare(
+    post: Post,
+    quotedPost: EmbeddedPost?,
+    absoluteTime: String?,
+    relativeTime: String?,
+    postUrl: String,
+): String = formatDetailedShareText(
+    authorLabel = shareAuthorLabel(post.author),
+    body = post.text,
+    mediaLinks = directShareMediaLinks(post.media),
+    absoluteTime = absoluteTime,
+    relativeTime = relativeTime,
+    quotedAuthorLabel = quotedPost?.let { shareAuthorLabel(it.author) },
+    quotedBody = quotedPost?.text,
+    postUrl = postUrl,
+)

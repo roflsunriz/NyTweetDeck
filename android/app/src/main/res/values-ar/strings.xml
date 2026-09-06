@@ -89,6 +89,9 @@
     <string name="post_like">إعجاب</string>
     <string name="post_impressions">المشاهدات</string>
     <string name="post_bookmark">حفظ في السجل</string>
+    <string name="post_share_copy_url">نسخ الرابط فقط</string>
+    <string name="post_share_copy_details">نسخ مع التفاصيل</string>
+    <string name="post_details_copied">تم نسخ تفاصيل المنشور.</string>
     <string name="post_share">مشاركة</string>
     <string name="post_download">تنزيل الوسائط</string>
     <string name="post_time_now">now</string>

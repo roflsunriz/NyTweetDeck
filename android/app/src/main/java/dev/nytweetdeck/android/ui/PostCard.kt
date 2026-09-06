@@ -101,6 +101,7 @@ internal fun PostCard(
     onImpressionClick: (String) -> Unit = {},
     onBookmarkClick: (String) -> Unit = {},
     onShareClick: (String) -> Unit = {},
+    onShareDetailsCopy: (String) -> Unit = {},
     onDownloadClick: (String) -> Unit = {},
     onArticleClick: (String, Article) -> Unit = { _, _ -> },
     onMenuClick: (Post) -> Unit = {},
@@ -222,6 +223,7 @@ internal fun PostCard(
             onImpressionClick = onImpressionClick,
             onBookmarkClick = onBookmarkClick,
             onShareClick = onShareClick,
+            onShareDetailsCopy = onShareDetailsCopy,
             onDownloadClick = onDownloadClick,
             pendingActions = pendingActions,
             failedActions = failedActions,
@@ -729,6 +731,7 @@ private fun PostActions(
     onImpressionClick: (String) -> Unit,
     onBookmarkClick: (String) -> Unit,
     onShareClick: (String) -> Unit,
+    onShareDetailsCopy: (String) -> Unit,
     onDownloadClick: (String) -> Unit,
     pendingActions: Set<PostActionType>,
     failedActions: Set<PostActionType>,
@@ -789,15 +792,11 @@ private fun PostActions(
                 pending = PostActionType.BOOKMARK in pendingActions,
                 failed = PostActionType.BOOKMARK in failedActions,
             )
-            PostActionButton(
-                tag = "post-action-share-" + post.id,
-                label = stringResource(R.string.post_share),
-                icon = Icons.Default.Share,
-                count = null,
-                active = false,
-                activeColor = MaterialTheme.colorScheme.primary,
+            ShareMenuButton(
+                post = post,
                 modifier = Modifier.weight(1f),
-                onClick = { onShareClick(post.id) },
+                onShareClick = onShareClick,
+                onShareDetailsCopy = onShareDetailsCopy,
             )
             PostActionButton(
                 tag = "post-action-download-" + post.id,
@@ -858,6 +857,54 @@ private fun RepostMenuButton(
                     onQuoteClick(post.id)
                 },
                 modifier = Modifier.testTag("repost-menu-quote-" + post.id),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShareMenuButton(
+    post: Post,
+    modifier: Modifier,
+    onShareClick: (String) -> Unit,
+    onShareDetailsCopy: (String) -> Unit,
+) {
+    var expanded by remember(post.id) { mutableStateOf(false) }
+    val absoluteTime = remember(post.createdAt) { formatShareAbsoluteTime(post.createdAt) }
+    val relativeLabel = relativeTime(post.createdAt)
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        PostActionButton(
+            tag = "post-action-share-" + post.id,
+            label = stringResource(R.string.post_share),
+            icon = Icons.Default.Share,
+            count = null,
+            active = false,
+            activeColor = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { expanded = true },
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag("share-menu-" + post.id),
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.post_share_copy_url)) },
+                onClick = {
+                    expanded = false
+                    onShareClick(post.id)
+                },
+                modifier = Modifier.testTag("share-menu-url-" + post.id),
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.post_share_copy_details)) },
+                onClick = {
+                    expanded = false
+                    formatDetailedPostShare(post, absoluteTime, relativeLabel)
+                        ?.let(onShareDetailsCopy)
+                        ?: onShareClick(post.id)
+                },
+                modifier = Modifier.testTag("share-menu-details-" + post.id),
             )
         }
     }

@@ -89,6 +89,9 @@
     <string name="post_like">पसंद</string>
     <string name="post_impressions">व्यू</string>
     <string name="post_bookmark">इतिहास में सहेजें</string>
+    <string name="post_share_copy_url">केवल लिंक कॉपी करें</string>
+    <string name="post_share_copy_details">विवरण सहित कॉपी करें</string>
+    <string name="post_details_copied">पोस्ट विवरण कॉपी किया गया।</string>
     <string name="post_share">शेयर करें</string>
     <string name="post_download">मीडिया डाउनलोड करें</string>
     <string name="post_time_now">now</string>
