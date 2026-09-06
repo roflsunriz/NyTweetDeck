@@ -409,6 +409,11 @@
   box-shadow: var(--shadow);
 }
 
+.share-menu > div {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
 .repost-menu button,
 .share-menu button {
   display: flex;
