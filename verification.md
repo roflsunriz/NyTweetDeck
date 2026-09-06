@@ -1,5 +1,10 @@
 # 検証手順
 
+## 1.6.0 / Android 0.4.0 公開（2026-09-06）
+
+- `## [1.6.0]`と`## [Android 0.4.0]`へ未リリース分を移し、AndroidのversionCodeを11・versionNameを0.4.0に更新してタグ（`v1.6.0`・`android-v0.4.0`）をプッシュした。リリースノート抽出は事前に両版とも検証済みである。
+- デスクトップ版リリース（ZIPとsha256）とAndroid版リリース（署名済みAPKとsha256）がGitHub Actionsで成功し、両リリースが公開された。mainのCIも成功した。
+
 NyTweetDeckの変更は、リポジトリ直下から次の順で検証します。詳細な更新・復旧手順は`how-to-update.md`を参照してください。
 
 ```powershell
