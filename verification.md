@@ -36,6 +36,7 @@ Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease a
 - Android版は`PostShare.kt`に整形（`formatDetailedPostShare`/`formatShareAbsoluteTime`/`shareAuthorLabel`）とクリップボード複写を追加し、`PostCard`の共有操作を`ShareMenuButton`（`share-menu-`/`share-menu-url-`/`share-menu-details-`）へ置換した。URL分岐は従来の共有シート経路を維持し、詳細分岐は整形文を複写して`post_details_copied`を表示する。11言語の`strings.xml`へ3キーを追加した。
 - フロントエンド205件（新規`post-share.test.ts`3件と共有メニューUIテストを含む）が成功し、lint/整形/型/ビルドと`bun audit`（脆弱性0件）が成功した。Androidは`testDebugUnitTest`（新規`PostShareDetailsTest`4件を含む）と`lintDebug`/`lintRelease`、`assembleDebugAndroidTest`/`assembleRelease`が成功した。
 - 未実行の検証：新規`PostCardInteractionUiTest.shareButtonOffersUrlOnlyAndDetailedCopies`は接続端末がなく実行できない（`adb devices`で0件）。コンパイルは`assembleDebugAndroidTest`で確認済みで、AQUOS接続時に実行する。実ブラウザでの共有メニュー目視と実機クリップボード確認も未実施で、稼働反映時に確認する。
+- Windows稼働版へ反映した。旧JARを`.bak`へ退避し、修正済みJAR（SHA-256一致）へ置換して再起動した。新PIDの起動・HTTP/HTTPSの200応答・配信JS内の`share-details`/`shareCopyUrl`を確認した。認証・設定・証明書は変更していない。なお`run-nytweetdeck.ps1`の切り離し起動はWindows PowerShell 5.1の非表示実行で証明書Repairが失敗するため、pwsh 7の非表示実行で起動した（証明書自体は有効でストアに存在した）。
 
 ## 1.5.0 / Android 0.3.0 公開前検証（2026-09-05）
 
