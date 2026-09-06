@@ -102,6 +102,7 @@ internal fun PostCard(
     onBookmarkClick: (String) -> Unit = {},
     onShareClick: (String) -> Unit = {},
     onShareDetailsCopy: (String) -> Unit = {},
+    onShareTranslatedCopy: (String, String?, String?) -> Unit = { _, _, _ -> },
     onDownloadClick: (String) -> Unit = {},
     onArticleClick: (String, Article) -> Unit = { _, _ -> },
     onMenuClick: (Post) -> Unit = {},
@@ -226,6 +227,7 @@ internal fun PostCard(
             onBookmarkClick = onBookmarkClick,
             onShareClick = onShareClick,
             onShareDetailsCopy = onShareDetailsCopy,
+            onShareTranslatedCopy = onShareTranslatedCopy,
             onDownloadClick = onDownloadClick,
             pendingActions = pendingActions,
             failedActions = failedActions,
@@ -741,6 +743,7 @@ private fun PostActions(
     onBookmarkClick: (String) -> Unit,
     onShareClick: (String) -> Unit,
     onShareDetailsCopy: (String) -> Unit,
+    onShareTranslatedCopy: (String, String?, String?) -> Unit,
     onDownloadClick: (String) -> Unit,
     pendingActions: Set<PostActionType>,
     failedActions: Set<PostActionType>,
@@ -806,6 +809,7 @@ private fun PostActions(
                 modifier = Modifier.weight(1f),
                 onShareClick = onShareClick,
                 onShareDetailsCopy = onShareDetailsCopy,
+                onShareTranslatedCopy = onShareTranslatedCopy,
             )
             PostActionButton(
                 tag = "post-action-download-" + post.id,
@@ -877,6 +881,7 @@ private fun ShareMenuButton(
     modifier: Modifier,
     onShareClick: (String) -> Unit,
     onShareDetailsCopy: (String) -> Unit,
+    onShareTranslatedCopy: (String, String?, String?) -> Unit,
 ) {
     var expanded by remember(post.id) { mutableStateOf(false) }
     val absoluteTime = remember(post.createdAt) { formatShareAbsoluteTime(post.createdAt) }
@@ -919,9 +924,7 @@ private fun ShareMenuButton(
                 text = { Text(stringResource(R.string.post_share_copy_details_translated)) },
                 onClick = {
                     expanded = false
-                    formatDetailedPostShare(post, absoluteTime, relativeLabel, translated = true)
-                        ?.let(onShareDetailsCopy)
-                        ?: onShareClick(post.id)
+                    onShareTranslatedCopy(post.id, absoluteTime, relativeLabel)
                 },
                 modifier = Modifier.testTag("share-menu-details-translated-" + post.id),
             )

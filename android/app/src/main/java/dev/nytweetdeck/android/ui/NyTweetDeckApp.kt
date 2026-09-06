@@ -325,6 +325,39 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 ).show()
             }
     }
+    val shareTranslatedCopy: (String, String?, String?) -> Unit = { postId, absolute, relative ->
+        val post = state.findPost(postId)
+        if (post == null) {
+            Toast.makeText(context, R.string.post_action_failed, Toast.LENGTH_SHORT).show()
+        } else {
+            coroutineScope.launch {
+                val body = viewModel.resolveTranslatedShareBody(
+                    post.id, post.text, post.language, post.preTranslated,
+                )
+                val quoted = post.quotedPost
+                val quotedBody = quoted?.let {
+                    viewModel.resolveTranslatedShareBody(it.id, it.text, it.language, it.preTranslated)
+                }
+                val url = postShareUrl(post.id)
+                if (url == null) {
+                    Toast.makeText(context, R.string.post_action_failed, Toast.LENGTH_SHORT).show()
+                } else {
+                    copyShareDetails(
+                        formatDetailedShareText(
+                            authorLabel = shareAuthorLabel(post.author),
+                            body = body,
+                            mediaLinks = directShareMediaLinks(post.media),
+                            absoluteTime = absolute,
+                            relativeTime = relative,
+                            quotedAuthorLabel = quoted?.let { shareAuthorLabel(it.author) },
+                            quotedBody = quotedBody,
+                            postUrl = url,
+                        ),
+                    )
+                }
+            }
+        }
+    }
     val replyToPost: (String) -> Unit = { postId ->
         viewModel.openComposer(ComposerMode.REPLY, postId)
         openDialog = OpenDialog.COMPOSER
@@ -426,6 +459,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                         },
                         onShareClick = sharePost,
                         onShareDetailsCopy = copyShareDetails,
+                        onShareTranslatedCopy = shareTranslatedCopy,
                         onDownloadClick = downloadPostMedia,
                         videoAutoplay = state.videoAutoplay,
                         videoLoop = state.videoLoop,
@@ -601,6 +635,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onBookmarkClick = { viewModel.togglePostAction(it, PostActionType.BOOKMARK) },
             onShareClick = sharePost,
             onShareDetailsCopy = copyShareDetails,
+            onShareTranslatedCopy = shareTranslatedCopy,
             onDownloadClick = downloadPostMedia,
             onArticleClick = viewModel::openArticle,
             onPostMenuClick = { postMenuPost = it },
@@ -642,6 +677,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             },
             onShareClick = sharePost,
             onShareDetailsCopy = copyShareDetails,
+            onShareTranslatedCopy = shareTranslatedCopy,
             onDownloadClick = downloadPostMedia,
             mediaPreview = state.mediaPreview,
             onArticleClick = viewModel::openArticle,
@@ -698,6 +734,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             onBookmarkClick = { viewModel.togglePostAction(it, PostActionType.BOOKMARK) },
             onShareClick = sharePost,
             onShareDetailsCopy = copyShareDetails,
+            onShareTranslatedCopy = shareTranslatedCopy,
             onDownloadClick = downloadPostMedia,
             onArticleClick = viewModel::openArticle,
             onPostMenuClick = { postMenuPost = it },

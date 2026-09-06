@@ -880,6 +880,19 @@ class DeckViewModel(
         if (post.communityNote != null) communityNoteController?.translate(post, manual = true) else postTranslationController?.request(post, manual = true)
     }
     fun togglePostOriginal(postId: String) = postTranslationController?.toggleOriginal(postId)
+    suspend fun resolveTranslatedShareBody(
+        postId: String,
+        text: String,
+        sourceLanguage: String?,
+        preTranslated: dev.nytweetdeck.android.model.Translation?,
+        timeoutMs: Long = 30_000L,
+    ): String = postTranslationController?.translatedBodyForShare(
+        postId,
+        text,
+        sourceLanguage,
+        preTranslated,
+        timeoutMs,
+    ) ?: text.trim()
     fun hidePost(postId: String) = postMenuController.hide(postId)
     fun runUserAction(post: dev.nytweetdeck.android.model.Post, action: UserAction) = postMenuController.userAction(post, action)
     fun updateListMembership(post: dev.nytweetdeck.android.model.Post, listId: String, add: Boolean) = postMenuController.listMembership(post, listId, add)

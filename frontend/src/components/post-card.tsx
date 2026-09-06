@@ -13,7 +13,11 @@ import {
 import { type KeyboardEvent, type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
-import { formatDetailedShare, postShareUrl } from "../model/post-share";
+import {
+  formatDetailedShare,
+  formatTranslatedDetailedShare,
+  postShareUrl,
+} from "../model/post-share";
 import { useRelativeTime } from "../model/relative-time";
 import type { EmbeddedPost, TimelinePost } from "../model/timeline";
 import { postTextSegments } from "../model/post-text-segments";
@@ -62,7 +66,8 @@ export function PostCard({
     () => typeof globalThis.IntersectionObserver === "undefined",
   );
   const cardRef = useRef<HTMLElement | null>(null);
-  const { autoTranslatePosts, setAutoTranslatePosts } = usePostTranslationSettings();
+  const { autoTranslatePosts, setAutoTranslatePosts, translationLocale } =
+    usePostTranslationSettings();
   const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
   const postUrl = postShareUrl(post);
   const postTranslation = usePostTranslation({
@@ -159,7 +164,7 @@ export function PostCard({
   };
   const copyWithTranslatedDetails = async () => {
     await navigator.clipboard.writeText(
-      formatDetailedShare(post, locale, Date.now(), { translated: true }),
+      await formatTranslatedDetailedShare(accountId, post, locale, translationLocale),
     );
   };
   const openFromCard = (event: MouseEvent<HTMLElement>) => {

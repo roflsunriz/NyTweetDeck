@@ -8,15 +8,19 @@ import dev.nytweetdeck.android.model.PostTranslationException
 import dev.nytweetdeck.android.model.PostTranslationResult
 import dev.nytweetdeck.android.model.PostTranslationUiState
 import dev.nytweetdeck.android.model.TranslationLoadStatus
+import dev.nytweetdeck.android.model.Translation
 import dev.nytweetdeck.android.text.hasTranslatableText
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal class PostTranslationController(
     private val repository: PostTranslationRepository,
@@ -103,6 +107,47 @@ internal class PostTranslationController(
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * 共有の翻訳版コピー用の本文を解決する。プリ翻訳→メモリ→ライブ翻訳の順で、
+     * 取得できない場合は原文へ戻す。打ち切り後も裏で取得を続けてプールを温める。
+     */
+    suspend fun translatedBodyForShare(
+        postId: String,
+        text: String,
+        sourceLanguage: String?,
+        preTranslated: Translation?,
+        timeoutMs: Long = 30_000L,
+    ): String {
+        val original = text.trim()
+        if (!hasTranslatableText(text)) return original
+        val snapshot = state.value
+        val accountId = snapshot.selectedAccountId ?: return original
+        val account = accountProvider(accountId) ?: return original
+        val targetLanguage = snapshot.translationLanguageTag
+        return try {
+            withTimeoutOrNull(timeoutMs) {
+                withContext(NonCancellable + ioDispatcher) {
+                    repository.translate(
+                        account = account,
+                        postId = postId,
+                        sourceLanguage = sourceLanguage,
+                        targetLanguage = targetLanguage,
+                        preTranslated = preTranslated,
+                    )
+                }
+            }?.let { result ->
+                when (result) {
+                    is PostTranslationResult.Translated -> result.translation.text.ifBlank { original }
+                    is PostTranslationResult.Skipped -> original
+                }
+            } ?: original
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            original
         }
     }
 

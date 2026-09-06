@@ -1,5 +1,16 @@
-import { describe, expect, test } from "bun:test";
-import { formatDetailedShare, postShareUrl } from "./post-share";
+import { afterEach, describe, expect, test } from "bun:test";
+import {
+  formatDetailedShare,
+  formatTranslatedDetailedShare,
+  postShareUrl,
+  resolveTranslatedShareBody,
+} from "./post-share";
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 function basePost() {
   return {
@@ -117,5 +128,110 @@ describe("formatDetailedShare", () => {
   test("プリ翻訳がない場合は翻訳版でも原文へ戻す", () => {
     const text = formatDetailedShare(basePost(), "ja", Date.now(), { translated: true });
     expect(text).toContain("本文テスト");
+  });
+});
+
+describe("resolveTranslatedShareBody", () => {
+  function liveScope(postId: string) {
+    return {
+      accountId: "account-1",
+      postId,
+      text: "Hello world",
+      language: "en",
+    };
+  }
+
+  function mockLiveTranslation(text: string, calls: string[]) {
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+      calls.push(String(input));
+      return Response.json({
+        postId: /\/posts\/([^/]+)\/translation/.exec(String(input))?.[1] ?? "unknown",
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+        text,
+        provider: "X",
+      });
+    }) as unknown as typeof fetch;
+  }
+
+  test("プリ翻訳を通信なしでそのまま使う", async () => {
+    const calls: string[] = [];
+    mockLiveTranslation("使われない", calls);
+    const body = await resolveTranslatedShareBody(
+      {
+        ...liveScope("pre-1"),
+        preTranslated: {
+          text: "プリ翻訳の本文",
+          sourceLanguage: "en",
+          targetLanguage: "ja",
+          provider: "Grok",
+        },
+      },
+      "ja",
+    );
+    expect(body).toBe("プリ翻訳の本文");
+    expect(calls).toHaveLength(0);
+  });
+
+  test("プールにない場合はライブ翻訳を取得して再利用する", async () => {
+    const calls: string[] = [];
+    mockLiveTranslation("ライブ翻訳の本文", calls);
+    const first = await resolveTranslatedShareBody(liveScope("live-1"), "ja");
+    const second = await resolveTranslatedShareBody(liveScope("live-1"), "ja");
+    expect(first).toBe("ライブ翻訳の本文");
+    expect(second).toBe("ライブ翻訳の本文");
+    expect(calls).toHaveLength(1);
+  });
+
+  test("取得に失敗した場合は原文へ戻す", async () => {
+    globalThis.fetch = (async () => new Response(null, { status: 400 })) as unknown as typeof fetch;
+    const body = await resolveTranslatedShareBody(liveScope("live-fail-1"), "ja");
+    expect(body).toBe("Hello world");
+  });
+
+  test("応答が遅い場合は打ち切って原文で返す", async () => {
+    globalThis.fetch = (async () => {
+      await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 500));
+      return Response.json({
+        postId: "live-timeout-1",
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+        text: "遅れて届く訳文",
+        provider: "X",
+      });
+    }) as unknown as typeof fetch;
+    const body = await resolveTranslatedShareBody(liveScope("live-timeout-1"), "ja", {
+      timeoutMilliseconds: 20,
+    });
+    expect(body).toBe("Hello world");
+  });
+
+  test("同じ言語や翻訳不要な本文では通信しない", async () => {
+    const calls: string[] = [];
+    mockLiveTranslation("使われない", calls);
+    expect(await resolveTranslatedShareBody({ ...liveScope("same-1"), language: "ja" }, "ja")).toBe(
+      "Hello world",
+    );
+    expect(
+      await resolveTranslatedShareBody(
+        { ...liveScope("url-1"), text: "https://example.test/x", language: "en" },
+        "ja",
+      ),
+    ).toBe("https://example.test/x");
+    expect(calls).toHaveLength(0);
+  });
+
+  test("翻訳版の全文は解決済み本文で組み立てる", async () => {
+    const calls: string[] = [];
+    mockLiveTranslation("ライブ翻訳の本文", calls);
+    const text = await formatTranslatedDetailedShare(
+      "account-1",
+      { ...basePost(), id: "live-full-1", text: "Hello world", language: "en" },
+      "ja",
+      "ja",
+    );
+    expect(text).toContain("ライブ翻訳の本文");
+    expect(text).not.toContain("Hello world");
+    expect(text.endsWith("https://x.com/alice/status/live-full-1")).toBe(true);
   });
 });

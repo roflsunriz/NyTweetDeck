@@ -20,6 +20,14 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 共有翻訳コピーのライブ翻訳フォールバック（2026-09-06）
+
+- プリ翻訳がない投稿の翻訳版コピーを、ライブ翻訳で補うようにした。解決順はプリ翻訳→メモリ→ライブ翻訳で、取得できない本文は原文のまま残す。同時タップはプールの同一要求へまとめ、速度制限の解除待ちで共有操作を止めないよう打ち切りは原文でコピーする（裏の取得は続けてプールを温める）。
+- デスクトップ版は`post-share.ts`の`resolveTranslatedShareBody`と`formatTranslatedDetailedShare`を追加し、`use-post-translation`と同じガード・メモリ・再試行経路を使う。`PostCard`の翻訳コピーは非同期化し、アカウントIDと翻訳先ロケールを渡す。
+- Android版は`PostTranslationController.translatedBodyForShare`を追加し、`PostTranslationRepository`のプールと速度制限を使う。`DeckViewModel`経由で解決し、`NyTweetDeckApp`で本文・引用本文をそろえて整形・複写する。共有メニューの翻訳項目は投稿IDと時刻表示だけを渡す。
+- フロントエンド213件（解決順・プール再利用・失敗/打ち切りフォールバック・全文組み立てを含む）、Androidの単体テスト（プリ翻訳優先・プール再利用・失敗/打ち切り・対象外の検証を含む新規`PostTranslationShareTest`5件を含む）と`lintDebug`/`lintRelease`、`assembleDebugAndroidTest`/`assembleRelease`、Java150件のテストが成功し、`bun audit`の脆弱性は0件だった。フロントエンド全件は1回だけ単発失敗（212/213）が出たが、直後の2回は213/213で成功し、再現しないタイミング失敗として扱う。
+- 未実行の検証：Pixel 10aへの反映と実機の共有メニュー再試行は今回の変更用に許可を得ていないため実行しない。計装テストの追加分はコンパイルを通し、次回実機時に実行する。
+
 ## 共有メニューの翻訳版コピー（2026-09-06）
 
 - 共有メニューを3分岐にし、詳細形式の翻訳版コピーを追加した。本文と引用本文をX公式のGrokプリ翻訳（`preTranslated`）へそのまま置き換え、訳文がない場合は原文へ戻す。新たな翻訳通信は行わず、ライブ翻訳の結果も混ぜない。
