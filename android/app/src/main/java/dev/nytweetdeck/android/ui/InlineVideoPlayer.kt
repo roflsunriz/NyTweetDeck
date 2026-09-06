@@ -118,6 +118,7 @@ internal fun InlineVideoPlayer(
     defaultQuality: VideoQuality = VideoQuality.AUTO,
     onFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
+    suspended: Boolean = false,
 ) {
     VideoPlayer(
         media = media,
@@ -130,6 +131,7 @@ internal fun InlineVideoPlayer(
         attachOnlyWhenVisible = true,
         fullscreen = false,
         controlTagPrefix = "inline-video",
+        suspended = suspended,
     )
 }
 
@@ -173,6 +175,7 @@ private fun VideoPlayer(
     fullscreen: Boolean,
     controlTagPrefix: String,
     onRotateToLandscape: (() -> Unit)? = null,
+    suspended: Boolean = false,
 ) {
     var selectedQuality by remember(media.id, defaultQuality) { mutableStateOf(defaultQuality) }
     LaunchedEffect(defaultQuality) { selectedQuality = defaultQuality }
@@ -217,8 +220,11 @@ private fun VideoPlayer(
         controlsInteraction += 1
     }
 
-    LaunchedEffect(uri, visible) {
-        if (visible && uri != null) {
+    // メディアビューアを開いている間はコーデックとバッファを解放し、
+    // 全画面側の1デコーダだけにする。画面外へ外れた場合と同じ扱いで位置は保持しない。
+    val attached = visible && !suspended
+    LaunchedEffect(uri, attached) {
+        if (attached && uri != null) {
             player?.run {
                 stop()
                 clearMediaItems()
@@ -231,7 +237,7 @@ private fun VideoPlayer(
                 prepare()
                 playWhenReady = autoPlay
             }
-        } else if (!visible && player != null) {
+        } else if (!attached && player != null) {
             player?.run {
                 stop()
                 clearMediaItems()

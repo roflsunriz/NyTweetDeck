@@ -20,6 +20,15 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 全画面動画のOOMクラッシュ修正（2026-09-06）
+
+- Pixel 10a（63131JEA301496）の実機でAoE4動画の全画面ボタン押下時にアプリが落ちるとの報告を受け、端末操作の許可を得て調査した。`logcat --buffer=crash`に当日12:03の`dev.nytweetdeck.android`の`OutOfMemoryError`（`MediaCodec.getOutputBuffer`、ExoPlayer:Playbackスレッド、ヒープ上限256MB）を確認し、その後再起動→自動再生→OOMを2回繰り返していた。
+- 原因は全画面表示中にインライン側のExoPlayerが生きたまま全画面側が2本目のデコードを始める二重デコードで、高ビットレート動画でヒープを使い切っていた。`InlineVideoPlayer`→`VideoPlayer`→`MediaTile`→`MediaPreview`→`PostCard`/`QuoteCard`へ`suspended`/`videosSuspended`を渡し、ビューア表示中は画面外と同じ解放経路でインライン側のコーデックとバッファを放す。閉じれば再生成して復帰する（位置は画面外離脱時と同様に保持しない）。
+- `testDebugUnitTest`と`assembleDebug`/`assembleRelease`が成功。Pixel 10aへ同一署名のままdebugを上書きし（データ保持）、`PostCardInteractionUiTest`5件、`MediaViewerUiTest`5件（ビューア表示中の`inline-video-disconnected`と閉じた後の復帰を新規検証）、実動画の`LiveVideoPlaybackSmokeTest`1件が成功した。
+- ついでに赤だった既存テストの陳腐化を修正した。`MediaViewerUiTest`のミュート説明は結合後ツリーで参照し、手動時計の再表示後にフレームを進める。`LiveVideoPlaybackSmokeTest`の存在しない`media-play`/`media-video-playing`タグを`media-video-play`と一時停止説明の判定へ置換した。いずれもテストのみの変更である。
+- 修正済み非debuggable release（0.3.0、署名c45ef47d）へ`install -r`で戻し、端末上のAPKハッシュがビルド物と一致し、起動後のプロセス存続を確認した。テスト用APKは残置している。AoE4の当該動画での再試行はユーザーに依頼する。
+- Pixel 10aは別タスク用で操作禁止の方針だが、本修正に限りユーザーが操作・更新を許可した。AQUOS限定の返信作業とは別枠として扱う。
+
 ## 共有ボタンの2分岐メニュー（2026-09-06）
 
 - デスクトップ版とAndroid版の共有ボタンを2分岐メニューにした。一方は従来のURLのみコピー、もう一方は「ユーザー名@ユーザーID、本文、メディアのダイレクトリンク、絶対時刻（相対時刻）、引用があれば引用元のユーザー名@ユーザーIDと大なり記号引用、末尾に元ポストのURL」の詳細形式コピーで、引用先のメディアとURLは含めない。

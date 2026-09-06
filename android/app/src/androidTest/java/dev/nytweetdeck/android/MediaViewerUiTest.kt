@@ -153,10 +153,15 @@ class MediaViewerUiTest {
                 useUnmergedTree = true,
             ).fetchSemanticsNodes().isNotEmpty()
         }
+        // ビューア表示中はインライン側のデコーダを解放し、同時デコードを1本にする。
+        composeRule.onNodeWithTag("inline-video-disconnected", useUnmergedTree = true)
+            .assertExists()
         composeRule.onNodeWithTag("media-video-play", useUnmergedTree = true)
             .assertIsDisplayed().assertIsEnabled()
         composeRule.onNodeWithTag("media-video-mute", useUnmergedTree = true)
             .assertIsDisplayed().assertIsEnabled()
+        // 説明は結合後ツリーで参照する。非結合ツリーのボタン単体には説明が載らない。
+        composeRule.onNodeWithTag("media-video-mute")
             .assertContentDescriptionEquals(
                 composeRule.activity.getString(R.string.media_viewer_unmute),
             )
@@ -171,16 +176,16 @@ class MediaViewerUiTest {
             .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
                 setProgress(0.5f)
             }
-        composeRule.onNodeWithTag("media-video-mute", useUnmergedTree = true)
+        composeRule.onNodeWithTag("media-video-mute")
             .assertContentDescriptionEquals(
                 composeRule.activity.getString(R.string.media_viewer_mute),
             )
-            .performClick()
+        composeRule.onNodeWithTag("media-video-mute", useUnmergedTree = true).performClick()
         composeRule.onNodeWithTag("media-video-volume", useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
                 setProgress(0f)
             }
-        composeRule.onNodeWithTag("media-video-mute", useUnmergedTree = true)
+        composeRule.onNodeWithTag("media-video-mute")
             .assertContentDescriptionEquals(
                 composeRule.activity.getString(R.string.media_viewer_mute),
             )
@@ -191,10 +196,19 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("media-video-controls", useUnmergedTree = true)
             .assertDoesNotExist()
         composeRule.onNodeWithTag("media-video-surface", useUnmergedTree = true).performClick()
+        // 手動進行中はクリック後の再描画も進める。
+        composeRule.mainClock.advanceTimeBy(100)
         composeRule.onNodeWithTag("media-video-controls", useUnmergedTree = true)
             .assertIsDisplayed()
         composeRule.mainClock.autoAdvance = true
         composeRule.onNodeWithTag("media-close").performClick()
+        // ビューアを閉じたらインライン再生へ復帰する。
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithTag(
+                "inline-video-connected",
+                useUnmergedTree = true,
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test

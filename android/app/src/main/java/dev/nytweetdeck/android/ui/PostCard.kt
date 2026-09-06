@@ -169,6 +169,7 @@ internal fun PostCard(
                 videoVolume = videoVolume,
                 videoQuality = videoQuality,
                 onMediaClick = { selectedMediaId = it.id },
+                videosSuspended = selectedMedia != null,
             )
         } else if (post.media.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
@@ -209,6 +210,7 @@ internal fun PostCard(
                 videoLoop = videoLoop,
                 videoVolume = videoVolume,
                 videoQuality = videoQuality,
+                videosSuspended = selectedMedia != null,
             )
         }
         post.communityNote?.let { TranslatableCommunityNote(it, translationStates, autoTranslatePosts,
@@ -499,6 +501,7 @@ private fun QuoteCard(
     videoLoop: Boolean,
     videoVolume: Int,
     videoQuality: VideoQuality,
+    videosSuspended: Boolean = false,
 ) {
     Column(
         modifier = Modifier
@@ -548,6 +551,7 @@ private fun QuoteCard(
                 videoVolume = videoVolume,
                 videoQuality = videoQuality,
                 onMediaClick = onMediaClick,
+                videosSuspended = videosSuspended,
             )
         }
         quote.article?.let { article ->
@@ -572,6 +576,7 @@ private fun MediaPreview(
     videoVolume: Int,
     videoQuality: VideoQuality,
     onMediaClick: (Media) -> Unit,
+    videosSuspended: Boolean = false,
 ) {
     val visibleMedia = media.take(4)
     if (visibleMedia.size == 1) {
@@ -585,6 +590,7 @@ private fun MediaPreview(
             videoVolume = videoVolume,
             videoQuality = videoQuality,
             onMediaClick = onMediaClick,
+            videosSuspended = videosSuspended,
         )
         return
     }
@@ -608,6 +614,7 @@ private fun MediaPreview(
                         videoVolume = videoVolume,
                         videoQuality = videoQuality,
                         onMediaClick = onMediaClick,
+                        videosSuspended = videosSuspended,
                     )
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -627,6 +634,7 @@ private fun MediaTile(
     videoVolume: Int,
     videoQuality: VideoQuality,
     onMediaClick: (Media) -> Unit,
+    videosSuspended: Boolean = false,
 ) {
     val showInlineVideo = media.type != "photo" && safeMediaUri(media.url) != null
     Box(
@@ -652,6 +660,7 @@ private fun MediaTile(
                 volume = videoVolume,
                 defaultQuality = videoQuality,
                 onFullscreen = { onMediaClick(media) },
+                suspended = videosSuspended,
             )
         } else if (media.type != "photo") {
             Icon(

@@ -65,7 +65,7 @@ class LiveVideoPlaybackSmokeTest {
                 }
                 if (composeRule.onAllNodesWithTag("media-video").fetchSemanticsNodes().isNotEmpty()) {
                     videoAttempts++
-                    if (ensureVideoPlaying(20_000)) {
+                    if (ensureVideoPlaying(context, 20_000)) {
                         videoTag = tag
                         break@search
                     }
@@ -87,7 +87,7 @@ class LiveVideoPlaybackSmokeTest {
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodesWithTag("media-video").fetchSemanticsNodes().isNotEmpty()
         }
-        assertTrue("キャッシュ済み動画を再生できませんでした。", ensureVideoPlaying(60_000))
+        assertTrue("キャッシュ済み動画を再生できませんでした。", ensureVideoPlaying(context, 60_000))
         assertTrue(
             "同じ動画を開き直した際に共有キャッシュが失われました。",
             videoCacheBytes(context.cacheDir) >= firstCacheBytes,
@@ -95,16 +95,21 @@ class LiveVideoPlaybackSmokeTest {
         composeRule.onNodeWithTag("media-close").performClick()
     }
 
-    private fun ensureVideoPlaying(timeoutMillis: Long): Boolean {
-        if (composeRule.onAllNodesWithTag("media-video-playing", useUnmergedTree = true)
-                .fetchSemanticsNodes().isEmpty()) {
-            composeRule.onNodeWithTag("media-play").performClick()
+    private fun ensureVideoPlaying(context: android.content.Context, timeoutMillis: Long): Boolean {
+        // 再生ボタンは状態によらず media-video-play のままなため、結合後ツリーの
+        // 内容説明（一時停止＝再生中）で判定する。説明文はリソースから取得する。
+        val pauseLabel = context.getString(dev.nytweetdeck.android.R.string.media_viewer_pause)
+        fun isPlaying(): Boolean {
+            val nodes = composeRule.onAllNodesWithTag("media-video-play").fetchSemanticsNodes()
+            if (nodes.size != 1) return false
+            return pauseLabel in nodes.single().config
+                .getOrElse(SemanticsProperties.ContentDescription) { emptyList() }
+        }
+        if (!isPlaying()) {
+            composeRule.onNodeWithTag("media-video-play").performClick()
         }
         return runCatching {
-            composeRule.waitUntil(timeoutMillis) {
-                composeRule.onAllNodesWithTag("media-video-playing", useUnmergedTree = true)
-                    .fetchSemanticsNodes().isNotEmpty()
-            }
+            composeRule.waitUntil(timeoutMillis) { isPlaying() }
         }.isSuccess
     }
 
