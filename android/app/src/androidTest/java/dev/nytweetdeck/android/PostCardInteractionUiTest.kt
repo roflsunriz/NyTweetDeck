@@ -35,6 +35,13 @@ class PostCardInteractionUiTest {
     private var openedAuthor: String? = null
     private var sharedPost: String? = null
     private var copiedDetails: String? = null
+    private var translatedRequest: TranslatedShareRequest? = null
+
+    private data class TranslatedShareRequest(
+        val postId: String,
+        val absolute: String?,
+        val relative: String?,
+    )
 
     @Before
     fun showQuotedRepost() {
@@ -49,6 +56,9 @@ class PostCardInteractionUiTest {
                     onAuthorClick = { openedAuthor = it.id },
                     onShareClick = { sharedPost = it },
                     onShareDetailsCopy = { copiedDetails = it },
+                    onShareTranslatedCopy = { postId, absolute, relative ->
+                        translatedRequest = TranslatedShareRequest(postId, absolute, relative)
+                    },
                     translationStates = mapOf(
                         "101" to PostTranslationUiState(
                             TranslationLoadStatus.READY,
@@ -118,17 +128,18 @@ class PostCardInteractionUiTest {
         assertEquals("101", sharedPost)
         assertNull(openedPost)
 
-        // プリ翻訳がない投稿の翻訳版は原文へ戻り、ライブ翻訳を混ぜない。
-        copiedDetails = null
+        // 翻訳版は投稿IDと時刻表示を渡してアプリ層の解決へ委ねる。
+        // 解決順と原文フォールバックはPostTranslationShareTestで検証する。
+        translatedRequest = null
         composeRule.onNodeWithTag("post-action-share-101").performClick()
         composeRule.onNodeWithTag("share-menu-details-translated-101").performClick()
-        val fallback = copiedDetails
+        val request = translatedRequest
         assertNull(openedPost)
         composeRule.runOnIdle {
-            assert(fallback != null)
-            assert(fallback!!.contains("改行を含む本文"))
-            assert(!fallback.contains("翻訳された本文"))
-            assert(fallback.endsWith("https://x.com/i/status/101"))
+            assert(request != null)
+            assertEquals("101", request!!.postId)
+            assert(request.absolute != null)
+            assert(request.relative != null)
         }
     }
 

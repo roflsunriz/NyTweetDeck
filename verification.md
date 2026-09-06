@@ -20,6 +20,12 @@ mvn verify
 
 Android版は`android`ディレクトリで`gradlew test lintDebug lintRelease assembleDebugAndroidTest assembleRelease`を実行する。認証済みAQUOSでは`run-aquos-live-tests.ps1`を使い、本体APKへtest-onlyオプションを付けず、読み取り検証後に同一署名の非debuggable release版へ戻ることを確認する。可逆mutationテストは所有者が明示的に許可した場合だけ実行し、X上の状態と一時データを原状復帰する。
 
+## 共有メニューの隣カラム裏隠れとPixel 10a反映（2026-09-06）
+
+- 共有メニューが隣タイムラインの裏に隠れるとの報告を受け、実ブラウザ（専用 headless Chrome の raw CDP）で再現した。共有ボタンがカラム右寄りにあると左寄せメニューがカラム枠を33pxはみ出し、`deck-column`の`overflow:hidden`で切れて全文が見えなかった。`share-menu`のメニューだけボタン右端基準（`inset-inline-end: 0`、RTL対応）へ変更し、メニュー矩形がカラム内に収まることと全3項目の表示をスクリーンショットで目視確認した。リポストメニューは対象外とする。
+- Pixel 10aへ反映した。同一署名のままdebugを上書きし（データ保持）、`PostCardInteractionUiTest`5件が成功した。翻訳項目は解決がアプリ層へ移ったため、配線（投稿IDと時刻表示の受け渡し）を検証し、解決順と原文フォールバックは`PostTranslationShareTest`で検証する。その後修正済み非debuggable release（0.3.0）へ`install -r`で戻し、端末APKのハッシュがビルド物と一致し、起動後のプロセス存続を確認した。
+- Windows稼働版へ反映した。旧JARを`.bak`へ退避し、修正済みJAR（SHA-256一致）へ置換してpwsh 7の切り離し起動で再起動した。新PIDの起動・HTTP/HTTPSの200応答・配信中の新バンドルを確認した。認証・設定・証明書は変更していない。
+
 ## 共有翻訳コピーのライブ翻訳フォールバック（2026-09-06）
 
 - プリ翻訳がない投稿の翻訳版コピーを、ライブ翻訳で補うようにした。解決順はプリ翻訳→メモリ→ライブ翻訳で、取得できない本文は原文のまま残す。同時タップはプールの同一要求へまとめ、速度制限の解除待ちで共有操作を止めないよう打ち切りは原文でコピーする（裏の取得は続けてプールを温める）。
