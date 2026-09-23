@@ -16,12 +16,12 @@ val releaseSigningAvailable = listOf(
 
 android {
     namespace = "dev.nytweetdeck.android"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "dev.nytweetdeck.android"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 11
         versionName = "0.4.0"
 
@@ -88,8 +88,7 @@ android {
     )
 
     lint {
-        // API 37 is not yet offered by the installed official Android CLI repository.
-        // Compose BOM 2026.06 and these compatible stable versions remain on API 36.
+        // Dependabot管理のCompose/Coil/OkHttp更新はAPI 37とAGP 9.1以降を要求するため、37へ追随する。
         disable += setOf("AndroidGradlePluginVersion", "GradleDependency")
     }
 
