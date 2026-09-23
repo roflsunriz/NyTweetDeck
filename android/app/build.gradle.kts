@@ -117,8 +117,8 @@ dependencies {
     // Coil 3.5 ships Kotlin 2.4 metadata; AGP 9.0's built-in Kotlin supports through 2.3.
     implementation("io.coil-kt.coil3:coil-compose:3.4.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
-    implementation("androidx.media3:media3-exoplayer:1.11.0")
-    implementation("androidx.media3:media3-ui:1.11.0")
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-ui:1.11.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation(okHttpBom)
