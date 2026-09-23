@@ -6,13 +6,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Coil 3.6・Compose 1.12・OkHttp 5.5の要求に合わせてAndroidをAPI 37・AGP 9.4・Gradle 9.6へ追随し、Dependabotの依存更新PR #2〜#12をすべて取り込めるようにした。
+- Coil要件コメントのKotlin要件の説明を現行の組み合わせ（Coil 3.6・Kotlin 2.4・compileSdk 37）に合わせて更新した。
+- 依存更新を安全に省力化するため、Dependabot の patch／minor PR を既存 CI の全チェック成功後に自動取り込みし、失敗ジョブを一度再実行する設定を追加した。
+
 ### Fixed
 
 - CI と Dependabot の分類の実行順が前後しても更新を取りこぼさないよう、同じ PR 番号と head SHA を再照合する経路を追加した。
-
-### Changed
-
-- 依存更新を安全に省力化するため、Dependabot の patch／minor PR を既存 CI の全チェック成功後に自動取り込みし、失敗ジョブを一度再実行する設定を追加した。
+- CIのAndroid SDK導入で正規のパッケージ名（`platforms;android-37.0`）を指定するようにし、API 37の取得失敗を解消した。
 
 ## [1.6.0] - 2026-09-06
 

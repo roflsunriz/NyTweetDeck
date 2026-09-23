@@ -1,5 +1,14 @@
 # 検証手順
 
+## Dependabot PR #2〜#12の処理（2026-09-23）
+
+- 未処理のDependabot PR 8件のうち Actions 系 3件（#8・#9・#10）はCI通過済みのためそのままマージした。Android 系 5件は `checkDebugAarMetadata` で失敗しており、原因は Coil 3.6・Compose 1.12・OkHttp 5.5 が compileSdk 37 と AGP 9.1 以降を要求することだった。
+- 土台として AGP 9.0.1→9.4.0、Gradle 9.3.1→9.6.0、compileSdk/targetSdk 36→37 へ上げ、CI とリリースワークフローの SDK 導入も 37 へ追随した。ローカルで `testDebugUnitTest`・`lintDebug`・`lintRelease`・`assembleDebugAndroidTest`・`assembleRelease` が成功することを確認した。
+- CI の `sdkmanager` が `platforms;android-37` を見つけられず失敗したため、ローカルの `sdkmanager --list` で正規名 `platforms;android-37.0` を確認して修正した。
+- Coil 3.6 は kotlin-stdlib 2.4（メタデータ 2.4）を同梱し、Kotlin 2.2 コンパイラでは読めないため、Kotlin 2.4.20（#4）を先にマージしてから Coil 2件（#2・#11）をリベースして取り込んだ。#5 は #12 と同ファイルの隣接行で競合したため手動で両取りに解消し、`@dependabot rebase` では直らないことを確認した。手動解決後は automation の classify が対象外化する（想定内）ため手動マージした。
+- 全5件の Android verify と desktop verify が CI で成功し、最終状態（5件適用後）の単体テスト全件・lint・debug/release 組み立てをローカルでも確認した。残存する open PR はない。
+- Windows ローカルで Gradle 再実行時に `build/reports/problems/problems-report.html` の `FileAlreadyExistsException` が出ることがある。古いレポートディレクトリを消せば解消し、Linux の CI には影響しない。
+
 ## 1.6.0 / Android 0.4.0 公開（2026-09-06）
 
 - `## [1.6.0]`と`## [Android 0.4.0]`へ未リリース分を移し、AndroidのversionCodeを11・versionNameを0.4.0に更新してタグ（`v1.6.0`・`android-v0.4.0`）をプッシュした。リリースノート抽出は事前に両版とも検証済みである。

@@ -77,6 +77,13 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - Java LTS 17・21・25を正式対応とし、Java 17 bytecodeを生成する
 - CIではactions/setup-javaが公式対応する非推奨でない全JDKディストリビューションを17・21・25で固定検証する
 
+## Android依存更新の順序とSDK指定
+
+- Coil 3.6以降はkotlin-stdlib 2.4（メタデータ2.4）を同梱するため、Kotlin 2.4系への更新PRを先にマージしてからCoil更新PRをリベースする。逆順だと`compileDebugKotlin`がメタデータ不整合で失敗する（2026-09-23のPR #2・#4・#11で確認、`verification.md`参照）。
+- Compose/Coil/OkHttpの新版はcompileSdk 37とAGP 9.1以降を要求する。SDK追随時は`android/build.gradle.kts`（AGP）・`gradle-wrapper.properties`（Gradle）・`app/build.gradle.kts`（compileSdk/targetSdk）・`.github/workflows/ci.yml`と`android-release.yml`（SDK導入とapksignerパス）を同時に上げる。
+- API 37のsdkmanager正規パッケージ名は`platforms;android-37.0`（マイナー付き）であり、`platforms;android-37`では取得失敗する。正規名はローカルの`sdkmanager --list`で確認する。
+- 同一ファイルの隣接行を変更するDependabot PR同士は自動リベースで競合解消できない。PRブランチをcheckoutしてrebaseし両取りに解消してpushする（非対話で`$env:GIT_EDITOR = "true"`を使う）。手動解決後はautomationのclassifyが対象外化するため手動マージする。
+
 ## Android端末の作業分離
 
 - 返信とおすすめを分離する本作業では、実機検証と反映をAQUOSに限定する。Pixel 10aは別タスクで使用中のため、本作業から操作・更新・復旧しない。複数端末接続時はadbへ対象シリアルを必ず明示し、他タスクの端末を選ばない。
