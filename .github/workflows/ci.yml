@@ -32,7 +32,7 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platforms;android-37" "build-tools;37.0.0" "platform-tools"
+            "platforms;android-37.0" "build-tools;37.0.0" "platform-tools"
 
       - name: Verify Android application
         working-directory: android
