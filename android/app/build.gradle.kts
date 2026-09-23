@@ -113,7 +113,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.webkit:webkit:1.17.0")
     implementation("com.squareup.okhttp3:okhttp")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     // Coil 3.5 ships Kotlin 2.4 metadata; AGP 9.0's built-in Kotlin supports through 2.3.
     implementation("io.coil-kt.coil3:coil-compose:3.4.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
@@ -123,7 +123,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation(okHttpBom)
     testImplementation("com.squareup.okhttp3:mockwebserver3")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-intents:3.7.0")
