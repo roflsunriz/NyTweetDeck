@@ -291,3 +291,7 @@ WindowsとGoogle Chromeで次を実行すると、`docs/images`のカバー、�
 `v`で始まるSemVerタグをmainへプッシュすると、検証と脆弱性監査の成功後に、JAR、各OS用ランチャー、ドキュメント、SHA-256ファイルをまとめたZIPをGitHub Releaseへ公開します。本文には`CHANGELOG.md`の該当バージョンだけを使用し、ワークフローはタグがmainの履歴を指すことを確認してから公開します。
 
 `android-v`で始まるSemVerタグをmainへプッシュすると、Androidの単体テスト、Lint、依存関係監査、署名検証の成功後に、バージョン付きAPKとSHA-256ファイルを別のGitHub Releaseへ公開します。本文には`CHANGELOG.md`の`Android <version>`節だけを使用します。
+
+## 依存更新の自動処理
+
+Dependabot は対象の依存関係を毎週確認します。patch／minor 更新は PR のチェック（CI）が成功した後に自動で squash merge されます。CI の失敗ジョブは 1 回だけ再実行します。再失敗した PR は残して手動で修正します。major 更新は手動で確認します。

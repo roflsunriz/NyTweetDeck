@@ -221,3 +221,9 @@ bun run sandbox:observe-x-video
 - ブラウザ検証が失敗した場合は`target/ui-server-*.log`、`target/ui-server-error-*.log`と生成されたスクリーンショットを確認します。
 - ブラウザ検証は既存NyTweetDeckと競合しない空きHTTP/CDPポートと一時設定領域を使用します。明示指定したポートが使用中なら起動前に失敗し、既存プロセスへ接続しないことを確認します。
 - 更新後の起動確認に失敗した場合は、統合インストーラーが作成する直前バックアップへ戻し、HTTPとHTTPSの両方が応答する旧版を再起動します。
+
+## Dependabot 自動処理（2026-09-23）
+
+`.github/workflows/dependabot-automation.yml` を actionlint で検査し、PR 用 workflow 名（CI）と一致することを確認する。Dependabot の patch／minor かつ全 PR チェック成功の場合だけ取り込み、major・古い SHA・再失敗は残す。
+
+実際の Dependabot PR がまだない場合、動作経路は未検証として扱う。実 PR 発生後に自動化ジョブ、CI の再試行、マージ結果を確認する。
