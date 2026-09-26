@@ -22,6 +22,7 @@ import okhttp3.Request
  */
 class XWebMetadataResolver(
     private val fetcher: AssetFetcher,
+    private val sessionProvider: () -> XSessionCredentials? = { null },
     private val homeUrl: HttpUrl = WEB_HOME,
     private val assetBaseUrl: HttpUrl = ASSET_BASE,
 ) {
@@ -39,9 +40,10 @@ class XWebMetadataResolver(
     constructor(
         client: OkHttpClient,
         userAgent: String,
+        sessionProvider: () -> XSessionCredentials? = { null },
         homeUrl: HttpUrl = WEB_HOME,
         assetBaseUrl: HttpUrl = ASSET_BASE,
-    ) : this(OkHttpAssetFetcher(client, userAgent), homeUrl, assetBaseUrl)
+    ) : this(OkHttpAssetFetcher(client, userAgent, homeUrl), sessionProvider, homeUrl, assetBaseUrl)
 
     /** Resolves every GraphQL operation presently required by [profile]. */
     fun resolve(profile: XApiProfile): ResolvedMetadata = resolve(
@@ -86,18 +88,14 @@ class XWebMetadataResolver(
             }
         }
 
+        // リスト系などホーム画面のチャンクに含まれないoperationは、直前の検証済み定義を
+        // 維持するため欠落として報告し、更新全体を失敗させない。
         val missing = required.filterNot(operations::containsKey)
-        if (missing.isNotEmpty()) {
-            throw XApiException(
-                "X公式Web資産に必須operationがありません: ${missing.joinToString(", ")}",
-                502,
-            )
-        }
 
         val selectedOperations = LinkedHashMap<String, ResolvedOperation>()
         val allFeatureKeys = LinkedHashSet<String>()
         for (name in required) {
-            val operation = checkNotNull(operations[name])
+            val operation = operations[name] ?: continue
             selectedOperations[name] = operation
             allFeatureKeys += operation.featureKeys
         }
@@ -110,6 +108,7 @@ class XWebMetadataResolver(
             operationsByName = java.util.Map.copyOf(selectedOperations),
             allFeatureKeys = java.util.List.copyOf(allFeatureKeys),
             featureDefaults = java.util.Map.copyOf(featureDefaults),
+            missingOperations = java.util.List.copyOf(missing),
         )
     }
 
@@ -197,8 +196,10 @@ class XWebMetadataResolver(
 
     private fun fetch(url: HttpUrl, source: String): String {
         requireOfficialUrl(url)
+        // X公式Webのホーム画面はログイン必須のため、保存済みWebセッションで取得する。
+        val headers = if (url == homeUrl) homeHeaders() else emptyMap()
         val body = try {
-            fetcher.fetch(url)
+            fetcher.fetch(url, headers)
         } catch (exception: XApiException) {
             throw exception
         } catch (exception: Exception) {
@@ -208,6 +209,18 @@ class XWebMetadataResolver(
             throw XApiException("${source}が上限サイズを超えています。", 502)
         }
         return body
+    }
+
+    internal fun homeHeaders(): Map<String, String> {
+        val session = sessionProvider() ?: return emptyMap()
+        return mapOf(
+            "Cookie" to "auth_token=${session.authToken}; ct0=${session.csrfToken}",
+            "X-CSRF-Token" to session.csrfToken,
+            "X-Twitter-Auth-Type" to "OAuth2Session",
+            "X-Twitter-Active-User" to "yes",
+            "Accept" to "text/html",
+            "Referer" to "https://x.com/",
+        )
     }
 
     private fun parseScriptUrls(html: String): List<HttpUrl> {
@@ -318,14 +331,18 @@ class XWebMetadataResolver(
         val operationsByName: Map<String, ResolvedOperation>,
         val allFeatureKeys: List<String>,
         val featureDefaults: Map<String, Boolean>,
+        val missingOperations: List<String> = emptyList(),
     ) {
         fun applyTo(profile: XApiProfile): XApiProfile {
             val operations = LinkedHashMap<String, XApiProfile.GraphQlOperation>()
-            val missing = LinkedHashSet<String>()
+            val retained = ArrayList<String>()
             profile.operations.forEach { (purpose, current) ->
                 val resolved = operationsByName[current.operationName]
                 if (resolved == null) {
-                    missing += current.operationName
+                    // ホーム画面の資産に含まれないoperation（リスト系など）は直前の
+                    // 検証済み定義を維持し、更新全体を失敗させない。
+                    operations[purpose] = current
+                    retained += current.operationName
                     return@forEach
                 }
                 operations[purpose] = XApiProfile.GraphQlOperation(
@@ -336,21 +353,29 @@ class XWebMetadataResolver(
                     fieldToggles = resolved.fieldToggles,
                 )
             }
-            if (missing.isNotEmpty()) {
-                throw XApiException(
-                    "必須X Web operationが見つかりません: ${missing.joinToString(", ")}",
-                    502,
-                )
+            val keys = ArrayList(allFeatureKeys)
+            val defaults = LinkedHashMap(featureDefaults)
+            for (name in retained) {
+                val previous = profile.operations.values.firstOrNull { it.operationName == name }
+                    ?: continue
+                for (key in previous.featureKeys) {
+                    if (!defaults.containsKey(key)) {
+                        profile.featureDefaults[key]?.let { defaults[key] = it }
+                    }
+                    if (!keys.contains(key)) {
+                        keys += key
+                    }
+                }
             }
-            val defaults = LinkedHashMap<String, Boolean>()
-            allFeatureKeys.forEach { key ->
-                val value = featureDefaults[key]
+            val completeDefaults = LinkedHashMap<String, Boolean>()
+            keys.forEach { key ->
+                val value = defaults[key]
                     ?: throw XApiException("X Web Feature Switch既定値がありません: $key", 502)
-                defaults[key] = value
+                completeDefaults[key] = value
             }
             return profile.copy(
-                featureKeys = java.util.List.copyOf(allFeatureKeys),
-                featureDefaults = java.util.Map.copyOf(defaults),
+                featureKeys = java.util.List.copyOf(keys),
+                featureDefaults = java.util.Map.copyOf(completeDefaults),
                 operations = java.util.Map.copyOf(operations),
             )
         }
@@ -362,43 +387,81 @@ class XWebMetadataResolver(
     )
 
     fun interface AssetFetcher {
-        fun fetch(url: HttpUrl): String
+        fun fetch(url: HttpUrl, headers: Map<String, String>): String
     }
 
     private class OkHttpAssetFetcher(
         client: OkHttpClient,
         userAgent: String,
+        private val homeUrl: HttpUrl,
     ) : AssetFetcher {
         private val client = client.newBuilder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .callTimeout(35, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .followSslRedirects(true)
+            .followRedirects(false)
+            .followSslRedirects(false)
             .build()
         private val userAgent = userAgent.trim().also {
             require(it.isNotEmpty()) { "X Web User-Agentが空です。" }
         }
 
-        override fun fetch(url: HttpUrl): String {
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", userAgent)
-                .get()
-                .build()
+        override fun fetch(url: HttpUrl, headers: Map<String, String>): String {
+            var current = url
+            var currentHeaders = headers
+            var hops = 0
+            while (true) {
+                val builder = Request.Builder()
+                    .url(current)
+                    .header("User-Agent", userAgent)
+                    .get()
+                currentHeaders.forEach { (name, value) -> builder.header(name, value) }
+                when (val outcome = executeOnce(builder.build(), current == homeUrl && hops == 0)) {
+                    is Outcome.Body -> return outcome.text
+                    is Outcome.Redirect -> {
+                        hops++
+                        if (hops > MAX_REDIRECT_HOPS) {
+                            throw XApiException("X公式Web資産のリダイレクトが多すぎます。", 502)
+                        }
+                        current = outcome.location
+                        currentHeaders = emptyMap()
+                    }
+                }
+            }
+        }
+
+        private sealed interface Outcome {
+            data class Body(val text: String) : Outcome
+            data class Redirect(val location: HttpUrl) : Outcome
+        }
+
+        private fun executeOnce(request: Request, isHome: Boolean): Outcome {
             try {
                 client.newCall(request).execute().use { response ->
+                    val code = response.code
+                    if (isHome && (code == 307 || code == 401 || code == 403)) {
+                        throw XApiException(
+                            "X Webセッションが無効なためAPI定義を更新できません。Xへログインし直してください。",
+                            code,
+                        )
+                    }
+                    if (code in 300..399) {
+                        val location = response.header("Location")?.let(request.url::resolve)
+                        if (location != null && isOfficialRedirectTarget(location)) {
+                            return Outcome.Redirect(location)
+                        }
+                    }
                     if (!response.isSuccessful) {
                         throw XApiException(
-                            "X公式Web資産の取得に失敗しました。HTTP ${response.code}",
-                            response.code,
+                            "X公式Web資産の取得に失敗しました。HTTP $code",
+                            code,
                         )
                     }
                     if (response.body.contentLength() > MAX_ASSET_BYTES) {
                         throw XApiException("X公式Web資産が上限サイズを超えています。", 502)
                     }
-                    return response.body.string()
+                    return Outcome.Body(response.body.string())
                 }
             } catch (exception: XApiException) {
                 throw exception
@@ -406,10 +469,15 @@ class XWebMetadataResolver(
                 throw XApiException("X公式Web資産の通信に失敗しました。", cause = exception)
             }
         }
+
+        private fun isOfficialRedirectTarget(url: HttpUrl): Boolean = runCatching {
+            requireOfficialUrl(url)
+        }.isSuccess
     }
 
     private companion object {
         const val MAX_ASSET_BYTES = 8 * 1024 * 1024
+        const val MAX_REDIRECT_HOPS = 5
         const val MAX_REQUIRED_OPERATIONS = 100
         const val MAX_METADATA_KEYS = 500
         const val X_WEB_HOST = "x.com"
@@ -445,6 +513,7 @@ class XWebMetadataResolver(
             "birdwatch",
             "search",
             "tweet",
+            "list",
         )
         val JSON = Json { isLenient = false }
 

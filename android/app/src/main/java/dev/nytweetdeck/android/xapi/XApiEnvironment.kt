@@ -18,7 +18,10 @@ fun interface XSessionVerifier {
     fun verify(session: CapturedWebSession): VerifiedWebSession
 }
 
-class XApiEnvironment(context: Context) : XSessionVerifier, XApiMetadataRefresher {
+class XApiEnvironment(
+    context: Context,
+    private val webSessionProvider: () -> XSessionCredentials? = { null },
+) : XSessionVerifier, XApiMetadataRefresher {
     private val applicationContext = context.applicationContext
     private val userAgent: String by lazy {
         WebSettings.getDefaultUserAgent(applicationContext).takeIf(String::isNotBlank)
@@ -36,7 +39,7 @@ class XApiEnvironment(context: Context) : XSessionVerifier, XApiMetadataRefreshe
     @Volatile private var metadataResolved: Boolean? = null
     private val metadataStore by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         XApiMetadataStore(bundledProfile) {
-            XWebMetadataResolver(httpClient, metadataUserAgent).resolve(bundledProfile)
+            XWebMetadataResolver(httpClient, metadataUserAgent, webSessionProvider).resolve(bundledProfile)
         }
     }
     private val bearerResolver by lazy { XWebBearerResolver(httpClient, userAgent) }

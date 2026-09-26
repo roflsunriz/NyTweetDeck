@@ -39,7 +39,11 @@ object TimelineQueryFactory {
                 variables["listId"] = requireTarget(target, kind)
                 "list"
             }
-            "history", "trends", "notifications" -> kind
+            "history", "trends" -> kind
+            "notifications" -> {
+                variables["timeline_type"] = "All"
+                kind
+            }
             "search" -> {
                 variables["rawQuery"] = requireTarget(target, kind)
                 variables["querySource"] = "typed_query"

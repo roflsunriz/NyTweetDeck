@@ -130,4 +130,6 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - リスト系5操作（`ListLatestTweetsTimeline`・`CombinedLists`・`ListsDiscovery`・`ListAddMember`・`ListRemoveMember`）はホーム画面のチャンク図に現れないため、更新時は直前の検証済み定義を維持する（`XApiProfileService.applyResolved`の保持動作）。見つからないことを理由に更新全体を失敗させない。
 - 同梱の`web-current.json`・`web-boolean-feature-defaults.json`は失効する。タイムラインが422/502になったら現行資産から取り直す。手順は`verification.md`の復旧記録参照。`versionName`は取得元`main.<hash>.js`に合わせる。
 - ログアウト画面（`https://x.com/`）は新系列`x-web/x-web/entry-client-logged-out-*.js`を使うが、ログイン後のGraphQL定義は旧系列`responsive-web/client-web`に残っている。系列を混同しない。
-- 通知タイムラインは変数`timeline_type`が必須で、既定値は`All`（他に`Mentions`・`Priority`・`Verified`・`SuperFollowers`）。422時は`GRAPHQL_VALIDATION_FAILED`の変数名と`bundle.Notifications`の`fetchNotifications`で現行仕様を確認する（`TimelineQueryFactory`）。
+- 通知タイムラインは変数`timeline_type`が必須で、既定値は`All`（他に`Mentions`・`Priority`・`Verified`・`SuperFollowers`）。422時は`GRAPHQL_VALIDATION_FAILED`の変数名と`bundle.Notifications`の`fetchNotifications`で現行仕様を確認する（`TimelineQueryFactory`）。Android版も同じ変数を送る。
+- Android版の同梱定義はデスクトップ版と`src/main/resources/x-api/`を共有する（`android/app/build.gradle.kts`のassets参照）。デスクトップ側の更新だけでAndroidの同梱値も更新される。
+- Androidの定義更新も保存済みセッション（`XApiEnvironment`の`webSessionProvider`→`XWebMetadataResolver`）で取得し、欠落操作は維持する。`AssetFetcher`はヘッダー付きで取得し、Cookieはホーム取得にだけ付ける。

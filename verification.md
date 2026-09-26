@@ -253,3 +253,9 @@ bun run sandbox:observe-x-video
 - 8種別（おすすめ・フォロー中・通知・履歴・トレンド・検索・リスト・ユーザー）を実通信で確認し、CDP実測で9カラム242件・コンソールエラー0・失敗通信0を確認した。
 
 - v1.6.1/v1.6.2をGitHubリリースへ公開し、稼働版（Task Scheduler起動・PID 11860）へv1.6.2相当JARを配置して再起動した。旧JARはapp配下へbak退避した。
+
+## Android 0.4.1（2026-09-26）
+
+- Android版も同型の3件（同梱ID失効・`timeline_type`不足・定義更新の匿名取得）を抱えていた。同梱定義はデスクトップ版と`src/main/resources/x-api/`を共有するため更新済み。残り2件をAndroid側に移植した。
+- `testDebugUnitTest` 279件全合格、`lintDebug`・`assembleDebug`成功。AQUOS実機で通知を含む各タイムラインと定義更新を確認した（Pixel 10aは別タスク用のため不使用）。
+

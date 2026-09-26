@@ -43,6 +43,7 @@ import dev.nytweetdeck.android.BuildConfig
 import dev.nytweetdeck.android.update.ApkUpdateController
 import dev.nytweetdeck.android.R
 import dev.nytweetdeck.android.auth.LoginActivity
+import dev.nytweetdeck.android.data.AccountStore
 import dev.nytweetdeck.android.data.DirectMessageRepository
 import dev.nytweetdeck.android.data.LayoutTransfer
 import dev.nytweetdeck.android.data.ListDirectoryRepository
@@ -76,6 +77,7 @@ import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import dev.nytweetdeck.android.update.GitHubReleaseClient
 import dev.nytweetdeck.android.xapi.TimelineResponseParser
 import dev.nytweetdeck.android.xapi.XApiEnvironment
+import dev.nytweetdeck.android.xapi.XSessionCredentials
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -96,11 +98,25 @@ private enum class OpenDialog {
 fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     val context = LocalContext.current
     val factory = remember(context) {
-        val environment = XApiEnvironment(context)
+        val accountStoreFile = context.noBackupFilesDir.resolve("accounts").resolve("accounts.json")
+        // API定義更新は保存済みWebセッションでX公式Webを取得する。更新のたびに
+        // 読み直すため、所有権はDeckViewModel側のAccountStoreと競合しない。
+        val environment = XApiEnvironment(context) {
+            runCatching {
+                val state = AccountStore(accountStoreFile).snapshot()
+                (state.selectedAccount ?: state.accounts.firstOrNull())?.let {
+                    XSessionCredentials(
+                        bearerToken = it.webBearerToken,
+                        authToken = it.authToken,
+                        csrfToken = it.csrfToken,
+                    )
+                }
+            }.getOrNull()
+        }
         val graphQlClient = environment.graphQlClient()
         DeckViewModelFactory(
             context.filesDir.toPath().resolve("layout").resolve("settings.json"),
-            context.noBackupFilesDir.resolve("accounts").resolve("accounts.json"),
+            accountStoreFile,
             environment,
             TimelineRepository(
                 graphQlClient,

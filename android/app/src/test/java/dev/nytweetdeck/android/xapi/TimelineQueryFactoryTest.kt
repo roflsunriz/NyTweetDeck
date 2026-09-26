@@ -28,6 +28,15 @@ class TimelineQueryFactoryTest {
     }
 
     @Test
+    fun notificationsTimelineSendsRequiredTimelineType() {
+        val query = TimelineQueryFactory.create("notifications", null, null)
+
+        assertEquals("notifications", query.purpose)
+        assertEquals("All", query.variables["timeline_type"])
+        assertEquals(20, query.variables["count"])
+    }
+
+    @Test
     fun unsupportedKindIsRejected() {
         assertThrows(IllegalArgumentException::class.java) {
             TimelineQueryFactory.create("unknown", null, null)

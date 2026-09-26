@@ -18,7 +18,7 @@ class XApiProfileTest {
         ))
         assertTrue(profile.featuresFor(profile.requireOperation("homeForYou")).isNotEmpty())
         assertEquals("UserRepliesTimeline", profile.requireOperation("userReplies").operationName)
-        assertEquals("dRUXRSlEIPlVmPgOQ8Z43g", profile.requireOperation("userReplies").operationId)
+        assertEquals("xz348nziCm96wndJ1S0MUQ", profile.requireOperation("userReplies").operationId)
     }
 
     @Test(expected = IllegalArgumentException::class)
