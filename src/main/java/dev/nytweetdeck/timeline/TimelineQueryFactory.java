@@ -45,7 +45,10 @@ public class TimelineQueryFactory {
             }
             case "history" -> new Query("history", variables);
             case "trends" -> new Query("trends", variables);
-            case "notifications" -> new Query("notifications", variables);
+            case "notifications" -> {
+                variables.put("timeline_type", "All");
+                yield new Query("notifications", variables);
+            }
             case "search" -> {
                 variables.put("rawQuery", requireTarget(target, kind));
                 variables.put("querySource", "typed_query");

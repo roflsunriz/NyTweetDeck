@@ -246,3 +246,9 @@ bun run sandbox:observe-x-video
 実際の Dependabot PR がまだない場合、動作経路は未検証として扱う。実 PR 発生後に自動化ジョブ、CI の再試行、マージ結果を確認する。
 
 大量の Dependabot PR により CI 完了より分類が遅れる場合でも、分類後の `workflow_dispatch` が現在の PR 番号と head SHA を照合して再評価する。別の作成者、古い SHA、未完了の CI はマージしない。
+
+## 1.6.2 追補（2026-09-26）
+
+- 定義更新の成功後も汎用通知経路が422だった。Xへ直接突き合わせて`GRAPHQL_VALIDATION_FAILED: must be defined (variable timeline_type)`を確認し、`bundle.Notifications`の`fetchNotifications`から現行値`All`（他にMentions/Priority/Verified/SuperFollowers）を特定して`TimelineQueryFactory`へ追加した。
+- 8種別（おすすめ・フォロー中・通知・履歴・トレンド・検索・リスト・ユーザー）を実通信で確認し、CDP実測で9カラム242件・コンソールエラー0・失敗通信0を確認した。
+

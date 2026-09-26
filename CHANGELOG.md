@@ -17,6 +17,12 @@
 - CI と Dependabot の分類の実行順が前後しても更新を取りこぼさないよう、同じ PR 番号と head SHA を再照合する経路を追加した。
 - CIのAndroid SDK導入で正規のパッケージ名（`platforms;android-37.0`）を指定するようにし、API 37の取得失敗を解消した。
 
+## [1.6.2] - 2026-09-26
+
+### Fixed
+
+- 通知タイムラインの汎用経路（`/api/v1/timelines/notifications`）がXの必須変数`timeline_type`不足で422になる問題を修正し、`All`を送るようにした。
+
 ## [1.6.1] - 2026-09-26
 
 ### Fixed

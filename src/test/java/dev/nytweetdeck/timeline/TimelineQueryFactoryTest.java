@@ -29,6 +29,9 @@ class TimelineQueryFactoryTest {
         assertThat(factory.create("trends", null, null).purpose()).isEqualTo("trends");
         assertThat(factory.create("notifications", null, null).purpose())
                 .isEqualTo("notifications");
+        assertThat(factory.create("notifications", null, null).variables())
+                .containsEntry("timeline_type", "All")
+                .containsEntry("count", 20);
         assertThat(factory.create("search", "NyTweetDeck", null).variables())
                 .containsEntry("rawQuery", "NyTweetDeck")
                 .containsEntry("product", "Latest")
