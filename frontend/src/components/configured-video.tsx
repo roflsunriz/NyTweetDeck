@@ -21,6 +21,12 @@ import type { Translation } from "../i18n/translations";
 import type { VideoQuality } from "../model/layout";
 import type { VideoVariant } from "../model/timeline";
 import { selectVideoSources } from "../model/video-quality";
+import {
+  claimVideoPlayback,
+  currentVideoPlayback,
+  releaseVideoPlayback,
+  subscribeVideoPlayback,
+} from "../model/video-playback-coordinator";
 
 export const VIDEO_CONTROLS_HIDE_DELAY_MS = 3_000;
 export const VIDEO_STALL_RECOVERY_DELAY_MS = 2_000;
@@ -378,6 +384,23 @@ export function ConfiguredVideo({
     setLoopActive(loop);
   }, [loop]);
 
+  // 同時に再生されるのは常に1つ。他が再生を始めたら自分は止まる。
+  useEffect(() => {
+    return subscribeVideoPlayback((activeId) => {
+      if (activeId === null || activeId === mediaId) return;
+      const video = videoRef.current;
+      if (video !== null && !video.paused) video.pause();
+    });
+  }, [mediaId]);
+
+  useEffect(() => {
+    if (!mediaConnected && currentVideoPlayback() === mediaId) releaseVideoPlayback(mediaId);
+  }, [mediaConnected, mediaId]);
+
+  useEffect(() => {
+    return () => releaseVideoPlayback(mediaId);
+  }, [mediaId]);
+
   useEffect(() => {
     const onFullscreenChange = () => {
       const active = playerRef.current?.contains(document.fullscreenElement) ?? false;
@@ -459,6 +482,26 @@ export function ConfiguredVideo({
     else video.pause();
   };
 
+  const handleVideoTap = () => {
+    const video = videoRef.current;
+    if (video === null) return;
+    // どこを触っても暫定ミュートは解除する。解除のタップでは再生状態を変えない。
+    if (video.muted) {
+      video.muted = false;
+      setMuted(false);
+      return;
+    }
+    if (videoZoom !== 1) {
+      handleVideoDoubleClick();
+      return;
+    }
+    if (!controlsVisible) {
+      revealControls();
+      return;
+    }
+    togglePlayback();
+  };
+
   const toggleMute = () => {
     const video = videoRef.current;
     if (video === null) return;
@@ -535,6 +578,17 @@ export function ConfiguredVideo({
     }
   };
 
+  const playerStyle = fullscreenPlayerStyle(fullscreen);
+  const baseVideoStyle = fullscreenVideoStyle(fullscreen);
+  const zoomStyle =
+    videoZoom === 1
+      ? undefined
+      : {
+          transform: `translate(${videoPan.x}px, ${videoPan.y}px) scale(${videoZoom})`,
+          transformOrigin: "center",
+          willChange: "transform",
+        };
+
   return (
     <fieldset
       ref={playerRef}
@@ -544,7 +598,9 @@ export function ConfiguredVideo({
       data-viewport-active={inPlaybackZone}
       data-media-connected={mediaConnected}
       data-controls-visible={controlsVisible}
+      data-fullscreen={fullscreen}
       data-zoom={videoZoom}
+      style={playerStyle}
       onPointerMove={revealControls}
       onFocusCapture={revealControls}
       onBlurCapture={revealControls}
@@ -561,34 +617,22 @@ export function ConfiguredVideo({
           preload="auto"
           poster={poster || undefined}
           src={selectedSource || undefined}
-          style={
-            videoZoom === 1
-              ? undefined
-              : {
-                  transform: `translate(${videoPan.x}px, ${videoPan.y}px) scale(${videoZoom})`,
-                  transformOrigin: "center",
-                  willChange: "transform",
-                }
-          }
-          onClick={() => {
-            if (videoZoom !== 1) {
-              handleVideoDoubleClick();
-              return;
-            }
-            if (!controlsVisible) {
-              revealControls();
-              return;
-            }
-            togglePlayback();
-          }}
+          style={{ ...baseVideoStyle, ...zoomStyle }}
+          onClick={handleVideoTap}
           onPointerMove={handleVideoPointerMove}
           onPointerDown={handleVideoPointerDown}
           onPointerUp={handleVideoPointerUp}
           onPointerCancel={handleVideoPointerUp}
           onDoubleClick={handleVideoDoubleClick}
           onDragStart={(event) => event.preventDefault()}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
+          onPlay={() => {
+            setPlaying(true);
+            claimVideoPlayback(mediaId);
+          }}
+          onPause={() => {
+            setPlaying(false);
+            releaseVideoPlayback(mediaId);
+          }}
           onLoadedMetadata={(event) => {
             const next = Number.isFinite(event.currentTarget.duration)
               ? event.currentTarget.duration
@@ -732,6 +776,30 @@ export function ConfiguredVideo({
       )}
     </fieldset>
   );
+}
+
+const FULLSCREEN_PLAYER_STYLE = {
+  width: "100vw",
+  height: "100vh",
+  maxWidth: "100vw",
+  maxHeight: "100vh",
+  aspectRatio: "auto",
+} as const;
+
+const FULLSCREEN_VIDEO_STYLE = {
+  width: "100%",
+  height: "100%",
+  maxWidth: "100%",
+  maxHeight: "100%",
+  objectFit: "contain",
+} as const;
+
+export function fullscreenPlayerStyle(active: boolean) {
+  return active ? FULLSCREEN_PLAYER_STYLE : undefined;
+}
+
+export function fullscreenVideoStyle(active: boolean) {
+  return active ? FULLSCREEN_VIDEO_STYLE : undefined;
 }
 
 function finiteCoordinate(value: number): number {

@@ -15,3 +15,14 @@ data class Trend(
     val domainContext: String?,
     val metaDescription: String?,
 )
+
+/** トレンド一覧の絞り込み。空文字では全件返す。 */
+fun filterTrends(trends: List<Trend>, query: String): List<Trend> {
+    val normalized = query.trim()
+    if (normalized.isEmpty()) return trends.toList()
+    return trends.filter { trend ->
+        listOf(trend.name, trend.description, trend.domainContext, trend.metaDescription)
+            .filterNotNull()
+            .any { it.contains(normalized, ignoreCase = true) }
+    }
+}

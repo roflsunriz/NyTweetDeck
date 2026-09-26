@@ -1,6 +1,8 @@
 package dev.nytweetdeck.android.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +62,7 @@ import dev.nytweetdeck.android.model.NotificationActor
 import dev.nytweetdeck.android.model.NotificationColumnState
 import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.TrendColumnState
+import dev.nytweetdeck.android.model.filterTrends
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import coil3.compose.AsyncImage
@@ -164,7 +167,9 @@ private fun DirectMessageRow(message: DirectMessage) {
                 )
             }
             Spacer(Modifier.height(6.dp))
-            Text(message.text)
+            SelectionContainer {
+                Text(message.text)
+            }
             HorizontalDivider(Modifier.padding(top = 12.dp))
         }
     }
@@ -299,7 +304,10 @@ private fun NotificationRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onNotificationClick(notification) }
+            .combinedClickable(
+                onClick = { onNotificationClick(notification) },
+                onLongClick = {},
+            )
             .padding(14.dp)
             .testTag("notification-item-" + notification.id.hashCode()),
     ) {
@@ -318,7 +326,9 @@ private fun NotificationRow(
             )
         }
         Spacer(Modifier.height(6.dp))
-        Text(notification.text)
+        SelectionContainer {
+            Text(notification.text)
+        }
         if (notification.actors.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
             Text(
@@ -377,11 +387,7 @@ internal fun TrendBody(
         ) { Text(stringResource(R.string.retry)) }
         TimelineLoadStatus.READY -> {
             val readyState = requireNotNull(state)
-            val filtered = readyState.page?.trends.orEmpty().filter { trend ->
-                query.isBlank() || listOf(trend.name, trend.description, trend.domainContext)
-                    .filterNotNull()
-                    .any { it.contains(query, ignoreCase = true) }
-            }
+            val filtered = filterTrends(readyState.page?.trends.orEmpty(), query)
             val listState = rememberRestoredLazyListState(
                 scrollPosition,
                 filtered.map { it.name },
@@ -431,7 +437,10 @@ internal fun TrendBody(
                             Row(
                                 Modifier
                                     .fillMaxWidth()
-                                    .clickable { onTrendSelected(trend.name) }
+                                    .combinedClickable(
+                                        onClick = { onTrendSelected(trend.name) },
+                                        onLongClick = {},
+                                    )
                                     .padding(14.dp)
                                     .testTag("trend-item-" + trend.name.hashCode()),
                             ) {
@@ -440,9 +449,16 @@ internal fun TrendBody(
                                     Spacer(Modifier.width(12.dp))
                                 }
                                 Column {
-                                    Text(trend.name, fontWeight = FontWeight.SemiBold)
+                                    SelectionContainer {
+                                        Text(trend.name, fontWeight = FontWeight.SemiBold)
+                                    }
                                     trend.description?.let {
-                                        Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        SelectionContainer {
+                                            Text(
+                                                it,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -477,7 +493,8 @@ private fun ObserveSecondaryPaging(
         snapshotFlow {
             val layout = listState.layoutInfo
             val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
-            layout.totalItemsCount > 0 && lastVisible >= layout.totalItemsCount - 3
+            layout.totalItemsCount > 0 &&
+                lastVisible >= layout.totalItemsCount - TIMELINE_PREFETCH_AHEAD_ITEMS
         }
             .distinctUntilChanged()
             .filter { it && nextCursor != null && !isLoadingMore }

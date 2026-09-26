@@ -95,3 +95,6 @@ export interface EmbeddedPost {
   article?: TimelineArticle | null;
   media: TimelineMedia[];
 }
+
+/** 次ページ先読みの余白。末尾到達前に次を取得して待たせない。 */
+export const TIMELINE_PREFETCH_ROOT_MARGIN = "1200px 0px";

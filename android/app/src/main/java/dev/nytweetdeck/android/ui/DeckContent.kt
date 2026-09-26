@@ -103,6 +103,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
+/** 末尾の手前で次ページを先読みし始める残り件数。 */
+internal const val TIMELINE_PREFETCH_AHEAD_ITEMS = 8
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun DeckContent(
@@ -634,7 +637,8 @@ private fun TimelineBody(
                     snapshotFlow {
                         val layout = listState.layoutInfo
                         val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
-                        layout.totalItemsCount > 0 && lastVisible >= layout.totalItemsCount - 3
+                        layout.totalItemsCount > 0 &&
+                            lastVisible >= layout.totalItemsCount - TIMELINE_PREFETCH_AHEAD_ITEMS
                     }
                         .distinctUntilChanged()
                         .filter { it && readyState.nextCursor != null && !readyState.isLoadingMore }

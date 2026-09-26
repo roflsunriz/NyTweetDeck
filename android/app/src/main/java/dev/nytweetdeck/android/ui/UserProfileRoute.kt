@@ -1,6 +1,7 @@
 package dev.nytweetdeck.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -134,7 +135,9 @@ internal fun UserProfileRoute(
                                 }
                             }
                             profile.description?.let {
-                                Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                                SelectionContainer {
+                                    Text(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                                }
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),

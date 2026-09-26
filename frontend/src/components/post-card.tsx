@@ -171,6 +171,16 @@ export function PostCard({
     if (onOpen === undefined) {
       return;
     }
+    // 文字選択中のクリックでは詳細へ遷移しない
+    const selection = globalThis.getSelection?.();
+    if (
+      selection !== undefined &&
+      selection !== null &&
+      !selection.isCollapsed &&
+      event.currentTarget.contains(selection.anchorNode?.parentElement ?? null)
+    ) {
+      return;
+    }
     const target = event.target;
     if (
       target instanceof Element &&

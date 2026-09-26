@@ -3,6 +3,7 @@ package dev.nytweetdeck.android.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -273,8 +274,9 @@ internal fun CommunityNoteText(
 ) {
     val annotated = remember(text, sources) { annotatedCommunityNote(text, sources) }
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    Text(
-        text = annotated,
+    SelectionContainer {
+        Text(
+            text = annotated,
         modifier = Modifier
             .fillMaxWidth()
             .pointerInput(annotated) {
@@ -291,9 +293,10 @@ internal fun CommunityNoteText(
                 }
             }
             .testTag("community-note-source"),
-        style = MaterialTheme.typography.bodyLarge,
-        onTextLayout = { layoutResult = it },
-    )
+            style = MaterialTheme.typography.bodyLarge,
+            onTextLayout = { layoutResult = it },
+        )
+    }
 }
 
 private fun annotatedCommunityNote(

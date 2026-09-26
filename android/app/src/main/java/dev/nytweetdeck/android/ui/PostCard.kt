@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -129,7 +131,8 @@ internal fun PostCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onPostClick(post.id) }
+            // 長押しは文字選択に譲り、タップだけで詳細へ遷移する。
+            .combinedClickable(onClick = { onPostClick(post.id) }, onLongClick = {})
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 14.dp, vertical = 12.dp)
             .testTag("post-" + post.id),
@@ -389,13 +392,15 @@ private fun ReplyContext(post: Post, onParentClick: (String) -> Unit) {
 @Composable
 private fun PostBody(text: String, links: List<TextLink>, tag: String) {
     val hashtagColor = MaterialTheme.colorScheme.primary
-    Text(
-        text = buildAnnotatedString {
-            appendPostStyledText(text, links, hashtagColor)
-        },
-        modifier = Modifier.testTag(tag),
-        style = MaterialTheme.typography.bodyMedium,
-    )
+    SelectionContainer {
+        Text(
+            text = buildAnnotatedString {
+                appendPostStyledText(text, links, hashtagColor)
+            },
+            modifier = Modifier.testTag(tag),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
 }
 
 @Composable
@@ -513,7 +518,7 @@ private fun QuoteCard(
                 BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
             )
-            .clickable { onQuoteClick(quote.id) }
+            .combinedClickable(onClick = { onQuoteClick(quote.id) }, onLongClick = {})
             .testTag("post-quote-" + parentPostId + "-" + quote.id)
             .padding(10.dp),
     ) {

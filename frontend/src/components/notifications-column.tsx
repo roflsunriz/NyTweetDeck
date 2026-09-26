@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
 import type { Locale } from "../model/layout";
+import { TIMELINE_PREFETCH_ROOT_MARGIN } from "../model/timeline";
 import { CommunityNoteDetailDialog } from "./community-note-detail-dialog";
 import {
   FollowNotificationUsersDialog,
@@ -126,7 +127,7 @@ export function NotificationsColumn({
           void load(cursor);
         }
       },
-      { rootMargin: "240px 0px" },
+      { rootMargin: TIMELINE_PREFETCH_ROOT_MARGIN },
     );
     observer.observe(target);
     return () => observer.disconnect();

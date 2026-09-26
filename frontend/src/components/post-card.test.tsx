@@ -369,6 +369,34 @@ describe("post actions", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  test("does not open the detail while text is selected", async () => {
+    const onOpen = mock(() => undefined);
+    const user = userEvent.setup();
+    render(
+      <PostCard
+        post={{ ...post(), text: "選択可能な本文です" }}
+        accountId="account-1"
+        translation={translate("ja")}
+        onOpen={onOpen}
+      />,
+    );
+
+    const text = document.querySelector(".post-text");
+    if (text?.firstChild === null || text?.firstChild === undefined)
+      throw new Error("Missing post text");
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    const selection = globalThis.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    // 合成クリックは選択を崩さない（ドラッグ選択後の mouseup と同じ条件）
+    fireEvent.click(text);
+    expect(onOpen).not.toHaveBeenCalled();
+    selection?.removeAllRanges();
+    await user.click(text);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
   test("uses X display text while keeping the expanded link destination", () => {
     render(
       <PostCard

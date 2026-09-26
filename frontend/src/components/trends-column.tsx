@@ -2,6 +2,7 @@ import { Search, X } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { fetchWithTimeout } from "../model/fetch-with-timeout";
+import { TIMELINE_PREFETCH_ROOT_MARGIN } from "../model/timeline";
 
 interface Trend {
   name: string;
@@ -102,7 +103,7 @@ export function TrendsColumn({
           void load(cursor);
         }
       },
-      { rootMargin: "240px 0px" },
+      { rootMargin: TIMELINE_PREFETCH_ROOT_MARGIN },
     );
     observer.observe(target);
     return () => observer.disconnect();

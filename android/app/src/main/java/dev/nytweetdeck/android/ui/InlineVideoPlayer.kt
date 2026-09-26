@@ -280,6 +280,10 @@ private fun VideoPlayer(
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(value: Boolean) {
                 playing = value
+                if (value) VideoPlaybackCoordinator.claim(media.id)
+                else if (VideoPlaybackCoordinator.current() == media.id) {
+                    VideoPlaybackCoordinator.release(media.id)
+                }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -288,6 +292,17 @@ private fun VideoPlayer(
         }
         activePlayer?.addListener(listener)
         onDispose { activePlayer?.removeListener(listener) }
+    }
+    DisposableEffect(media.id) {
+        val subscription = VideoPlaybackCoordinator.observe { activeId ->
+            if (activeId != null && activeId != media.id) {
+                player?.pause()
+            }
+        }
+        onDispose {
+            subscription.close()
+            VideoPlaybackCoordinator.release(media.id)
+        }
     }
     DisposableEffect(Unit) {
         onDispose {
@@ -355,7 +370,15 @@ private fun VideoPlayer(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = ::revealControls,
+                        onClick = {
+                            // どこを触っても暫定ミュートは解除する。解除のタップでは再生状態を変えない。
+                            if (muted) {
+                                muted = false
+                            } else {
+                                player?.let { if (it.isPlaying) it.pause() else it.play() }
+                            }
+                            revealControls()
+                        },
                     )
                     .testTag("$controlTagPrefix-surface"),
             )

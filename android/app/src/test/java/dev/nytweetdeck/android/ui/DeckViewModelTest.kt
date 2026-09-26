@@ -208,6 +208,63 @@ class DeckViewModelTest {
     }
 
     @Test
+    fun neighboringColumnsArePreloaded() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath())
+            settingsStore.save(
+                DeckUiState(
+                    columns = listOf(
+                        DeckColumn("home", ColumnKind.HOME_FOR_YOU, "Home"),
+                        DeckColumn("following", ColumnKind.HOME_FOLLOWING, "Following"),
+                    ),
+                ),
+            )
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            AccountStore(accountFile).addOrReplace(
+                AccountSecrets(
+                    "7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile-7",
+                ),
+                select = true,
+            )
+            val timelineRepository = TimelineRepository(
+                GraphQlExecutor { _, _, _, _ ->
+                    """{
+                      "data":{"tweet":{"__typename":"Tweet","rest_id":"99",
+                      "legacy":{"full_text":"Loaded from X","created_at":"Sat Aug 29 00:00:00 +0000 2026"},
+                      "core":{"user_results":{"result":{"__typename":"User","rest_id":"7",
+                      "core":{"screen_name":"nytd","name":"NyTD"}}}}}}
+                    }""".trimIndent()
+                },
+            )
+            val viewModel = DeckViewModel(
+                settingsStore = settingsStore,
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                timelineRepository = timelineRepository,
+                ioDispatcher = dispatcher,
+            )
+
+            advanceUntilIdle()
+            viewModel.setVisibleColumns(setOf("home"))
+            advanceUntilIdle()
+
+            assertEquals(
+                TimelineLoadStatus.READY,
+                requireNotNull(viewModel.state.value.timelines["home"]).status,
+            )
+            assertEquals(
+                TimelineLoadStatus.READY,
+                requireNotNull(viewModel.state.value.timelines["following"]).status,
+            )
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun loadingOlderPageAppendsPostsWithoutDuplicates() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
@@ -277,7 +334,7 @@ class DeckViewModelTest {
     }
 
     @Test
-    fun refreshPrependsOnlyNewPostsAndTracksBannerWithoutRefreshingHiddenColumn() = runTest {
+    fun refreshPrependsOnlyNewPostsAndTracksBannerWithoutRefreshingDistantColumn() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         try {
@@ -287,6 +344,7 @@ class DeckViewModelTest {
                 DeckUiState(columns = listOf(
                     DeckColumn("home", ColumnKind.HOME_FOR_YOU, "Home"),
                     DeckColumn("following", ColumnKind.HOME_FOLLOWING, "Following"),
+                    DeckColumn("history", ColumnKind.HISTORY, "History"),
                 )),
             )
             val accountFile = root.resolve("no-backup/accounts/accounts.json")
@@ -311,7 +369,7 @@ class DeckViewModelTest {
             advanceUntilIdle()
             viewModel.setVisibleColumns(setOf("home"))
             advanceUntilIdle()
-            assertEquals(1, calls)
+            assertEquals(2, calls)
 
             viewModel.refreshColumn("home")
             advanceUntilIdle()
@@ -320,7 +378,8 @@ class DeckViewModelTest {
             assertEquals(listOf("2", "1"), timeline.posts.map { it.id })
             assertEquals(1, timeline.newPostCount)
             assertTrue(timeline.newPostAvatarUrls.size <= 5)
-            assertEquals(false, viewModel.state.value.timelines.containsKey("following"))
+            assertEquals(true, viewModel.state.value.timelines.containsKey("following"))
+            assertEquals(false, viewModel.state.value.timelines.containsKey("history"))
 
             viewModel.refreshColumn("home")
             advanceUntilIdle()

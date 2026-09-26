@@ -10,6 +10,7 @@ import {
   useTimelineCache,
 } from "../model/timeline-cache";
 import type { TimelineAuthor, TimelinePage, TimelinePost } from "../model/timeline";
+import { TIMELINE_PREFETCH_ROOT_MARGIN } from "../model/timeline";
 import { sortTimelinePosts } from "../model/timeline-sort";
 import { removePostsByUser, subscribeUserSuppressed } from "../model/user-suppression";
 import { PostCard } from "./post-card";
@@ -435,7 +436,7 @@ function TimelineColumnContent({
           void load(cursor);
         }
       },
-      { rootMargin: "240px 0px" },
+      { rootMargin: TIMELINE_PREFETCH_ROOT_MARGIN },
     );
     observer.observe(target);
     return () => observer.disconnect();

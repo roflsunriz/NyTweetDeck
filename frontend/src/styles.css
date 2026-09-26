@@ -1012,6 +1012,8 @@ select:focus-visible {
   line-height: 1.48;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .post-translation-status {
@@ -1129,6 +1131,13 @@ select:focus-visible {
   line-height: 1.42;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+.profile-description {
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .quoted-post-translation-status {

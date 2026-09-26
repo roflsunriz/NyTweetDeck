@@ -903,10 +903,20 @@ class DeckViewModel(
         val normalized = columnIds.filterTo(LinkedHashSet()) { it in validIds }
         val newlyVisible = normalized - visibleColumnIds
         val newlyHidden = visibleColumnIds - normalized
-        newlyHidden.forEach { visibilityRefreshJobs.remove(it)?.cancel() }
         visibleColumnIds = normalized
         liveDeckController.setVisibleColumns(normalized)
         newlyVisible.forEach(::scheduleVisibilityRefresh)
+        // 表示中カラムの前後も先読みする。準備済みなら何もしない。
+        val orderedIds = mutableState.value.columns.map { it.id }
+        normalized.flatMapTo(LinkedHashSet()) { id ->
+            val index = orderedIds.indexOf(id)
+            listOfNotNull(
+                orderedIds.getOrNull(index - 1),
+                orderedIds.getOrNull(index + 1),
+            )
+        }
+            .filter { it in validIds && it !in normalized }
+            .forEach { scheduleVisibilityRefresh(it, preload = true) }
     }
 
     fun refreshVisibleColumns() {
@@ -932,14 +942,14 @@ class DeckViewModel(
         }
     }
 
-    private fun scheduleVisibilityRefresh(columnId: String) {
+    private fun scheduleVisibilityRefresh(columnId: String, preload: Boolean = false) {
         visibilityRefreshJobs.remove(columnId)?.cancel()
         val current = mutableState.value
         if (!current.autoRefreshTimelines && isColumnReady(current, columnId)) return
         visibilityRefreshJobs[columnId] = viewModelScope.launch {
             delay(visibilityRefreshDelayMillis)
             val current = mutableState.value
-            if (columnId in visibleColumnIds &&
+            if ((columnId in visibleColumnIds || preload) &&
                 foregroundOrUntracked() &&
                 (current.autoRefreshTimelines || !isColumnReady(current, columnId))
             ) {

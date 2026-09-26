@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
+import { TIMELINE_PREFETCH_ROOT_MARGIN } from "../model/timeline";
 
 interface DirectMessage {
   id: string;
@@ -157,7 +158,7 @@ export function DirectMessageColumn({
           void load(cursor);
         }
       },
-      { rootMargin: "240px 0px" },
+      { rootMargin: TIMELINE_PREFETCH_ROOT_MARGIN },
     );
     observer.observe(target);
     return () => observer.disconnect();
