@@ -252,3 +252,4 @@ bun run sandbox:observe-x-video
 - 定義更新の成功後も汎用通知経路が422だった。Xへ直接突き合わせて`GRAPHQL_VALIDATION_FAILED: must be defined (variable timeline_type)`を確認し、`bundle.Notifications`の`fetchNotifications`から現行値`All`（他にMentions/Priority/Verified/SuperFollowers）を特定して`TimelineQueryFactory`へ追加した。
 - 8種別（おすすめ・フォロー中・通知・履歴・トレンド・検索・リスト・ユーザー）を実通信で確認し、CDP実測で9カラム242件・コンソールエラー0・失敗通信0を確認した。
 
+- v1.6.1/v1.6.2をGitHubリリースへ公開し、稼働版（Task Scheduler起動・PID 11860）へv1.6.2相当JARを配置して再起動した。旧JARはapp配下へbak退避した。
