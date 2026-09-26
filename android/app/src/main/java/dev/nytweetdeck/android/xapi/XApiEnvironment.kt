@@ -37,14 +37,15 @@ class XApiEnvironment(
         XApiProfile.parse(profileJson, defaultsJson)
     }
     @Volatile private var metadataResolved: Boolean? = null
+    private val pendingSession = PendingWebSessionProvider(webSessionProvider)
     private val metadataStore by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         XApiMetadataStore(bundledProfile) {
-            XWebMetadataResolver(httpClient, metadataUserAgent, webSessionProvider).resolve(bundledProfile)
+            XWebMetadataResolver(httpClient, metadataUserAgent, pendingSession::current).resolve(bundledProfile)
         }
     }
     private val bearerResolver by lazy { XWebBearerResolver(httpClient, userAgent) }
     private val transactionIdService by lazy {
-        XClientTransactionIdService(httpClient, userAgent, sessionProvider = webSessionProvider)
+        XClientTransactionIdService(httpClient, userAgent, sessionProvider = pendingSession::current)
     }
     private val graphQlClient by lazy {
         AuthenticatedGraphQlClient(httpClient, metadataStore::currentProfile, userAgent, transactionIdService)
@@ -66,11 +67,14 @@ class XApiEnvironment(
             authToken = session.authToken,
             csrfToken = session.csrfToken,
         )
-        val account = accountVerifier.verify(
-            credentials = credentials,
-            expectedUserId = session.userId,
-            language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
-        )
+        // 検証時点ではアカウント未保存のため、署名生成が使えるよう一時的に差し出す。
+        val account = pendingSession.runWith(credentials) {
+            accountVerifier.verify(
+                credentials = credentials,
+                expectedUserId = session.userId,
+                language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
+            )
+        }
         return VerifiedWebSession(session.profileName, account, credentials)
     }
 

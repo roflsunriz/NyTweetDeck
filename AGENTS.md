@@ -134,3 +134,4 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - Android版の同梱定義はデスクトップ版と`src/main/resources/x-api/`を共有する（`android/app/build.gradle.kts`のassets参照）。デスクトップ側の更新だけでAndroidの同梱値も更新される。
 - Androidの定義更新も保存済みセッション（`XApiEnvironment`の`webSessionProvider`→`XWebMetadataResolver`）で取得し、欠落操作は維持する。`AssetFetcher`はヘッダー付きで取得し、Cookieはホーム取得にだけ付ける。
 - 署名（`X-Client-Transaction-Id`）素材の取得元ホーム画面もログイン必須のため、両面の署名サービスは保存済みセッションで取得する。Androidでは署名が全GraphQLに付くため、署名生成の失敗はログイン検証を含む全面停止になる。デスクトップはミューテーションのみに付ける。
+- Androidのログイン検証時点ではアカウント未保存のため、保存先だけを見ると署名生成が失敗する。`PendingWebSessionProvider`で検証中のセッションを一時的に差し出し、終了後に必ず保存済みへ戻す。
