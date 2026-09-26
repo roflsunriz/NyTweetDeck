@@ -263,3 +263,7 @@ bun run sandbox:observe-x-video
 ## CI失敗の修正（2026-09-26）
 
 - 同梱`web-current.json`更新後の2件のCI（Android verify）が`XApiProfileTest.desktopWebProfileIsAcceptedByAndroidClient`の旧queryId期待値で失敗した。期待値を現行IDへ更新した修正コミットでCIは全成功に戻った。追加のコード修正は不要だった。
+
+## Androidログイン取得の調査（2026-09-26）
+
+- データ消去後のログイン取得失敗は、検証用の`UserByRestId`まで失効IDだったことが原因と判断した。Bearer取得チェーンは現行資産で動作確認済みで、Cookie方式（auth_token/ct0/twid）もデスクトップ版と同一で変更なし。0.4.1の同梱定義で解消する。署名済みAPKは`android-v0.4.1`に公開済み。0.4.1で再ログインして確認する。
