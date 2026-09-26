@@ -103,8 +103,39 @@ class XClientTransactionIdServiceTest {
     }
 
     @Test
+    fun fetchesHomeWithSavedWebSessionHeaders() {
+        val requests = mutableListOf<AssetRequest>()
+        val assets = mapOf(
+            HOME_URL to homeHtml(),
+            ON_DEMAND_URL to onDemandJavascript(),
+        )
+        val service = XClientTransactionIdService(
+            fetcher = XClientTransactionIdService.AssetFetcher { url, accept, headers ->
+                requests += AssetRequest(url.toString(), accept, headers)
+                assets[url.toString()] ?: throw XApiException("fixture asset is unavailable", 404)
+            },
+            clock = Clock.fixed(FIXTURE_INSTANT, ZoneOffset.UTC),
+            random = FixedRandom(FIXTURE_RANDOM_BYTE),
+            sessionProvider = {
+                XSessionCredentials(
+                    bearerToken = "bearer",
+                    authToken = "auth-tok",
+                    csrfToken = "csrf-tok",
+                )
+            },
+        )
+
+        service.generate("POST", "https://x.com/i/api/graphql/id/CreateRetweet".toHttpUrl())
+
+        val home = requests.first { it.url == HOME_URL }
+        assertEquals("auth_token=auth-tok; ct0=csrf-tok", home.headers["Cookie"])
+        val onDemand = requests.first { it.url == ON_DEMAND_URL }
+        assertTrue(onDemand.headers["Cookie"].isNullOrEmpty())
+    }
+
+    @Test
     fun rejectsUnsafeUrlsMalformedAssetsAndOversizedBodies() {
-        val fetcher = XClientTransactionIdService.AssetFetcher { _, _ -> "" }
+        val fetcher = XClientTransactionIdService.AssetFetcher { _, _, _ -> "" }
         assertThrows(IllegalArgumentException::class.java) {
             XClientTransactionIdService(
                 fetcher = fetcher,
@@ -119,7 +150,7 @@ class XClientTransactionIdServiceTest {
         }
 
         val malformed = XClientTransactionIdService(
-            fetcher = XClientTransactionIdService.AssetFetcher { _, _ -> "<html></html>" },
+            fetcher = XClientTransactionIdService.AssetFetcher { _, _, _ -> "<html></html>" },
             clock = Clock.fixed(FIXTURE_INSTANT, ZoneOffset.UTC),
             random = FixedRandom(FIXTURE_RANDOM_BYTE),
         )
@@ -129,7 +160,7 @@ class XClientTransactionIdServiceTest {
         assertEquals(502, malformedError.statusCode)
 
         val oversized = XClientTransactionIdService(
-            fetcher = XClientTransactionIdService.AssetFetcher { _, _ ->
+            fetcher = XClientTransactionIdService.AssetFetcher { _, _, _ ->
                 "x".repeat(XClientTransactionIdService.MAX_ASSET_BYTES + 1)
             },
             clock = Clock.fixed(FIXTURE_INSTANT, ZoneOffset.UTC),
@@ -161,8 +192,8 @@ class XClientTransactionIdServiceTest {
             ON_DEMAND_URL to onDemandJavascript(),
         )
         return XClientTransactionIdService(
-            fetcher = XClientTransactionIdService.AssetFetcher { url, accept ->
-                requests += AssetRequest(url.toString(), accept)
+            fetcher = XClientTransactionIdService.AssetFetcher { url, accept, headers ->
+                requests += AssetRequest(url.toString(), accept, headers)
                 assets[url.toString()] ?: throw XApiException("fixture asset is unavailable", 404)
             },
             clock = clock,
@@ -194,6 +225,7 @@ class XClientTransactionIdServiceTest {
     private data class AssetRequest(
         val url: String,
         val accept: String,
+        val headers: Map<String, String> = emptyMap(),
     )
 
     private class FixedRandom(

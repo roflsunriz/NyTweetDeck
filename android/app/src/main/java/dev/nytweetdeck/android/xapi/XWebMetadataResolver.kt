@@ -211,17 +211,8 @@ class XWebMetadataResolver(
         return body
     }
 
-    internal fun homeHeaders(): Map<String, String> {
-        val session = sessionProvider() ?: return emptyMap()
-        return mapOf(
-            "Cookie" to "auth_token=${session.authToken}; ct0=${session.csrfToken}",
-            "X-CSRF-Token" to session.csrfToken,
-            "X-Twitter-Auth-Type" to "OAuth2Session",
-            "X-Twitter-Active-User" to "yes",
-            "Accept" to "text/html",
-            "Referer" to "https://x.com/",
-        )
-    }
+    internal fun homeHeaders(): Map<String, String> =
+        sessionProvider()?.homeFetchHeaders() ?: emptyMap()
 
     private fun parseScriptUrls(html: String): List<HttpUrl> {
         requireInputSize(html, "X公式Webページ")
@@ -545,3 +536,13 @@ class XWebMetadataResolver(
         }
     }
 }
+
+/** 保存済みWebセッションでX公式Webホームを取得するための要求ヘッダー。 */
+internal fun XSessionCredentials.homeFetchHeaders(): Map<String, String> = mapOf(
+    "Cookie" to "auth_token=${authToken}; ct0=${csrfToken}",
+    "X-CSRF-Token" to csrfToken,
+    "X-Twitter-Auth-Type" to "OAuth2Session",
+    "X-Twitter-Active-User" to "yes",
+    "Accept" to "text/html",
+    "Referer" to "https://x.com/",
+)

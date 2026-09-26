@@ -35,6 +35,7 @@ open class XClientTransactionIdService(
     private val cacheDuration: Duration = DEFAULT_CACHE_DURATION,
     private val homeUrl: HttpUrl = WEB_HOME,
     private val assetBaseUrl: HttpUrl = ASSET_BASE,
+    private val sessionProvider: () -> XSessionCredentials? = { null },
 ) {
     @Volatile
     private var cachedMaterial: SigningMaterial? = null
@@ -65,13 +66,15 @@ open class XClientTransactionIdService(
         cacheDuration: Duration = DEFAULT_CACHE_DURATION,
         homeUrl: HttpUrl = WEB_HOME,
         assetBaseUrl: HttpUrl = ASSET_BASE,
+        sessionProvider: () -> XSessionCredentials? = { null },
     ) : this(
-        fetcher = OkHttpAssetFetcher(client, userAgent),
+        fetcher = OkHttpAssetFetcher(client, userAgent, homeUrl),
         clock = clock,
         random = random,
         cacheDuration = cacheDuration,
         homeUrl = homeUrl,
         assetBaseUrl = assetBaseUrl,
+        sessionProvider = sessionProvider,
     )
 
     /** Creates a transaction ID for an official X Web or authenticated REST API request. */
@@ -131,8 +134,10 @@ open class XClientTransactionIdService(
 
     private fun fetchText(url: HttpUrl, accept: String, source: String): String {
         validateFetchedUrl(url)
+        // 署名素材の取得元ホーム画面はログイン必須のため、保存済みWebセッションで取得する。
+        val headers = if (url == homeUrl) sessionProvider()?.homeFetchHeaders() else null
         val body = try {
-            fetcher.fetch(url, accept)
+            fetcher.fetch(url, accept, headers ?: emptyMap())
         } catch (exception: XApiException) {
             throw exception
         } catch (exception: Exception) {
@@ -193,7 +198,7 @@ open class XClientTransactionIdService(
 
     /** Fetches a validated public X Web asset. No caller-controlled URL is passed unchecked. */
     fun interface AssetFetcher {
-        fun fetch(url: HttpUrl, accept: String): String
+        fun fetch(url: HttpUrl, accept: String, headers: Map<String, String>): String
     }
 
     internal class SigningMaterial(
@@ -208,6 +213,7 @@ open class XClientTransactionIdService(
     private class OkHttpAssetFetcher(
         client: OkHttpClient,
         userAgent: String,
+        private val homeUrl: HttpUrl,
     ) : AssetFetcher {
         private val client = client.newBuilder()
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
@@ -222,8 +228,8 @@ open class XClientTransactionIdService(
             require(!it.contains('\r') && !it.contains('\n')) { "X Web User-Agentが不正です。" }
         }
 
-        override fun fetch(url: HttpUrl, accept: String): String {
-            val request = Request.Builder()
+        override fun fetch(url: HttpUrl, accept: String, headers: Map<String, String>): String {
+            val builder = Request.Builder()
                 .url(url)
                 .header("Accept", accept)
                 .header("Accept-Language", "ja")
@@ -231,9 +237,18 @@ open class XClientTransactionIdService(
                 .header("Pragma", "no-cache")
                 .header("User-Agent", userAgent)
                 .get()
-                .build()
+            headers.forEach { (name, value) -> builder.header(name, value) }
+            val request = builder.build()
             try {
                 client.newCall(request).execute().use { response ->
+                    if (url == homeUrl &&
+                        (response.code == 307 || response.code == 401 || response.code == 403)
+                    ) {
+                        throw XApiException(
+                            "X Webセッションが無効なため署名を更新できません。Xへログインし直してください。",
+                            response.code,
+                        )
+                    }
                     if (!response.isSuccessful) {
                         throw XApiException(
                             "X公式Web資産の取得に失敗しました。HTTP ${response.code}",

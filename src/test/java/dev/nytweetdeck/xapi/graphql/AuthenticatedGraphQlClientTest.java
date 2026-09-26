@@ -214,7 +214,7 @@ class AuthenticatedGraphQlClientTest {
                 purpose,
                 operationName,
                 operationType,
-                new XClientTransactionIdService(null) {
+                new XClientTransactionIdService(null, null) {
                     @Override
                     public String generate(String method, URI requestUri) {
                         return "test-transaction-id";
@@ -324,7 +324,7 @@ class AuthenticatedGraphQlClientTest {
         private final AtomicInteger invalidations = new AtomicInteger();
 
         private RecordingTransactionService() {
-            super(null);
+            super(null, null);
         }
 
         @Override

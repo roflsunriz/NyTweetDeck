@@ -43,7 +43,9 @@ class XApiEnvironment(
         }
     }
     private val bearerResolver by lazy { XWebBearerResolver(httpClient, userAgent) }
-    private val transactionIdService by lazy { XClientTransactionIdService(httpClient, userAgent) }
+    private val transactionIdService by lazy {
+        XClientTransactionIdService(httpClient, userAgent, sessionProvider = webSessionProvider)
+    }
     private val graphQlClient by lazy {
         AuthenticatedGraphQlClient(httpClient, metadataStore::currentProfile, userAgent, transactionIdService)
     }

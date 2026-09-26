@@ -1,5 +1,7 @@
 package dev.nytweetdeck.xapi.http;
 
+import dev.nytweetdeck.account.AccountSecrets;
+import dev.nytweetdeck.account.AccountStore;
 import dev.nytweetdeck.xapi.auth.browser.WebBearerTokenProvider;
 import java.io.IOException;
 import java.net.URI;
@@ -53,6 +55,7 @@ public class XClientTransactionIdService {
     private static final Pattern NON_DIGITS_PATTERN = Pattern.compile("[^\\d]+");
 
     private final HttpClient httpClient;
+    private final AccountStore accountStore;
     private final Clock clock;
     private final IntSupplier randomByteSupplier;
     private final Duration cacheDuration;
@@ -60,9 +63,10 @@ public class XClientTransactionIdService {
     private volatile Instant cachedAt;
 
     @Autowired
-    public XClientTransactionIdService(HttpClient httpClient) {
+    public XClientTransactionIdService(HttpClient httpClient, AccountStore accountStore) {
         var secureRandom = new SecureRandom();
         this.httpClient = httpClient;
+        this.accountStore = accountStore;
         this.clock = Clock.systemUTC();
         this.randomByteSupplier = () -> secureRandom.nextInt(256);
         this.cacheDuration = DEFAULT_CACHE_DURATION;
@@ -73,7 +77,17 @@ public class XClientTransactionIdService {
             Clock clock,
             IntSupplier randomByteSupplier,
             Duration cacheDuration) {
+        this(httpClient, null, clock, randomByteSupplier, cacheDuration);
+    }
+
+    XClientTransactionIdService(
+            HttpClient httpClient,
+            AccountStore accountStore,
+            Clock clock,
+            IntSupplier randomByteSupplier,
+            Duration cacheDuration) {
         this.httpClient = httpClient;
+        this.accountStore = accountStore;
         this.clock = clock;
         this.randomByteSupplier = randomByteSupplier;
         this.cacheDuration = cacheDuration;
@@ -127,18 +141,30 @@ public class XClientTransactionIdService {
     }
 
     private String fetchText(URI uri, String accept) {
-        var request = HttpRequest.newBuilder(uri)
+        var builder = HttpRequest.newBuilder(uri)
                 .timeout(REQUEST_TIMEOUT)
                 .header("Accept", accept)
                 .header("Accept-Language", "ja")
                 .header("Cache-Control", "no-cache")
                 .header("Pragma", "no-cache")
-                .header("User-Agent", WebBearerTokenProvider.BROWSER_USER_AGENT)
-                .GET()
-                .build();
+                .header("User-Agent", WebBearerTokenProvider.BROWSER_USER_AGENT);
+        // 署名素材の取得元ホーム画面はログイン必須のため、保存済みWebセッションで取得する。
+        if (uri.equals(X_HOME_URI) && accountStore != null) {
+            var session = accountStore.firstWebSession();
+            session.ifPresent(account -> addSessionHeaders(builder, account));
+        }
+        var request = builder.GET().build();
         try {
             var response = httpClient.send(
                     request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (uri.equals(X_HOME_URI)
+                    && (response.statusCode() == 307
+                            || response.statusCode() == 401
+                            || response.statusCode() == 403)) {
+                throw new XApiHttpException(
+                        "X Webセッションが無効なため署名を更新できません。Xへログインし直してください。",
+                        response.statusCode());
+            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new XApiHttpException(
                         "X Web署名情報を取得できませんでした。HTTP " + response.statusCode(),
@@ -151,6 +177,14 @@ public class XClientTransactionIdService {
             Thread.currentThread().interrupt();
             throw new XApiHttpException("X Web署名情報の取得が中断されました。", exception);
         }
+    }
+
+    static void addSessionHeaders(HttpRequest.Builder builder, AccountSecrets account) {
+        builder.header("Cookie", "auth_token=" + account.authToken() + "; ct0=" + account.csrfToken());
+        builder.header("X-CSRF-Token", account.csrfToken());
+        builder.header("X-Twitter-Auth-Type", "OAuth2Session");
+        builder.header("X-Twitter-Active-User", "yes");
+        builder.header("Referer", "https://x.com/");
     }
 
     static URI resolveOnDemandUri(String homeHtml) {

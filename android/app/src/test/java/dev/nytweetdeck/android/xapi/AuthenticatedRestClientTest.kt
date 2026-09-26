@@ -230,7 +230,7 @@ class AuthenticatedRestClientTest {
     private class RecordingTransactionIdService(
         private var failuresBeforeSuccess: Int = 0,
     ) : XClientTransactionIdService(
-        XClientTransactionIdService.AssetFetcher { _, _ -> "" },
+        XClientTransactionIdService.AssetFetcher { _, _, _ -> "" },
     ) {
         val generated = mutableListOf<String>()
         var invalidations = 0

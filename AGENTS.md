@@ -133,3 +133,4 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - 通知タイムラインは変数`timeline_type`が必須で、既定値は`All`（他に`Mentions`・`Priority`・`Verified`・`SuperFollowers`）。422時は`GRAPHQL_VALIDATION_FAILED`の変数名と`bundle.Notifications`の`fetchNotifications`で現行仕様を確認する（`TimelineQueryFactory`）。Android版も同じ変数を送る。
 - Android版の同梱定義はデスクトップ版と`src/main/resources/x-api/`を共有する（`android/app/build.gradle.kts`のassets参照）。デスクトップ側の更新だけでAndroidの同梱値も更新される。
 - Androidの定義更新も保存済みセッション（`XApiEnvironment`の`webSessionProvider`→`XWebMetadataResolver`）で取得し、欠落操作は維持する。`AssetFetcher`はヘッダー付きで取得し、Cookieはホーム取得にだけ付ける。
+- 署名（`X-Client-Transaction-Id`）素材の取得元ホーム画面もログイン必須のため、両面の署名サービスは保存済みセッションで取得する。Androidでは署名が全GraphQLに付くため、署名生成の失敗はログイン検証を含む全面停止になる。デスクトップはミューテーションのみに付ける。

@@ -2,11 +2,29 @@ package dev.nytweetdeck.xapi.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.nytweetdeck.account.AccountSecrets;
 import java.net.URI;
+import java.net.http.HttpRequest;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
 
 class XClientTransactionIdServiceTest {
+
+    @Test
+    void attachesSavedWebSessionHeadersForHome() {
+        var account = AccountSecrets.webSession(
+                "1", "1", "alice", "alice", "bearer-tok", "auth-tok", "csrf-tok");
+        var builder = HttpRequest.newBuilder(URI.create("https://x.com/home"));
+
+        XClientTransactionIdService.addSessionHeaders(builder, account);
+
+        var request = builder.build();
+        assertThat(request.headers().firstValue("Cookie"))
+                .hasValue("auth_token=auth-tok; ct0=csrf-tok");
+        assertThat(request.headers().firstValue("X-CSRF-Token")).hasValue("csrf-tok");
+        assertThat(request.headers().firstValue("X-Twitter-Auth-Type")).hasValue("OAuth2Session");
+        assertThat(request.headers().firstValue("X-Twitter-Active-User")).hasValue("yes");
+    }
 
     @Test
     void resolvesCurrentOnDemandAssetFromTheWebRuntimeMap() {
