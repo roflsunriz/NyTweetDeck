@@ -2,15 +2,20 @@ package dev.nytweetdeck.xapi.profile;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class XApiProfileService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(XApiProfileService.class);
 
     private static final String PROFILE_PATH = "x-api/web-current.json";
     private static final String DEFAULTS_PATH = "x-api/web-boolean-feature-defaults.json";
@@ -61,11 +66,15 @@ public class XApiProfileService {
     public synchronized int applyResolved(XWebMetadataResolver.ResolvedMetadata metadata) {
         var current = state.get();
         var operations = new LinkedHashMap<String, XApiProfile.GraphQlOperation>();
+        var retained = new ArrayList<String>();
         for (var entry : current.profile().graphqlOperations().entrySet()) {
             var resolved = metadata.operationsByName().get(entry.getValue().operationName());
             if (resolved == null) {
-                throw new IllegalArgumentException(
-                        "必須X Web operationが見つかりません: " + entry.getValue().operationName());
+                // ホーム画面のJS資産に含まれないoperation（リスト系など）は、直前の検証済み定義を
+                // 維持する。全体の更新を失敗させないための意図的な保持である。
+                operations.put(entry.getKey(), entry.getValue());
+                retained.add(entry.getValue().operationName());
+                continue;
             }
             operations.put(
                     entry.getKey(),
@@ -77,6 +86,34 @@ public class XApiProfileService {
                             resolved.featureKeys(),
                             resolved.fieldToggles()));
         }
+        if (!retained.isEmpty()) {
+            LOGGER.warn(
+                    "X Web資産に存在しないoperationは直前の定義を維持しました: {}",
+                    String.join(", ", retained));
+        }
+        // 維持したoperationが参照するキーと既定値も引き継ぐ。
+        var featureKeys = new ArrayList<>(metadata.allFeatureKeys());
+        var defaults = new LinkedHashMap<>(metadata.featureDefaults());
+        for (var name : retained) {
+            var previous = current.profile().graphqlOperations().values().stream()
+                    .filter(operation -> operation.operationName().equals(name))
+                    .findFirst()
+                    .orElse(null);
+            if (previous == null) {
+                continue;
+            }
+            for (var key : previous.featureKeys()) {
+                if (!defaults.containsKey(key)) {
+                    var value = current.featureDefaults().get(key);
+                    if (value != null) {
+                        defaults.put(key, value);
+                    }
+                }
+                if (!featureKeys.contains(key)) {
+                    featureKeys.add(key);
+                }
+            }
+        }
         var profile = new XApiProfile(
                 current.profile().packageName(),
                 metadata.sourceVersion(),
@@ -85,10 +122,10 @@ public class XApiProfileService {
                 current.profile().graphqlBaseUri(),
                 current.profile().standardHeaders(),
                 current.profile().restEndpoints(),
-                metadata.allFeatureKeys(),
+                featureKeys,
                 operations);
-        state.set(new State(profile, metadata.featureDefaults()));
-        return operations.size();
+        state.set(new State(profile, Map.copyOf(defaults)));
+        return operations.size() - retained.size();
     }
 
     private record State(XApiProfile profile, Map<String, Boolean> featureDefaults) {}

@@ -1,5 +1,6 @@
 package dev.nytweetdeck.xapi.profile;
 
+import dev.nytweetdeck.account.AccountStore;
 import dev.nytweetdeck.xapi.auth.browser.WebBearerTokenProvider;
 import dev.nytweetdeck.xapi.http.XApiHttpException;
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -50,16 +52,39 @@ public class XWebMetadataResolver {
             "conversation",
             "birdwatch",
             "search",
-            "tweet");
+            "tweet",
+            "list");
 
     private final HttpClient httpClient;
+    private final AccountStore accountStore;
+    private final URI webHome;
+    private final URI assetBase;
+    private final boolean allowLocalAssets;
 
     public XWebMetadataResolver(HttpClient httpClient) {
+        this(httpClient, null);
+    }
+
+    @Autowired
+    public XWebMetadataResolver(HttpClient httpClient, AccountStore accountStore) {
+        this(httpClient, accountStore, WEB_HOME, ASSET_BASE, false);
+    }
+
+    XWebMetadataResolver(
+            HttpClient httpClient,
+            AccountStore accountStore,
+            URI webHome,
+            URI assetBase,
+            boolean allowLocalAssets) {
         this.httpClient = httpClient;
+        this.accountStore = accountStore;
+        this.webHome = webHome;
+        this.assetBase = assetBase;
+        this.allowLocalAssets = allowLocalAssets;
     }
 
     public ResolvedMetadata resolve(Set<String> requiredOperationNames) {
-        var html = fetch(WEB_HOME);
+        var html = fetchHome();
         var defaultsFromPage = parseBooleanFeatures(html);
         var operations = new LinkedHashMap<String, ResolvedOperation>();
         var directScripts = parseScriptUrls(html);
@@ -87,18 +112,18 @@ public class XWebMetadataResolver {
             }
         }
 
+        // リスト系などホーム画面のチャンクに含まれないoperationは、直前の検証済み定義を維持するため
+        // 欠落として報告し、更新全体を失敗させない。
         var missing = new LinkedHashSet<>(requiredOperationNames);
         missing.removeAll(operations.keySet());
-        if (!missing.isEmpty()) {
-            throw new XApiHttpException(
-                    "X公式Web資産に必須operationがありません: " + String.join(", ", missing),
-                    502);
-        }
 
         var selectedOperations = new LinkedHashMap<String, ResolvedOperation>();
         var allFeatureKeys = new LinkedHashSet<String>();
         for (var name : requiredOperationNames) {
             var operation = operations.get(name);
+            if (operation == null) {
+                continue;
+            }
             selectedOperations.put(name, operation);
             allFeatureKeys.addAll(operation.featureKeys());
         }
@@ -110,7 +135,8 @@ public class XWebMetadataResolver {
                 sourceVersion,
                 Map.copyOf(selectedOperations),
                 List.copyOf(allFeatureKeys),
-                Map.copyOf(defaults));
+                Map.copyOf(defaults),
+                List.copyOf(missing));
     }
 
     Map<String, ResolvedOperation> parseOperations(String javascript) {
@@ -172,7 +198,7 @@ public class XWebMetadataResolver {
 
     private String fetchChunk(ChunkCandidate candidate) {
         for (var suffix : List.of("a.js", ".js")) {
-            var uri = ASSET_BASE.resolve(candidate.name() + "." + candidate.hash() + suffix);
+            var uri = assetBase.resolve(candidate.name() + "." + candidate.hash() + suffix);
             try {
                 return fetch(uri);
             } catch (XApiHttpException exception) {
@@ -182,6 +208,54 @@ public class XWebMetadataResolver {
             }
         }
         return null;
+    }
+
+    private String fetchHome() {
+        // X公式Webのホーム画面はログイン必須であり、未ログインではログインページへ
+        // リダイレクトされる。保存済みWebセッションで取得し、現行のJS資産参照を得る。
+        var builder = HttpRequest.newBuilder(webHome)
+                .timeout(Duration.ofSeconds(30))
+                .header("User-Agent", WebBearerTokenProvider.BROWSER_USER_AGENT)
+                .header("Accept", "text/html")
+                .header("Referer", "https://x.com/")
+                .GET();
+        if (accountStore != null) {
+            var session = accountStore.firstWebSession();
+            if (session.isPresent()) {
+                var account = session.get();
+                builder.header(
+                        "Cookie",
+                        "auth_token=" + account.authToken() + "; ct0=" + account.csrfToken());
+                builder.header("X-CSRF-Token", account.csrfToken());
+                builder.header("X-Twitter-Auth-Type", "OAuth2Session");
+                builder.header("X-Twitter-Active-User", "yes");
+            }
+        }
+        requireOfficialUri(webHome);
+        try {
+            var response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 307
+                    || response.statusCode() == 401
+                    || response.statusCode() == 403) {
+                throw new XApiHttpException(
+                        "X Webセッションが無効なためAPI定義を更新できません。Xへログインし直してください。",
+                        response.statusCode());
+            }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new XApiHttpException(
+                        "X公式Web資産の取得に失敗しました。HTTP " + response.statusCode(),
+                        response.statusCode());
+            }
+            if (response.body().length() > MAX_ASSET_LENGTH) {
+                throw new XApiHttpException("X公式Web資産が上限サイズを超えています。", 502);
+            }
+            return response.body();
+        } catch (IOException exception) {
+            throw new XApiHttpException("X公式Web資産の通信に失敗しました。", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new XApiHttpException("X公式Web資産の取得が中断されました。", exception);
+        }
     }
 
     private String fetch(URI uri) {
@@ -210,13 +284,23 @@ public class XWebMetadataResolver {
         }
     }
 
-    private static List<URI> parseScriptUrls(String html) {
+    private List<URI> parseScriptUrls(String html) {
         var urls = new LinkedHashSet<URI>();
         var matcher = SCRIPT_URL.matcher(html);
         while (matcher.find()) {
             var uri = URI.create(matcher.group());
             requireOfficialUri(uri);
             urls.add(uri);
+        }
+        if (allowLocalAssets) {
+            var localScript = Pattern.compile(
+                    Pattern.quote(assetBase.toString()) + "[^\"'<> ]+\\.js");
+            var localMatcher = localScript.matcher(html);
+            while (localMatcher.find()) {
+                var uri = URI.create(localMatcher.group());
+                requireOfficialUri(uri);
+                urls.add(uri);
+            }
         }
         if (urls.isEmpty()) {
             throw new XApiHttpException("X公式WebのJavaScript資産が見つかりません。", 502);
@@ -250,8 +334,11 @@ public class XWebMetadataResolver {
         return value.matches("[A-Za-z0-9_./~-]{1,220}") && !value.contains("..");
     }
 
-    private static void requireOfficialUri(URI uri) {
+    private void requireOfficialUri(URI uri) {
         var host = uri.getHost();
+        if (allowLocalAssets && ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host))) {
+            return;
+        }
         if (!"https".equalsIgnoreCase(uri.getScheme())
                 || !("x.com".equalsIgnoreCase(host)
                         || "abs.twimg.com".equalsIgnoreCase(host))) {
@@ -270,7 +357,17 @@ public class XWebMetadataResolver {
             String sourceVersion,
             Map<String, ResolvedOperation> operationsByName,
             List<String> allFeatureKeys,
-            Map<String, Boolean> featureDefaults) {}
+            Map<String, Boolean> featureDefaults,
+            List<String> missingOperations) {
+
+        public ResolvedMetadata(
+                String sourceVersion,
+                Map<String, ResolvedOperation> operationsByName,
+                List<String> allFeatureKeys,
+                Map<String, Boolean> featureDefaults) {
+            this(sourceVersion, operationsByName, allFeatureKeys, featureDefaults, List.of());
+        }
+    }
 
     record ChunkCandidate(String name, String hash) {}
 }

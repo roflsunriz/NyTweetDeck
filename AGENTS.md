@@ -122,3 +122,11 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - 全画面表示中はインライン側のExoPlayerを解放し、同時デコードを全画面の1本だけにする。高ビットレート動画で二重デコードになるとPixel 10aの256MBヒープで`MediaCodec.getOutputBuffer`のOOMが起き、再起動後の自動再生で繰り返し落ちる。`InlineVideoPlayer`の`suspended`→`MediaPreview`/`MediaTile`の`videosSuspended`（`PostCard`/`QuoteCard`では`selectedMedia != null`）で画面外と同じ解放経路を使い、閉じれば再生成する。`MediaViewerUiTest`の`suspended`検証参照。
 - Pixel 10aは別タスク用で原則操作しないが、全画面OOM修正と共有翻訳版の反映（2026-09-06）に限りユーザーが操作・更新を許可した。adbはシリアル（`63131JEA301496`）を必ず明示する。debug/releaseは同一署名（安定debugキーストア）のため`install -r`でデータ保持のまま上書きでき、releaseは`NYTD_ANDROID_KEYSTORE`等を渡した`assembleRelease`で署名済み`app-release.apk`を作る。検証後は非debuggable releaseへ戻し、端末APKのハッシュをビルド物と照合する。
 - 実機Composeテストの注意：ボタンの内容説明は結合後ツリーで参照する（非結合ツリーのボタン単体には説明が載らない）。`autoAdvance = false`時はクリック後の再描画へ`advanceTimeBy`を足す。`safeMediaUri`がtwimg限定のためfixture動画では実デコード検証ができず、実動画は`LiveVideoPlaybackSmokeTest`（読み取り専用）で行う。
+
+## X Web API定義の更新
+
+- `https://x.com/home`は未ログインだと307でログインページへ飛ぶため、`XWebMetadataResolver`は保存済みWebセッション（`AccountStore.firstWebSession`のCookie/CSRF）で取得する。匿名取得に戻さない。セッション無効時はログインし直しを求める。
+- ログイン済みHTMLは`responsive-web/client-web/`の`vendor`・`i18n`・`main.<hash>.js`を参照する。チャンクはマニフェストの`名前`＋`.`＋`ハッシュ`＋`a.js`（`.js`は404）で取得する。`RELEVANT_CHUNK_MARKERS`には`list`を含める。
+- リスト系5操作（`ListLatestTweetsTimeline`・`CombinedLists`・`ListsDiscovery`・`ListAddMember`・`ListRemoveMember`）はホーム画面のチャンク図に現れないため、更新時は直前の検証済み定義を維持する（`XApiProfileService.applyResolved`の保持動作）。見つからないことを理由に更新全体を失敗させない。
+- 同梱の`web-current.json`・`web-boolean-feature-defaults.json`は失効する。タイムラインが422/502になったら現行資産から取り直す。手順は`verification.md`の復旧記録参照。`versionName`は取得元`main.<hash>.js`に合わせる。
+- ログアウト画面（`https://x.com/`）は新系列`x-web/x-web/entry-client-logged-out-*.js`を使うが、ログイン後のGraphQL定義は旧系列`responsive-web/client-web`に残っている。系列を混同しない。

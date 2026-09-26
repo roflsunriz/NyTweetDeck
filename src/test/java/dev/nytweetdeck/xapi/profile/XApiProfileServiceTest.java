@@ -18,7 +18,7 @@ class XApiProfileServiceTest {
         var profile = service.profile();
 
         assertThat(profile.packageName()).isEqualTo("x-web");
-        assertThat(profile.versionName()).isEqualTo("current");
+        assertThat(profile.versionName()).isEqualTo("main.941731a8bedadd89a.js");
         assertThat(profile.standardHeaders())
                 .containsEntry("X-Twitter-Client", "TwitterWebClient")
                 .containsEntry("X-Twitter-API-Version", "5");
@@ -37,7 +37,7 @@ class XApiProfileServiceTest {
 
         assertThat(operation.key()).isEqualTo("home_timeline");
         assertThat(operation.resolveAgainst(service.profile().graphqlBaseUri()).toString())
-                .isEqualTo("https://x.com/i/api/graphql/wp06oo3fRGU4P1sK8rECqQ/HomeTimeline");
+                .isEqualTo("https://x.com/i/api/graphql/og4a4SdSF3WiQkkwaPCdPg/HomeTimeline");
     }
 
     @Test
@@ -45,6 +45,7 @@ class XApiProfileServiceTest {
         var operation = service.requireOperation("communityNote");
 
         assertThat(operation.operationName()).isEqualTo("BirdwatchFetchOneNote");
+        assertThat(operation.operationId()).isEqualTo("1lt6XSRik4s93WG0BrEvig");
         assertThat(operation.featureKeys())
                 .contains("responsive_web_birdwatch_media_notes_enabled")
                 .contains("responsive_web_birdwatch_url_notes_enabled");
@@ -57,7 +58,7 @@ class XApiProfileServiceTest {
         var operation = service.requireOperation("userReplies");
 
         assertThat(operation.operationName()).isEqualTo("UserRepliesTimeline");
-        assertThat(operation.operationId()).isEqualTo("dRUXRSlEIPlVmPgOQ8Z43g");
+        assertThat(operation.operationId()).isEqualTo("xz348nziCm96wndJ1S0MUQ");
     }
 
     @Test
@@ -68,14 +69,26 @@ class XApiProfileServiceTest {
     }
 
     @Test
-    void keepsTheVerifiedSnapshotWhenARefreshIsIncomplete() {
-        var before = service.profile();
-        var incomplete = new XWebMetadataResolver.ResolvedMetadata(
-                "main.changed.js", Map.of(), List.of(), Map.of());
+    void keepsVerifiedOperationsMissingFromRefreshedAssets() {
+        var listBefore = service.requireOperation("list");
+        var refreshed = new XWebMetadataResolver.ResolvedMetadata(
+                "main.changed.js",
+                Map.of(
+                        "HomeTimeline",
+                        new XWebMetadataResolver.ResolvedOperation(
+                                "new-home-id",
+                                "HomeTimeline",
+                                XApiProfile.OperationType.QUERY,
+                                List.of("feature_a"),
+                                List.of())),
+                List.of("feature_a"),
+                Map.of("feature_a", true),
+                List.of("ListLatestTweetsTimeline"));
 
-        assertThatThrownBy(() -> service.applyResolved(incomplete))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("必須X Web operation");
-        assertThat(service.profile()).isSameAs(before);
+        var updated = service.applyResolved(refreshed);
+
+        assertThat(updated).isEqualTo(1);
+        assertThat(service.requireOperation("homeForYou").operationId()).isEqualTo("new-home-id");
+        assertThat(service.requireOperation("list")).isEqualTo(listBefore);
     }
 }

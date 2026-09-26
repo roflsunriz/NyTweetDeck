@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
@@ -80,6 +81,10 @@ public class AccountStore {
                 .filter(account -> account.accountId().equals(accountId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("指定したアカウントがありません。"));
+    }
+
+    public synchronized Optional<AccountSecrets> firstWebSession() {
+        return accounts.stream().filter(AccountSecrets::hasWebSession).findFirst();
     }
 
     private List<AccountSecrets> loadInitial(List<Path> legacyCandidates) {
