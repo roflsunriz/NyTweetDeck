@@ -59,14 +59,23 @@ public class XClientTransactionIdService {
     private final Clock clock;
     private final IntSupplier randomByteSupplier;
     private final Duration cacheDuration;
+    private final URI homeUri;
+    private final URI assetBaseUri;
     private volatile SigningMaterial cachedMaterial;
     private volatile Instant cachedAt;
 
     @Autowired
     public XClientTransactionIdService(HttpClient httpClient, AccountStore accountStore) {
+        this(httpClient, accountStore, X_HOME_URI, WEB_ASSET_BASE_URI);
+    }
+
+    private XClientTransactionIdService(
+            HttpClient httpClient, AccountStore accountStore, URI homeUri, URI assetBaseUri) {
         var secureRandom = new SecureRandom();
         this.httpClient = httpClient;
         this.accountStore = accountStore;
+        this.homeUri = homeUri;
+        this.assetBaseUri = assetBaseUri;
         this.clock = Clock.systemUTC();
         this.randomByteSupplier = () -> secureRandom.nextInt(256);
         this.cacheDuration = DEFAULT_CACHE_DURATION;
@@ -88,6 +97,25 @@ public class XClientTransactionIdService {
             Duration cacheDuration) {
         this.httpClient = httpClient;
         this.accountStore = accountStore;
+        this.homeUri = X_HOME_URI;
+        this.assetBaseUri = WEB_ASSET_BASE_URI;
+        this.clock = clock;
+        this.randomByteSupplier = randomByteSupplier;
+        this.cacheDuration = cacheDuration;
+    }
+
+    XClientTransactionIdService(
+            HttpClient httpClient,
+            AccountStore accountStore,
+            URI homeUri,
+            URI assetBaseUri,
+            Clock clock,
+            IntSupplier randomByteSupplier,
+            Duration cacheDuration) {
+        this.httpClient = httpClient;
+        this.accountStore = accountStore;
+        this.homeUri = homeUri;
+        this.assetBaseUri = assetBaseUri;
         this.clock = clock;
         this.randomByteSupplier = randomByteSupplier;
         this.cacheDuration = cacheDuration;
@@ -134,8 +162,8 @@ public class XClientTransactionIdService {
     }
 
     private SigningMaterial loadSigningMaterial() {
-        var homeHtml = fetchText(X_HOME_URI, "text/html,application/xhtml+xml");
-        var onDemandUri = resolveOnDemandUri(homeHtml);
+        var homeHtml = fetchText(homeUri, "text/html,application/xhtml+xml");
+        var onDemandUri = resolveOnDemandUri(homeHtml, assetBaseUri);
         var onDemandSource = fetchText(onDemandUri, "*/*");
         return parseSigningMaterial(homeHtml, onDemandSource);
     }
@@ -149,7 +177,7 @@ public class XClientTransactionIdService {
                 .header("Pragma", "no-cache")
                 .header("User-Agent", WebBearerTokenProvider.BROWSER_USER_AGENT);
         // 署名素材の取得元ホーム画面はログイン必須のため、保存済みWebセッションで取得する。
-        if (uri.equals(X_HOME_URI) && accountStore != null) {
+        if (uri.equals(homeUri) && accountStore != null) {
             var session = accountStore.firstWebSession();
             session.ifPresent(account -> addSessionHeaders(builder, account));
         }
@@ -157,7 +185,7 @@ public class XClientTransactionIdService {
         try {
             var response = httpClient.send(
                     request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (uri.equals(X_HOME_URI)
+            if (uri.equals(homeUri)
                     && (response.statusCode() == 307
                             || response.statusCode() == 401
                             || response.statusCode() == 403)) {
@@ -188,6 +216,10 @@ public class XClientTransactionIdService {
     }
 
     static URI resolveOnDemandUri(String homeHtml) {
+        return resolveOnDemandUri(homeHtml, WEB_ASSET_BASE_URI);
+    }
+
+    static URI resolveOnDemandUri(String homeHtml, URI assetBase) {
         var chunkMatcher = ON_DEMAND_CHUNK_PATTERN.matcher(homeHtml);
         if (!chunkMatcher.find()) {
             throw new XApiHttpException("X Web署名チャンクIDを解決できませんでした。", 502);
@@ -203,7 +235,7 @@ public class XClientTransactionIdService {
         if (hash == null) {
             throw new XApiHttpException("X Web署名チャンクを解決できませんでした。", 502);
         }
-        return WEB_ASSET_BASE_URI.resolve("ondemand.s." + hash + "a.js");
+        return assetBase.resolve("ondemand.s." + hash + "a.js");
     }
 
     static SigningMaterial parseSigningMaterial(String homeHtml, String onDemandSource) {
