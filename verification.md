@@ -257,5 +257,5 @@ bun run sandbox:observe-x-video
 ## Android 0.4.1（2026-09-26）
 
 - Android版も同型の3件（同梱ID失効・`timeline_type`不足・定義更新の匿名取得）を抱えていた。同梱定義はデスクトップ版と`src/main/resources/x-api/`を共有するため更新済み。残り2件をAndroid側に移植した。
-- `testDebugUnitTest` 279件全合格、`lintDebug`・`assembleDebug`成功。AQUOS実機で通知を含む各タイムラインと定義更新を確認した（Pixel 10aは別タスク用のため不使用）。
+- `testDebugUnitTest` 279件全合格、`lintDebug`・`assembleDebug`成功。AQUOS実機への反映・検証は端末未接続のため未実施（所有者の選択で後回し、Pixel 10aは別タスク用のため不使用）。CIのandroid-releaseで署名済みAPKを公開した。
 
