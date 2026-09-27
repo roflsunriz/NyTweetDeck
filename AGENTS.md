@@ -76,7 +76,7 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 ## 投稿作成のX Web契約
 
 - 2026-09-27にログイン済みX Web資産の`main.941731a8bedadd89a.js`とCompose関連チャンクで確認した。即時投稿のGraphQL `CreateTweet`では画像/GIFの`media.media_entities`、投票の`card_uri`、場所の`geo.place_id`、有料パートナーシップの`content_disclosure.advertising_disclosure.is_paid_promotion`、AI生成の`content_disclosure.ai_generated_disclosure`を送る。予約は`CreateScheduledTweet`へ`post_tweet_request`と秒単位`execute_at`を送る。`PostServiceTest`と`PostComposerRepositoryTest`参照。
-- メディアは`upload.x.com/i/media/upload.json`のINIT→APPEND→FINALIZE（GIFはSTATUSまで）、投票は`caps.x.com/v2/cards/create.json`、場所検索は`api.x.com/1.1/geo/places.json`へ`query_type=tweet_compose_location`と`search_term`を送り、`places[].place`を使用する。2026-09-27にPCとPixel 10aで未投稿の画像/GIF・投票カード、PCで現行の場所検索形式に成功した。公開投稿を伴う実X検証とは分け、変更時は署名、サイズ、組み合わせ、失敗時の入力維持を確認する。
+- メディアは`upload.x.com/i/media/upload.json`のINIT→APPEND→FINALIZE（GIFはSTATUSまで）、投票は`caps.x.com/v2/cards/create.json`、場所検索は`api.x.com/1.1/geo/places.json`へ`query_type=tweet_compose_location`と`search_term`を送り、`places[].place`を使用する。2026-09-27にPCとPixel 10aで未投稿の画像/GIF・投票カードと現行の場所検索形式に成功した。公開投稿を伴う実X検証とは分け、変更時は署名、サイズ、組み合わせ、失敗時の入力維持を確認する。
 - Windows/JDK 25のローカル`HttpServer`で投稿用POST本文を検証した際、Java `HttpClient`既定のHTTP/2交渉では本文の受信が止まり、HTTP/1.1を明示すると画像・投票の模擬サーバーテストと実X通信が成功した。`ComposerWebClientTest`と`ComposerWebClient.exchange`参照。テスト失敗を画像形式の問題と混同しない。
 
 ## 認証情報の保存
@@ -98,7 +98,7 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 ## Android端末の作業分離
 
-- 返信とおすすめを分離する本作業では、実機検証と反映をAQUOSに限定する。Pixel 10aは別タスクで使用中のため、本作業から操作・更新・復旧しない。複数端末接続時はadbへ対象シリアルを必ず明示し、他タスクの端末を選ばない。
+- 返信とおすすめを分離した作業では、実機検証と反映をAQUOSに限定した。2026-09-27の投稿状態・作成作業ではユーザーがPixel 10aの接続を知らせ、当該端末で検証後に署名付き非debuggable版へ復旧・更新した。複数端末接続時はadbへ対象シリアルを必ず明示し、他タスクの端末を選ばない。
 
 ## 返信ページ終端の判定
 
