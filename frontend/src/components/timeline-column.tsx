@@ -320,6 +320,15 @@ function TimelineColumnContent({
     }
     const params = new URLSearchParams({ accountId });
     const source = new EventSource(`/api/v1/events/timeline?${params}`);
+    let disconnected = false;
+    const handleDisconnect = () => {
+      disconnected = true;
+    };
+    const handleReconnect = () => {
+      if (!disconnected) return;
+      disconnected = false;
+      void load(undefined, "preserve-viewport");
+    };
     const handleUpdate = (event: MessageEvent<string>) => {
       let update: TimelineUpdate;
       try {
@@ -367,8 +376,12 @@ function TimelineColumnContent({
       }
     };
     source.addEventListener("timeline-update", handleUpdate);
+    source.addEventListener("error", handleDisconnect);
+    source.addEventListener("open", handleReconnect);
     return () => {
       source.removeEventListener("timeline-update", handleUpdate);
+      source.removeEventListener("error", handleDisconnect);
+      source.removeEventListener("open", handleReconnect);
       source.close();
     };
   }, [accountId, autoRefreshTimelines, column.kind, load, suppressUser, updatePosts]);

@@ -653,6 +653,53 @@ describe("timeline column", () => {
     expect(timelineLoads).toBe(1);
   });
 
+  test("restores confirmed action colors after the backend reconnects with auto refresh off", async () => {
+    let eventSource: FakeEventSource | undefined;
+    globalThis.EventSource = class extends FakeEventSource {
+      constructor(_url: string | URL) {
+        super();
+        eventSource = this;
+      }
+    } as unknown as typeof EventSource;
+    let timelineLoads = 0;
+    globalThis.fetch = (async (input) => {
+      if (String(input).includes("/api/v1/timelines/")) {
+        timelineLoads += 1;
+        return Response.json({
+          posts: [
+            {
+              ...post("1", "already actioned"),
+              liked: timelineLoads > 1,
+              reposted: timelineLoads > 1,
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+      return Response.json({ connected: true, topicCount: 1 });
+    }) as typeof fetch;
+
+    render(
+      <TimelineColumn
+        column={{ id: "manual", kind: "home", target: null, label: null }}
+        accountId="account-1"
+        translation={translate("ja")}
+        autoRefreshTimelines={false}
+      />,
+    );
+    await screen.findByText("already actioned");
+    const like = screen.getByRole("button", { name: "いいね" });
+    const repost = screen.getByRole("button", { name: "リポスト" });
+    expect(like.classList.contains("like-active")).toBe(false);
+    expect(repost.classList.contains("repost-active")).toBe(false);
+
+    act(() => eventSource?.emit("error", {}));
+    act(() => eventSource?.emit("open", {}));
+    await waitFor(() => expect(like.classList.contains("like-active")).toBe(true));
+    expect(repost.classList.contains("repost-active")).toBe(true);
+    expect(timelineLoads).toBe(2);
+  });
+
   test("refreshes bookmarks only in the history column", async () => {
     let eventSource: FakeEventSource | undefined;
     globalThis.EventSource = class extends FakeEventSource {

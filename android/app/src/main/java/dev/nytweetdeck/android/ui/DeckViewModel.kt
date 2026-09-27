@@ -93,6 +93,7 @@ class DeckViewModel(
     private var accountStore: AccountStore? = null
     private var visibleColumnIds: Set<String> = emptySet()
     private val visibilityRefreshJobs = mutableMapOf<String, Job>()
+    private val restoredCacheColumnIds = mutableSetOf<String>()
     private val accountColumnCaches = mutableMapOf<String, AccountColumnSnapshot>()
     private val postActionController = postActionRepository?.let { repository ->
         PostActionController(
@@ -239,6 +240,8 @@ class DeckViewModel(
                     timelines = cachedTimelines,
                 )
                 withContext(Dispatchers.Main.immediate) {
+                    restoredCacheColumnIds.clear()
+                    restoredCacheColumnIds.addAll(cachedTimelines.keys)
                     loaded.selectedAccountId?.let { selectedId ->
                         accountColumnCaches[selectedId] = AccountColumnSnapshot(
                             timelines = loaded.timelines,
@@ -281,6 +284,7 @@ class DeckViewModel(
 
     fun removeColumn(id: String) {
         visibilityRefreshJobs.remove(id)?.cancel()
+        restoredCacheColumnIds.remove(id)
         visibleColumnIds = visibleColumnIds - id
         mutate { current ->
             current.copy(
@@ -454,6 +458,8 @@ class DeckViewModel(
                         postDetailController?.reset()
                         userProfileController?.reset()
                         val restored = retainedSnapshot ?: AccountColumnSnapshot(timelines = diskTimelines)
+                        restoredCacheColumnIds.clear()
+                        if (retainedSnapshot == null) restoredCacheColumnIds.addAll(diskTimelines.keys)
                         mutableState.update {
                             it.copy(
                                 selectedAccountId = accountId,
@@ -520,6 +526,7 @@ class DeckViewModel(
                 )
                 withContext(Dispatchers.Main.immediate) {
                     if (mutableState.value.selectedAccountId != accountId) return@withContext
+                    restoredCacheColumnIds.remove(columnId)
                     mutableState.update { current ->
                         val existing = current.timelines[columnId]
                         val existingIds = existing?.posts?.mapTo(HashSet()) { it.id }.orEmpty()
@@ -945,13 +952,15 @@ class DeckViewModel(
     private fun scheduleVisibilityRefresh(columnId: String, preload: Boolean = false) {
         visibilityRefreshJobs.remove(columnId)?.cancel()
         val current = mutableState.value
-        if (!current.autoRefreshTimelines && isColumnReady(current, columnId)) return
+        if (!current.autoRefreshTimelines && isColumnReady(current, columnId) &&
+            columnId !in restoredCacheColumnIds) return
         visibilityRefreshJobs[columnId] = viewModelScope.launch {
             delay(visibilityRefreshDelayMillis)
             val current = mutableState.value
             if ((columnId in visibleColumnIds || preload) &&
                 foregroundOrUntracked() &&
-                (current.autoRefreshTimelines || !isColumnReady(current, columnId))
+                (current.autoRefreshTimelines || !isColumnReady(current, columnId) ||
+                    columnId in restoredCacheColumnIds)
             ) {
                 refreshColumn(columnId)
             }

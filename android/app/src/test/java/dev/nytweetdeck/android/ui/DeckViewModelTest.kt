@@ -5,6 +5,7 @@ import dev.nytweetdeck.android.data.AccountStore
 import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.DeckSettingsStore
 import dev.nytweetdeck.android.data.TimelineRepository
+import dev.nytweetdeck.android.data.TimelineCache
 import dev.nytweetdeck.android.data.NotificationRepository
 import dev.nytweetdeck.android.data.PostActionRepository
 import dev.nytweetdeck.android.data.PostComposerRepository
@@ -488,6 +489,61 @@ class DeckViewModelTest {
             assertEquals(1, calls)
         } finally {
             viewModelStore.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun revalidatesRestoredActionColorsEvenWhenAutoRefreshIsOff() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath())
+            settingsStore.save(DeckUiState(
+                columns = listOf(DeckColumn("home", ColumnKind.HOME_FOR_YOU, "Home")),
+                autoRefreshTimelines = false,
+            ))
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            val account = AccountSecrets("7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile-7")
+            AccountStore(accountFile).addOrReplace(account, select = true)
+            val cache = TimelineCache(root.resolve("timeline-cache"))
+            cache.write(account.accountId, "homeForYou", null, timelineJson("1", "restored post", "next"))
+            var calls = 0
+            val fresh = timelineJson("1", "restored post", "next")
+                .replace("\"created_at\":", "\"favorited\":true,\"retweeted\":true,\"created_at\":")
+            val repository = TimelineRepository(GraphQlExecutor { _, _, _, _ ->
+                calls++
+                if (calls == 1) error("temporary network failure")
+                fresh
+            }, cache = cache)
+            val viewModel = DeckViewModel(
+                settingsStore = settingsStore,
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                timelineRepository = repository,
+                ioDispatcher = dispatcher,
+                visibilityRefreshDelayMillis = 750L,
+            )
+            advanceUntilIdle()
+            val restored = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single())
+            assertFalse(restored.liked)
+            assertFalse(restored.reposted)
+
+            viewModel.setVisibleColumns(setOf("home"))
+            advanceTimeBy(750L)
+            advanceUntilIdle()
+            assertFalse(requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single()).liked)
+
+            viewModel.setVisibleColumns(emptySet())
+            viewModel.setVisibleColumns(setOf("home"))
+            advanceTimeBy(750L)
+            advanceUntilIdle()
+            val refreshed = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single())
+            assertTrue(refreshed.liked)
+            assertTrue(refreshed.reposted)
+            assertEquals(2, calls)
+        } finally {
             Dispatchers.resetMain()
         }
     }
