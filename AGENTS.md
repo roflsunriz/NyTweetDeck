@@ -91,6 +91,8 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 ## Android依存更新の順序とSDK指定
 
+- 2026-09-27時点ではAGP 9.4.1・Gradle 9.8.0・Kotlin 2.4.20・compileSdk 37の組み合わせでAndroidの単体テスト、release Lint、releaseビルドが成功した。Gradle 9.8の`Configuration.setVisible`廃止予定警告はAGP側から出るため、次回のAGP更新時に`--warning-mode all`で再確認する（`verification.md`参照）。
+
 - Coil 3.6以降はkotlin-stdlib 2.4（メタデータ2.4）を同梱するため、Kotlin 2.4系への更新PRを先にマージしてからCoil更新PRをリベースする。逆順だと`compileDebugKotlin`がメタデータ不整合で失敗する（2026-09-23のPR #2・#4・#11で確認、`verification.md`参照）。
 - Compose/Coil/OkHttpの新版はcompileSdk 37とAGP 9.1以降を要求する。SDK追随時は`android/build.gradle.kts`（AGP）・`gradle-wrapper.properties`（Gradle）・`app/build.gradle.kts`（compileSdk/targetSdk）・`.github/workflows/ci.yml`と`android-release.yml`（SDK導入とapksignerパス）を同時に上げる。
 - API 37のsdkmanager正規パッケージ名は`platforms;android-37.0`（マイナー付き）であり、`platforms;android-37`では取得失敗する。正規名はローカルの`sdkmanager --list`で確認する。

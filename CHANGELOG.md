@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+## [Android 0.6.1] - 2026-09-27
+
+### Changed
+
+- Androidの継続的な互換性と修正の取り込みのため、Android Gradle Plugin、Gradle、Lifecycle、WebKitを確認時点の安定版へ更新した。
+
+## [1.8.1] - 2026-09-27
+
+### Changed
+
+- PC版の依存関係を安全に維持するため、フロントエンドの全直接依存関係とTomcatを確認時点の安定版へ更新した。
+
 ## [Android 0.6.0] - 2026-09-27
 
 ### Added

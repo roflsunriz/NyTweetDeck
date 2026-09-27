@@ -1,5 +1,11 @@
 # 検証手順
 
+## 依存関係の一括更新（2026-09-27）
+
+- ユーザーの明示承認に基づき`bun update --latest`を実行し、直接依存関係11件とロックファイル内の間接依存関係を更新した。公式Maven/Google Mavenメタデータで安定版を照合し、Tomcat 11.0.26、AGP 9.4.1、Gradle 9.8.0、Lifecycle 2.11.0、WebKit 1.17.1へ更新した。Spring Boot 4.1.1、Kotlin 2.4.20などは確認時点の安定最新版を維持した。
+- `bun outdated`は残件なし、`bun audit`は66パッケージ中の既知脆弱性0件。フロントエンドの型チェック・lint・225件のテストと、Mavenの164件のテストと配布JARビルドが成功した。
+- フロントエンドの整形検査とビルド、Androidの`testDebugUnitTest`・`lintRelease`・`assembleRelease`が成功した。OSV監査ではMaven 70件、Gradle 35件の既知の未撤回脆弱性は0件だった。Gradle 9.8の廃止予定警告はAGPが`Configuration.setVisible`を使うことに由来し、`--warning-mode all`で確認した。
+
 # タイムライン・API定義更新の復旧（2026-09-26）
 
 - CDP 9222の実測とAPI直接確認で、通知タイムラインが502（GraphQL notificationsのHTTP 422）、X Web API定義更新がREFRESH_FAILEDになることを確認した。

@@ -23,6 +23,8 @@ bun install
 
 5. lockfileの差分に、意図しない依存関係や配布元の変更がないことを確認します。
 
+直接依存関係を一括で最新版へ更新する場合は、先に`bun outdated`で対象を確認し、`frontend`で`bun update --latest`を実行します。`frontend/biome.json`のschema URLもBiome本体と同じ版へ合わせます。AndroidはGoogle MavenとMaven Centralの公式メタデータで安定版を確認し、AGP・Gradle・Kotlin・compileSdkの互換性を保って更新します。更新後は両版の全テストと監査を実行し、失敗した場合は変更差分から原因を特定してから公開します。
+
 XのWeb資産またはAPI仕様が変わった場合も、queryId・operation metadata・Feature Switchは起動後と6時間ごとにX公式Web資産から自動更新されます。設定画面の「X Web API定義」から手動更新し、最新定義の使用状態と取得元バージョンを確認できます。全必須operationが揃わない場合は更新せず、同梱または直前の検証済み定義を維持します。
 
 更新機構自体を変更した場合は、公式ドメイン制限、資産サイズ上限、queryId形式、必須operation完全性、Feature Boolean抽出、失敗時フォールバックをテストします。公開Bearer Token、Cookie、アカウント情報はログ、生成物、変更履歴へ含めません。
