@@ -133,6 +133,8 @@ data class ComposerUiState(
     val mode: ComposerMode = ComposerMode.POST,
     val targetPostId: String? = null,
     val status: ComposerStatus = ComposerStatus.IDLE,
+    val errorMessage: String? = null,
+    val scheduledAt: java.time.Instant? = null,
 )
 
 data class DisplaySettings(

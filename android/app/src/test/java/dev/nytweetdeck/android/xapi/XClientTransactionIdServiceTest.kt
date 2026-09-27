@@ -103,6 +103,21 @@ class XClientTransactionIdServiceTest {
     }
 
     @Test
+    fun signsOnlyTheExactOfficialComposerHosts() {
+        val service = fixtureService(
+            clock = Clock.fixed(FIXTURE_INSTANT, ZoneOffset.UTC),
+            random = FixedRandom(FIXTURE_RANDOM_BYTE),
+            requests = mutableListOf(),
+        )
+        listOf("api.x.com", "upload.x.com", "caps.x.com").forEach { host ->
+            assertTrue(service.generate("POST", "https://$host/i/media/upload.json".toHttpUrl()).isNotBlank())
+        }
+        assertThrows(XApiException::class.java) {
+            service.generate("POST", "https://upload.x.com.evil.example/i/media/upload.json".toHttpUrl())
+        }
+    }
+
+    @Test
     fun fetchesHomeWithSavedWebSessionHeaders() {
         val requests = mutableListOf<AssetRequest>()
         val assets = mapOf(

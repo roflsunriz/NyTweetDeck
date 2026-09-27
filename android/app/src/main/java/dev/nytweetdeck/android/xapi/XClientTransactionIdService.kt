@@ -293,7 +293,9 @@ open class XClientTransactionIdService(
         private val WEB_HOME = "https://x.com/home".toHttpUrl()
         private val ASSET_BASE = "https://abs.twimg.com$ASSET_BASE_PATH".toHttpUrl()
         private val DEFAULT_CACHE_DURATION: Duration = Duration.ofMinutes(30)
-        private val OFFICIAL_API_HOSTS = setOf(X_WEB_HOST, API_TWITTER_HOST)
+        private val OFFICIAL_API_HOSTS = setOf(
+            X_WEB_HOST, API_TWITTER_HOST, "api.x.com", "upload.x.com", "caps.x.com",
+        )
         private val METHOD = Regex("[A-Z]{1,32}")
         private val META_TAG = Regex(
             """<meta\b[^>]*\bname\s*=\s*([\"'])twitter-site-verification\1[^>]*>""",

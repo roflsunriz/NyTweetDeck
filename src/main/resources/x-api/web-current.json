@@ -1031,6 +1031,12 @@
         "withAuxiliaryUserLabels"
       ]
     },
+    "schedulePost": {
+      "key": "create_scheduled_tweet",
+      "operationId": "LCVzRQGxOaGnOnYH01NQXg",
+      "operationName": "CreateScheduledTweet",
+      "type": "MUTATION"
+    },
     "createPost": {
       "key": "create_tweet",
       "operationId": "GYdIGqVWfZNho79bQ2XDoA",

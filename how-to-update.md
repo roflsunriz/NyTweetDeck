@@ -6,7 +6,7 @@
 - Maven 3.9以上
 - Bun 1.4以上
 - OpenSSL（WindowsではGit for Windows同梱版を利用可能）
-- Android版の検証時はAndroid SDK 36とJDK 17
+- Android版の検証時はAndroid SDK 37.0（`platforms;android-37.0`）・build-tools 37.0.0とJDK 17
 - 作業前のGit状態が把握できていること
 
 ## 依存関係の更新
@@ -28,6 +28,8 @@ XのWeb資産またはAPI仕様が変わった場合も、queryId・operation me
 更新機構自体を変更した場合は、公式ドメイン制限、資産サイズ上限、queryId形式、必須operation完全性、Feature Boolean抽出、失敗時フォールバックをテストします。公開Bearer Token、Cookie、アカウント情報はログ、生成物、変更履歴へ含めません。
 
 X公式Webの動画、画像、返信、リンク、プロフィール遷移の挙動が変わった場合は、`frontend/scripts/README.sandbox.md`を確認し、raw CDPを公開する専用Chromeで公式資産を再取得します。captureはGit管理外の`frontend/src/sandbox/x-reference-captures/`だけへ保存し、Cookie、Authorization、header、HTML、DOM、スクリーンショット、実ユーザーデータを保存しません。
+
+投稿作成の仕様が変わった場合は、X公式のCompose関連資産とログイン済みWebセッションの読み取り操作で、`CreateTweet`・`CreateScheduledTweet`、メディアアップロード、投票カード、場所検索、開示フラグの送信形を再確認します。変更後は`ComposerWebClientTest`・`PostServiceTest`・`PostComposerRepositoryTest`と両版の投稿画面テストを実行します。画像/GIFアップロードと未公開の投票カード・場所検索は公開投稿を作らず検証できます。実際の公開投稿や予約投稿を行う検証は、その対象アカウントと後片付けを確定してから実行します。
 
 ```powershell
 Set-Location .\frontend

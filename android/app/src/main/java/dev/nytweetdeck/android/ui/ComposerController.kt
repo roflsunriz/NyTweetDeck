@@ -3,6 +3,8 @@ package dev.nytweetdeck.android.ui
 import dev.nytweetdeck.android.data.AccountSecrets
 import dev.nytweetdeck.android.data.PostComposerRepository
 import dev.nytweetdeck.android.model.ComposerMode
+import dev.nytweetdeck.android.model.ComposerPlace
+import dev.nytweetdeck.android.model.ComposerSubmission
 import dev.nytweetdeck.android.model.ComposerStatus
 import dev.nytweetdeck.android.model.ComposerUiState
 import dev.nytweetdeck.android.model.DeckUiState
@@ -36,18 +38,20 @@ internal class ComposerController(
         state.update { it.copy(composer = ComposerUiState()) }
     }
 
-    fun submit(text: String) {
+    fun submit(text: String) = submit(ComposerSubmission(text))
+
+    fun submit(submission: ComposerSubmission) {
         val snapshot = state.value
         if (snapshot.composer.status == ComposerStatus.SENDING) return
         val accountId = snapshot.selectedAccountId ?: return
         val account = accountProvider(accountId) ?: return
         val composer = snapshot.composer
-        state.update { it.copy(composer = composer.copy(status = ComposerStatus.SENDING)) }
+        state.update { it.copy(composer = composer.copy(status = ComposerStatus.SENDING, errorMessage = null)) }
         scope.launch(ioDispatcher) {
             val result = runCatching {
-                repository.submit(
+                repository.submitAdvanced(
                     account = account,
-                    text = text,
+                    submission = submission,
                     replyToPostId = composer.targetPostId.takeIf { composer.mode == ComposerMode.REPLY },
                     quotePostId = composer.targetPostId.takeIf { composer.mode == ComposerMode.QUOTE },
                     language = Locale.getDefault().toLanguageTag().ifBlank { "ja" },
@@ -63,10 +67,21 @@ internal class ComposerController(
                             } else {
                                 ComposerStatus.FAILED
                             },
+                            errorMessage = result.exceptionOrNull()?.message,
+                            scheduledAt = submission.scheduledAt.takeIf { result.isSuccess },
                         ),
                     )
                 }
             }
+        }
+    }
+
+    suspend fun searchPlaces(query: String): List<ComposerPlace> {
+        val snapshot = state.value
+        val accountId = snapshot.selectedAccountId ?: return emptyList()
+        val account = accountProvider(accountId) ?: return emptyList()
+        return withContext(ioDispatcher) {
+            repository.searchPlaces(account, query, snapshot.appLanguageTag)
         }
     }
 }

@@ -53,6 +53,9 @@ class XApiEnvironment(
     private val restClient by lazy {
         AuthenticatedRestClient(httpClient, metadataStore::currentProfile, userAgent, transactionIdService)
     }
+    private val composerClient by lazy {
+        ComposerWebClient(httpClient, applicationContext, userAgent, transactionIdService)
+    }
     private val livePipelineClient by lazy {
         LivePipelineClient(httpClient, metadataStore::currentProfile, userAgent)
     }
@@ -81,6 +84,8 @@ class XApiEnvironment(
     fun graphQlClient(): AuthenticatedGraphQlClient = graphQlClient
 
     fun restClient(): AuthenticatedRestClient = restClient
+
+    fun composerWebClient(): ComposerWebClient = composerClient
 
     fun translateCommunityNote(account: dev.nytweetdeck.android.data.AccountSecrets, noteId: String, language: String) =
         restClient.translateCommunityNote(account, noteId, language)

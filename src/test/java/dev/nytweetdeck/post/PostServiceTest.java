@@ -7,6 +7,8 @@ import dev.nytweetdeck.timeline.TimelineResponseParser;
 import dev.nytweetdeck.timeline.TimelinePage;
 import dev.nytweetdeck.xapi.graphql.AuthenticatedGraphQlClient;
 import java.util.Map;
+import java.util.List;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -38,6 +40,68 @@ class PostServiceTest {
         assertThat(variables)
                 .containsEntry("tweet_text", "quote")
                 .containsEntry("attachment_url", "https://twitter.com/i/status/123456789");
+    }
+
+    @Test
+    void sendsMediaPlacePollAndDisclosuresInTheCurrentXWebShape() {
+        var service = new PostService(null, null, null);
+        var withMedia = new PostComposition(" image ", null, null, List.of("123"), null,
+                null, new PostComposition.Place("abc123", "request1"), true, true);
+        var variables = service.advancedVariables(withMedia, null);
+
+        assertThat(variables).containsEntry("tweet_text", "image")
+                .containsEntry("geo", Map.of("place_id", "abc123", "geo_search_request_id", "request1"))
+                .containsEntry("media", Map.of("media_entities", List.of(Map.of(
+                        "media_id", "123", "tagged_users", List.of())), "possibly_sensitive", false));
+        assertThat(variables.get("content_disclosure")).isEqualTo(Map.of(
+                "advertising_disclosure", Map.of("is_paid_promotion", true),
+                "ai_generated_disclosure", Map.of(
+                        "has_ai_generated_media", true, "ai_generated_detection_source", "UserDeclared")));
+
+        var withPoll = new PostComposition("question", null, null, List.of(),
+                new PostComposition.Poll(List.of("yes", "no"), 60), null, null, false, false);
+        assertThat(service.advancedVariables(withPoll, "card://created"))
+                .containsEntry("card_uri", "card://created");
+    }
+
+    @Test
+    void schedulesWithUnixSecondsAndRejectsUnsupportedCombinations() {
+        var service = new PostService(null, null, null);
+        var at = Instant.now().plusSeconds(7_200);
+        var scheduled = new PostComposition("later", null, null, List.of("123"), null,
+                at, null, true, false);
+        assertThat(service.scheduledVariables(scheduled))
+                .containsEntry("execute_at", at.getEpochSecond());
+        assertThat(service.scheduledVariables(scheduled).get("post_tweet_request"))
+                .isEqualTo(Map.of("status", "later", "media_ids", List.of("123"),
+                        "exclude_reply_user_ids", List.of(), "thread_tweets", List.of(),
+                        "content_disclosure_options", Map.of(
+                                "advertising_disclosure", Map.of("is_paid_promotion", true))));
+
+        var unsupported = new PostComposition("later", null, null, List.of(),
+                new PostComposition.Poll(List.of("a", "b"), 60), at, null, false, false);
+        assertThatThrownBy(() -> service.scheduledVariables(unsupported))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("組み合わせ");
+    }
+
+    @Test
+    void requiresAScheduledIdBeforeReportingTheMutationAsSuccessful() {
+        var at = Instant.now().plusSeconds(7_200);
+        var scheduled = new PostComposition("later", null, null, List.of(), null, at, null, false, false);
+        var client = new AuthenticatedGraphQlClient(null, null, null, null) {
+            @Override
+            public GraphQlResult execute(String accountId, String purpose,
+                    Map<String, Object> variables, String language) {
+                assertThat(purpose).isEqualTo("schedulePost");
+                return new GraphQlResult(purpose, "CreateScheduledTweet",
+                        "{\"data\":{\"tweet\":{\"rest_id\":\"123\"}}}");
+            }
+        };
+        var service = new PostService(client, null, null);
+
+        assertThat(service.createAdvanced("account", scheduled))
+                .isEqualTo(new PostService.ScheduledPost("123", at));
     }
 
     @Test

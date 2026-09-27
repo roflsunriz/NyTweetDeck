@@ -872,6 +872,11 @@ class DeckViewModel(
     fun submitPost(text: String) {
         composerController?.submit(text)
     }
+    fun submitPost(submission: dev.nytweetdeck.android.model.ComposerSubmission) {
+        composerController?.submit(submission)
+    }
+    suspend fun searchComposerPlaces(query: String): List<dev.nytweetdeck.android.model.ComposerPlace> =
+        composerController?.searchPlaces(query).orEmpty()
     fun openPostDetail(postId: String) {
         postDetailController?.open(postId, findLoadedPost(postId))
     }

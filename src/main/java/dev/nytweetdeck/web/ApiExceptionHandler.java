@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -47,6 +48,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class})
     ProblemDetail handleValidation(Exception exception) {
         return problem(HttpStatus.BAD_REQUEST, "入力エラー", exception.getMessage());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ProblemDetail handleOversizedUpload(MaxUploadSizeExceededException exception) {
+        return problem(HttpStatus.PAYLOAD_TOO_LARGE, "画像サイズエラー",
+                "画像またはGIFのサイズが上限を超えています。");
     }
 
     private static ProblemDetail problem(HttpStatus status, String title, String detail) {

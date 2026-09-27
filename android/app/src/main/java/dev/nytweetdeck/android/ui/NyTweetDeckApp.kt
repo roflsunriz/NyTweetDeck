@@ -129,7 +129,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
             ListDirectoryRepository(graphQlClient),
             UserDirectoryRepository(graphQlClient),
             PostActionRepository(graphQlClient),
-            PostComposerRepository(graphQlClient),
+            PostComposerRepository(graphQlClient, webClient = environment.composerWebClient()),
             PostDetailRepository(graphQlClient),
             CommunityNoteRepository(graphQlClient, liveTranslation = dev.nytweetdeck.android.data.XCommunityNoteTranslationEndpoint(environment::translateCommunityNote)),
             PostTranslationRepository(environment.restClient()),
@@ -619,9 +619,10 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 onMove = viewModel::moveMainMenuItem,
                 onDismiss = { openDialog = null },
             )
-            OpenDialog.COMPOSER -> SimpleComposerDialog(
+            OpenDialog.COMPOSER -> AdvancedComposerDialog(
                 state = state.composer,
                 onSubmit = viewModel::submitPost,
+                onSearchPlaces = viewModel::searchComposerPlaces,
                 onDismiss = {
                     viewModel.closeComposer()
                     openDialog = null
@@ -631,9 +632,12 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         }
         LaunchedEffect(state.composer.status) {
             if (state.composer.status == ComposerStatus.SUCCEEDED) {
+                if (state.composer.scheduledAt != null) {
+                    Toast.makeText(context, R.string.composer_scheduled_success, Toast.LENGTH_LONG).show()
+                }
                 openDialog = null
                 viewModel.closeComposer()
-                viewModel.refreshVisibleColumns()
+                if (state.composer.scheduledAt == null) viewModel.refreshVisibleColumns()
             }
         }
         UserProfileRoute(

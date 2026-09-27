@@ -73,6 +73,12 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - Androidの投稿詳細は既知の投稿を先に表示するが、`PostDetailRepository`でそれを取得後の正本として優先すると古いアクション色が残る。初回詳細では会話応答の対象投稿を優先し、含まれない場合だけ投稿詳細を追加取得する。ページングでは直前に確認した対象投稿を再利用する。`PostDetailRepositoryTest`の初回詳細・ページング検証参照。
 - PC版でバックエンドのみ再起動してブラウザを開いたままにすると、メモリ内の投稿状態が残る。SSE再接続後は自動更新OFFでもタイムラインを再取得し、先頭ページに含まれない表示中の投稿も詳細APIで再検証する。`timeline-column.test.tsx`の接続復帰テスト参照。
 
+## 投稿作成のX Web契約
+
+- 2026-09-27にログイン済みX Web資産の`main.941731a8bedadd89a.js`とCompose関連チャンクで確認した。即時投稿のGraphQL `CreateTweet`では画像/GIFの`media.media_entities`、投票の`card_uri`、場所の`geo.place_id`、有料パートナーシップの`content_disclosure.advertising_disclosure.is_paid_promotion`、AI生成の`content_disclosure.ai_generated_disclosure`を送る。予約は`CreateScheduledTweet`へ`post_tweet_request`と秒単位`execute_at`を送る。`PostServiceTest`と`PostComposerRepositoryTest`参照。
+- メディアは`upload.x.com/i/media/upload.json`のINIT→APPEND→FINALIZE（GIFはSTATUSまで）、投票は`caps.x.com/v2/cards/create.json`、場所検索は`api.x.com/1.1/geo/places.json`へ`query_type=tweet_compose_location`と`search_term`を送り、`places[].place`を使用する。2026-09-27にPCとPixel 10aで未投稿の画像/GIF・投票カード、PCで現行の場所検索形式に成功した。公開投稿を伴う実X検証とは分け、変更時は署名、サイズ、組み合わせ、失敗時の入力維持を確認する。
+- Windows/JDK 25のローカル`HttpServer`で投稿用POST本文を検証した際、Java `HttpClient`既定のHTTP/2交渉では本文の受信が止まり、HTTP/1.1を明示すると画像・投票の模擬サーバーテストと実X通信が成功した。`ComposerWebClientTest`と`ComposerWebClient.exchange`参照。テスト失敗を画像形式の問題と混同しない。
+
 ## 認証情報の保存
 - 自動起動・自動検証を人手なしで成立させるため、X WebセッションをOS標準のユーザー別アプリケーションデータ領域へ暗号化せず保存する方式を採用する。この平文保存はプロジェクト所有者がリスクを理解したうえで明示的に許可している。保存先はインストール場所や作業ディレクトリへ依存させない。
 - 保存先をloopback上で動作するNyTweetDeckプロセスの信頼境界とし、秘密情報をGit、ログ、APIレスポンス、ブラウザの`localStorage`へ含めない。

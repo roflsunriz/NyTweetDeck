@@ -21,6 +21,7 @@ import dev.nytweetdeck.android.model.TimelineLoadStatus
 import dev.nytweetdeck.android.model.PostActionType
 import dev.nytweetdeck.android.model.ComposerMode
 import dev.nytweetdeck.android.model.ComposerStatus
+import dev.nytweetdeck.android.model.ComposerSubmission
 import dev.nytweetdeck.android.model.Article
 import dev.nytweetdeck.android.model.ArticleReaderStatus
 import dev.nytweetdeck.android.model.TranslationCandidate
@@ -797,6 +798,41 @@ class DeckViewModelTest {
             assertEquals("createPost", purpose)
             assertEquals("hello Android", submittedText)
             assertEquals(ComposerStatus.SUCCEEDED, viewModel.state.value.composer.status)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun scheduledComposerRetainsTheConfirmedTimeForUserFeedback() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val root = temporaryFolder.root
+            val accountFile = root.resolve("no-backup/accounts/accounts.json")
+            AccountStore(accountFile).addOrReplace(
+                AccountSecrets("7", "7", "nytd", "NyTD", "bearer", "auth", "csrf", "profile-7"),
+                select = true,
+            )
+            val repository = PostComposerRepository(GraphQlExecutor { _, _, _, _ ->
+                "{\"data\":{\"tweet\":{\"rest_id\":\"123\"}}}"
+            })
+            val viewModel = DeckViewModel(
+                settingsStore = DeckSettingsStore(root.resolve("layout/settings.json").toPath()),
+                accountStoreFile = accountFile,
+                sessionVerifier = XSessionVerifier { error("not used") },
+                postComposerRepository = repository,
+                ioDispatcher = dispatcher,
+            )
+            advanceUntilIdle()
+            val scheduledAt = java.time.Instant.now().plusSeconds(7_200)
+
+            viewModel.openComposer(ComposerMode.POST)
+            viewModel.submitPost(ComposerSubmission("later", scheduledAt = scheduledAt))
+            advanceUntilIdle()
+
+            assertEquals(ComposerStatus.SUCCEEDED, viewModel.state.value.composer.status)
+            assertEquals(scheduledAt, viewModel.state.value.composer.scheduledAt)
         } finally {
             Dispatchers.resetMain()
         }

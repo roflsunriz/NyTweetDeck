@@ -1,7 +1,7 @@
-import { type FormEvent, useState } from "react";
 import type { Translation } from "../i18n/translations";
 import { useMediaQuery } from "../model/use-media-query";
 import { useOverlayRoute } from "../model/use-overlay-route";
+import { ComposerForm } from "./composer-form";
 import { Modal } from "./modal";
 
 interface ComposerDialogProps {
@@ -25,35 +25,6 @@ export function ComposerDialog({
 }: ComposerDialogProps) {
   const compactPresentation = useMediaQuery("(max-width: 599px)");
   const close = useOverlayRoute("compose", onClose);
-  const [text, setText] = useState("");
-  const [publishing, setPublishing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (accountId === null || text.trim().length === 0) {
-      return;
-    }
-    setPublishing(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/v1/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId, text: text.trim(), inReplyToPostId, quotePostId }),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      setText("");
-      onPublished?.();
-      close();
-    } catch {
-      setError(translation.postFailed);
-    } finally {
-      setPublishing(false);
-    }
-  };
 
   return (
     <Modal
@@ -71,31 +42,15 @@ export function ComposerDialog({
       {accountId === null ? (
         <p className="composer-message">{translation.noAccounts}</p>
       ) : (
-        <form className="composer-form" onSubmit={submit}>
-          {quotePostUrl !== undefined && (
-            <a className="quote-preview-link" href={quotePostUrl} target="_blank" rel="noreferrer">
-              {translation.quotingPost}
-            </a>
-          )}
-          <textarea
-            required
-            maxLength={4000}
-            placeholder={translation.postPlaceholder}
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-          />
-          <div className="composer-footer">
-            <span>{text.length}/4000</span>
-            <button
-              className="primary-button"
-              type="submit"
-              disabled={publishing || text.trim().length === 0}
-            >
-              {publishing ? translation.publishing : translation.publishPost}
-            </button>
-          </div>
-          {error !== null && <p className="setup-error">{error}</p>}
-        </form>
+        <ComposerForm
+          translation={translation}
+          accountId={accountId}
+          inReplyToPostId={inReplyToPostId}
+          quotePostId={quotePostId}
+          quotePostUrl={quotePostUrl}
+          onClose={close}
+          onPublished={onPublished}
+        />
       )}
     </Modal>
   );

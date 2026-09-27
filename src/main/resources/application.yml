@@ -8,6 +8,10 @@ server:
 spring:
   application:
     name: nytweetdeck
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 16MB
   web:
     resources:
       cache:
