@@ -5,6 +5,8 @@
 - ユーザーの明示承認に基づき`bun update --latest`を実行し、直接依存関係11件とロックファイル内の間接依存関係を更新した。公式Maven/Google Mavenメタデータで安定版を照合し、Tomcat 11.0.26、AGP 9.4.1、Gradle 9.8.0、Lifecycle 2.11.0、WebKit 1.17.1へ更新した。Spring Boot 4.1.1、Kotlin 2.4.20などは確認時点の安定最新版を維持した。
 - `bun outdated`は残件なし、`bun audit`は66パッケージ中の既知脆弱性0件。フロントエンドの型チェック・lint・225件のテストと、Mavenの164件のテストと配布JARビルドが成功した。
 - フロントエンドの整形検査とビルド、Androidの`testDebugUnitTest`・`lintRelease`・`assembleRelease`が成功した。OSV監査ではMaven 70件、Gradle 35件の既知の未撤回脆弱性は0件だった。Gradle 9.8の廃止予定警告はAGPが`Configuration.setVisible`を使うことに由来し、`--warning-mode all`で確認した。
+- mainのCI全41ジョブと両リリースワークフローが成功し、`v1.8.1`のZIPと`android-v0.6.1`の署名済みAPKを公開した。ZIPとAPKの公開SHA-256を照合し、APKの署名証明書とversionCode 18を確認した。
+- Windows稼働JARをバックアップ後に公式ZIP内のJARへ置換し、自動起動タスクから再起動した。稼働JARのSHA-256一致とHTTP/HTTPSのready応答を確認した。Pixel 10aへ同一署名の公式APKを`install -r`し、端末から取得したAPKのSHA-256一致、versionName 0.6.1、非debuggable設定、起動プロセスを確認した。
 
 # タイムライン・API定義更新の復旧（2026-09-26）
 
