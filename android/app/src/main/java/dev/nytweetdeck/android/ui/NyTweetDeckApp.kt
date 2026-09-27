@@ -457,6 +457,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                         onLoadMoreColumn = viewModel::loadMore,
                         onClearNewPostsColumn = viewModel::clearNewPosts,
                         onVisibleColumnsChanged = viewModel::setVisibleColumns,
+                        onVisiblePostIdsChanged = viewModel::refreshVisiblePostStates,
                         onMoveColumn = viewModel::moveColumn,
                         onSaveColumnScrollPosition = viewModel::saveColumnScrollPosition,
                         onRepostClick = { postId ->

@@ -6,6 +6,7 @@ import dev.nytweetdeck.android.xapi.GraphQlExecutor
 import dev.nytweetdeck.android.xapi.XApiException
 import dev.nytweetdeck.android.xapi.XSessionCredentials
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -143,6 +144,45 @@ class PostDetailRepositoryTest {
 
         assertEquals("123", page.post.id)
         assertEquals(listOf("conversation"), executor.calls.map { it.purpose })
+    }
+
+    @Test
+    fun initialDetailReplacesCachedActionFlagsWithFreshConversationState() {
+        val executor = RecordingGraphQlExecutor(
+            detail = detailResponse("123"),
+            conversation = conversationResponse(includeFocal = true)
+                .replace("\"full_text\":\"focal fallback\"",
+                    "\"full_text\":\"focal fallback\",\"favorited\":true,\"retweeted\":true"),
+        )
+        val cached = dev.nytweetdeck.android.xapi.TimelineResponseParser()
+            .parse(detailResponse("123")).posts.single()
+        assertFalse(cached.liked)
+        assertFalse(cached.reposted)
+
+        val page = PostDetailRepository(executor).load(account(), "123", knownFocalPost = cached)
+
+        assertTrue(page.post.liked)
+        assertTrue(page.post.reposted)
+        assertEquals(listOf("conversation"), executor.calls.map { it.purpose })
+    }
+
+    @Test
+    fun initialDetailFetchesFocalWhenConversationOmitsItInsteadOfKeepingCachedFlags() {
+        val freshDetail = detailResponse("123")
+            .replace("\"full_text\":\"focal post\"",
+                "\"full_text\":\"focal post\",\"favorited\":true,\"retweeted\":true")
+        val executor = RecordingGraphQlExecutor(
+            detail = freshDetail,
+            conversation = conversationResponse(includeFocal = false),
+        )
+        val cached = dev.nytweetdeck.android.xapi.TimelineResponseParser()
+            .parse(detailResponse("123")).posts.single()
+
+        val page = PostDetailRepository(executor).load(account(), "123", knownFocalPost = cached)
+
+        assertTrue(page.post.liked)
+        assertTrue(page.post.reposted)
+        assertEquals(listOf("conversation", "postDetail"), executor.calls.map { it.purpose })
     }
 
     @Test

@@ -666,14 +666,13 @@ describe("timeline column", () => {
       if (String(input).includes("/api/v1/timelines/")) {
         timelineLoads += 1;
         return Response.json({
-          posts: [
-            {
-              ...post("1", "already actioned"),
-              liked: timelineLoads > 1,
-              reposted: timelineLoads > 1,
-            },
-          ],
+          posts: [timelineLoads === 1 ? post("1", "already actioned") : post("2", "newer post")],
           nextCursor: null,
+        });
+      }
+      if (String(input).includes("/api/v1/posts/1?")) {
+        return Response.json({
+          post: { ...post("1", "already actioned"), liked: true, reposted: true },
         });
       }
       return Response.json({ connected: true, topicCount: 1 });

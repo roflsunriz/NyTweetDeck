@@ -122,6 +122,15 @@ class DeckViewModel(
             state = mutableState,
         )
     }
+    private val postEngagementRefreshController = postDetailRepository?.let { repository ->
+        PostEngagementRefreshController(
+            repository,
+            viewModelScope,
+            ioDispatcher,
+            ::savedAccount,
+            mutableState,
+        )
+    }
     private val articleReaderController = postDetailRepository?.let { repository ->
         ArticleReaderController(repository, viewModelScope, ioDispatcher, ::savedAccount, mutableState)
     }
@@ -242,6 +251,10 @@ class DeckViewModel(
                 withContext(Dispatchers.Main.immediate) {
                     restoredCacheColumnIds.clear()
                     restoredCacheColumnIds.addAll(cachedTimelines.keys)
+                    postEngagementRefreshController?.seed(
+                        loaded.selectedAccountId,
+                        cachedTimelines.values.flatMap { it.posts },
+                    )
                     loaded.selectedAccountId?.let { selectedId ->
                         accountColumnCaches[selectedId] = AccountColumnSnapshot(
                             timelines = loaded.timelines,
@@ -460,6 +473,10 @@ class DeckViewModel(
                         val restored = retainedSnapshot ?: AccountColumnSnapshot(timelines = diskTimelines)
                         restoredCacheColumnIds.clear()
                         if (retainedSnapshot == null) restoredCacheColumnIds.addAll(diskTimelines.keys)
+                        postEngagementRefreshController?.seed(
+                            accountId,
+                            restored.timelines.values.flatMap { it.posts },
+                        )
                         mutableState.update {
                             it.copy(
                                 selectedAccountId = accountId,
@@ -527,6 +544,7 @@ class DeckViewModel(
                 withContext(Dispatchers.Main.immediate) {
                     if (mutableState.value.selectedAccountId != accountId) return@withContext
                     restoredCacheColumnIds.remove(columnId)
+                    postEngagementRefreshController?.discardFresh(accountId, page.posts)
                     mutableState.update { current ->
                         val existing = current.timelines[columnId]
                         val existingIds = existing?.posts?.mapTo(HashSet()) { it.id }.orEmpty()
@@ -928,6 +946,10 @@ class DeckViewModel(
 
     fun refreshVisibleColumns() {
         visibleColumnIds.forEach(::scheduleVisibilityRefresh)
+    }
+
+    fun refreshVisiblePostStates(postIds: Set<String>) {
+        postEngagementRefreshController?.refreshVisible(postIds)
     }
 
     fun saveColumnScrollPosition(

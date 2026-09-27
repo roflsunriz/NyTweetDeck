@@ -118,6 +118,7 @@ internal fun DeckContent(
     onLoadMoreColumn: (String) -> Unit,
     onClearNewPostsColumn: (String) -> Unit,
     onVisibleColumnsChanged: (Set<String>) -> Unit,
+    onVisiblePostIdsChanged: (Set<String>) -> Unit = {},
     onMoveColumn: (String, Int) -> Unit,
     onColumnSortChange: (String, ColumnSort) -> Unit = { _, _ -> },
     onSaveColumnScrollPosition: (String, Int, Int, String?) -> Unit,
@@ -220,6 +221,7 @@ internal fun DeckContent(
                     onScrollPositionChanged = { index, offset, key ->
                         onSaveColumnScrollPosition(column.id, index, offset, key)
                     },
+                    onVisiblePostIdsChanged = onVisiblePostIdsChanged,
                     onPostClick = onPostClick,
                     onQuoteClick = onQuoteClick,
                     onCreateQuoteClick = onCreateQuoteClick,
@@ -326,6 +328,7 @@ private fun DeckColumnCard(
     mediaPreview: Boolean,
     scrollPosition: ColumnScrollPosition?,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
+    onVisiblePostIdsChanged: (Set<String>) -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
     onCreateQuoteClick: (String) -> Unit,
@@ -499,6 +502,7 @@ private fun DeckColumnCard(
                             onLoadMore = onLoadMore,
                             onClearNewPosts = onClearNewPosts,
                             onScrollPositionChanged = onScrollPositionChanged,
+                            onVisiblePostIdsChanged = onVisiblePostIdsChanged,
                             onPostClick = onPostClick,
                             onQuoteClick = onQuoteClick,
                             onCreateQuoteClick = onCreateQuoteClick,
@@ -580,6 +584,7 @@ private fun TimelineBody(
     onLoadMore: () -> Unit,
     onClearNewPosts: () -> Unit,
     onScrollPositionChanged: (Int, Int, String?) -> Unit,
+    onVisiblePostIdsChanged: (Set<String>) -> Unit,
     onPostClick: (String) -> Unit,
     onQuoteClick: (String) -> Unit,
     onCreateQuoteClick: (String) -> Unit,
@@ -633,6 +638,15 @@ private fun TimelineBody(
                 val orderedPosts = orderedTimelinePosts(readyState.posts, columnKind, columnSort)
                 val listState = requireNotNull(listState)
                 ObserveListScrollPosition(listState, onScrollPositionChanged)
+                val postIds = remember(orderedPosts) { orderedPosts.mapTo(HashSet(), Post::id) }
+                val latestOnVisiblePostIdsChanged by rememberUpdatedState(onVisiblePostIdsChanged)
+                LaunchedEffect(listState, postIds) {
+                    snapshotFlow {
+                        listState.layoutInfo.visibleItemsInfo.mapNotNull { item ->
+                            (item.key as? String)?.takeIf(postIds::contains)
+                        }.toSet()
+                    }.distinctUntilChanged().collect(latestOnVisiblePostIdsChanged)
+                }
                 LaunchedEffect(listState, readyState.nextCursor, readyState.isLoadingMore) {
                     snapshotFlow {
                         val layout = listState.layoutInfo

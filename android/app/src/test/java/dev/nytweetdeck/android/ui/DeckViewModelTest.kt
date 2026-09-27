@@ -510,18 +510,26 @@ class DeckViewModelTest {
             val cache = TimelineCache(root.resolve("timeline-cache"))
             cache.write(account.accountId, "homeForYou", null, timelineJson("1", "restored post", "next"))
             var calls = 0
-            val fresh = timelineJson("1", "restored post", "next")
+            var detailCalls = 0
+            val detail = timelineJson("1", "restored post", "next")
                 .replace("\"created_at\":", "\"favorited\":true,\"retweeted\":true,\"created_at\":")
-            val repository = TimelineRepository(GraphQlExecutor { _, _, _, _ ->
-                calls++
-                if (calls == 1) error("temporary network failure")
-                fresh
-            }, cache = cache)
+            val executor = GraphQlExecutor { _, purpose, _, _ ->
+                if (purpose == "postDetail") {
+                    detailCalls++
+                    detail
+                } else {
+                    calls++
+                    if (calls == 1) error("temporary network failure")
+                    timelineJson("2", "new first-page post", "next")
+                }
+            }
+            val repository = TimelineRepository(executor, cache = cache)
             val viewModel = DeckViewModel(
                 settingsStore = settingsStore,
                 accountStoreFile = accountFile,
                 sessionVerifier = XSessionVerifier { error("not used") },
                 timelineRepository = repository,
+                postDetailRepository = PostDetailRepository(executor),
                 ioDispatcher = dispatcher,
                 visibilityRefreshDelayMillis = 750L,
             )
@@ -539,10 +547,15 @@ class DeckViewModelTest {
             viewModel.setVisibleColumns(setOf("home"))
             advanceTimeBy(750L)
             advanceUntilIdle()
-            val refreshed = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.single())
+            val stillCached = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.first { it.id == "1" })
+            assertFalse(stillCached.liked)
+            viewModel.refreshVisiblePostStates(setOf("1"))
+            advanceUntilIdle()
+            val refreshed = requireNotNull(viewModel.state.value.timelines["home"]?.posts?.first { it.id == "1" })
             assertTrue(refreshed.liked)
             assertTrue(refreshed.reposted)
             assertEquals(2, calls)
+            assertEquals(1, detailCalls)
         } finally {
             Dispatchers.resetMain()
         }

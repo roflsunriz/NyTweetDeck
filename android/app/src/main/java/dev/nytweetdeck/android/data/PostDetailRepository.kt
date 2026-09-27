@@ -15,6 +15,13 @@ class PostDetailRepository(
     private val graphQlExecutor: GraphQlExecutor,
     private val responseParser: TimelineResponseParser = TimelineResponseParser(),
 ) {
+    fun loadFocal(account: AccountSecrets, postId: String, language: String = "ja"): Post {
+        validatePostId(postId)
+        val credentials = XSessionCredentials(account.webBearerToken, account.authToken, account.csrfToken)
+        return fetchFocal(credentials, postId, language)
+            ?: throw XApiException("ポスト詳細応答に対象ポストがありません。", 502)
+    }
+
     fun load(
         account: AccountSecrets,
         postId: String,
@@ -30,18 +37,7 @@ class PostDetailRepository(
             authToken = account.authToken,
             csrfToken = account.csrfToken,
         )
-        val detailPage = if (knownFocalPost == null) {
-            responseParser.parse(
-                graphQlExecutor.execute(
-                    credentials = credentials,
-                    purpose = "postDetail",
-                    variables = detailVariables(postId),
-                    language = language,
-                ),
-            )
-        } else {
-            null
-        }
+        val initialFocal = if (knownFocalPost == null) fetchFocal(credentials, postId, language) else null
         val conversationPage = responseParser.parseConversation(
             graphQlExecutor.execute(
                 credentials = credentials,
@@ -50,9 +46,16 @@ class PostDetailRepository(
                 language = language,
             ),
         )
-        val focalPost = knownFocalPost?.takeIf { post -> post.id == postId }
-            ?: detailPage?.posts?.firstOrNull { post -> post.id == postId }
-            ?: conversationPage.posts.firstOrNull { post -> post.id == postId }
+        val conversationFocal = conversationPage.posts.firstOrNull { post -> post.id == postId }
+        val detailFocal = initialFocal
+            ?: if (knownFocalPost != null && cursor.isNullOrBlank() && conversationFocal == null) {
+                fetchFocal(credentials, postId, language)
+            } else {
+                null
+            }
+        val focalPost = detailFocal
+            ?: conversationFocal
+            ?: knownFocalPost?.takeIf { post -> post.id == postId }
             ?: throw XApiException("ポスト詳細応答に対象ポストがありません。", 502)
         val contextPosts = if (cursor.isNullOrBlank()) {
             loadConversationContext(account, focalPost, language, rankingMode, credentials)
@@ -73,6 +76,16 @@ class PostDetailRepository(
             relatedPosts = conversationPage.relatedPosts.filter { it.id != postId && it.id !in contextIds },
         )
     }
+
+    private fun fetchFocal(credentials: XSessionCredentials, postId: String, language: String): Post? =
+        responseParser.parse(
+            graphQlExecutor.execute(
+                credentials = credentials,
+                purpose = "postDetail",
+                variables = detailVariables(postId),
+                language = language,
+            ),
+        ).posts.firstOrNull { post -> post.id == postId }
 
     private fun loadConversationContext(
         account: AccountSecrets,

@@ -69,8 +69,9 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 ## アクション済み表示の再検証
 
-- AndroidのタイムラインディスクキャッシュはX応答の原文を保存するため、表示中のいいね・リポスト操作後もキャッシュ内のフラグは古いまま残る。再起動時に復元したカラムは自動更新OFFでも初回表示時に再取得し、成功するまで再検証対象として保持する。`DeckViewModelTest.revalidatesRestoredActionColorsEvenWhenAutoRefreshIsOff`参照。
-- PC版でバックエンドのみ再起動してブラウザを開いたままにすると、メモリ内の投稿状態が残る。SSE再接続後は自動更新OFFでもタイムラインを再取得する。`timeline-column.test.tsx`の接続復帰テスト参照。
+- AndroidのタイムラインディスクキャッシュはX応答の原文を保存するため、表示中のいいね・リポスト操作後もキャッシュ内のフラグは古いまま残る。再起動時に復元したカラムは自動更新OFFでも初回表示時に再取得する。新しい先頭ページに含まれない古い投稿は一覧へ残るため、表示範囲に入った投稿を`PostDetailRepository.loadFocal`で個別に再検証する。`DeckViewModelTest.revalidatesRestoredActionColorsEvenWhenAutoRefreshIsOff`参照。
+- Androidの投稿詳細は既知の投稿を先に表示するが、`PostDetailRepository`でそれを取得後の正本として優先すると古いアクション色が残る。初回詳細では会話応答の対象投稿を優先し、含まれない場合だけ投稿詳細を追加取得する。ページングでは直前に確認した対象投稿を再利用する。`PostDetailRepositoryTest`の初回詳細・ページング検証参照。
+- PC版でバックエンドのみ再起動してブラウザを開いたままにすると、メモリ内の投稿状態が残る。SSE再接続後は自動更新OFFでもタイムラインを再取得し、先頭ページに含まれない表示中の投稿も詳細APIで再検証する。`timeline-column.test.tsx`の接続復帰テスト参照。
 
 ## 認証情報の保存
 - 自動起動・自動検証を人手なしで成立させるため、X WebセッションをOS標準のユーザー別アプリケーションデータ領域へ暗号化せず保存する方式を採用する。この平文保存はプロジェクト所有者がリスクを理解したうえで明示的に許可している。保存先はインストール場所や作業ディレクトリへ依存させない。

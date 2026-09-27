@@ -242,6 +242,51 @@ function TimelineColumnContent({
   );
   const { manualRefreshing, manualRefreshHandlers } = useManualRefreshAtTop(() => load());
 
+  const refreshVisibleEngagement = useCallback(async () => {
+    if (accountId === null || scrollRef.current === null) return;
+    const scroll = scrollRef.current;
+    const viewport = scroll.getBoundingClientRect();
+    const cards = Array.from(scroll.querySelectorAll<HTMLElement>("[data-post-id]"));
+    const intersecting = cards.filter((card) => {
+      const bounds = card.getBoundingClientRect();
+      return bounds.bottom > viewport.top && bounds.top < viewport.bottom;
+    });
+    const visible = (intersecting.length > 0 ? intersecting : cards).slice(0, 3);
+    const ids = [
+      ...new Set(visible.map((card) => card.dataset.postId).filter((id): id is string => !!id)),
+    ];
+    for (const id of ids) {
+      try {
+        const response = await fetchWithTimeout(
+          `/api/v1/posts/${id}?accountId=${encodeURIComponent(accountId)}`,
+          {},
+          requestTimeoutMilliseconds,
+        );
+        if (!response.ok) continue;
+        const detail = (await response.json()) as { post?: TimelinePost };
+        if (detail.post?.id !== id) continue;
+        const fresh = detail.post;
+        updatePosts((current) =>
+          current.map((post) =>
+            post.id === id
+              ? {
+                  ...post,
+                  liked: fresh.liked,
+                  reposted: fresh.reposted,
+                  bookmarked: fresh.bookmarked,
+                  likeCount: fresh.likeCount,
+                  repostCount: fresh.repostCount,
+                  bookmarkCount: fresh.bookmarkCount,
+                }
+              : post,
+          ),
+        );
+      } catch {
+        // Keep the current card state until the next reconnect or manual refresh.
+      }
+    }
+  }, [accountId, requestTimeoutMilliseconds, updatePosts]);
+
   useLayoutEffect(() => {
     const anchor = viewportAnchorRef.current;
     const scroll = scrollRef.current;
@@ -327,7 +372,9 @@ function TimelineColumnContent({
     const handleReconnect = () => {
       if (!disconnected) return;
       disconnected = false;
-      void load(undefined, "preserve-viewport");
+      void load(undefined, "preserve-viewport").then((result) => {
+        if (result !== "failed") void refreshVisibleEngagement();
+      });
     };
     const handleUpdate = (event: MessageEvent<string>) => {
       let update: TimelineUpdate;
@@ -384,7 +431,15 @@ function TimelineColumnContent({
       source.removeEventListener("open", handleReconnect);
       source.close();
     };
-  }, [accountId, autoRefreshTimelines, column.kind, load, suppressUser, updatePosts]);
+  }, [
+    accountId,
+    autoRefreshTimelines,
+    column.kind,
+    load,
+    refreshVisibleEngagement,
+    suppressUser,
+    updatePosts,
+  ]);
 
   const livePostIds = posts
     .slice(0, 100)

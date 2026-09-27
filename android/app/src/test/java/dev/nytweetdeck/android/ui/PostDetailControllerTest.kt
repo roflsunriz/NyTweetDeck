@@ -28,7 +28,8 @@ class PostDetailControllerTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         try {
-            val executor = GraphQlExecutor { _, _, variables, _ ->
+            val executor = GraphQlExecutor { _, purpose, variables, _ ->
+                if (purpose == "postDetail") return@GraphQlExecutor detailResponse()
                 val additional = variables["cursor"] != null
                 val reply = if (additional) "801" else "201"
                 val related = if (additional) "802" else "801"
@@ -58,7 +59,7 @@ class PostDetailControllerTest {
     }
 
     @Test
-    fun knownFocalPostIsShownImmediatelyAndIsNotRefetched() = runTest {
+    fun knownFocalPostIsShownImmediatelyAndThenRevalidated() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         try {
@@ -67,6 +68,7 @@ class PostDetailControllerTest {
                 calls += purpose
                 when (purpose) {
                     "conversation" -> conversationResponse("201", "next-cursor")
+                    "postDetail" -> detailResponse()
                     else -> error("unexpected purpose")
                 }
             }
@@ -89,7 +91,7 @@ class PostDetailControllerTest {
 
             advanceUntilIdle()
 
-            assertEquals(listOf("conversation"), calls)
+            assertEquals(listOf("conversation", "postDetail"), calls)
             assertEquals(listOf("201"), state.value.postDetail.page?.replies?.map { it.post.id })
             assertFalse(state.value.postDetail.isLoadingMore)
         } finally {
@@ -149,7 +151,8 @@ class PostDetailControllerTest {
         Dispatchers.setMain(dispatcher)
         try {
             var attempts = 0
-            val executor = GraphQlExecutor { _, _, variables, _ ->
+            val executor = GraphQlExecutor { _, purpose, variables, _ ->
+                if (purpose == "postDetail") return@GraphQlExecutor detailResponse()
                 if (variables["cursor"] == null) conversationResponse("201", "next") else {
                     attempts++
                     if (attempts == 1) error("temporary failure")
@@ -196,7 +199,8 @@ class PostDetailControllerTest {
         Dispatchers.setMain(dispatcher)
         try {
             var calls = 0
-            val executor = GraphQlExecutor { _, _, variables, _ ->
+            val executor = GraphQlExecutor { _, purpose, variables, _ ->
+                if (purpose == "postDetail") return@GraphQlExecutor detailResponse()
                 calls++
                 if (variables["cursor"] == null) conversationResponse("201", "next") else response
             }
@@ -225,7 +229,7 @@ class PostDetailControllerTest {
         try {
             var attempts = 0
             val executor = GraphQlExecutor { _, purpose, _, _ ->
-                assertEquals("conversation", purpose)
+                if (purpose == "postDetail") return@GraphQlExecutor detailResponse()
                 attempts++
                 if (attempts == 1) error("temporary failure")
                 conversationResponse("201", "next")
@@ -257,7 +261,8 @@ class PostDetailControllerTest {
             val known = TimelineResponseParser().parse(detailResponse()).posts.single()
             val state = MutableStateFlow(DeckUiState(selectedAccountId = "7"))
             lateinit var controller: PostDetailController
-            val executor = GraphQlExecutor { _, _, variables, _ ->
+            val executor = GraphQlExecutor { _, purpose, variables, _ ->
+                if (purpose == "postDetail") return@GraphQlExecutor detailResponse()
                 when {
                     variables["cursor"] != null -> {
                         controller.open("456", known.copy(id = "456"))
@@ -297,7 +302,8 @@ class PostDetailControllerTest {
             val state = MutableStateFlow(DeckUiState(selectedAccountId = "7"))
             lateinit var controller: PostDetailController
             var attempts = 0
-            val executor = GraphQlExecutor { _, _, variables, _ ->
+            val executor = GraphQlExecutor { _, purpose, variables, _ ->
+                if (purpose == "postDetail") return@GraphQlExecutor detailResponse()
                 attempts++
                 if (attempts == 1) {
                     state.value = state.value.copy(replySort = RankingMode.RECENCY)
@@ -327,7 +333,8 @@ class PostDetailControllerTest {
         try {
             val state = MutableStateFlow(DeckUiState(selectedAccountId = "7"))
             lateinit var controller: PostDetailController
-            val executor = GraphQlExecutor { _, _, _, _ ->
+            val executor = GraphQlExecutor { _, purpose, _, _ ->
+                if (purpose == "postDetail") return@GraphQlExecutor detailResponse()
                 controller.close()
                 conversationResponse("201", "next")
             }
