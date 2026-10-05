@@ -307,3 +307,12 @@ bun run sandbox:observe-x-video
 - 既存の固有質問・入力例・必須条件を原文と照合。READMEのリンク・画像・コマンド・条件を確認し、裏付けがある誤記だけを訂正した。
 - 既存のCI、Dependabot、labeler、ライセンスのファイル内容は比較元から変更していない。
 - 製品のビルド・インストール・実機操作、GitHub上のフォーム表示、公開後CIは今回の静的検証に含めない。公開後に実際の受付表示と必要ラベルの適用を確認する。
+
+## 2026-10-05: Jackson依存監査の修復
+
+- 現在のPR #13はマージ済みで、既定ブランチ `a4a4f05af464f2628981775db4c9af63148bbdab` のCI run `37323221136` はMaven監査で失敗していた。失敗対象は `tools.jackson.core:jackson-core` / `jackson-databind` 3.1.5、未撤回GHSA7件。
+- GitHub Advisory APIの各修正版範囲とMaven CentralのBOM/core/databind 3.1.7 POMを再取得し、全7件を修復する同系列のBOMを `pom.xml` の `jackson-bom.version` で指定した。監査スクリプト・閾値・既存CIは変更していない。
+- 修復後の `mvn verify` とJDK17 `mvn clean verify` はJava17 bytecodeの製品テスト164件、ビルド・JAR生成で成功。`scripts/audit-maven.ps1` はMaven依存70件の既知の未撤回脆弱性0件を確認した。
+- frontendは `bun run lint`（既存CSS警告10件）、`bun run format:check`、`bun run type-check`、225件のテストで成功。`bun audit` は66依存の脆弱性0件。Windows隔離コピーにGitのCRLF変換があったため、既存のfrontendファイルをGit blobと同じLFで再取得して検証した。実ソースの整形差分は作っていない。
+- `scripts/verify-ui.ps1` は新JAR・独立設定・独立Chromeで梱包UIを検証し、代表ビューポートのDOMと画像を取得した。認証情報を用いる実Xへの投稿や稼働版の差し替えはこの隔離検証に含めない。
+- JDK21とJDK25でも各164件のテストが成功し、再実行したMaven監査は70依存・0件だった。元ユーザーcheckoutを保全する今回の指示に従い、稼働中の配布物とAndroid端末は変更していない。GitHub反映と稼働版反映を区別する。

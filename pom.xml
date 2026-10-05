@@ -22,6 +22,7 @@
         <java.version>17</java.version>
         <maven.compiler.release>17</maven.compiler.release>
         <tomcat.version>11.0.26</tomcat.version>
+        <jackson-bom.version>3.1.7</jackson-bom.version>
     </properties>
 
     <dependencies>
