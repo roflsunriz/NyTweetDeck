@@ -85,6 +85,8 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - 保存処理ではスキーマ検証、原子的置換、直前バックアップ、破損時復旧を維持し、POSIX環境では所有者だけが読み書きできる権限を設定する。
 
 ## 環境
+
+- Spring Bootの管理下にあるJacksonは個々のjarだけを上げず、`pom.xml`の`jackson-bom.version`で整合させる。2026-10-05のOSV監査では3.1.5に7件の未撤回GHSAがあり、同系列3.1.7とMaven依存70件の監査で解消した。変更後はJava 17・21・25のテスト、梱包済みブラウザUI、`scripts/audit-maven.ps1`を確認する。
 - フロントエンドのバンドルには Bun bundler を使用する
 - Java LTS 17・21・25を正式対応とし、Java 17 bytecodeを生成する
 - CIではactions/setup-javaが公式対応する非推奨でない全JDKディストリビューションを17・21・25で固定検証する

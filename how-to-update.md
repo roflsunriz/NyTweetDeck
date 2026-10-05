@@ -11,6 +11,8 @@
 
 ## 依存関係の更新
 
+Spring Bootの推奨Jacksonに監査失敗がある場合は、公式の脆弱性情報とMaven Centralの公開版を確認し、`pom.xml`の`jackson-bom.version`で同系列の修正版へまとめて更新します。coreとdatabindだけを別々に指定せず、解決後の依存一覧と`audit-maven.ps1`の結果を確認します。更新が不要になった場合も、BOM指定を外した状態で同じテストと監査を通してから変更します。
+
 1. Spring Bootの公式ドキュメントで安定版と対応Javaバージョンを確認します。
 2. npm公式レジストリと各公式リポジトリで、更新対象のリリース、保守状況、ライセンスを確認します。
 3. `pom.xml`または`frontend/package.json`の固定バージョンを更新します。
