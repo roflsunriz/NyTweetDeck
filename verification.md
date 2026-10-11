@@ -1,5 +1,12 @@
 # 検証手順
 
+## 1.8.2 / Android 0.6.2 公開（2026-10-12）
+
+- 許可されたリリースの変更履歴を版別に確定し、mainの`acedf60`へ`v1.8.2`・`android-v0.6.2`を付けた。両版の変更履歴抽出、mainのCI全41ジョブ、PC ReleaseとAndroid releaseの公開ワークフローが成功した。
+- 公開した[PC版](https://github.com/roflsunriz/NyTweetDeck/releases/tag/v1.8.2)のZIPチェックサムを確認し、3OS向けランチャー・導入/解除スクリプト等20ファイル、JARの版1.8.2、Java17 bytecodeを検証した。ZIPのSHA-256は`8AD18707DDA345E8AE7FA5087F921EF4FC8A977293A1E833AD062F1ABFBF9C0E`。
+- 公開ZIP内の正式JARをWindows稼働先へバックアップ付きで配置し、既存の自動起動から再起動した。HTTP/HTTPSのready、保存済みアカウント保持、配信HTML/JavaScriptと稼働JARの一致を確認した。公開/稼働JARのSHA-256は`B061E4B59CF54EAF5B57E0EE0553BE7102F7C0C6BD24C217188F94AB1570E488`。
+- [Android版](https://github.com/roflsunriz/NyTweetDeck/releases/tag/android-v0.6.2)の公開APK・チェックサム・既存署名との一致を確認した。AQUOS `353439835110621`は他チャットと2〜3分の使用枠を調整し、`install -r`でデータ保持のまま公式APKへ置換。versionName 0.6.2/versionCode 19、非debuggable、通常起動、端末APKと公開物のハッシュ一致を確認して解放した。APKのSHA-256は`ED4383E0658936B256419054763FF112DF5E9C3D5E6F6C9B648949BC532C9CA2`。
+
 ## Open Issue #17〜#24（2026-10-11）
 
 - 動画は再生中だけ画面を保持し、停止・終了・画面外・解放で解除する。Androidは実Media3再生状態と縦長FIT余白の画素を`VideoPlaybackSurfaceUiTest`で確認した。PCは未対応・拒否・hidden/visible・複数動画・取得中の停止も検証し、再生開始後のposterを解除する。
