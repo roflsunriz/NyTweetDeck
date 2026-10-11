@@ -131,6 +131,14 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 ## デスクトップ動画の全画面
 
+- PCの投稿作成画面は`document.body`へのportalで表示する。詳細・プロフィールの`backdrop-filter`内へfixed要素を入れると祖先の表示領域へ束縛され、返信画面が背面になる。Androidも`NyTweetDeckApp`の投稿Dialogを他の詳細Dialogより後にComposeする。`ReplyComposerRouteUiTest`と`issue-regressions-cdp.ts`で返信元の画面維持と実入力を検証する。
+- React StrictModeのeffect再実行では、overlayのpush→cleanupで親へreplace→再pushが親履歴を重複させる。`useOverlayRoute`はcleanupで復元した同一instanceのentryを次setupでreplaceして再利用し、作成画面を閉じる際はBack完了後にUIを外す。capture段階の画像キーボード処理はlayout effectでDOM除去と同期して解除する。`use-overlay-route.test.tsx`、`image-viewer.test.tsx`、実ブラウザの履歴traceで確認する。
+- Androidの新着バナーは浮動overlayで、LazyColumnのitemではない。復元キーへバナーの架空itemを混ぜない。先頭監視と新着・ヘッダボタンで同じ通知を重複解除しないよう、カラムの通知count/refreshGenerationごとの解除を共有する。`TimelineNavigationUiTest`参照。
+- Androidのプロフィールと詳細の親文脈ポストはtimelines外に保持される。共通action controllerの検索・更新対象へ`userProfile.posts`と`postDetail.page.contextPosts`を含める。失敗時の30秒待機はnetwork workerと分離し、新操作を待たせず古い失敗で戻さない。`PostActionControllerTest`参照。
+- 画面保持はPCのHTMLVideoElementごとの再生要求を共有Wake Lockへ集約し、hiddenで解除・visible復帰で再取得する。OS省電力による解除で即再取得を繰り返さない。Androidは各PlayerViewの`keepScreenOn`を用い、root Windowの共有フラグを個別プレイヤーで競合更新しない。2026-10-11の#17対応で確認。
+- AndroidのFIT余白からCropプレビューが透けるため、接続中の動画プレイヤー全体を黒背景にする。切断時はAndroidViewを外し、`keepContentOnPlayerReset(false)`で古いフレームを破棄する。PCは最初のplayingでposterを解除し、pause・全画面切替では戻さない。`VideoPlaybackSurfaceUiTest`と動画テスト参照。
+- PCの動画要素をaspect-ratioの親へ通常配置してheight:100%にすると、親が178pxでも要素が360pxになり上下がclipされる。video/posterをabsoluteで親実寸へ収め、親に高さ上限を設定する。可視枠の上下識別帯と左右黒余白を実画素で検査する。検証用blob動画はCSPで拒否されるため、CSPを変えずsame-originの検証応答へ供給する。
+
 - Fullscreen APIでプレイヤーがトップレイヤーへ移ると、カラムをrootとしたIntersectionObserverが非交差を返す。全画面の要求中・表示中は動画を解放したり自動再生判定で停止したりしない。終了時は全画面中の古い非交差値を使わず、監視を再設定してカラム内の状態を測り直す。`configured-video-fullscreen.test.tsx`参照。
 
 ## Android動画の全画面とメモリ

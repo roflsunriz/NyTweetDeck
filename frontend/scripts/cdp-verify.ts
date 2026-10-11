@@ -9,6 +9,7 @@ import {
 } from "./cdp-client";
 import { readSharedLayout, updateSharedLayout } from "./shared-layout-cdp";
 import { layoutVersion } from "../src/model/layout";
+import { verifyDeferredEngagementRollback, verifyIssueRegressions } from "./issue-regressions-cdp";
 
 const applicationUrl = process.env.NYTWEETDECK_URL ?? "http://127.0.0.1:18080";
 const cdpPort = process.env.CHROME_CDP_PORT ?? "9222";
@@ -59,6 +60,13 @@ await updateSharedLayout(
 await reload();
 
 const results: Array<Record<string, unknown>> = [];
+
+if (process.env.NYTD_VERIFY_ISSUES_ONLY === "true") {
+  await verifyIssueRegressions(client, applicationUrl, results);
+  console.log(JSON.stringify(results, null, 2));
+  client.close();
+  process.exit(0);
+}
 
 await client.call("Emulation.setDeviceMetricsOverride", {
   width: 1_440,
@@ -355,6 +363,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
     window.__qaTranslationAttempts = {};
     window.__qaTimelineRequests = 0;
     window.__qaTimelineCursors = [];
+    window.__qaTimelineRequestVersions = [];
     window.__qaTimelineVersion = 0;
     window.__qaReplySortRequests = [];
     window.__qaHoldTimeline = false;
@@ -395,6 +404,7 @@ await client.call("Page.addScriptToEvaluateOnNewDocument", {
         window.__qaTimelineRequests += 1;
         const timelineCursor = url.searchParams.get("cursor");
         window.__qaTimelineCursors.push(timelineCursor);
+        window.__qaTimelineRequestVersions.push({ version: window.__qaTimelineVersion, cursor: timelineCursor });
         const response = timelineCursor === null ? Response.json({
           posts: [...(window.__qaTimelineVersion === 0 ? [] : Array.from({ length: 6 }, (_, index) => ({
             id: "new-" + index, text: "New post " + index, language: "ja",
@@ -811,6 +821,7 @@ results.push({
 const optimisticLikeClicked = await client.evaluate<boolean>(`(() => {
   const button = document.querySelector("[data-post-action=like]");
   if (!(button instanceof HTMLButtonElement)) return false;
+  window.__qaEngagementClickedAt = Date.now();
   button.click();
   return true;
 })()`);
@@ -822,12 +833,7 @@ await waitForCondition(`
   document.querySelector("[data-post-action=like]")?.disabled === false &&
   document.querySelector("[data-post-action=like]")?.getAttribute("aria-busy") === "true"
 `);
-await client.evaluate("window.__qaResolvePostAction?.(503)");
-await waitForCondition(`
-  document.querySelector("[data-post-action=like]")?.textContent === "3" &&
-  document.querySelector("[data-post-action=like]")?.classList.contains("like-active") === true &&
-  document.querySelector(".post-action-error") !== null
-`);
+const likeRollbackMilliseconds = await verifyDeferredEngagementRollback(client, "like", "2", "3");
 const optimisticRepostOpened = await client.evaluate<boolean>(`(() => {
   const menu = document.querySelector(".repost-menu");
   const trigger = menu?.querySelector("[data-post-action=repost]");
@@ -843,6 +849,7 @@ await waitForCondition(`
 const optimisticRepostClicked = await client.evaluate<boolean>(`(() => {
   const confirm = document.querySelector("[data-post-action=repost-confirm]");
   if (!(confirm instanceof HTMLButtonElement)) return false;
+  window.__qaEngagementClickedAt = Date.now();
   confirm.click();
   return true;
 })()`);
@@ -853,11 +860,17 @@ await waitForCondition(`
   document.querySelector("[data-post-action=repost]")?.classList.contains("repost-active") === false &&
   document.querySelector("[data-post-action=repost]")?.getAttribute("aria-busy") === "true"
 `);
-await client.evaluate("window.__qaResolvePostAction?.(503)");
-await waitForCondition(`
-  document.querySelector("[data-post-action=repost]")?.textContent === "2" &&
-  document.querySelector("[data-post-action=repost]")?.classList.contains("repost-active") === true
-`);
+const repostRollbackMilliseconds = await verifyDeferredEngagementRollback(
+  client,
+  "repost",
+  "1",
+  "2",
+);
+results.push({
+  view: "deferred-engagement-rollback",
+  likeRollbackMilliseconds,
+  repostRollbackMilliseconds,
+});
 const timelineRequestsBeforeManualRefresh = await client.evaluate<number>(
   "window.__qaTimelineRequests",
 );
@@ -1021,7 +1034,7 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
     firstPostTranslationAttempts: window.__qaTranslationAttempts["100"] ?? 0,
     manualRefreshRequests: ${manualRefreshRequests},
     quotedPostText: document.querySelector(".quoted-post-text")?.textContent,
-    quotedTranslationProvider: document.querySelector(".quoted-post-translation-status")?.textContent,
+    quotedTranslationSource: document.querySelector(".quoted-post-translation-status")?.textContent,
     quoteToggleOpenedDialog: document.querySelector('[role="dialog"]') !== null,
     documentOverflow: document.documentElement.scrollWidth > innerWidth
   };
@@ -1029,7 +1042,7 @@ const engagementMetrics = await client.evaluate<Record<string, unknown>>(`(() =>
 if (
   engagementMetrics.likeColor !== "rgb(249, 24, 128)" ||
   engagementMetrics.likeFilled !== "currentColor" ||
-  engagementMetrics.repostColor !== "rgb(0, 186, 124)" ||
+  engagementMetrics.repostColor !== "rgb(29, 155, 240)" ||
   engagementMetrics.bookmarkFilled !== "currentColor" ||
   engagementMetrics.videoLoop !== true ||
   engagementMetrics.videoVolume !== 1 ||
@@ -1047,7 +1060,7 @@ if (
   engagementMetrics.firstPostTranslationAttempts !== 2 ||
   engagementMetrics.manualRefreshRequests !== 1 ||
   engagementMetrics.quotedPostText !== "Quoted original" ||
-  !String(engagementMetrics.quotedTranslationProvider).includes("Xによる自動翻訳") ||
+  !String(engagementMetrics.quotedTranslationSource).includes("英語から翻訳") ||
   engagementMetrics.quoteToggleOpenedDialog !== false
 ) {
   throw new Error(`反応済み色の検証に失敗しました: ${JSON.stringify(engagementMetrics)}`);
@@ -1092,16 +1105,37 @@ await client.evaluate(`(() => {
   window.__qaTimelineVersion = 1;
   document.dispatchEvent(new Event("visibilitychange"));
 })()`);
-await waitForCondition(`
-  window.__qaTimelineRequests === ${newPostRequestBaseline + 1} &&
-  document.querySelector(".new-post-notification") !== null &&
-  document.querySelectorAll('[data-post-id^="new-"]').length === 6
-`);
+try {
+  // 定期更新と共有通信枠の予約が併存する。取得回数でなく新しいfixture版の受信を確認する。
+  await waitForCondition(
+    `
+    window.__qaTimelineRequests > ${newPostRequestBaseline} &&
+    window.__qaTimelineRequestVersions.some(request => request.version === 1 && request.cursor === null) &&
+    document.querySelector(".new-post-notification") !== null &&
+    document.querySelectorAll('[data-post-id^="new-"]').length === 6
+  `,
+    45_000,
+  );
+} catch (error) {
+  const state = await client.evaluate<Record<string, unknown>>(`({
+    requestsBefore: ${newPostRequestBaseline}, requestsAfter: window.__qaTimelineRequests,
+    fixtureVersion: window.__qaTimelineVersion, latestRequests: window.__qaTimelineRequestVersions.slice(-5),
+    newPosts: document.querySelectorAll('[data-post-id^="new-"]').length,
+    notification: document.querySelector(".new-post-notification") !== null,
+    scrollTop: document.querySelector("[data-testid=timeline-scroll]")?.scrollTop
+  })`);
+  throw new Error(`新着fixture取得・通知待機に失敗しました: ${JSON.stringify(state)}`, {
+    cause: error,
+  });
+}
 const newPostMetrics = await client.evaluate<Record<string, unknown>>(`(() => {
   const timeline = document.querySelector("[data-testid=timeline-scroll]");
   const anchor = document.querySelector('[data-post-id="fresh-1"]');
   const notification = document.querySelector(".new-post-notification");
   return {
+    timelineRequestsBefore: ${newPostRequestBaseline},
+    timelineRequestsAfter: window.__qaTimelineRequests,
+    newVersionHeadRequests: window.__qaTimelineRequestVersions.filter(request => request.version === 1 && request.cursor === null).length,
     anchorTopBefore: ${Number(readingPositionBeforeUpdate.postTop)},
     anchorTopAfter: anchor?.getBoundingClientRect().top,
     scrollTopBefore: ${Number(readingPositionBeforeUpdate.scrollTop)},
@@ -1639,6 +1673,8 @@ results.push({
   ...communityNoteMetrics,
   screenshotPath: communityNoteScreenshotPath,
 });
+
+await verifyIssueRegressions(client, applicationUrl, results);
 
 const alternateUrl = applicationUrl.replace("127.0.0.1", "localhost");
 await navigate(alternateUrl);

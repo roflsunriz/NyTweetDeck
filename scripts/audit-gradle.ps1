@@ -14,10 +14,11 @@ else {
 Push-Location $androidRoot
 try {
     $dependencyOutput = @(
-        & $gradle --no-daemon --console=plain `
+        & $gradle --no-daemon --console=plain --no-problems-report `
             :app:dependencies --configuration releaseRuntimeClasspath 2>&1
     )
     if ($LASTEXITCODE -ne 0) {
+        $dependencyOutput | Select-Object -Last 30 | Write-Output
         throw "Gradle依存関係一覧の生成に失敗しました。終了コード: $LASTEXITCODE"
     }
 }

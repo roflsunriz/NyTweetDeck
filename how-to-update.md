@@ -54,6 +54,10 @@ Issue #1のようにデスクトップ版とAndroid版の両方へ機能を追�
 
 ## 検証
 
+動画と投稿操作を変更した場合は、Androidの`VideoPlaybackSurfaceUiTest`、`PostCardInteractionUiTest`、`ReplyComposerRouteUiTest`、`TimelineNavigationUiTest`を接続端末で実行します。動画の再生・停止・全画面・画面外での画面保持、縦長動画の黒余白、詳細・プロフィール・再帰返信からの投稿画面、横スワイプロック中のカラム選択を確認します。PC版の`verify-ui.ps1`でも同じ投稿導線、250件の新着移動、動画の余白と画面保持を検証します。投稿と反応は合成応答で確認し、X上の公開投稿や実際の反応は変更しません。
+
+複数チャットが同じ実機を使う場合は、操作開始前に使用順を調整し、すべてのadb操作にシリアルを明示します。検証後は同一署名の非debuggable release APKへ戻し、端末上のAPKとビルド物のハッシュを照合してから端末の解放を通知します。
+
 ```powershell
 Set-Location .\frontend
 bun run lint
