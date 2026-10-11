@@ -197,8 +197,18 @@ internal fun DeckContent(
                 .distinctUntilChanged()
                 .collect(latestVisibleColumnsChanged)
         }
+        val columnNavigationScope = rememberCoroutineScope()
+        Column(Modifier.fillMaxSize()) {
+            if (state.lockColumnSwipe) {
+                LockedColumnSelector(
+                    columns = state.columns,
+                    selectedIndex = deckListState.firstVisibleItemIndex,
+                    onSelect = { index -> columnNavigationScope.launch { deckListState.scrollToItem(index) } },
+                )
+            }
         LazyRow(
-            modifier = Modifier.fillMaxSize().testTag("deck-columns"),
+            modifier = Modifier.weight(1f).fillMaxWidth().testTag("deck-columns"),
+            userScrollEnabled = !state.lockColumnSwipe,
             state = deckListState,
             contentPadding = PaddingValues(gap),
             horizontalArrangement = Arrangement.spacedBy(gap),
@@ -257,7 +267,8 @@ internal fun DeckContent(
                     onRetry = { onRefreshColumn(column.id) },
                     onLoadMore = { onLoadMoreColumn(column.id) },
                     onClearNewPosts = { onClearNewPostsColumn(column.id) },
-                    modifier = Modifier.pointerInput(column.id, columnWidth) {
+                    modifier = Modifier.pointerInput(column.id, columnWidth, state.lockColumnSwipe) {
+                        if (state.lockColumnSwipe) return@pointerInput
                         var accumulatedX = 0f
                         val threshold = columnWidth.toPx() * 0.20f
                         detectDragGesturesAfterLongPress(
@@ -277,6 +288,7 @@ internal fun DeckContent(
             item(key = "inline-add") {
                 InlineAddColumn(width = columnWidth, onClick = onAddColumn)
             }
+        }
         }
     }
 }
@@ -367,6 +379,15 @@ private fun DeckColumnCard(
     modifier: Modifier = Modifier,
 ) {
     val scrollScope = rememberCoroutineScope()
+    var acknowledgedNewPosts by remember(
+        column.id, timelineState?.newPostCount, timelineState?.refreshGeneration,
+    ) { mutableStateOf(false) }
+    val clearNewPostsOnce: () -> Unit = {
+        if ((timelineState?.newPostCount ?: 0) > 0 && !acknowledgedNewPosts) {
+            acknowledgedNewPosts = true
+            onClearNewPosts()
+        }
+    }
     val timelineListState = if (hasSession && isTimelineColumn(column.kind) &&
         timelineState?.status == TimelineLoadStatus.READY && timelineState.posts.isNotEmpty()
     ) {
@@ -450,7 +471,10 @@ private fun DeckColumnCard(
                                         .testTag("column-sort-top-${column.id}"),
                                 )
                                 IconButton(
-                                    onClick = { scrollScope.launch { timelineListState?.scrollToItem(0) } },
+                                    onClick = {
+                                        clearNewPostsOnce()
+                                        scrollScope.launch { timelineListState?.scrollToItem(0) }
+                                    },
                                     enabled = timelineListState != null,
                                     modifier = Modifier.testTag("column-scroll-top-${column.id}"),
                                 ) {
@@ -500,7 +524,7 @@ private fun DeckColumnCard(
                              columnKind = column.kind,
                             onRetry = onRetry,
                             onLoadMore = onLoadMore,
-                            onClearNewPosts = onClearNewPosts,
+                            onClearNewPosts = clearNewPostsOnce,
                             onScrollPositionChanged = onScrollPositionChanged,
                             onVisiblePostIdsChanged = onVisiblePostIdsChanged,
                             onPostClick = onPostClick,
@@ -638,6 +662,13 @@ private fun TimelineBody(
                 val orderedPosts = orderedTimelinePosts(readyState.posts, columnKind, columnSort)
                 val listState = requireNotNull(listState)
                 ObserveListScrollPosition(listState, onScrollPositionChanged)
+                val latestOnClearNewPosts by rememberUpdatedState(onClearNewPosts)
+                LaunchedEffect(listState, readyState.newPostCount) {
+                    snapshotFlow { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0 }
+                        .distinctUntilChanged()
+                        .filter { it && readyState.newPostCount > 0 }
+                        .collect { latestOnClearNewPosts() }
+                }
                 val postIds = remember(orderedPosts) { orderedPosts.mapTo(HashSet(), Post::id) }
                 val latestOnVisiblePostIdsChanged by rememberUpdatedState(onVisiblePostIdsChanged)
                 LaunchedEffect(listState, postIds) {
@@ -741,7 +772,7 @@ private fun TimelineBody(
                             avatarUrls = readyState.newPostAvatarUrls,
                             onClick = {
                                 onClearNewPosts()
-                                timelineScope.launch { listState.animateScrollToItem(0) }
+                                timelineScope.launch { listState.scrollToItem(0) }
                             },
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
@@ -833,7 +864,6 @@ private fun restoredItemIndex(
 
 private fun timelineItemKeys(state: ColumnTimelineState, orderedPosts: List<Post>): List<String> = buildList {
     if (state.refreshFailed) add("refresh-failed")
-    if (state.newPostCount > 0) add("new-posts")
     addAll(orderedPosts.map(Post::id))
     if (state.isLoadingMore) add("loading-more")
     if (state.loadMoreFailed) add("load-more-failed")

@@ -302,4 +302,8 @@
     <string name="translation_unavailable">Translation is not available yet.</string>
     <string name="related_posts_title">Discover more</string>
     <string name="related_posts_source">From X</string>
+    <string name="translation_show_original_language">Show original (%1$s)</string>
+    <string name="translation_language_unknown">Unknown language</string>
+    <string name="setting_lock_column_swipe">Lock horizontal column movement</string>
+    <string name="column_select">Select column</string>
 </resources>

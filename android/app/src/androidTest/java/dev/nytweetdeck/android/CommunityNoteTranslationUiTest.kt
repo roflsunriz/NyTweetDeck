@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertTextContains
 import dev.nytweetdeck.android.model.CommunityNote
 import dev.nytweetdeck.android.model.CommunityNoteSource
 import dev.nytweetdeck.android.model.PostTranslation
@@ -24,13 +25,17 @@ class CommunityNoteTranslationUiTest {
         listOf(CommunityNoteSource(9, 15, "https://example.com/original")))
 
     @Test fun switchesTranslationAndOriginalAndKeepsTranslatedSource() {
+        var languageLabel = ""
         var state by mutableStateOf(PostTranslationUiState(TranslationLoadStatus.READY,
             PostTranslation("note:55", "en", "ja", "翻訳 出典", sources = listOf(CommunityNoteSource(3, 5, "https://example.com/translated")))))
         composeRule.setContent { NyTweetDeckTheme {
+            languageLabel = java.util.Locale.ENGLISH.getDisplayLanguage(
+                androidx.compose.ui.platform.LocalConfiguration.current.locales[0])
             TranslatableCommunityNote(note, mapOf("note:55" to state), true, {}, {},
                 { state = state.copy(showOriginal = !state.showOriginal) })
         } }
         composeRule.onNodeWithText("翻訳 出典").assertExists()
+        composeRule.onNodeWithTag("note-translation-toggle").assertTextContains(languageLabel, substring = true)
         composeRule.onNodeWithTag("note-translation-toggle").performClick()
         composeRule.onNodeWithText("Original source").assertExists()
         composeRule.onNodeWithTag("note-translation-toggle").performClick()

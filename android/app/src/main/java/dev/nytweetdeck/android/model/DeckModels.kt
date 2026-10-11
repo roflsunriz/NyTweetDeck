@@ -152,6 +152,7 @@ data class DisplaySettings(
     val videoQuality: VideoQuality = VideoQuality.AUTO,
     val navigationPosition: NavigationPosition = NavigationPosition.LEFT,
     val showMainNavigation: Boolean = true,
+    val lockColumnSwipe: Boolean = false,
 ) {
     init {
         require(videoVolume in 0..100) { "動画音量が範囲外です。" }
@@ -285,6 +286,7 @@ data class DeckUiState(
     val videoQuality: VideoQuality = VideoQuality.AUTO,
     val navigationPosition: NavigationPosition = NavigationPosition.LEFT,
     val showMainNavigation: Boolean = true,
+    val lockColumnSwipe: Boolean = false,
     val replySort: RankingMode = RankingMode.RELEVANCE,
     val accounts: List<AccountUiModel> = emptyList(),
     val selectedAccountId: String? = null,

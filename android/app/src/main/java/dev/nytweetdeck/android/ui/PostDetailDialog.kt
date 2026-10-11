@@ -278,6 +278,7 @@ private fun DetailReady(
         page.contextPosts.forEach { contextPost ->
             item(key = "context-" + contextPost.id) {
                 PostCard(
+                absoluteTimestamp = true,
                     post = contextPost,
                     onPostClick = onPostClick,
                     onQuoteClick = onQuoteClick,
@@ -309,6 +310,7 @@ private fun DetailReady(
         }
         item(key = "detail-post") {
             PostCard(
+                absoluteTimestamp = true,
                 post = page.post,
                 onPostClick = onPostClick,
                 onQuoteClick = onQuoteClick,
@@ -367,6 +369,7 @@ private fun DetailReady(
                     item(key = reply.post.id) {
                         ReplyThreadContainer(position) {
                             PostCard(
+                absoluteTimestamp = true,
                                 post = reply.post,
                                 onPostClick = onPostClick,
                                 onQuoteClick = onQuoteClick,
@@ -419,6 +422,7 @@ private fun DetailReady(
             }
             items(page.relatedPosts, key = { "related-" + it.id }) { relatedPost ->
                 PostCard(
+                absoluteTimestamp = true,
                     post = relatedPost,
                     onPostClick = onPostClick,
                     onQuoteClick = onQuoteClick,

@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -21,6 +22,7 @@ internal class PostActionController(
     private val ioDispatcher: CoroutineDispatcher,
     private val accountProvider: (String) -> AccountSecrets?,
     private val state: MutableStateFlow<DeckUiState>,
+    private val clockMillis: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
     private val operations = mutableMapOf<ToggleKey, ToggleOperation>()
 
@@ -35,7 +37,11 @@ internal class PostActionController(
         val operation = operations.getOrPut(key) {
             ToggleOperation(confirmedActive = currentActive, desiredActive = desiredActive)
         }
+        operation.rollbackJob?.cancel()
+        operation.rollbackJob = null
         operation.desiredActive = desiredActive
+        operation.revision += 1
+        operation.requestedAtMillis = clockMillis()
         updatePostActionState(postId, action, desiredActive)
         state.update { current ->
             current.copy(
@@ -65,6 +71,7 @@ internal class PostActionController(
         while (true) {
             while (operation.desiredActive != operation.confirmedActive) {
                 val requestedActive = operation.desiredActive
+                val requestedRevision = operation.revision
                 val result = runCatching {
                     repository.setActive(
                         account = account,
@@ -75,21 +82,33 @@ internal class PostActionController(
                     )
                 }
                 if (result.isFailure) {
-                    withContext(Dispatchers.Main.immediate) {
-                        if (state.value.selectedAccountId == key.accountId) {
-                            updatePostActionState(key.postId, key.action, operation.confirmedActive)
-                            state.update { current ->
-                                current.copy(
-                                    pendingPostActions = current.pendingPostActions
-                                        .withAction(key.postId, key.action, add = false),
-                                    failedPostActions = current.failedPostActions
-                                        .withAction(key.postId, key.action, add = true),
-                                )
+                    val scheduled = withContext(Dispatchers.Main.immediate) {
+                        if (operation.revision != requestedRevision) return@withContext false
+                        operation.job = null
+                        // Retain optimistic like/repost state for 30 seconds from the tap.
+                        // The network worker is free immediately so a new tap sends without waiting.
+                        val remaining = if (key.action == PostActionType.BOOKMARK) 0L else
+                            (30_000L - (clockMillis() - operation.requestedAtMillis)).coerceAtLeast(0L)
+                        operation.rollbackJob = scope.launch {
+                            delay(remaining)
+                            if (operations[key] !== operation || operation.revision != requestedRevision) return@launch
+                            if (state.value.selectedAccountId == key.accountId) {
+                                updatePostActionState(key.postId, key.action, operation.confirmedActive)
+                                state.update { current ->
+                                    current.copy(
+                                        pendingPostActions = current.pendingPostActions
+                                            .withAction(key.postId, key.action, add = false),
+                                        failedPostActions = current.failedPostActions
+                                            .withAction(key.postId, key.action, add = true),
+                                    )
+                                }
                             }
+                            operations.remove(key)
                         }
-                        operations.remove(key)
+                        true
                     }
-                    return
+                    if (scheduled) return
+                    continue
                 }
                 operation.confirmedActive = requestedActive
             }
@@ -128,6 +147,11 @@ internal class PostActionController(
                         })
                     })
                 },
+                userProfile = current.userProfile.copy(
+                    posts = current.userProfile.posts.map { post ->
+                        if (post.id == postId) post.withActionActive(action, active) else post
+                    },
+                ),
                 postDetail = current.postDetail.copy(
                     page = current.postDetail.page?.let { page ->
                         page.copy(
@@ -135,6 +159,9 @@ internal class PostActionController(
                                 page.post.withActionActive(action, active)
                             } else {
                                 page.post
+                            },
+                            contextPosts = page.contextPosts.map { post ->
+                                if (post.id == postId) post.withActionActive(action, active) else post
                             },
                             relatedPosts = page.relatedPosts.map { post ->
                                 if (post.id == postId) post.withActionActive(action, active) else post
@@ -164,12 +191,17 @@ private data class ToggleOperation(
     @Volatile var confirmedActive: Boolean,
     @Volatile var desiredActive: Boolean,
     var job: Job? = null,
+    var rollbackJob: Job? = null,
+    @Volatile var revision: Long = 0,
+    @Volatile var requestedAtMillis: Long = 0,
 )
 
 private fun findPost(state: DeckUiState, postId: String): Post? =
     state.timelines.values.asSequence().flatMap { it.posts.asSequence() }
         .plus(state.notifications.values.asSequence().flatMap { it.page?.posts.orEmpty().asSequence() })
+        .plus(state.userProfile.posts.asSequence())
         .plus(listOfNotNull(state.postDetail.page?.post).asSequence())
+        .plus(state.postDetail.page?.contextPosts.orEmpty().asSequence())
         .plus(state.postDetail.page?.relatedPosts.orEmpty().asSequence())
         .plus(state.postDetail.page?.replies.orEmpty().asSequence().map { it.post })
         .firstOrNull { it.id == postId }

@@ -300,4 +300,8 @@
     <string name="composer_media_limit">अधिकतम चार चित्र या एक GIF चुनें।</string>
     <string name="composer_remove">हटाएं</string>
     <string name="composer_scheduled_success">पोस्ट निर्धारित हो गया।</string>
+    <string name="translation_show_original_language">मूल दिखाएँ (%1$s)</string>
+    <string name="translation_language_unknown">अज्ञात भाषा</string>
+    <string name="setting_lock_column_swipe">कॉलम की क्षैतिज गति लॉक करें</string>
+    <string name="column_select">कॉलम चुनें</string>
 </resources>

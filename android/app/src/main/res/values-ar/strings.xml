@@ -304,4 +304,8 @@
     <string name="composer_media_limit">اختر أربع صور كحد أقصى أو ملف GIF واحدًا.</string>
     <string name="composer_remove">إزالة</string>
     <string name="composer_scheduled_success">تمت جدولة المنشور.</string>
+    <string name="translation_show_original_language">عرض الأصل (%1$s)</string>
+    <string name="translation_language_unknown">لغة غير معروفة</string>
+    <string name="setting_lock_column_swipe">قفل الحركة الأفقية للأعمدة</string>
+    <string name="column_select">اختيار عمود</string>
 </resources>

@@ -301,4 +301,8 @@
     <string name="translation_unavailable">翻訳はまだ提供されていません。</string>
     <string name="related_posts_title">もっと見つける</string>
     <string name="related_posts_source">Xから</string>
+    <string name="translation_show_original_language">原文を表示（%1$s）</string>
+    <string name="translation_language_unknown">言語不明</string>
+    <string name="setting_lock_column_swipe">カラムの横移動をロック</string>
+    <string name="column_select">カラムを選択</string>
 </resources>

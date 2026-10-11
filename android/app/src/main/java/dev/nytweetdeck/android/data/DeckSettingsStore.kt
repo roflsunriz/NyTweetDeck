@@ -39,7 +39,7 @@ private const val MAX_JSON_DEPTH = 64
  */
 class DeckSettingsStore(filePath: Path) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION: Int = 12
+        const val CURRENT_SCHEMA_VERSION: Int = 13
         const val MAX_FILE_SIZE_BYTES: Int = 1 shl 20
 
         private const val MAX_COLUMN_ID_LENGTH = 200
@@ -75,6 +75,7 @@ class DeckSettingsStore(filePath: Path) {
         )
         private val ROOT_KEYS_V11 = ROOT_KEYS_V10 + "navigationPosition"
         private val ROOT_KEYS_V12 = ROOT_KEYS_V11 + "showMainNavigation"
+        private val ROOT_KEYS_V13 = ROOT_KEYS_V12 + "lockColumnSwipe"
         private val COLUMN_KEYS_V1 = setOf("id", "kind", "title")
         private val COLUMN_KEYS_V2 = setOf("id", "kind", "title", "target")
         private val COLUMN_KEYS_V3 = COLUMN_KEYS_V2 + "sort"
@@ -93,11 +94,17 @@ class DeckSettingsStore(filePath: Path) {
     /** Loads primary, then backup, and finally the safe default state. */
     @Synchronized
     fun load(): DeckUiState {
-        readValid(primaryPath)?.let { return it.state }
+        readValid(primaryPath)?.let { document ->
+            if (document.schemaVersion < CURRENT_SCHEMA_VERSION) {
+                writeAtomically(backupPath, document.bytes)
+                writeAtomically(primaryPath, encode(document.state))
+            }
+            return document.state
+        }
 
         val backup = readValid(backupPath)
         if (backup != null) {
-            restorePrimary(backup.bytes)
+            restorePrimary(if (backup.schemaVersion < CURRENT_SCHEMA_VERSION) encode(backup.state) else backup.bytes)
             return backup.state
         }
 
@@ -124,7 +131,7 @@ class DeckSettingsStore(filePath: Path) {
 
         val previousPrimary = readValid(primaryPath)
         if (previousPrimary != null) {
-            if (previousPrimary.state == validated) return
+            if (previousPrimary.state == validated && previousPrimary.schemaVersion == CURRENT_SCHEMA_VERSION) return
             val previousRevision = previousPrimary.state.layoutRevision
             if (previousRevision > validated.layoutRevision ||
                 (previousRevision == validated.layoutRevision && previousPrimary.state != validated)
@@ -149,7 +156,7 @@ class DeckSettingsStore(filePath: Path) {
 
         return try {
             val bytes = readBounded(path)
-            StoredDocument(decode(bytes), bytes)
+            decode(bytes)
         } catch (_: IOException) {
             null
         } catch (_: IllegalArgumentException) {
@@ -399,6 +406,8 @@ class DeckSettingsStore(filePath: Path) {
             appendJsonString(state.accentColor.name)
             append(",\"reduceMotion\":")
             append(state.reduceMotion)
+            append(",\"lockColumnSwipe\":")
+            append(state.lockColumnSwipe)
             append(",\"mediaPreview\":")
             append(state.mediaPreview)
             append(",\"videoAutoplay\":")
@@ -432,7 +441,7 @@ class DeckSettingsStore(filePath: Path) {
         return json.toByteArray(StandardCharsets.UTF_8)
     }
 
-    private fun decode(bytes: ByteArray): DeckUiState {
+    private fun decode(bytes: ByteArray): StoredDocument {
         val root = DeckSettingsJsonParser(decodeUtf8(bytes)).parse() as? JsonObject
             ?: invalid("設定JSONのルートがオブジェクトではありません。")
         val schemaVersion = root.requireNumber("schemaVersion").asInt("schemaVersion")
@@ -452,7 +461,8 @@ class DeckSettingsStore(filePath: Path) {
                 schemaVersion < 10 -> ROOT_KEYS_V9
                 schemaVersion < 11 -> ROOT_KEYS_V10
                 schemaVersion < 12 -> ROOT_KEYS_V11
-                else -> ROOT_KEYS_V12
+                schemaVersion < 13 -> ROOT_KEYS_V12
+                else -> ROOT_KEYS_V13
             },
         )
 
@@ -517,6 +527,7 @@ class DeckSettingsStore(filePath: Path) {
                 parseEnumValue<AccentColor>(root.requireString("accentColor"), "アクセント色")
             },
             reduceMotion = schemaVersion >= 5 && root.requireBoolean("reduceMotion"),
+            lockColumnSwipe = schemaVersion >= 13 && root.requireBoolean("lockColumnSwipe"),
             mediaPreview = schemaVersion < 5 || root.requireBoolean("mediaPreview"),
             videoAutoplay = schemaVersion >= 5 && root.requireBoolean("videoAutoplay"),
             videoLoop = schemaVersion < 5 || root.requireBoolean("videoLoop"),
@@ -569,7 +580,7 @@ class DeckSettingsStore(filePath: Path) {
                 }
             },
         )
-        return validateState(state)
+        return StoredDocument(validateState(state), bytes, schemaVersion)
     }
 
     private fun parseColumnKind(value: String, index: Int?): ColumnKind {
@@ -621,6 +632,7 @@ class DeckSettingsStore(filePath: Path) {
     private data class StoredDocument(
         val state: DeckUiState,
         val bytes: ByteArray,
+        val schemaVersion: Int,
     )
 
     class DeckSettingsStoreException(message: String, cause: Throwable) : RuntimeException(message, cause)

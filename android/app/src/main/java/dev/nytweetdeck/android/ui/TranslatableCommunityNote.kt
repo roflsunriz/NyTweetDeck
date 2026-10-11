@@ -55,7 +55,14 @@ internal fun TranslatableCommunityNote(
                 }
             }
             TranslationLoadStatus.READY -> TextButton(onClick = { onToggle(key) }, modifier = Modifier.testTag("note-translation-toggle")) {
-                Text(stringResource(if (state.showOriginal) R.string.translation_show_translation else R.string.translation_show_original))
+                Text(
+                    if (state.showOriginal) stringResource(R.string.translation_show_translation)
+                    else stringResource(
+                        R.string.translation_show_original_language,
+                        translationLanguageName(state.translation?.sourceLanguage
+                            ?.takeIf(String::isNotBlank) ?: note.language),
+                    ),
+                )
             }
             else -> Unit
         }

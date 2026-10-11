@@ -430,6 +430,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         darkTheme = darkTheme,
         accentColor = state.accentColor,
         fontSize = state.fontSize,
+        reduceMotion = state.reduceMotion,
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Box(
@@ -619,15 +620,7 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 onMove = viewModel::moveMainMenuItem,
                 onDismiss = { openDialog = null },
             )
-            OpenDialog.COMPOSER -> AdvancedComposerDialog(
-                state = state.composer,
-                onSubmit = viewModel::submitPost,
-                onSearchPlaces = viewModel::searchComposerPlaces,
-                onDismiss = {
-                    viewModel.closeComposer()
-                    openDialog = null
-                },
-            )
+            OpenDialog.COMPOSER -> Unit
             null -> Unit
         }
         LaunchedEffect(state.composer.status) {
@@ -810,6 +803,17 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                     postMenuPost = null
                 },
                 onDismiss = { postMenuPost = null },
+            )
+        }
+        if (openDialog == OpenDialog.COMPOSER) {
+            AdvancedComposerDialog(
+                state = state.composer,
+                onSubmit = viewModel::submitPost,
+                onSearchPlaces = viewModel::searchComposerPlaces,
+                onDismiss = {
+                    viewModel.closeComposer()
+                    openDialog = null
+                },
             )
         }
         LaunchedEffect(state.postMenuActionFailed) {

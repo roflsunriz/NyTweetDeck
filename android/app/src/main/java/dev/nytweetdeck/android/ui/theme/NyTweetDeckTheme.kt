@@ -46,6 +46,7 @@ fun NyTweetDeckTheme(
     darkTheme: Boolean = true,
     accentColor: AccentColor = AccentColor.BLUE,
     fontSize: AppFontSize = AppFontSize.DEFAULT,
+    reduceMotion: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val accent = accentColor.color
@@ -60,6 +61,7 @@ fun NyTweetDeckTheme(
         AppFontSize.LARGE -> 1.18f
     }
     CompositionLocalProvider(
+        dev.nytweetdeck.android.ui.LocalPostReduceMotion provides reduceMotion,
         LocalDensity provides Density(density.density, density.fontScale * fontScale),
     ) {
         MaterialTheme(colorScheme = colors, content = content)

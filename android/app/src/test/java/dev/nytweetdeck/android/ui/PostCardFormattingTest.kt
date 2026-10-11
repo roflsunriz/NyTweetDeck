@@ -18,6 +18,15 @@ class PostCardFormattingTest {
     }
 
     @Test
+    fun absoluteTimeIncludesYearSecondsZoneAndOffset() {
+        assertEquals("2026/08/29 09:00:00 JST (+09:00)",
+            formatPostAbsoluteTime("Sat Aug 29 00:00:00 +0000 2026", java.time.ZoneId.of("Asia/Tokyo")))
+        assertEquals("2026/08/29 00:00:00 UTC (Z)",
+            formatPostAbsoluteTime("2026-08-29T00:00:00Z", java.time.ZoneId.of("UTC")))
+        assertNull(formatPostAbsoluteTime("invalid"))
+    }
+
+    @Test
     fun rejectsMissingOrMalformedTime() {
         assertNull(parsePostInstant(null))
         assertNull(parsePostInstant("not-a-time"))

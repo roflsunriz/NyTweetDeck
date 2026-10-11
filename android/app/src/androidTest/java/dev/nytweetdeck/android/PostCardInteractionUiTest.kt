@@ -2,6 +2,7 @@ package dev.nytweetdeck.android
 
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -36,6 +37,8 @@ class PostCardInteractionUiTest {
     private var sharedPost: String? = null
     private var copiedDetails: String? = null
     private var translatedRequest: TranslatedShareRequest? = null
+    private val fixtureTranslation = PostTranslation("101", "en", "ja", "翻訳された本文")
+    private var translationSourceLabel = ""
 
     private data class TranslatedShareRequest(
         val postId: String,
@@ -47,6 +50,8 @@ class PostCardInteractionUiTest {
     fun showQuotedRepost() {
         composeRule.activity.setContent {
             NyTweetDeckTheme {
+                translationSourceLabel = java.util.Locale.forLanguageTag(fixtureTranslation.sourceLanguage)
+                    .getDisplayLanguage(androidx.compose.ui.platform.LocalConfiguration.current.locales[0])
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     PostCard(
                         post = fixturePost(),
@@ -62,7 +67,7 @@ class PostCardInteractionUiTest {
                     translationStates = mapOf(
                         "101" to PostTranslationUiState(
                             TranslationLoadStatus.READY,
-                            PostTranslation("101", "en", "ja", "翻訳された本文"),
+                            fixtureTranslation,
                         ),
                     ),
                     onToggleOriginal = { toggledTranslation = it },
@@ -70,6 +75,55 @@ class PostCardInteractionUiTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun quoteAlwaysShowsCompleteAbsoluteTimeAndTranslationToggleShowsSourceLanguage() {
+        composeRule.onNodeWithTag("post-absolute-time-9", useUnmergedTree = true).assertExists()
+        org.junit.Assert.assertTrue(translationSourceLabel.isNotBlank())
+        composeRule.onNodeWithTag("translation-toggle")
+            .assertTextContains(translationSourceLabel, substring = true)
+    }
+
+    @Test
+    fun pendingLikeAndRepostHaveNoSpinner() {
+        composeRule.activity.setContent {
+            NyTweetDeckTheme(reduceMotion = true) {
+                PostCard(post = fixturePost().copy(liked = false),
+                    pendingActions = setOf(dev.nytweetdeck.android.model.PostActionType.LIKE,
+                        dev.nytweetdeck.android.model.PostActionType.REPOST))
+            }
+        }
+        composeRule.onNodeWithTag("post-action-like-101-pending").assertDoesNotExist()
+        composeRule.onNodeWithTag("post-action-repost-101-pending").assertDoesNotExist()
+        composeRule.onNodeWithTag("post-action-like-101").performClick()
+        composeRule.onNodeWithTag("post-action-like-101-fireworks", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun likePressShowsABurstAndUnlikeDoesNotRepeatIt() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        val post = androidx.compose.runtime.mutableStateOf(fixturePost().copy(liked = false))
+        try {
+            composeRule.activity.setContent {
+                NyTweetDeckTheme {
+                    PostCard(post = post.value, onLikeClick = { post.value = post.value.copy(liked = !post.value.liked) })
+                }
+            }
+            composeRule.waitForIdle()
+            composeRule.onNodeWithTag("post-action-like-101").assertIsDisplayed()
+            composeRule.mainClock.autoAdvance = false
+            composeRule.onNodeWithTag("post-action-like-101").performClick()
+            composeRule.mainClock.advanceTimeBy(48)
+            org.junit.Assert.assertTrue(post.value.liked)
+            composeRule.onNodeWithTag("post-action-like-101-fireworks", useUnmergedTree = true).assertExists()
+            composeRule.mainClock.advanceTimeBy(800)
+            composeRule.onNodeWithTag("post-action-like-101-fireworks", useUnmergedTree = true).assertDoesNotExist()
+            composeRule.onNodeWithTag("post-action-like-101").performClick()
+            composeRule.mainClock.advanceTimeBy(48)
+            org.junit.Assert.assertFalse(post.value.liked)
+            composeRule.onNodeWithTag("post-action-like-101-fireworks", useUnmergedTree = true).assertDoesNotExist()
+        } finally { composeRule.mainClock.autoAdvance = true }
     }
 
     @Test

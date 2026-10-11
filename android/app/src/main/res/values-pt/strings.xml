@@ -301,4 +301,8 @@
     <string name="composer_media_limit">Selecione até quatro imagens ou um GIF.</string>
     <string name="composer_remove">Remover</string>
     <string name="composer_scheduled_success">Post agendado.</string>
+    <string name="translation_show_original_language">Mostrar original (%1$s)</string>
+    <string name="translation_language_unknown">Idioma desconhecido</string>
+    <string name="setting_lock_column_swipe">Bloquear movimento horizontal das colunas</string>
+    <string name="column_select">Selecionar coluna</string>
 </resources>

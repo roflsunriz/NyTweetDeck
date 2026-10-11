@@ -30,6 +30,19 @@ class DeckSettingsStoreTest {
     val temporaryFolder = TemporaryFolder()
 
     @Test
+    fun columnSwipeLockSurvivesRestartAndSchemaTwelveMigratesUnlocked() {
+        val store = DeckSettingsStore(settingsPath())
+        store.save(layout().copy(lockColumnSwipe = true))
+        assertTrue(store.load().lockColumnSwipe)
+        val old = Files.readString(store.primaryPath)
+            .replace("\"schemaVersion\":13", "\"schemaVersion\":12")
+            .replace(",\"lockColumnSwipe\":true", "")
+        Files.writeString(store.primaryPath, old)
+        assertFalse(store.load().lockColumnSwipe)
+        assertTrue(Files.readString(store.primaryPath).contains("\"schemaVersion\":13"))
+    }
+
+    @Test
     fun roundTripsLayoutAndCreatesBackupOnFirstSave() {
         val store = DeckSettingsStore(settingsPath())
         val expected = layout()
@@ -157,7 +170,7 @@ class DeckSettingsStoreTest {
         val store = DeckSettingsStore(settingsPath())
         store.save(layout())
         val current = readText(store.primaryPath)
-            .replace("\"schemaVersion\":12", "\"schemaVersion\":999")
+            .replace("\"schemaVersion\":13", "\"schemaVersion\":999")
         writeText(store.primaryPath, current)
         Files.delete(store.backupPath)
 

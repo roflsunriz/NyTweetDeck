@@ -46,6 +46,7 @@ internal fun DeckUiState.displaySettings(): DisplaySettings = DisplaySettings(
     videoQuality,
     navigationPosition,
     showMainNavigation,
+    lockColumnSwipe,
 )
 
 internal fun DeckUiState.withDisplaySettings(settings: DisplaySettings): DeckUiState = copy(
@@ -64,6 +65,7 @@ internal fun DeckUiState.withDisplaySettings(settings: DisplaySettings): DeckUiS
     videoQuality = settings.videoQuality,
     navigationPosition = settings.navigationPosition,
     showMainNavigation = settings.showMainNavigation,
+    lockColumnSwipe = settings.lockColumnSwipe,
 )
 
 internal fun DeckUiState.withTrendSearch(query: String, addColumn: Boolean): DeckUiState {

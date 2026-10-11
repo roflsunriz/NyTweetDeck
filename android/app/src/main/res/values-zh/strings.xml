@@ -299,4 +299,8 @@
     <string name="composer_media_limit">最多选择四张图片或一个GIF。</string>
     <string name="composer_remove">移除</string>
     <string name="composer_scheduled_success">已安排发布。</string>
+    <string name="translation_show_original_language">显示原文（%1$s）</string>
+    <string name="translation_language_unknown">未知语言</string>
+    <string name="setting_lock_column_swipe">锁定列的水平移动</string>
+    <string name="column_select">选择列</string>
 </resources>

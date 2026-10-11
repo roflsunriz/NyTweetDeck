@@ -302,4 +302,8 @@
     <string name="composer_media_limit">Выберите до четырёх изображений или один GIF.</string>
     <string name="composer_remove">Удалить</string>
     <string name="composer_scheduled_success">Пост запланирован.</string>
+    <string name="translation_show_original_language">Показать оригинал (%1$s)</string>
+    <string name="translation_language_unknown">Неизвестный язык</string>
+    <string name="setting_lock_column_swipe">Заблокировать горизонтальное перемещение колонок</string>
+    <string name="column_select">Выбрать колонку</string>
 </resources>

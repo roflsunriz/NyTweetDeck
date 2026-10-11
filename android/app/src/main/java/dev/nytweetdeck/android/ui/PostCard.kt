@@ -18,23 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -115,6 +104,7 @@ internal fun PostCard(
     onToggleOriginal: (String) -> Unit = {},
     pendingActions: Set<PostActionType> = emptySet(),
     failedActions: Set<PostActionType> = emptySet(),
+    absoluteTimestamp: Boolean = false,
     mediaPreview: Boolean = true,
     videoAutoplay: Boolean = false,
     videoLoop: Boolean = true,
@@ -144,6 +134,7 @@ internal fun PostCard(
         PostAuthorHeader(
             post.author,
             post.createdAt,
+            absoluteTimestamp = absoluteTimestamp,
             onAuthorClick = onAuthorClick?.let { callback -> { callback(post.author) } },
             onMenuClick = { onMenuClick(post) },
         )
@@ -275,6 +266,7 @@ private fun PostAuthorHeader(
     createdAt: String?,
     onAuthorClick: (() -> Unit)? = null,
     onMenuClick: (() -> Unit)? = null,
+    absoluteTimestamp: Boolean = false,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Row(
@@ -313,12 +305,18 @@ private fun PostAuthorHeader(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text(
+                    if (!absoluteTimestamp) Text(
                         text = relativeTime(createdAt),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (absoluteTimestamp) Text(
+                    text = absolutePostTime(createdAt),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("post-absolute-time-" + author.id),
+                )
             }
         }
         onMenuClick?.let {
@@ -475,12 +473,11 @@ private fun TranslatablePostBody(
             modifier = Modifier.testTag("translation-toggle"),
         ) {
             Text(
-                stringResource(
-                    if (translationState.showOriginal) {
-                        R.string.translation_show_translation
-                    } else {
-                        R.string.translation_show_original
-                    },
+                if (translationState.showOriginal) stringResource(R.string.translation_show_translation)
+                else stringResource(
+                    R.string.translation_show_original_language,
+                    translationLanguageName(translationState.translation?.sourceLanguage
+                        ?.takeIf(String::isNotBlank) ?: sourceLanguage),
                 ),
             )
         }
@@ -531,6 +528,7 @@ private fun QuoteCard(
         PostAuthorHeader(
             quote.author,
             quote.createdAt,
+            absoluteTimestamp = true,
             onAuthorClick = onAuthorClick?.let { callback -> { callback(quote.author) } },
         )
         Spacer(Modifier.height(6.dp))
@@ -738,271 +736,7 @@ private fun ArticlePreview(
 }
 
 @Composable
-private fun PostActions(
-    post: Post,
-    onReplyClick: (String) -> Unit,
-    onRepostClick: (String) -> Unit,
-    onCreateQuoteClick: (String) -> Unit,
-    onLikeClick: (String) -> Unit,
-    onImpressionClick: (String) -> Unit,
-    onBookmarkClick: (String) -> Unit,
-    onShareClick: (String) -> Unit,
-    onShareDetailsCopy: (String) -> Unit,
-    onShareTranslatedCopy: (String, String?, String?) -> Unit,
-    onDownloadClick: (String) -> Unit,
-    pendingActions: Set<PostActionType>,
-    failedActions: Set<PostActionType>,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(Modifier.fillMaxWidth()) {
-            PostActionButton(
-                tag = "post-action-reply-" + post.id,
-                label = stringResource(R.string.post_reply),
-                icon = replyActionIcon(),
-                count = post.replyCount,
-                active = false,
-                activeColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
-                onClick = { onReplyClick(post.id) },
-            )
-            RepostMenuButton(
-                post = post,
-                pending = PostActionType.REPOST in pendingActions,
-                failed = PostActionType.REPOST in failedActions,
-                modifier = Modifier.weight(1f),
-                onRepostClick = onRepostClick,
-                onQuoteClick = onCreateQuoteClick,
-            )
-            PostActionButton(
-                tag = "post-action-like-" + post.id,
-                label = stringResource(R.string.post_like),
-                icon = if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                count = post.likeCount,
-                active = post.liked,
-                activeColor = MaterialTheme.colorScheme.error,
-                modifier = Modifier.weight(1f),
-                onClick = { onLikeClick(post.id) },
-                pending = PostActionType.LIKE in pendingActions,
-                failed = PostActionType.LIKE in failedActions,
-            )
-            PostActionButton(
-                tag = "post-action-impressions-" + post.id,
-                label = stringResource(R.string.post_impressions),
-                icon = Icons.Default.Visibility,
-                count = post.viewCount,
-                active = false,
-                activeColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
-                onClick = { onImpressionClick(post.id) },
-            )
-        }
-        Row(Modifier.fillMaxWidth()) {
-            PostActionButton(
-                tag = "post-action-bookmark-" + post.id,
-                label = stringResource(R.string.post_bookmark),
-                icon = if (post.bookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                count = post.bookmarkCount,
-                active = post.bookmarked,
-                activeColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
-                onClick = { onBookmarkClick(post.id) },
-                pending = PostActionType.BOOKMARK in pendingActions,
-                failed = PostActionType.BOOKMARK in failedActions,
-            )
-            ShareMenuButton(
-                post = post,
-                modifier = Modifier.weight(1f),
-                onShareClick = onShareClick,
-                onShareDetailsCopy = onShareDetailsCopy,
-                onShareTranslatedCopy = onShareTranslatedCopy,
-            )
-            PostActionButton(
-                tag = "post-action-download-" + post.id,
-                label = stringResource(R.string.post_download),
-                icon = Icons.Default.Download,
-                count = null,
-                active = false,
-                activeColor = MaterialTheme.colorScheme.primary,
-                enabled = post.media.any { it.url != null || it.previewUrl != null },
-                modifier = Modifier.weight(1f),
-                onClick = { onDownloadClick(post.id) },
-            )
-            Spacer(Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun RepostMenuButton(
-    post: Post,
-    pending: Boolean,
-    failed: Boolean,
-    modifier: Modifier,
-    onRepostClick: (String) -> Unit,
-    onQuoteClick: (String) -> Unit,
-) {
-    var expanded by remember(post.id) { mutableStateOf(false) }
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        PostActionButton(
-            tag = "post-action-repost-" + post.id,
-            label = stringResource(R.string.post_repost),
-            icon = Icons.Default.Repeat,
-            count = post.repostCount + post.quoteCount,
-            active = post.reposted,
-            activeColor = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { expanded = true },
-            pending = pending,
-            failed = failed,
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.testTag("repost-menu-" + post.id),
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.post_repost)) },
-                onClick = {
-                    expanded = false
-                    onRepostClick(post.id)
-                },
-                modifier = Modifier.testTag("repost-menu-repost-" + post.id),
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.post_quote)) },
-                onClick = {
-                    expanded = false
-                    onQuoteClick(post.id)
-                },
-                modifier = Modifier.testTag("repost-menu-quote-" + post.id),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ShareMenuButton(
-    post: Post,
-    modifier: Modifier,
-    onShareClick: (String) -> Unit,
-    onShareDetailsCopy: (String) -> Unit,
-    onShareTranslatedCopy: (String, String?, String?) -> Unit,
-) {
-    var expanded by remember(post.id) { mutableStateOf(false) }
-    val absoluteTime = remember(post.createdAt) { formatShareAbsoluteTime(post.createdAt) }
-    val relativeLabel = relativeTime(post.createdAt)
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        PostActionButton(
-            tag = "post-action-share-" + post.id,
-            label = stringResource(R.string.post_share),
-            icon = Icons.Default.Share,
-            count = null,
-            active = false,
-            activeColor = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { expanded = true },
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.testTag("share-menu-" + post.id),
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.post_share_copy_url)) },
-                onClick = {
-                    expanded = false
-                    onShareClick(post.id)
-                },
-                modifier = Modifier.testTag("share-menu-url-" + post.id),
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.post_share_copy_details)) },
-                onClick = {
-                    expanded = false
-                    formatDetailedPostShare(post, absoluteTime, relativeLabel)
-                        ?.let(onShareDetailsCopy)
-                        ?: onShareClick(post.id)
-                },
-                modifier = Modifier.testTag("share-menu-details-" + post.id),
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.post_share_copy_details_translated)) },
-                onClick = {
-                    expanded = false
-                    onShareTranslatedCopy(post.id, absoluteTime, relativeLabel)
-                },
-                modifier = Modifier.testTag("share-menu-details-translated-" + post.id),
-            )
-        }
-    }
-}
-
-internal fun replyActionIcon(): androidx.compose.ui.graphics.vector.ImageVector =
-    Icons.Outlined.ChatBubbleOutline
-
-@Composable
-private fun PostActionButton(
-    tag: String,
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    count: Long?,
-    active: Boolean,
-    activeColor: Color,
-    enabled: Boolean = true,
-    pending: Boolean = false,
-    failed: Boolean = false,
-    modifier: Modifier,
-    onClick: () -> Unit,
-) {
-    val tint = if (active) activeColor else MaterialTheme.colorScheme.onSurfaceVariant
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            IconButton(
-                onClick = onClick,
-                enabled = enabled,
-                modifier = Modifier
-                    .size(36.dp)
-                    .testTag(tag),
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = tint,
-                )
-            }
-            if (pending) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(34.dp).testTag("$tag-pending"),
-                    strokeWidth = 1.dp,
-                )
-            } else if (failed) {
-                Icon(
-                    imageVector = Icons.Default.ErrorOutline,
-                    contentDescription = stringResource(R.string.post_action_failed),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(14.dp)
-                        .testTag("$tag-failed"),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-        count?.let {
-            Text(
-                text = engagementCount(it),
-                style = MaterialTheme.typography.labelSmall,
-                color = tint,
-                maxLines = 1,
-            )
-        }
-    }
-}
-
-@Composable
-private fun relativeTime(createdAt: String?): String {
+internal fun relativeTime(createdAt: String?): String {
     val instant = parsePostInstant(createdAt) ?: return stringResource(R.string.post_time_unknown)
     val seconds = Duration.between(instant, Instant.now()).seconds.coerceAtLeast(0)
     return when {
@@ -1038,7 +772,7 @@ private fun authorDisplayName(author: Author): String =
 private fun authorHandle(author: Author): String =
     author.username.trim().removePrefix("@").ifBlank { author.id }
 
-private fun engagementCount(value: Long): String {
+internal fun engagementCount(value: Long): String {
     val normalized = value.coerceAtLeast(0)
     return when {
         normalized >= 1_000_000L -> (normalized / 1_000_000L).toString() + "M"
@@ -1067,4 +801,21 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendPostStyledTex
             }
         }
     }
+}
+
+@Composable
+private fun absolutePostTime(createdAt: String?): String =
+    formatPostAbsoluteTime(createdAt) ?: stringResource(R.string.post_time_unknown)
+
+internal fun formatPostAbsoluteTime(createdAt: String?, zone: ZoneId = ZoneId.systemDefault()): String? =
+    parsePostInstant(createdAt)?.atZone(zone)?.format(
+        DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss z (XXX)", Locale.ENGLISH),
+    )
+
+@Composable
+internal fun translationLanguageName(languageTag: String?): String {
+    val uiLocale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    return languageTag?.takeIf { it.isNotBlank() && it !in setOf("und", "zxx") }
+        ?.let { Locale.forLanguageTag(it).getDisplayLanguage(uiLocale).ifBlank { it } }
+        ?: stringResource(R.string.translation_language_unknown)
 }

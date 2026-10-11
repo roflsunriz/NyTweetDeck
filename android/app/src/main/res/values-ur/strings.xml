@@ -300,4 +300,8 @@
     <string name="composer_media_limit">زیادہ سے زیادہ چار تصاویر یا ایک GIF منتخب کریں۔</string>
     <string name="composer_remove">ہٹائیں</string>
     <string name="composer_scheduled_success">پوسٹ شیڈول کر دی گئی ہے۔</string>
+    <string name="translation_show_original_language">اصل دکھائیں (%1$s)</string>
+    <string name="translation_language_unknown">نامعلوم زبان</string>
+    <string name="setting_lock_column_swipe">کالموں کی افقی حرکت مقفل کریں</string>
+    <string name="column_select">کالم منتخب کریں</string>
 </resources>

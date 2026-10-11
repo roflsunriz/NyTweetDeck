@@ -169,6 +169,12 @@ internal fun SettingsDialog(
                     },
                     tag = "setting-reduce-motion",
                 )
+                SettingCheckbox(
+                    label = stringResource(R.string.setting_lock_column_swipe),
+                    checked = settings.lockColumnSwipe,
+                    onCheckedChange = { onDisplaySettingsChange(settings.copy(lockColumnSwipe = it)) },
+                    tag = "setting-lock-column-swipe",
+                )
                 SettingGroupTitle(stringResource(R.string.settings_feed_translation))
                 SettingCheckbox(
                     label = stringResource(R.string.setting_auto_refresh),
