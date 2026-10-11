@@ -1,6 +1,7 @@
 import type { Translation } from "../i18n/translations";
 import type { CommunityNote } from "../model/timeline";
 import { useCommunityNoteTranslation } from "./use-community-note-translation";
+import { languageDisplayName } from "./use-post-translation";
 
 export function CommunityNoteCard({
   note,
@@ -14,6 +15,7 @@ export function CommunityNoteCard({
   translation: Translation;
 }) {
   const state = useCommunityNoteTranslation(note, accountId, active);
+  const sourceLanguage = languageDisplayName(note.language ?? null);
   return (
     <aside
       className="community-note-card"
@@ -39,7 +41,11 @@ export function CommunityNoteCard({
           )}
           {state.translatedText !== null && (
             <>
-              <span>{translation.translatedBy("X")}</span>
+              <span>
+                {sourceLanguage === null
+                  ? translation.translatedBy("X")
+                  : translation.translatedFrom(sourceLanguage)}
+              </span>
               <button type="button" onClick={state.toggleOriginal}>
                 {state.showOriginal ? translation.showTranslation : translation.showOriginal}
               </button>

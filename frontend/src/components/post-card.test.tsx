@@ -21,6 +21,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  jest.useRealTimers();
   globalThis.fetch = originalFetch;
   globalThis.IntersectionObserver = originalIntersectionObserver;
   globalThis.HTMLMediaElement.prototype.play = originalVideoPlay;
@@ -192,22 +193,27 @@ describe("post actions", () => {
   });
 
   test("rolls an optimistic like back when the mutation fails", async () => {
+    jest.useFakeTimers();
     let failMutation: ((response: Response) => void) | undefined;
     globalThis.fetch = (async () =>
       new Promise<Response>((resolve) => {
         failMutation = resolve;
       })) as unknown as typeof fetch;
-    const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
     const likeButton = screen.getByRole("button", { name: "いいね" });
-    await user.click(likeButton);
+    fireEvent.click(likeButton);
 
     expect(likeButton.textContent).toBe("4");
     expect(likeButton.classList.contains("like-active")).toBe(true);
-    failMutation?.(
-      Response.json({ detail: "X Web署名情報を取得できませんでした。" }, { status: 502 }),
-    );
+    await act(async () => {
+      failMutation?.(
+        Response.json({ detail: "X Web署名情報を取得できませんでした。" }, { status: 502 }),
+      );
+    });
+    act(() => jest.advanceTimersByTime(29_999));
+    expect(likeButton.classList.contains("like-active")).toBe(true);
+    act(() => jest.advanceTimersByTime(1));
 
     await screen.findByText("ポスト操作に失敗しました。 X Web署名情報を取得できませんでした。");
     expect(likeButton.textContent).toBe("3");
@@ -215,21 +221,24 @@ describe("post actions", () => {
   });
 
   test("updates a repost immediately and rolls it back on failure", async () => {
+    jest.useFakeTimers();
     let failMutation: ((response: Response) => void) | undefined;
     globalThis.fetch = (async () =>
       new Promise<Response>((resolve) => {
         failMutation = resolve;
       })) as unknown as typeof fetch;
-    const user = userEvent.setup();
     render(<PostCard post={post()} accountId="account-1" translation={translate("ja")} />);
 
     const repostToggle = screen.getByRole("button", { name: "リポスト" });
-    await user.click(repostToggle);
-    await user.click(screen.getByRole("menuitem", { name: "リポスト" }));
+    fireEvent.click(repostToggle);
+    fireEvent.click(screen.getByRole("menuitem", { name: "リポスト" }));
 
     expect(repostToggle.textContent).toBe("3");
     expect(repostToggle.classList.contains("repost-active")).toBe(true);
-    failMutation?.(new Response(null, { status: 503 }));
+    await act(async () => failMutation?.(new Response(null, { status: 503 })));
+    act(() => jest.advanceTimersByTime(29_999));
+    expect(repostToggle.classList.contains("repost-active")).toBe(true);
+    act(() => jest.advanceTimersByTime(1));
 
     await screen.findByText("ポスト操作に失敗しました。");
     expect(repostToggle.textContent).toBe("2");
@@ -624,7 +633,7 @@ describe("post actions", () => {
     );
 
     expect(screen.getByText("事前翻訳された引用元")).toBeDefined();
-    expect(screen.getByText("Grokによる自動翻訳")).toBeDefined();
+    expect(screen.getByText(/から翻訳/u)).toBeDefined();
     expect(translationRequests).toBe(0);
   });
 
@@ -1175,7 +1184,7 @@ describe("post actions", () => {
     render(<Harness />);
 
     expect(await screen.findByText("自動翻訳された本文")).toBeDefined();
-    expect(screen.getByText("Xによる自動翻訳")).toBeDefined();
+    expect(screen.getByText(/から翻訳/u)).toBeDefined();
     await user.click(screen.getByRole("button", { name: "原文を表示" }));
     expect(screen.getByText("Original post")).toBeDefined();
     await user.click(screen.getByRole("button", { name: "翻訳を表示" }));
@@ -1219,7 +1228,7 @@ describe("post actions", () => {
     );
 
     expect(screen.getByText("事前に翻訳された本文")).toBeDefined();
-    expect(screen.getByText("Grokによる自動翻訳")).toBeDefined();
+    expect(screen.getByText(/から翻訳/u)).toBeDefined();
     expect(requests).toBe(0);
     await user.click(screen.getByRole("button", { name: "原文を表示" }));
     expect(screen.getByText("Fresh original")).toBeDefined();

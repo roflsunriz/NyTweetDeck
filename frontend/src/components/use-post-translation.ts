@@ -16,6 +16,7 @@ export interface PostTranslationView {
   loading: boolean;
   needed: boolean;
   provider: string | null;
+  sourceLanguageName: string | null;
   retry: () => void;
   retrySeconds: number;
   showOriginal: boolean;
@@ -174,6 +175,7 @@ export function usePostTranslation({
     loading: loading && translatedText === null,
     needed,
     provider,
+    sourceLanguageName: languageDisplayName(availablePreTranslation?.sourceLanguage ?? language),
     retry: () => setAttempt((value) => value + 1),
     retrySeconds,
     showOriginal,
@@ -181,4 +183,17 @@ export function usePostTranslation({
     translatedText,
     visibleText,
   };
+}
+
+export function languageDisplayName(language: string | null): string | null {
+  if (language === null || ["und", "zxx", "qme", "qam", "art"].includes(language)) return null;
+  try {
+    return (
+      new Intl.DisplayNames([document.documentElement.lang || "en"], {
+        type: "language",
+      }).of(language.replaceAll("_", "-")) ?? null
+    );
+  } catch {
+    return null;
+  }
 }

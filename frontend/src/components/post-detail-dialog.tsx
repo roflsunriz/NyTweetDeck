@@ -222,6 +222,7 @@ export function PostDetailDialog({
               {detail.contextPosts?.map((contextPost) => (
                 <div className="detail-context-post" key={contextPost.id}>
                   <PostCard
+                    absoluteTime
                     post={contextPost}
                     accountId={accountId}
                     translation={translation}
@@ -234,6 +235,7 @@ export function PostDetailDialog({
                 </div>
               ))}
               <PostCard
+                absoluteTime
                 post={detail.post}
                 accountId={accountId}
                 translation={translation}
@@ -329,6 +331,7 @@ export function PostDetailDialog({
                   </header>
                   {detail.relatedPosts?.map((post) => (
                     <PostCard
+                      absoluteTime
                       key={post.id}
                       post={post}
                       accountId={accountId}
@@ -442,6 +445,7 @@ function ReplyThreadPost({
         />
       </span>
       <PostCard
+        absoluteTime
         post={thread.reply}
         accountId={accountId}
         translation={translation}

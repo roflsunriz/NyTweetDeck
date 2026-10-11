@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { type ReactNode, useEffect, useId } from "react";
+import { type ReactNode, useEffect, useId, useRef } from "react";
 
 interface ModalProps {
   title: string;
@@ -17,6 +17,7 @@ export function Modal({
   presentation = "modal",
 }: ModalProps) {
   const titleId = useId();
+  const backdropRef = useRef<HTMLDivElement>(null);
   const presentationProps =
     presentation !== "modal"
       ? ({ role: "region" } as const)
@@ -24,7 +25,8 @@ export function Modal({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      const backdrops = document.querySelectorAll(".modal-backdrop");
+      if (event.key === "Escape" && backdrops.item(backdrops.length - 1) === backdropRef.current) {
         onClose();
       }
     };
@@ -33,7 +35,10 @@ export function Modal({
   }, [onClose]);
 
   return (
-    <div className={`modal-backdrop${presentation === "modal" ? "" : ` ${presentation}`}`}>
+    <div
+      ref={backdropRef}
+      className={`modal-backdrop${presentation === "modal" ? "" : ` ${presentation}`}`}
+    >
       <section
         aria-labelledby={titleId}
         className="modal-panel"

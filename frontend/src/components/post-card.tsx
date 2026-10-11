@@ -18,7 +18,7 @@ import {
   formatTranslatedDetailedShare,
   postShareUrl,
 } from "../model/post-share";
-import { useRelativeTime } from "../model/relative-time";
+import { formatAbsolutePostTime, useRelativeTime } from "../model/relative-time";
 import type { EmbeddedPost, TimelinePost } from "../model/timeline";
 import { postTextSegments } from "../model/post-text-segments";
 import { ComposerDialog } from "./composer-dialog";
@@ -31,6 +31,8 @@ import { type PostTranslationView, usePostTranslation } from "./use-post-transla
 
 export type { TimelineArticle, TimelinePost } from "../model/timeline";
 
+const fireworkAngles = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
+
 interface PostCardProps {
   post: TimelinePost;
   accountId: string;
@@ -40,6 +42,7 @@ interface PostCardProps {
   onOpenQuotedPost?: (postId: string) => void;
   onOpenImage?: (media: TimelinePost["media"][number], siblings: TimelinePost["media"]) => void;
   display?: DisplayPreferences;
+  absoluteTime?: boolean;
 }
 
 export function PostCard({
@@ -51,6 +54,7 @@ export function PostCard({
   onOpenQuotedPost,
   onOpenImage,
   display = defaultDisplayPreferences,
+  absoluteTime = false,
 }: PostCardProps) {
   const [liked, setLiked] = useState(post.liked);
   const [reposted, setReposted] = useState(post.reposted);
@@ -68,7 +72,9 @@ export function PostCard({
   const cardRef = useRef<HTMLElement | null>(null);
   const { autoTranslatePosts, setAutoTranslatePosts, translationLocale } =
     usePostTranslationSettings();
-  const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
+  const locale = document.documentElement.lang || "en";
+  const relativeTime = useRelativeTime(post.createdAt, locale);
+  const time = absoluteTime ? formatAbsolutePostTime(post.createdAt, locale) : relativeTime;
   const postUrl = postShareUrl(post);
   const postTranslation = usePostTranslation({
     accountId,
@@ -155,7 +161,6 @@ export function PostCard({
     return () => observer.disconnect();
   }, [post.id]);
 
-  const locale = document.documentElement.lang || "en";
   const copyUrlOnly = async () => {
     await navigator.clipboard.writeText(postUrl);
   };
@@ -245,7 +250,14 @@ export function PostCard({
               <span>@{post.author.username}</span>
             </span>
           </button>
-          {time !== null && <time dateTime={post.createdAt ?? undefined}>{time}</time>}
+          {time !== null && (
+            <time
+              className={absoluteTime ? "post-absolute-time" : undefined}
+              dateTime={post.createdAt ?? undefined}
+            >
+              {time}
+            </time>
+          )}
           <button
             className={`post-header-action post-translation-toggle${autoTranslatePosts ? " active" : ""}`}
             type="button"
@@ -515,7 +527,11 @@ function PostTranslationStatus({
       )}
       {state.translatedText !== null && state.provider !== null && (
         <>
-          <span>{translation.translatedBy(state.provider)}</span>
+          <span>
+            {state.sourceLanguageName === null
+              ? translation.translatedBy(state.provider)
+              : translation.translatedFrom(state.sourceLanguageName)}
+          </span>
           <button type="button" onClick={state.toggleOriginal}>
             {state.showOriginal ? translation.showTranslation : translation.showOriginal}
           </button>
@@ -540,7 +556,7 @@ function QuotedPostCard({
   translationActive: boolean;
   onOpen?: (postId: string) => void;
 }) {
-  const time = useRelativeTime(post.createdAt, document.documentElement.lang || "en");
+  const time = formatAbsolutePostTime(post.createdAt, document.documentElement.lang || "en");
   const postTranslation = usePostTranslation({
     accountId,
     postId: post.id,
@@ -637,7 +653,7 @@ function RepostMenu({
     <div className="repost-menu">
       <button
         type="button"
-        className={`post-action${active ? " active repost-active" : ""}${pending ? " pending" : ""}`}
+        className={`post-action${active ? " active repost-active" : ""}`}
         data-post-action="repost"
         aria-controls={menuId}
         aria-expanded={open}
@@ -804,21 +820,32 @@ function Action({
   pending = false,
   onClick,
 }: ActionProps) {
+  const [burst, setBurst] = useState(0);
   return (
     <button
       type="button"
-      className={`post-action${active ? ` active ${actionId}-active` : ""}${pending ? " pending" : ""}`}
+      className={`post-action${active ? ` active ${actionId}-active` : ""}${pending && actionId !== "like" ? " pending" : ""}`}
       data-post-action={actionId}
       aria-label={label}
       aria-busy={pending}
       disabled={disabled}
-      onClick={onClick}
+      onClick={() => {
+        if (actionId === "like" && !active) setBurst((value) => value + 1);
+        onClick?.();
+      }}
     >
       <Icon
         aria-hidden="true"
         size={16}
         fill={active && (actionId === "like" || actionId === "bookmark") ? "currentColor" : "none"}
       />
+      {actionId === "like" && burst > 0 && (
+        <span className="like-fireworks" aria-hidden="true" key={burst}>
+          {fireworkAngles.map((angle) => (
+            <i key={angle} style={{ transform: `rotate(${angle}deg)` }} />
+          ))}
+        </span>
+      )}
       <span>{compactNumber(count)}</span>
     </button>
   );

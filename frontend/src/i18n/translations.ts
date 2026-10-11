@@ -123,6 +123,7 @@ export interface Translation {
   translationFailed: string;
   translationUnavailable: string;
   translatedBy: (provider: string) => string;
+  translatedFrom: (language: string) => string;
   postMenu: string;
   notInterested: string;
   followUser: string;
@@ -369,6 +370,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     translationFailed: "翻訳できませんでした。原文を表示しています。",
     translationUnavailable: "翻訳はまだ提供されていません。",
     translatedBy: (provider) => `${provider}による自動翻訳`,
+    translatedFrom: (language) => `${language}から翻訳`,
     postMenu: "ポストメニュー",
     notInterested: "このポストに興味がない",
     followUser: "フォロー",
@@ -663,6 +665,7 @@ const translations: Partial<Record<Locale, Translation>> = {
     translationFailed: "Translation failed. Showing the original post.",
     translationUnavailable: "Translation is not available yet.",
     translatedBy: (provider) => `Automatically translated by ${provider}`,
+    translatedFrom: (language) => `Translated from ${language}`,
     postMenu: "Post menu",
     notInterested: "Not interested in this post",
     followUser: "Follow",

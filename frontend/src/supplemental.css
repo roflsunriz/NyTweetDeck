@@ -999,7 +999,81 @@ button.deck-feed-item:focus-visible {
 }
 
 .post-action.repost-active {
-  color: #00ba7c;
+  color: #1d9bf0;
+}
+
+.post-action[data-post-action="like"] {
+  position: relative;
+}
+
+.like-fireworks {
+  position: absolute;
+  inset-inline-start: 13px;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.like-fireworks i {
+  position: absolute;
+  inset: 0;
+}
+
+.like-fireworks i::after {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #f91880;
+  animation: like-firework 650ms ease-out both;
+}
+
+.like-fireworks i:nth-child(even)::after {
+  background: #ffad1f;
+  animation-delay: 35ms;
+}
+
+@keyframes like-firework {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.4);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-29px) scale(0);
+  }
+}
+
+[data-reduce-motion="true"] .like-fireworks {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .like-fireworks {
+    display: none;
+  }
+}
+
+.quoted-post-header .quoted-post-time {
+  grid-column: 2 / -1;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.post-card > header:has(.post-absolute-time) {
+  grid-template-columns: 36px minmax(0, 1fr) repeat(3, 28px);
+}
+
+.post-absolute-time {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .list-option:hover,

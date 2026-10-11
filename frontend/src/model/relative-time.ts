@@ -61,3 +61,17 @@ export function formatRelativeTime(
   }
   return formatter.format(Math.round(hours / 24), "day");
 }
+
+export function formatAbsolutePostTime(value: string | null, locale: string): string | null {
+  if (value === null || !Number.isFinite(Date.parse(value))) return null;
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short",
+    hourCycle: "h23",
+  }).format(new Date(value));
+}

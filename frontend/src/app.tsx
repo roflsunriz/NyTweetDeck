@@ -596,8 +596,10 @@ function AppContent() {
                                   const timeline = event.currentTarget
                                     .closest(".deck-column")
                                     ?.querySelector<HTMLElement>(".timeline-content");
-                                  if (timeline !== null && timeline !== undefined)
-                                    timeline.scrollTop = 0;
+                                  if (timeline !== null && timeline !== undefined) {
+                                    timeline.scrollTo({ top: 0, behavior: "instant" });
+                                    timeline.dispatchEvent(new Event("nytd-scroll-top"));
+                                  }
                                 }}
                               >
                                 <ArrowUpToLine aria-hidden="true" size={16} />

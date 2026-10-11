@@ -3,6 +3,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -108,7 +109,7 @@ export function ImageViewer({ src, sources, translation, onClose }: ImageViewerP
     viewerRef.current?.focus();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleKeyboard = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key === "Escape") {

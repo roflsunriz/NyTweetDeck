@@ -115,6 +115,20 @@ function TimelineColumnContent({
   const loadMoreRef = useRef<HTMLButtonElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const viewportAnchorRef = useRef<ViewportAnchor | null>(null);
+  const hasPosts = posts.length > 0;
+
+  useEffect(() => {
+    if (!hasPosts) return;
+    const scroll = scrollRef.current;
+    if (scroll === null) return;
+    const scrollTop = () => {
+      viewportAnchorRef.current = null;
+      scroll.scrollTo({ top: 0, behavior: "instant" });
+      setNewPostNotification(null);
+    };
+    scroll.addEventListener("nytd-scroll-top", scrollTop);
+    return () => scroll.removeEventListener("nytd-scroll-top", scrollTop);
+  }, [hasPosts]);
 
   const updatePosts = useCallback(
     (update: (current: TimelinePost[]) => TimelinePost[]) => {
@@ -554,7 +568,8 @@ function TimelineColumnContent({
             type="button"
             aria-label={translation.showNewPosts(newPostNotification.count)}
             onClick={() => {
-              if (scrollRef.current !== null) scrollRef.current.scrollTop = 0;
+              viewportAnchorRef.current = null;
+              scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
               setNewPostNotification(null);
             }}
           >

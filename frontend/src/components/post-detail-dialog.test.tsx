@@ -243,9 +243,9 @@ test("follows replies repeatedly and restores each detail and scroll through Bac
   );
   if (reply === null) throw new Error("Missing reply action");
   await user.click(reply);
-  expect(container.querySelector(".composer-form")).not.toBeNull();
+  expect(document.querySelector(".composer-form")).not.toBeNull();
   await user.keyboard("{Escape}");
-  await waitFor(() => expect(container.querySelector(".composer-form")).toBeNull());
+  await waitFor(() => expect(document.querySelector(".composer-form")).toBeNull());
   expect(
     container.querySelector("[data-detail-post-id]")?.getAttribute("data-detail-post-id"),
   ).toBe("900");

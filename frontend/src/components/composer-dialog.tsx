@@ -1,4 +1,5 @@
 import type { Translation } from "../i18n/translations";
+import { createPortal } from "react-dom";
 import { useMediaQuery } from "../model/use-media-query";
 import { useOverlayRoute } from "../model/use-overlay-route";
 import { ComposerForm } from "./composer-form";
@@ -26,7 +27,7 @@ export function ComposerDialog({
   const compactPresentation = useMediaQuery("(max-width: 599px)");
   const close = useOverlayRoute("compose", onClose);
 
-  return (
+  return createPortal(
     <Modal
       title={
         inReplyToPostId !== undefined
@@ -52,6 +53,7 @@ export function ComposerDialog({
           onPublished={onPublished}
         />
       )}
-    </Modal>
+    </Modal>,
+    document.body,
   );
 }

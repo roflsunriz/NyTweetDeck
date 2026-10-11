@@ -15,7 +15,12 @@ interface ToggleQueue extends OptimisticToggle {
   confirmedCount: number;
   desiredActive: boolean;
   running: boolean;
+  revision: number;
+  changedAt: number;
+  rollbackTimer?: ReturnType<typeof setTimeout>;
 }
+
+export const ENGAGEMENT_ROLLBACK_DELAY_MS = 30_000;
 
 export function useOptimisticToggle(
   request: (action: string) => Promise<void>,
@@ -33,6 +38,8 @@ export function useOptimisticToggle(
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      for (const queue of queuesRef.current.values()) clearTimeout(queue.rollbackTimer);
+      queuesRef.current.clear();
     };
   }, []);
 
@@ -50,23 +57,43 @@ export function useOptimisticToggle(
     async (queue: ToggleQueue) => {
       if (queue.running) return;
       queue.running = true;
-      while (queue.desiredActive !== queue.confirmedActive) {
+      while (mountedRef.current && queue.desiredActive !== queue.confirmedActive) {
         const requestedActive = queue.desiredActive;
+        const revision = queue.revision;
         try {
           await requestRef.current(requestedActive ? queue.enableAction : queue.disableAction);
           queue.confirmedCount = countForState(queue, requestedActive);
           queue.confirmedActive = requestedActive;
         } catch (error) {
-          if (queue.desiredActive === requestedActive) {
-            queue.desiredActive = queue.confirmedActive;
-            publishState(queue, queue.confirmedActive);
-            onErrorRef.current(error);
+          if (queue.revision === revision) {
+            const rollback = () => {
+              if (
+                !mountedRef.current ||
+                queue.revision !== revision ||
+                queuesRef.current.get(queue.actionKey) !== queue
+              )
+                return;
+              queue.desiredActive = queue.confirmedActive;
+              publishState(queue, queue.confirmedActive);
+              queuesRef.current.delete(queue.actionKey);
+              publishPending();
+              if (queue.confirmedActive !== requestedActive) onErrorRef.current(error);
+            };
+            if (queue.actionKey === "like" || queue.actionKey === "repost") {
+              queue.rollbackTimer = setTimeout(
+                rollback,
+                Math.max(0, ENGAGEMENT_ROLLBACK_DELAY_MS - (Date.now() - queue.changedAt)),
+              );
+            } else {
+              rollback();
+            }
             break;
           }
         }
       }
       queue.running = false;
       if (queue.desiredActive === queue.confirmedActive) {
+        clearTimeout(queue.rollbackTimer);
         queuesRef.current.delete(queue.actionKey);
       }
       publishPending();
@@ -84,6 +111,8 @@ export function useOptimisticToggle(
           confirmedCount: input.count,
           desiredActive: input.active,
           running: false,
+          revision: 0,
+          changedAt: Date.now(),
         };
         queuesRef.current.set(input.actionKey, queue);
       } else {
@@ -92,6 +121,10 @@ export function useOptimisticToggle(
         queue.enableAction = input.enableAction;
         queue.disableAction = input.disableAction;
       }
+      clearTimeout(queue.rollbackTimer);
+      queue.rollbackTimer = undefined;
+      queue.revision += 1;
+      queue.changedAt = Date.now();
       queue.desiredActive = !queue.desiredActive;
       publishState(queue, queue.desiredActive);
       publishPending();

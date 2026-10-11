@@ -3,6 +3,7 @@ import type { TranslationOverride } from "./translations";
 
 export const overrides: Partial<Record<Locale, TranslationOverride>> = {
   es: {
+    translatedFrom: (language) => `Traducido del ${language}`,
     discoverMore: "Descubre más",
     fromX: "De X",
     translationUnavailable: "La traducción aún no está disponible.",
@@ -186,6 +187,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   fr: {
+    translatedFrom: (language) => `Traduit depuis ${language}`,
     discoverMore: "Découvrir plus",
     fromX: "Sur X",
     translationUnavailable: "La traduction n’est pas encore disponible.",
@@ -374,6 +376,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   pt: {
+    translatedFrom: (language) => `Traduzido de ${language}`,
     discoverMore: "Descubra mais",
     fromX: "Do X",
     translationUnavailable: "A tradução ainda não está disponível.",
@@ -557,6 +560,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   ru: {
+    translatedFrom: (language) => `Переведено с ${language}`,
     discoverMore: "Узнайте больше",
     fromX: "От X",
     translationUnavailable: "Перевод пока недоступен.",

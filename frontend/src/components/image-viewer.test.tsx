@@ -1,10 +1,60 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLayoutEffect, useRef, useState } from "react";
 import { translate } from "../i18n/translations";
+import { useOverlayRoute } from "../model/use-overlay-route";
 import { ImageViewer } from "./image-viewer";
+import { Modal } from "./modal";
 
 afterEach(cleanup);
+
+test("removes Escape capture with the viewer DOM before an immediate second Escape closes its parent", async () => {
+  window.history.replaceState(null, "", "/");
+  const parentClosed = mock(() => {});
+  let secondEscapeIssued = false;
+  function Harness() {
+    const [imageOpen, setImageOpen] = useState(false);
+    const previouslyOpen = useRef(false);
+    const close = useOverlayRoute("post/100", parentClosed);
+    useLayoutEffect(() => {
+      if (previouslyOpen.current && !imageOpen) {
+        expect(document.querySelector(".image-viewer")).toBeNull();
+        secondEscapeIssued = true;
+        // DOM removal is committed, but passive effect cleanup has not run yet.
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      }
+      previouslyOpen.current = imageOpen;
+    }, [imageOpen]);
+    return (
+      <Modal title="root" closeLabel="root-close" onClose={close}>
+        <button type="button" onClick={() => setImageOpen(true)}>
+          open-image
+        </button>
+        {imageOpen && (
+          <ImageViewer
+            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+            translation={translate("ja")}
+            onClose={() => setImageOpen(false)}
+          />
+        )}
+      </Modal>
+    );
+  }
+  try {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("open-image"));
+    expect(window.location.hash).toBe("#/media");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(parentClosed).toHaveBeenCalledTimes(1));
+    expect(secondEscapeIssued).toBe(true);
+    expect(document.querySelector(".image-viewer")).toBeNull();
+    expect(window.location.hash).toBe("");
+  } finally {
+    cleanup();
+    window.history.replaceState(null, "", "/");
+  }
+});
 
 const sources = [
   "https://pbs.twimg.com/media/first.jpg?format=jpg&name=small",

@@ -3,6 +3,7 @@ import type { TranslationOverride } from "./translations";
 
 export const overrides: Partial<Record<Locale, TranslationOverride>> = {
   zh: {
+    translatedFrom: (language) => `翻译自 ${language}`,
     discoverMore: "发现更多",
     fromX: "来自 X",
     translationUnavailable: "翻译暂不可用。",
@@ -183,6 +184,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   hi: {
+    translatedFrom: (language) => `अनुवादित भाषा: ${language}`,
     discoverMore: "और खोजें",
     fromX: "X से",
     translationUnavailable: "अनुवाद अभी उपलब्ध नहीं है।",
@@ -364,6 +366,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   bn: {
+    translatedFrom: (language) => `অনুবাদের মূল ভাষা: ${language}`,
     discoverMore: "আরও খুঁজুন",
     fromX: "X থেকে",
     translationUnavailable: "অনুবাদ এখনও উপলব্ধ নয়।",

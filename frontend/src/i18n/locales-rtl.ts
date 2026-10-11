@@ -3,6 +3,7 @@ import type { TranslationOverride } from "./translations";
 
 export const overrides: Partial<Record<Locale, TranslationOverride>> = {
   ar: {
+    translatedFrom: (language) => `مترجم من ${language}`,
     discoverMore: "اكتشف المزيد",
     fromX: "من X",
     translationUnavailable: "الترجمة غير متاحة بعد.",
@@ -185,6 +186,7 @@ export const overrides: Partial<Record<Locale, TranslationOverride>> = {
     },
   },
   ur: {
+    translatedFrom: (language) => `ترجمہ کی اصل زبان: ${language}`,
     discoverMore: "مزید دریافت کریں",
     fromX: "X سے",
     translationUnavailable: "ترجمہ ابھی دستیاب نہیں ہے۔",

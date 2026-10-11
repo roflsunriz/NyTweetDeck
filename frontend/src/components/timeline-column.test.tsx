@@ -428,67 +428,73 @@ describe("timeline column", () => {
     await screen.findByText("表示するポストがありません。");
   });
 
-  test("prepends new posts while preserving the visible post and shows five author avatars", async () => {
-    let eventSource: FakeEventSource | undefined;
-    globalThis.EventSource = class extends FakeEventSource {
-      constructor(_url: string | URL) {
-        super();
-        eventSource = this;
-      }
-    } as unknown as typeof EventSource;
-    let timelineLoads = 0;
-    globalThis.fetch = (async (input) => {
-      if (!String(input).includes("/api/v1/timelines/")) {
-        return Response.json({ connected: true, topicCount: 1 });
-      }
-      timelineLoads += 1;
-      if (timelineLoads === 1) {
-        return Response.json({ posts: [post("old", "post being read")], nextCursor: null });
-      }
-      return Response.json({
-        posts: [
-          ...Array.from({ length: 6 }, (_, index) =>
-            postByAuthor(
-              `new-${index}`,
-              `new post ${index}`,
-              `author-${index}`,
-              index % 2 === 0 ? `https://pbs.twimg.com/avatar-${index}.jpg` : null,
+  test.each(["notification", "top"])(
+    "prepends sixty posts, preserves the viewport and instantly acknowledges with %s",
+    async (scrollAction) => {
+      let eventSource: FakeEventSource | undefined;
+      globalThis.EventSource = class extends FakeEventSource {
+        constructor(_url: string | URL) {
+          super();
+          eventSource = this;
+        }
+      } as unknown as typeof EventSource;
+      let timelineLoads = 0;
+      globalThis.fetch = (async (input) => {
+        if (!String(input).includes("/api/v1/timelines/")) {
+          return Response.json({ connected: true, topicCount: 1 });
+        }
+        timelineLoads += 1;
+        if (timelineLoads === 1) {
+          return Response.json({ posts: [post("old", "post being read")], nextCursor: null });
+        }
+        return Response.json({
+          posts: [
+            ...Array.from({ length: 60 }, (_, index) =>
+              postByAuthor(
+                `new-${index}`,
+                `new post ${index}`,
+                `author-${index}`,
+                index % 2 === 0 ? `https://pbs.twimg.com/avatar-${index}.jpg` : null,
+              ),
             ),
-          ),
-          post("old", "post being read"),
-        ],
-        nextCursor: null,
-      });
-    }) as typeof fetch;
-    const user = userEvent.setup();
-    const column: ColumnConfig = { id: "stable", kind: "home", target: null, label: null };
+            post("old", "post being read"),
+          ],
+          nextCursor: null,
+        });
+      }) as typeof fetch;
+      const user = userEvent.setup();
+      const column: ColumnConfig = { id: "stable", kind: "home", target: null, label: null };
 
-    render(<TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />);
-    const oldText = await screen.findByText("post being read");
-    const oldCard = oldText.closest<HTMLElement>(".post-card");
-    const timeline = screen.getByTestId("timeline-scroll");
-    expect(oldCard).not.toBeNull();
-    timeline.scrollTop = 0;
-    timeline.getBoundingClientRect = () => rectangle(0, 600);
-    if (oldCard !== null) {
-      oldCard.getBoundingClientRect = () =>
-        rectangle(screen.queryByText("new post 0") === null ? 100 : 300, 180);
-    }
+      render(
+        <TimelineColumn column={column} accountId="account-1" translation={translate("ja")} />,
+      );
+      const oldText = await screen.findByText("post being read");
+      const oldCard = oldText.closest<HTMLElement>(".post-card");
+      const timeline = screen.getByTestId("timeline-scroll");
+      expect(oldCard).not.toBeNull();
+      timeline.scrollTop = 0;
+      timeline.getBoundingClientRect = () => rectangle(0, 600);
+      if (oldCard !== null) {
+        oldCard.getBoundingClientRect = () =>
+          rectangle(screen.queryByText("new post 0") === null ? 100 : 300, 180);
+      }
 
-    act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "new-0" }));
+      act(() => eventSource?.emit("timeline-update", { reason: "create", postId: "new-0" }));
 
-    const notification = await screen.findByRole("button", { name: "6件の新規投稿を表示" });
-    await waitFor(() => expect(timeline.scrollTop).toBe(200));
-    expect(notification.textContent).toContain("新規投稿:");
-    expect(notification.querySelectorAll(".new-post-avatar")).toHaveLength(5);
-    expect(screen.getByText("post being read")).toBeDefined();
-    expect(screen.getByText("new post 0")).toBeDefined();
+      const notification = await screen.findByRole("button", { name: "60件の新規投稿を表示" });
+      await waitFor(() => expect(timeline.scrollTop).toBe(200));
+      expect(notification.textContent).toContain("新規投稿:");
+      expect(notification.querySelectorAll(".new-post-avatar")).toHaveLength(5);
+      expect(screen.getByText("post being read")).toBeDefined();
+      expect(screen.getByText("new post 0")).toBeDefined();
 
-    await user.click(notification);
+      if (scrollAction === "notification") await user.click(notification);
+      else act(() => timeline.dispatchEvent(new Event("nytd-scroll-top")));
 
-    expect(timeline.scrollTop).toBe(0);
-    expect(screen.queryByRole("button", { name: "6件の新規投稿を表示" })).toBeNull();
-  });
+      expect(timeline.scrollTop).toBe(0);
+      expect(screen.queryByRole("button", { name: "60件の新規投稿を表示" })).toBeNull();
+    },
+  );
 
   test("keeps the central reading post when a sliver of another post remains above it", async () => {
     let eventSource: FakeEventSource | undefined;
