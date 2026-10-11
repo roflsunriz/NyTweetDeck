@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { translate } from "../i18n/translations";
 import { resetVideoPlaybackForTesting } from "../model/video-playback-coordinator";
@@ -8,6 +8,7 @@ const originalObserver = globalThis.IntersectionObserver;
 const originalPlay = HTMLMediaElement.prototype.play;
 const originalPause = HTMLMediaElement.prototype.pause;
 const originalLoad = HTMLMediaElement.prototype.load;
+const wakeLockDescriptor = Object.getOwnPropertyDescriptor(navigator, "wakeLock");
 
 afterEach(() => {
   cleanup();
@@ -16,6 +17,8 @@ afterEach(() => {
   HTMLMediaElement.prototype.play = originalPlay;
   HTMLMediaElement.prototype.pause = originalPause;
   HTMLMediaElement.prototype.load = originalLoad;
+  if (wakeLockDescriptor) Object.defineProperty(navigator, "wakeLock", wakeLockDescriptor);
+  else Reflect.deleteProperty(navigator, "wakeLock");
 });
 
 function installHarness() {
@@ -138,4 +141,101 @@ test("全画面スタイルは画面全体を埋める", async () => {
   expect(player.height).toBe("100vh");
   expect(video.width).toBe("100%");
   expect(video.height).toBe("100%");
+});
+
+test("再生・一時停止・終了・画面外への移動で消灯防止を取得・解除する", async () => {
+  const locks: Array<{ releases: number }> = [];
+  Object.defineProperty(navigator, "wakeLock", {
+    configurable: true,
+    value: {
+      request: async () => {
+        const target = new EventTarget();
+        const lock = Object.assign(target, {
+          releases: 0,
+          async release() {
+            this.releases += 1;
+            target.dispatchEvent(new Event("release"));
+          },
+        });
+        locks.push(lock);
+        return lock;
+      },
+    },
+  });
+  const notify = installHarness();
+  const rendered = renderPlayer("wake");
+  act(() => notify(true));
+  const video = rendered.container.querySelector("video");
+  if (video === null) throw new Error("Missing video");
+  expect(locks).toHaveLength(0);
+  await act(async () => {
+    await video.play();
+  });
+  expect(locks).toHaveLength(1);
+  await act(async () => {
+    video.pause();
+  });
+  expect(locks[0]?.releases).toBe(1);
+  await act(async () => {
+    await video.play();
+  });
+  await act(async () => {
+    fireEvent.ended(video);
+  });
+  expect(locks[1]?.releases).toBe(1);
+  await act(async () => {
+    await video.play();
+  });
+  await act(async () => {
+    notify(false);
+  });
+  expect(locks[2]?.releases).toBe(1);
+  expect(rendered.container.querySelector("video")).toBeNull();
+  rendered.unmount();
+});
+
+test("再生映像の表示後はサムネイルを外し、一時停止でも戻さず再接続時は初期状態へ戻す", async () => {
+  const notify = installHarness();
+  const rendered = renderPlayer("poster");
+  act(() => notify(true));
+  const video = rendered.container.querySelector("video");
+  if (video === null) throw new Error("Missing video");
+  expect(video.getAttribute("poster")).toBe("https://video.example/poster.jpg");
+  await act(async () => {
+    await video.play();
+  });
+  fireEvent.playing(video);
+  expect(video.hasAttribute("poster")).toBe(false);
+  act(() => video.pause());
+  expect(video.hasAttribute("poster")).toBe(false);
+  act(() => notify(false));
+  expect(rendered.container.querySelector(".configured-video-poster")).not.toBeNull();
+  act(() => notify(true));
+  expect(rendered.container.querySelector("video")?.getAttribute("poster")).toBe(
+    "https://video.example/poster.jpg",
+  );
+  rendered.unmount();
+});
+
+test("消灯防止の許可が拒否されても動画を再生し続ける", async () => {
+  const warning = spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    Object.defineProperty(navigator, "wakeLock", {
+      configurable: true,
+      value: { request: () => Promise.reject(new DOMException("Denied", "NotAllowedError")) },
+    });
+    const notify = installHarness();
+    const rendered = renderPlayer("denied");
+    act(() => notify(true));
+    const video = rendered.container.querySelector("video");
+    if (video === null) throw new Error("Missing video");
+    await act(async () => {
+      await video.play();
+    });
+    expect(video.paused).toBe(false);
+    expect(warning).toHaveBeenCalledTimes(1);
+    rendered.unmount();
+  } finally {
+    warning.mockRestore();
+  }
 });

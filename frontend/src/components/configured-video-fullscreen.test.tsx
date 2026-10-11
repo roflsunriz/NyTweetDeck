@@ -100,7 +100,10 @@ for (const scenario of [
     if (video === null) throw new Error("Missing connected video");
     await act(async () => {
       if (scenario.paused) video.pause();
-      else await video.play();
+      else {
+        await video.play();
+        fireEvent.playing(video);
+      }
     });
     video.currentTime = 7;
     let finish: (() => void) | undefined;
@@ -126,6 +129,7 @@ for (const scenario of [
     expect(video.getAttribute("src")).toBe("https://video.example/clip.mp4");
     expect(video.currentTime).toBe(7);
     expect(video.paused).toBe(scenario.paused);
+    expect(video.hasAttribute("poster")).toBe(scenario.paused);
     act(() => {
       fullscreen = null;
       document.dispatchEvent(new Event("fullscreenchange"));
@@ -135,6 +139,7 @@ for (const scenario of [
     expect(container.querySelector("video")).toBe(video);
     expect(video.currentTime).toBe(7);
     expect(video.paused).toBe(scenario.paused);
+    expect(video.hasAttribute("poster")).toBe(scenario.paused);
     act(() => notify(false));
     expect(container.querySelector("video")).toBeNull();
   });

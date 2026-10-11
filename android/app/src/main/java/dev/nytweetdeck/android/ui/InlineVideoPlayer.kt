@@ -291,7 +291,11 @@ private fun VideoPlayer(
             }
         }
         activePlayer?.addListener(listener)
-        onDispose { activePlayer?.removeListener(listener) }
+        playing = activePlayer?.isPlaying == true
+        onDispose {
+            activePlayer?.removeListener(listener)
+            playing = false
+        }
     }
     DisposableEffect(media.id) {
         val subscription = VideoPlaybackCoordinator.observe { activeId ->
@@ -315,6 +319,8 @@ private fun VideoPlayer(
         modifier = modifier
             .fillMaxSize()
             .clipToBounds()
+            // PlayerViewのFIT余白は透明なので、下のCropプレビューを接続中だけ覆う。
+            .background(if (player != null) Color.Black else Color.Transparent)
             .onGloballyPositioned { coordinates ->
                 if (!attachOnlyWhenVisible) return@onGloballyPositioned
                 val bounds = coordinates.boundsInWindow()
@@ -346,21 +352,30 @@ private fun VideoPlayer(
                 }
                 .testTag("$controlTagPrefix-viewport"),
         ) {
-            AndroidView(
+            if (player == null) {
+                Box(Modifier.fillMaxSize().testTag("$controlTagPrefix-disconnected"))
+            } else AndroidView(
                 factory = { viewContext ->
                     PlayerView(viewContext).apply {
                         useController = false
                         this.player = player
-                        setKeepContentOnPlayerReset(true)
+                        setKeepContentOnPlayerReset(false)
+                        setShutterBackgroundColor(android.graphics.Color.BLACK)
                     }
                 },
-                update = { it.player = player },
+                update = {
+                    it.player = player
+                    // Androidは同じWindow内のViewの要求を集約する。共有rootへ直接設定せず、
+                    // 各Viewを再生中だけ保持することで別プレイヤーの解除と競合させない。
+                    it.keepScreenOn = attached && playing && player?.isPlaying == true
+                },
+                onRelease = {
+                    it.keepScreenOn = false
+                    it.player = null
+                },
                 modifier = Modifier
                     .fillMaxSize()
-                    .testTag(
-                        if (player == null) "$controlTagPrefix-disconnected"
-                        else "$controlTagPrefix-connected",
-                    ),
+                    .testTag("$controlTagPrefix-connected"),
             )
         }
         if (player != null) {

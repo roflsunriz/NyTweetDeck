@@ -27,6 +27,7 @@ import {
   releaseVideoPlayback,
   subscribeVideoPlayback,
 } from "../model/video-playback-coordinator";
+import { setVideoScreenWakeLock } from "../model/video-screen-wake-lock";
 
 export const VIDEO_CONTROLS_HIDE_DELAY_MS = 3_000;
 export const VIDEO_STALL_RECOVERY_DELAY_MS = 2_000;
@@ -81,6 +82,7 @@ export function ConfiguredVideo({
     () => typeof globalThis.IntersectionObserver === "undefined",
   );
   const [playing, setPlaying] = useState(false);
+  const [renderedSource, setRenderedSource] = useState<string | null>(null);
   const [muted, setMuted] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -123,6 +125,7 @@ export function ConfiguredVideo({
   useEffect(() => {
     setVideoZoom(1);
     setVideoPan({ x: 0, y: 0 });
+    setRenderedSource(null);
     videoPointersRef.current.clear();
     videoPinchRef.current = null;
   }, [selectedSource]);
@@ -333,6 +336,7 @@ export function ConfiguredVideo({
         setMediaConnected(active);
         if (!active) {
           clearStallRecovery();
+          setRenderedSource(null);
           setPlaying(false);
           setMuted(true);
           setCurrentTime(0);
@@ -446,6 +450,7 @@ export function ConfiguredVideo({
     return () => {
       video.removeEventListener("enterpictureinpicture", enter);
       video.removeEventListener("leavepictureinpicture", leave);
+      setVideoScreenWakeLock(video, false);
       video.pause();
       video.removeAttribute("src");
       video.load();
@@ -615,7 +620,7 @@ export function ConfiguredVideo({
           draggable={false}
           playsInline
           preload="auto"
-          poster={poster || undefined}
+          poster={renderedSource === selectedSource ? undefined : poster || undefined}
           src={selectedSource || undefined}
           style={{ ...baseVideoStyle, ...zoomStyle }}
           onClick={handleVideoTap}
@@ -625,13 +630,20 @@ export function ConfiguredVideo({
           onPointerCancel={handleVideoPointerUp}
           onDoubleClick={handleVideoDoubleClick}
           onDragStart={(event) => event.preventDefault()}
-          onPlay={() => {
+          onPlay={(event) => {
             setPlaying(true);
             claimVideoPlayback(mediaId);
+            setVideoScreenWakeLock(event.currentTarget, true);
           }}
-          onPause={() => {
+          onPause={(event) => {
             setPlaying(false);
             releaseVideoPlayback(mediaId);
+            setVideoScreenWakeLock(event.currentTarget, false);
+          }}
+          onEnded={(event) => {
+            setPlaying(false);
+            releaseVideoPlayback(mediaId);
+            setVideoScreenWakeLock(event.currentTarget, false);
           }}
           onLoadedMetadata={(event) => {
             const next = Number.isFinite(event.currentTarget.duration)
@@ -656,10 +668,16 @@ export function ConfiguredVideo({
           }}
           onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
           onCanPlay={clearStallRecovery}
-          onPlaying={clearStallRecovery}
+          onPlaying={() => {
+            clearStallRecovery();
+            setRenderedSource(selectedSource);
+          }}
           onWaiting={scheduleStallRecovery}
           onStalled={scheduleStallRecovery}
-          onError={recoverFromSourceFailure}
+          onError={(event) => {
+            setVideoScreenWakeLock(event.currentTarget, false);
+            recoverFromSourceFailure();
+          }}
         />
       ) : poster ? (
         <img className="configured-video-poster" loading="lazy" src={poster} alt="" />
