@@ -26,7 +26,7 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - TweetDeckはビューポートの左端に縦長にアイコンを並べたメインメニューがある。
 - メインメニューのアイコンはOldTweetDeckと同じ並び順。ポスト作成、検索、ホーム（おすすめ）、通知、ダイレクトメッセージ、トレンド
 - このメインメニューの並びはデフォルトであり、「+」アイコンで任意に追加・削除可能にする
-- デフォルトには並んでいないが追加できるアイコンは「フォローする」、「チャット」、「Grok」、「プレミアム」、「プロフィール」、「コミュニティ」、「クリエイタースタジオ」、「ビジネス」、「広告」、「スペースを作成」（これらの追加可能アイコンは Web版Xの基準であり、常に必要な機能ではない） 
+- デフォルトには並んでいないが追加できるアイコンは「フォローする」、「チャット」、「Grok」、「プレミアム」、「プロフィール」、「コミュニティ」、「クリエイタースタジオ」、「ビジネス」、「広告」、「スペースを作成」（これらの追加可能アイコンは Web版Xの基準であり、常に必要な機能ではない）
 - 「+」下部にはスペースを空けて複数アカウント切替アイコン、設定アイコンを並べる
 - メインメニューの並びもドラッグ・アンド・ドロップで並び替え可能にする
 - そのメインメニューの右側は追加していく「カラム」になっている（デフォルト状態では空）
@@ -69,93 +69,63 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 ## アクション済み表示の再検証
 
-- AndroidのタイムラインディスクキャッシュはX応答の原文を保存するため、表示中のいいね・リポスト操作後もキャッシュ内のフラグは古いまま残る。再起動時に復元したカラムは自動更新OFFでも初回表示時に再取得する。新しい先頭ページに含まれない古い投稿は一覧へ残るため、表示範囲に入った投稿を`PostDetailRepository.loadFocal`で個別に再検証する。`DeckViewModelTest.revalidatesRestoredActionColorsEvenWhenAutoRefreshIsOff`参照。
-- Androidの投稿詳細は既知の投稿を先に表示するが、`PostDetailRepository`でそれを取得後の正本として優先すると古いアクション色が残る。初回詳細では会話応答の対象投稿を優先し、含まれない場合だけ投稿詳細を追加取得する。ページングでは直前に確認した対象投稿を再利用する。`PostDetailRepositoryTest`の初回詳細・ページング検証参照。
-- PC版でバックエンドのみ再起動してブラウザを開いたままにすると、メモリ内の投稿状態が残る。SSE再接続後は自動更新OFFでもタイムラインを再取得し、先頭ページに含まれない表示中の投稿も詳細APIで再検証する。`timeline-column.test.tsx`の接続復帰テスト参照。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-6>) に移動しました。着手前に該当条件を確認してください。
 
 ## 投稿作成のX Web契約
 
-- 2026-09-27にログイン済みX Web資産の`main.941731a8bedadd89a.js`とCompose関連チャンクで確認した。即時投稿のGraphQL `CreateTweet`では画像/GIFの`media.media_entities`、投票の`card_uri`、場所の`geo.place_id`、有料パートナーシップの`content_disclosure.advertising_disclosure.is_paid_promotion`、AI生成の`content_disclosure.ai_generated_disclosure`を送る。予約は`CreateScheduledTweet`へ`post_tweet_request`と秒単位`execute_at`を送る。`PostServiceTest`と`PostComposerRepositoryTest`参照。
-- メディアは`upload.x.com/i/media/upload.json`のINIT→APPEND→FINALIZE（GIFはSTATUSまで）、投票は`caps.x.com/v2/cards/create.json`、場所検索は`api.x.com/1.1/geo/places.json`へ`query_type=tweet_compose_location`と`search_term`を送り、`places[].place`を使用する。2026-09-27にPCとPixel 10aで未投稿の画像/GIF・投票カードと現行の場所検索形式に成功した。公開投稿を伴う実X検証とは分け、変更時は署名、サイズ、組み合わせ、失敗時の入力維持を確認する。
-- Windows/JDK 25のローカル`HttpServer`で投稿用POST本文を検証した際、Java `HttpClient`既定のHTTP/2交渉では本文の受信が止まり、HTTP/1.1を明示すると画像・投票の模擬サーバーテストと実X通信が成功した。`ComposerWebClientTest`と`ComposerWebClient.exchange`参照。テスト失敗を画像形式の問題と混同しない。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-7>) に移動しました。着手前に該当条件を確認してください。
 
 ## 認証情報の保存
-- 自動起動・自動検証を人手なしで成立させるため、X WebセッションをOS標準のユーザー別アプリケーションデータ領域へ暗号化せず保存する方式を採用する。この平文保存はプロジェクト所有者がリスクを理解したうえで明示的に許可している。保存先はインストール場所や作業ディレクトリへ依存させない。
-- 保存先をloopback上で動作するNyTweetDeckプロセスの信頼境界とし、秘密情報をGit、ログ、APIレスポンス、ブラウザの`localStorage`へ含めない。
-- 保存処理ではスキーマ検証、原子的置換、直前バックアップ、破損時復旧を維持し、POSIX環境では所有者だけが読み書きできる権限を設定する。
+
+- 秘密情報をGit、ログ、APIレスポンス、ブラウザー保存領域へ含めない。
+- 保存処理のスキーマ検証、原子的置換、バックアップ、破損復旧と適切なファイル権限を維持する。
+- 複数端末では対象を明示し、他タスクの端末を操作しない。
+
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-8>) に移動しました。着手前に該当条件を確認してください。
 
 ## 環境
 
-- Spring Bootの管理下にあるJacksonは個々のjarだけを上げず、`pom.xml`の`jackson-bom.version`で整合させる。2026-10-05のOSV監査では3.1.5に7件の未撤回GHSAがあり、同系列3.1.7とMaven依存70件の監査で解消した。変更後はJava 17・21・25のテスト、梱包済みブラウザUI、`scripts/audit-maven.ps1`を確認する。
-- フロントエンドのバンドルには Bun bundler を使用する
-- Java LTS 17・21・25を正式対応とし、Java 17 bytecodeを生成する
-- CIではactions/setup-javaが公式対応する非推奨でない全JDKディストリビューションを17・21・25で固定検証する
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-9>) に移動しました。着手前に該当条件を確認してください。
 
 ## Android依存更新の順序とSDK指定
 
-- 2026-09-27時点ではAGP 9.4.1・Gradle 9.8.0・Kotlin 2.4.20・compileSdk 37の組み合わせでAndroidの単体テスト、release Lint、releaseビルドが成功した。Gradle 9.8の`Configuration.setVisible`廃止予定警告はAGP側から出るため、次回のAGP更新時に`--warning-mode all`で再確認する（`verification.md`参照）。
-
-- Coil 3.6以降はkotlin-stdlib 2.4（メタデータ2.4）を同梱するため、Kotlin 2.4系への更新PRを先にマージしてからCoil更新PRをリベースする。逆順だと`compileDebugKotlin`がメタデータ不整合で失敗する（2026-09-23のPR #2・#4・#11で確認、`verification.md`参照）。
-- Compose/Coil/OkHttpの新版はcompileSdk 37とAGP 9.1以降を要求する。SDK追随時は`android/build.gradle.kts`（AGP）・`gradle-wrapper.properties`（Gradle）・`app/build.gradle.kts`（compileSdk/targetSdk）・`.github/workflows/ci.yml`と`android-release.yml`（SDK導入とapksignerパス）を同時に上げる。
-- API 37のsdkmanager正規パッケージ名は`platforms;android-37.0`（マイナー付き）であり、`platforms;android-37`では取得失敗する。正規名はローカルの`sdkmanager --list`で確認する。
-- 同一ファイルの隣接行を変更するDependabot PR同士は自動リベースで競合解消できない。PRブランチをcheckoutしてrebaseし両取りに解消してpushする（非対話で`$env:GIT_EDITOR = "true"`を使う）。手動解決後はautomationのclassifyが対象外化するため手動マージする。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-10>) に移動しました。着手前に該当条件を確認してください。
 
 ## Android端末の作業分離
 
-- 返信とおすすめを分離した作業では、実機検証と反映をAQUOSに限定した。2026-09-27の投稿状態・作成作業ではユーザーがPixel 10aの接続を知らせ、当該端末で検証後に署名付き非debuggable版へ復旧・更新した。複数端末接続時はadbへ対象シリアルを必ず明示し、他タスクの端末を選ばない。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-11>) に移動しました。着手前に該当条件を確認してください。
 
 ## 返信ページ終端の判定
 
-- Xは返信終端でも新しいBottom cursorを返す。2026-09-05のAQUOS実機で、`TimelineTerminateTimeline`の`direction: Bottom`とcursorが同じ応答に含まれることを確認した。Android/Javaの`TimelineResponseParser`ではこの終了指示をcursorより優先する。空ページや表示上の返信件数だけを根拠に終了判定しない。回帰・実機検証は`verification.md`参照。
-
-- Androidの返信内遷移は`PostCard`→`DeckViewModel.openPostDetail`→`PostDetailController`で既に接続され、返信ポストも`findLoadedPost`の対象になる。詳細の返信をたどる変更では、カードの外枠だけでなく本文への実タップとOSの戻るを検証する。`RecursiveReplyNavigationTest`が3段階の往復と返信作成・いいねの独立動作を対象にする。
-
-- 詳細応答の`tweetdetailrelatedtweets-`モジュールは「もっと見つける」のおすすめで、返信ではない。`entryId`/`entry_id`および追加モジュールの所属IDで区別し、会話専用解析で`relatedPosts`へ分離する。返信線・品質別折り畳み・祖先探索へ混ぜず、実際の返信とIDが重複した場合は返信を優先する。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-12>) に移動しました。着手前に該当条件を確認してください。
 
 ## 翻訳対象の本文
 
-- 翻訳要求は、元本文からHTTP(S) URL・独立したメンションを除いた後にUnicode Letterが残る場合だけ行う。Androidの`TranslationCandidate`には元本文を必ず渡し、通常ポスト・返信・引用で同じガードを通す。既存の失敗状態が残っていても、本文なしの投稿には再試行表示を出さない。`TranslationTextTest`と`TranslationGuardUiTest`参照。
-
-- ノートは`BirdwatchFetchOneNote`の同梱訳を優先し、未提供なら`https://x.com/i/api/2/grok/translation.json`へPOSTする。NOTEは`content_type: COMMUNITY_NOTE,id`と翻訳先ヘッダー、ポストは`content_type: POST,id,dst_lang`を使用する。ノートIDをPOST種別として送らない。同梱訳はsnake_case、ライブ応答の出典はcamelCaseも使うため、翻訳文へ原文のリンク位置を流用しない。
-- ライブ応答はNDJSONのtextを連結し、エラー行・空本文は成功として保存しない。成功のみを共通`TranslationMemory`でメモリ保持し、同時要求を共有する。ポスト/ノート・アカウント・翻訳先を混同せず、失敗や未提供を成功キャッシュに残さない。再表示テストとAQUOSの`LiveTranslationMemoryTest`を参照。
-- `is_community_note_translatable`も取得言語に依存する。原文言語が判明していれば設定した翻訳先との違いで判定し、UI言語で取得したfalseを別の翻訳先への禁止フラグとして使わない。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-13>) に移動しました。着手前に該当条件を確認してください。
 
 ## 設定画面
 
-- Android設定は`SettingsDialog.kt`へ分離し、目的別の項目と任意開閉の「詳細情報」「使い方」で構成する。選択肢は折り返し、言語はドロップダウンを使う。新たな長文説明を常時表示へ戻さない。`SettingsOrganizationUiTest`、`DeckUiTest`、`ApkUpdateUiTest`で導線を検証する。
-- AQUOSの設定ドロップダウンはComposeがidleでもOSフォーカス移動が未完了のことがある。閉じる実機テストはWindowManagerの入力先がActivityからPopupへ移ったことを待ってからシステムの戻るキーを送る。`SettingsOrganizationUiTest`参照。通常画面の戻るへ無条件に展開せず、Popup上のテストに限定する。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-14>) に移動しました。着手前に該当条件を確認してください。
 
 ## 画像ビューアの端
 
-- 画像の並びは有限で、先頭・末尾をループさせない。移動先の計算だけでなくAndroidの隣接ページ描画でも範囲外を除外する。1/2/4枚、末尾から開く場合、両方向の連続操作を検証する。動画のループ再生設定とは別の仕様。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-15>) に移動しました。着手前に該当条件を確認してください。
 
 ## デスクトップ動画の全画面
 
-- PCの投稿作成画面は`document.body`へのportalで表示する。詳細・プロフィールの`backdrop-filter`内へfixed要素を入れると祖先の表示領域へ束縛され、返信画面が背面になる。Androidも`NyTweetDeckApp`の投稿Dialogを他の詳細Dialogより後にComposeする。`ReplyComposerRouteUiTest`と`issue-regressions-cdp.ts`で返信元の画面維持と実入力を検証する。
-- React StrictModeのeffect再実行では、overlayのpush→cleanupで親へreplace→再pushが親履歴を重複させる。`useOverlayRoute`はcleanupで復元した同一instanceのentryを次setupでreplaceして再利用し、作成画面を閉じる際はBack完了後にUIを外す。capture段階の画像キーボード処理はlayout effectでDOM除去と同期して解除する。`use-overlay-route.test.tsx`、`image-viewer.test.tsx`、実ブラウザの履歴traceで確認する。
-- Androidの新着バナーは浮動overlayで、LazyColumnのitemではない。復元キーへバナーの架空itemを混ぜない。先頭監視と新着・ヘッダボタンで同じ通知を重複解除しないよう、カラムの通知count/refreshGenerationごとの解除を共有する。`TimelineNavigationUiTest`参照。
-- Androidのプロフィールと詳細の親文脈ポストはtimelines外に保持される。共通action controllerの検索・更新対象へ`userProfile.posts`と`postDetail.page.contextPosts`を含める。失敗時の30秒待機はnetwork workerと分離し、新操作を待たせず古い失敗で戻さない。`PostActionControllerTest`参照。
-- 画面保持はPCのHTMLVideoElementごとの再生要求を共有Wake Lockへ集約し、hiddenで解除・visible復帰で再取得する。OS省電力による解除で即再取得を繰り返さない。Androidは各PlayerViewの`keepScreenOn`を用い、root Windowの共有フラグを個別プレイヤーで競合更新しない。2026-10-11の#17対応で確認。
-- AndroidのFIT余白からCropプレビューが透けるため、接続中の動画プレイヤー全体を黒背景にする。切断時はAndroidViewを外し、`keepContentOnPlayerReset(false)`で古いフレームを破棄する。PCは最初のplayingでposterを解除し、pause・全画面切替では戻さない。`VideoPlaybackSurfaceUiTest`と動画テスト参照。
-- PCの動画要素をaspect-ratioの親へ通常配置してheight:100%にすると、親が178pxでも要素が360pxになり上下がclipされる。video/posterをabsoluteで親実寸へ収め、親に高さ上限を設定する。可視枠の上下識別帯と左右黒余白を実画素で検査する。検証用blob動画はCSPで拒否されるため、CSPを変えずsame-originの検証応答へ供給する。
-
-- Fullscreen APIでプレイヤーがトップレイヤーへ移ると、カラムをrootとしたIntersectionObserverが非交差を返す。全画面の要求中・表示中は動画を解放したり自動再生判定で停止したりしない。終了時は全画面中の古い非交差値を使わず、監視を再設定してカラム内の状態を測り直す。`configured-video-fullscreen.test.tsx`参照。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-16>) に移動しました。着手前に該当条件を確認してください。
 
 ## Android動画の全画面とメモリ
 
-- 全画面表示中はインライン側のExoPlayerを解放し、同時デコードを全画面の1本だけにする。高ビットレート動画で二重デコードになるとPixel 10aの256MBヒープで`MediaCodec.getOutputBuffer`のOOMが起き、再起動後の自動再生で繰り返し落ちる。`InlineVideoPlayer`の`suspended`→`MediaPreview`/`MediaTile`の`videosSuspended`（`PostCard`/`QuoteCard`では`selectedMedia != null`）で画面外と同じ解放経路を使い、閉じれば再生成する。`MediaViewerUiTest`の`suspended`検証参照。
-- Pixel 10aは別タスク用で原則操作しないが、全画面OOM修正と共有翻訳版の反映（2026-09-06）に限りユーザーが操作・更新を許可した。adbはシリアル（`63131JEA301496`）を必ず明示する。debug/releaseは同一署名（安定debugキーストア）のため`install -r`でデータ保持のまま上書きでき、releaseは`NYTD_ANDROID_KEYSTORE`等を渡した`assembleRelease`で署名済み`app-release.apk`を作る。検証後は非debuggable releaseへ戻し、端末APKのハッシュをビルド物と照合する。
-- 実機Composeテストの注意：ボタンの内容説明は結合後ツリーで参照する（非結合ツリーのボタン単体には説明が載らない）。`autoAdvance = false`時はクリック後の再描画へ`advanceTimeBy`を足す。`safeMediaUri`がtwimg限定のためfixture動画では実デコード検証ができず、実動画は`LiveVideoPlaybackSmokeTest`（読み取り専用）で行う。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-17>) に移動しました。着手前に該当条件を確認してください。
 
 ## X Web API定義の更新
 
-- `https://x.com/home`は未ログインだと307でログインページへ飛ぶため、`XWebMetadataResolver`は保存済みWebセッション（`AccountStore.firstWebSession`のCookie/CSRF）で取得する。匿名取得に戻さない。セッション無効時はログインし直しを求める。
-- ログイン済みHTMLは`responsive-web/client-web/`の`vendor`・`i18n`・`main.<hash>.js`を参照する。チャンクはマニフェストの`名前`＋`.`＋`ハッシュ`＋`a.js`（`.js`は404）で取得する。`RELEVANT_CHUNK_MARKERS`には`list`を含める。
-- リスト系5操作（`ListLatestTweetsTimeline`・`CombinedLists`・`ListsDiscovery`・`ListAddMember`・`ListRemoveMember`）はホーム画面のチャンク図に現れないため、更新時は直前の検証済み定義を維持する（`XApiProfileService.applyResolved`の保持動作）。見つからないことを理由に更新全体を失敗させない。
-- 同梱の`web-current.json`・`web-boolean-feature-defaults.json`は失効する。タイムラインが422/502になったら現行資産から取り直す。手順は`verification.md`の復旧記録参照。`versionName`は取得元`main.<hash>.js`に合わせる。
-- ログアウト画面（`https://x.com/`）は新系列`x-web/x-web/entry-client-logged-out-*.js`を使うが、ログイン後のGraphQL定義は旧系列`responsive-web/client-web`に残っている。系列を混同しない。
-- 通知タイムラインは変数`timeline_type`が必須で、既定値は`All`（他に`Mentions`・`Priority`・`Verified`・`SuperFollowers`）。422時は`GRAPHQL_VALIDATION_FAILED`の変数名と`bundle.Notifications`の`fetchNotifications`で現行仕様を確認する（`TimelineQueryFactory`）。Android版も同じ変数を送る。
-- Android版の同梱定義はデスクトップ版と`src/main/resources/x-api/`を共有する（`android/app/build.gradle.kts`のassets参照）。デスクトップ側の更新だけでAndroidの同梱値も更新される。
-- Androidの定義更新も保存済みセッション（`XApiEnvironment`の`webSessionProvider`→`XWebMetadataResolver`）で取得し、欠落操作は維持する。`AssetFetcher`はヘッダー付きで取得し、Cookieはホーム取得にだけ付ける。
-- 署名（`X-Client-Transaction-Id`）素材の取得元ホーム画面もログイン必須のため、両面の署名サービスは保存済みセッションで取得する。Androidでは署名が全GraphQLに付くため、署名生成の失敗はログイン検証を含む全面停止になる。デスクトップはミューテーションのみに付ける。
-- Androidのログイン検証時点ではアカウント未保存のため、保存先だけを見ると署名生成が失敗する。`PendingWebSessionProvider`で検証中のセッションを一時的に差し出し、終了後に必ず保存済みへ戻す。
+具体的な手順・構成・知見は [findings.md](<findings.md#agents-18>) に移動しました。着手前に該当条件を確認してください。
+
+
+## findings.md の確認と記録
+
+- [COMMON-AGENTS.md](COMMON-AGENTS.md) を全文読了した後、調査・計画・コマンド実行・編集の前に [findings.md](findings.md) も先頭から末尾まで全文読む。出力省略や要約を読了として扱わない。
+- 構成一覧、環境情報、コマンド、調査結果、過去の事実は `findings.md` に記録する。このファイルには目的、純粋な行動義務と禁止条件を残す。
+- 変更履歴と実測検証を記録し、ユーザーの指示、変更禁止、秘密情報保護、観測可能な完了条件を弱めない。

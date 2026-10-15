@@ -243,65 +243,21 @@ NyTweetDeckは既定で`127.0.0.1:18080`だけを使用します。ローカル�
 
 ## ソースから起動する
 
-開発環境には次が必要です。
-
-- JDK 17、21、25のいずれか（Java 17 bytecodeを生成）
-- Maven 3.9以上
-- Bun 1.4以上
-- Google Chrome
-
-バックエンドとホットリロード対応フロントエンドをまとめて起動するには、リポジトリ直下で次を実行します。両方の準備完了後に開発画面がブラウザで開き、終了時は`Ctrl+C`で両プロセスをまとめて停止できます。Windowsのログは画面に表示される`target/dev-*.log`、macOS/Linuxのログは同じターミナルで確認できます。
-
-```powershell
-.\scripts\run-dev.cmd
-```
-
-macOSまたはLinuxでは次を実行します。
-
-```sh
-sh ./scripts/run-dev.sh
-```
-
-この開発用スクリプトはJARやバージョン付きファイル名を参照せず、現在のソースコードをMavenとBunから直接起動します。既定ではバックエンドに18080番、フロントエンドに5173番を使用します。別ポートで起動する場合、Windowsでは`.\scripts\run-dev.ps1 -BackendPort 18082 -FrontendPort 5174`、macOS/Linuxでは`sh ./scripts/run-dev.sh --backend-port 18082 --frontend-port 5174`を実行します。
-
-開発画面は <http://127.0.0.1:5173> です。`/api/`へのリクエストはJavaバックエンドへ転送されます。
-
-個別に起動する必要がある場合は、1つ目のターミナルで`mvn spring-boot:run "-Dexec.skip=true"`、2つ目のターミナルで`frontend`へ移動して`bun run dev`を実行できます。
+具体的な手順・構成・知見は [findings.md](<findings.md#readme-8>) に移動しました。着手前に該当条件を確認してください。
 
 ## 検証する
 
-```powershell
-Set-Location .\frontend
-bun run lint
-bun run format:check
-bun run type-check
-bun run build
-bun run test
-bun audit
-Set-Location ..
-mvn verify
-.\scripts\audit-maven.ps1
-.\scripts\audit-gradle.ps1
-```
-
-更新作業と復旧方法は [how-to-update.md](how-to-update.md)、構成は [docs/architecture.md](docs/architecture.md)、JDKメーカー別のCI対象は [docs/jdk-compatibility.md](docs/jdk-compatibility.md) を参照してください。
+具体的な手順・構成・知見は [findings.md](<findings.md#readme-9>) に移動しました。着手前に該当条件を確認してください。
 
 ### README画像を再生成する
 
-WindowsとGoogle Chromeで次を実行すると、`docs/images`のカバー、カラム、画像ビューア、設定画面を同じ固定フィクスチャから再生成できます。隔離した一時設定とモックアカウントだけを使用し、保存済みXセッションや実ポストへはアクセスしません。
+本文は [findings.md](<findings.md#readme-9>) を参照してください。
 
-```powershell
-.\scripts\capture-readme.ps1
-```
-
-すでに現在のソースからJARを生成済みの場合は、`-SkipBuild`を付けてキャプチャだけを再実行できます。
 
 ## リリース
 
-`v`で始まるSemVerタグをmainへプッシュすると、検証と脆弱性監査の成功後に、JAR、各OS用ランチャー、ドキュメント、SHA-256ファイルをまとめたZIPをGitHub Releaseへ公開します。本文には`CHANGELOG.md`の該当バージョンだけを使用し、ワークフローはタグがmainの履歴を指すことを確認してから公開します。
-
-`android-v`で始まるSemVerタグをmainへプッシュすると、Androidの単体テスト、Lint、依存関係監査、署名検証の成功後に、バージョン付きAPKとSHA-256ファイルを別のGitHub Releaseへ公開します。本文には`CHANGELOG.md`の`Android <version>`節だけを使用します。
+具体的な手順・構成・知見は [findings.md](<findings.md#readme-10>) に移動しました。着手前に該当条件を確認してください。
 
 ## 依存更新の自動処理
 
-Dependabot は対象の依存関係を毎週確認します。patch／minor／major 更新は PR のチェック（CI）が成功した後に自動で squash merge されます。CI の失敗ジョブは 1 回だけ再実行します。再失敗した PR は残して手動で修正します。
+具体的な手順・構成・知見は [findings.md](<findings.md#readme-11>) に移動しました。着手前に該当条件を確認してください。
