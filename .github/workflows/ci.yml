@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android-verify:
     name: Android verify
@@ -114,8 +118,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
-      fail-fast: false
-      max-parallel: 6
+      fail-fast: true
+      max-parallel: 13
       matrix:
         # setup-java v5が公式対応する非推奨でない全ディストリビューションを固定する。
         distribution:
