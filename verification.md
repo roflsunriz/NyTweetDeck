@@ -349,3 +349,8 @@ bun run sandbox:observe-x-video
 - frontendは `bun run lint`（既存CSS警告10件）、`bun run format:check`、`bun run type-check`、225件のテストで成功。`bun audit` は66依存の脆弱性0件。Windows隔離コピーにGitのCRLF変換があったため、既存のfrontendファイルをGit blobと同じLFで再取得して検証した。実ソースの整形差分は作っていない。
 - `scripts/verify-ui.ps1` は新JAR・独立設定・独立Chromeで梱包UIを検証し、代表ビューポートのDOMと画像を取得した。認証情報を用いる実Xへの投稿や稼働版の差し替えはこの隔離検証に含めない。
 - JDK21とJDK25でも各164件のテストが成功し、再実行したMaven監査は70依存・0件だった。元ユーザーcheckoutを保全する今回の指示に従い、稼働中の配布物とAndroid端末は変更していない。GitHub反映と稼働版反映を区別する。
+
+## 2026-10-20: Dependabot 月末一括処理
+
+- `.github/dependabot.yml` は毎月28日00:00、`.github/workflows/dependabot-automation.yml` は同日18:00（いずれも `Asia/Tokyo`）に設定した。呼び出し先は検証済み共通 workflow の固定 SHA とし、現在の head SHA、Dependabot の資格状態、全 PR チェック成功を merge 前に再確認する。
+- YAML 構文、変更差分、空白エラーをローカルで検査した。実際の月末 schedule と Dependabot PR の merge 経路は、次回の毎月28日実行で確認する。

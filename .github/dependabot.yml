@@ -3,20 +3,28 @@ updates:
   - package-ecosystem: maven
     directory: "/"
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 0 28 * *"
+      timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
   - package-ecosystem: bun
     directory: "/frontend"
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 0 28 * *"
+      timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
   - package-ecosystem: gradle
     directory: "/android"
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 0 28 * *"
+      timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 0 28 * *"
+      timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
