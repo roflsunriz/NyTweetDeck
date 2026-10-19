@@ -69,11 +69,11 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 
 ## アクション済み表示の再検証
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-6>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## 投稿作成のX Web契約
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-7>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## 認証情報の保存
 
@@ -81,47 +81,47 @@ Get-Content -Raw -LiteralPath .\COMMON-AGENTS.md
 - 保存処理のスキーマ検証、原子的置換、バックアップ、破損復旧と適切なファイル権限を維持する。
 - 複数端末では対象を明示し、他タスクの端末を操作しない。
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-8>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## 環境
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-9>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## Android依存更新の順序とSDK指定
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-10>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## Android端末の作業分離
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-11>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## 返信ページ終端の判定
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-12>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## 翻訳対象の本文
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-13>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## 設定画面
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-14>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## 画像ビューアの端
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-15>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## デスクトップ動画の全画面
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-16>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## Android動画の全画面とメモリ
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-17>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 ## X Web API定義の更新
 
-具体的な手順・構成・知見は [findings.md](<findings.md#agents-18>) に移動しました。着手前に該当条件を確認してください。
+具体的な手順・構成・知見は [findings.md](findings.md) に集約しています。
 
 
 ## findings.md の確認と記録
