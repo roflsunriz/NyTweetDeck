@@ -1,4 +1,4 @@
 @echo off
 setlocal
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0run-nytweetdeck.ps1" %*
+wscript.exe //nologo "%~dp0run-nytweetdeck.vbs" --background %*
 if errorlevel 1 pause

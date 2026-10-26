@@ -41,8 +41,20 @@ function Get-NyTweetDeckDomainConfig {
 function Test-NyTweetDeckRootCertificate {
     param([Parameter(Mandatory)]$Config)
 
-    return Test-Path -LiteralPath (
-        'Cert:\CurrentUser\Root\' + [string]$Config.rootThumbprint)
+    # 非表示で起動したWindows PowerShell 5.1ではCert:プロバイダーが
+    # CurrentUser\Rootを空として返すため、証明書ストアを直接参照する。
+    $store = New-Object Security.Cryptography.X509Certificates.X509Store(
+        [Security.Cryptography.X509Certificates.StoreName]::Root,
+        [Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+    try {
+        $store.Open([Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+        $thumbprint = [string]$Config.rootThumbprint
+        return @($store.Certificates | Where-Object Thumbprint -eq $thumbprint).Count -gt 0
+    }
+    finally {
+        $store.Close()
+        $store.Dispose()
+    }
 }
 
 function Test-NyTweetDeckHostsMapping {
@@ -190,11 +202,39 @@ function Get-NyTweetDeckTaskLauncherPath {
         return $null
     }
     $arguments = [string]$task.Actions[0].Arguments
+    $vbsMatch = [regex]::Match(
+        $arguments, '(?i)"(?<path>[^"]+run-nytweetdeck\.vbs)"')
+    if ($vbsMatch.Success) {
+        return [IO.Path]::ChangeExtension(
+            [IO.Path]::GetFullPath($vbsMatch.Groups['path'].Value), '.ps1')
+    }
     $match = [regex]::Match($arguments, '(?i)-File\s+"(?<path>[^"]+)"')
     if (-not $match.Success) {
         return $null
     }
     return [IO.Path]::GetFullPath($match.Groups['path'].Value)
+}
+
+function Get-NyTweetDeckListeningProcessId {
+    param([string]$JarPath = '')
+
+    $connections = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object {
+        $_.LocalPort -in @(443, 18080) -and $_.LocalAddress -in @('127.0.0.1', '::1')
+    })
+    foreach ($processId in @($connections | Select-Object -ExpandProperty OwningProcess -Unique)) {
+        $processInfo = Get-CimInstance Win32_Process `
+            -Filter "ProcessId=$processId" `
+            -ErrorAction SilentlyContinue
+        if ($null -eq $processInfo -or $processInfo.Name -notin @('java.exe', 'javaw.exe')) {
+            continue
+        }
+        $commandLine = [string]$processInfo.CommandLine
+        if ([string]::IsNullOrWhiteSpace($JarPath) -or $commandLine.IndexOf(
+                $JarPath, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            return [int]$processId
+        }
+    }
+    return 0
 }
 
 function Stop-NyTweetDeckRunningInstance {
@@ -223,6 +263,12 @@ function Stop-NyTweetDeckRunningInstance {
             throw "18080/443番のJavaプロセスをNyTweetDeckとして確認できません: PID=$processId"
         }
         Stop-Process -Id $processId -Force
+        try {
+            [void]$process.WaitForExit(15000)
+        }
+        catch {
+            # 既に終了している場合は待機不要。
+        }
     }
 }
 

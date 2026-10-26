@@ -14,3 +14,5 @@
 - sandboxは新規BrowserContextで全外部通信とstorageを遮断し、複数captureのde-minifyと動的挙動から意味契約を作る。単語出現数だけで断定しない。
 - shared settings移行はstoreが空のときだけ旧localStorageを読む。revision競合時は未保存操作を最新へ再適用し、初回から `.bak` を作り、backend再起動後にUIを自動復帰させる。
 - 稼働版反映では対象process/配置/起動方法を特定し、認証・設定・HTTPS・autostartを保持してbackup後に置換する。再起動後のhash、HTTP/HTTPS、修正挙動まで確認し、build出力だけの更新で完了扱いしない。
+- Windowsの手動起動は`run-nytweetdeck.vbs`/`run-nytweetdeck.cmd`が`wscript.exe`から非表示のWindows PowerShell 5.1を起動し、`run-nytweetdeck.ps1 -Background`で`javaw.exe`へ切り離す。`powershell.exe -WindowStyle Hidden`だけではWindows 11の`PseudoConsoleWindow`が可視のまま残りタスクバーへ出るため、コンソールを生成しない`wscript.exe`の`Run(command, 0, ...)`を使う。ログオン自動起動はクラッシュ再起動のため`wscript.exe ... --wait`で監督プロセスを維持する。非表示の5.1では`Cert:\CurrentUser\Root`が空に見えるため、専用CAの確認は`X509Store`を直接使う。
+- 旧プロセスの停止直後はJARがまだロックされていることがある。`Stop-Process`後の終了待機と置換の短時間再試行を入れ、稼働中JARの置換失敗を防ぐ。

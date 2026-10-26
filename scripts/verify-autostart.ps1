@@ -18,11 +18,17 @@ $windowsDefinition = & (Join-Path $repositoryRoot 'scripts\install-autostart.ps1
     -DryRun | ConvertFrom-Json
 if ($windowsDefinition.taskName -ne 'NyTweetDeck' `
         -or $windowsDefinition.trigger -ne 'AtLogOn' `
+        -or $windowsDefinition.executable -ne 'wscript.exe' `
         -or $windowsDefinition.arguments -notlike '*-NoBrowser*' `
+        -or $windowsDefinition.arguments -notlike '*--wait*' `
+        -or $windowsDefinition.arguments -notlike '*.vbs*' `
         -or $windowsDefinition.arguments -notlike "*$resolvedJar*" `
         -or -not $windowsDefinition.startNow `
         -or -not $windowsDefinition.verifiesReadiness) {
     throw 'Windowsログオンタスク定義が不正です。'
+}
+if (-not (Test-Path -LiteralPath ([string]$windowsDefinition.backgroundHelper))) {
+    throw 'Windowsバックグラウンド起動ヘルパーが見つかりません。'
 }
 
 $shellCommands = @(Get-Command sh -CommandType Application -ErrorAction SilentlyContinue)

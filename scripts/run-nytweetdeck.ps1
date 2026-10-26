@@ -1,7 +1,8 @@
 ﻿param(
     [string]$JarPath = "",
     [switch]$NoBrowser,
-    [switch]$ExitAfterReady
+    [switch]$ExitAfterReady,
+    [switch]$Background
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,11 +50,36 @@ try {
     if ($javaMajor -lt 17) {
         throw "Java 17以上が必要です。現在のメジャーバージョン: $javaMajor"
     }
+    $javaExecutable = $javaCommand.Source
+    $hideConsole = [bool]($NoBrowser -or $Background)
+    if ($hideConsole -and [IO.Path]::GetFileName($javaExecutable) -ieq 'java.exe') {
+        $javawPath = Join-Path (Split-Path -Parent $javaExecutable) 'javaw.exe'
+        if (Test-Path -LiteralPath $javawPath) {
+            $javaExecutable = $javawPath
+        }
+    }
 
     $domainConfig = Get-NyTweetDeckDomainConfig
     if ($null -ne $domainConfig) {
         Repair-NyTweetDeckRootCertificate -Config $domainConfig
         $httpsEnabled = $true
+    }
+    $accessUrl = if ($httpsEnabled) {
+        'https://ny.tweetdeck.com'
+    } else {
+        'http://127.0.0.1:18080'
+    }
+    $existingProcessId = Get-NyTweetDeckListeningProcessId -JarPath $resolvedJarPath
+    if ($existingProcessId -ne 0) {
+        Write-NyTweetDeckRuntimeState `
+            -Status ready `
+            -JarPath $resolvedJarPath `
+            -HttpsEnabled $httpsEnabled `
+            -ProcessId $existingProcessId
+        if (-not $NoBrowser) {
+            Start-Process $accessUrl
+        }
+        return
     }
     Write-NyTweetDeckRuntimeState `
         -Status starting `
@@ -61,11 +87,11 @@ try {
         -HttpsEnabled $httpsEnabled
 
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = $javaCommand.Source
+    $startInfo.FileName = $javaExecutable
     $startInfo.Arguments = '-jar "' + $resolvedJarPath.Replace('"', '\"') + '"'
     $startInfo.WorkingDirectory = Split-Path -Parent $resolvedJarPath
     $startInfo.UseShellExecute = $false
-    $startInfo.CreateNoWindow = [bool]$NoBrowser
+    $startInfo.CreateNoWindow = $hideConsole
     if ($httpsEnabled) {
         $startInfo.EnvironmentVariables['SERVER_PORT'] = '443'
         $startInfo.EnvironmentVariables['SERVER_SSL_ENABLED'] = 'true'
@@ -103,7 +129,7 @@ try {
     if (-not $NoBrowser) {
         Start-Process $accessUrl
     }
-    if ($ExitAfterReady) {
+    if ($ExitAfterReady -or $Background) {
         return
     }
     $javaProcess.WaitForExit()
@@ -119,6 +145,19 @@ catch {
         -HttpsEnabled $httpsEnabled `
         -ProcessId $(if ($null -eq $javaProcess) { 0 } else { $javaProcess.Id }) `
         -Message $message
+    if ($Background -and [Environment]::UserInteractive) {
+        try {
+            Add-Type -AssemblyName System.Windows.Forms
+            [void][System.Windows.Forms.MessageBox]::Show(
+                $message,
+                'NyTweetDeck',
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+        catch {
+            # 通知できない環境でもruntime-state.jsonへ理由を残している。
+        }
+    }
     throw
 }
 finally {

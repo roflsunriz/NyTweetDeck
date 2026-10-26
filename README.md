@@ -41,7 +41,9 @@ macOSまたはLinuxでは、展開したフォルダーで次を実行します�
 
 統合インストーラーは、本体を安定したアプリ領域へ配置し、専用CAとhosts、自動起動を設定して既存プロセスを更新後のJARで再起動します。`https://ny.tweetdeck.com`と<http://127.0.0.1:18080>がともに応答することを確認できた場合だけ成功します。
 
-自動起動やローカルHTTPSを使わず一時的に起動する場合だけ、Windowsでは`run-nytweetdeck.cmd`、macOSまたはLinuxでは`./run-nytweetdeck.sh`を使用します。
+自動起動やローカルHTTPSを使わず一時的に起動する場合だけ、Windowsでは`run-nytweetdeck.vbs`または`run-nytweetdeck.cmd`、macOSまたはLinuxでは`./run-nytweetdeck.sh`を使用します。
+
+Windowsで完全にウィンドウもタスクバーも出さずに起動する場合は、`run-nytweetdeck.vbs`をダブルクリックします。`run-nytweetdeck.cmd`はターミナルから起動するための入口で、同じバックグラウンド起動を行います。サーバーは`javaw.exe`で待ち受け、起動用プロセスは起動準備の完了後に終了します。ログを確認しながら前面で動かしたい場合は`run-nytweetdeck.ps1`を直接実行してください。起動に失敗した場合は、ローカルデータ領域の`runtime-state.json`へ理由が記録されます。
 
 ### 端末内だけで`https://ny.tweetdeck.com`を使う
 

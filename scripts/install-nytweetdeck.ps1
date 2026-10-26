@@ -17,6 +17,7 @@ if ([string]::IsNullOrWhiteSpace($JarPath)) {
 }
 $sourceJar = (Resolve-Path -LiteralPath $JarPath).Path
 $sourceLauncher = Join-Path $sourceScriptRoot 'run-nytweetdeck.ps1'
+$sourceBackgroundHelper = Join-Path $sourceScriptRoot 'run-nytweetdeck.vbs'
 $sourceRuntimeHelper = Join-Path $sourceScriptRoot 'windows-runtime.ps1'
 $sourceDomainInstaller = Join-Path $sourceScriptRoot 'install-local-domain.ps1'
 $sourceAutostartInstaller = Join-Path $sourceScriptRoot 'install-autostart.ps1'
@@ -26,6 +27,7 @@ $sourceDomainUninstaller = Join-Path $sourceScriptRoot 'uninstall-local-domain.p
 foreach ($requiredPath in @(
         $sourceJar,
         $sourceLauncher,
+        $sourceBackgroundHelper,
         $sourceRuntimeHelper,
         $sourceDomainInstaller,
         $sourceAutostartInstaller,
@@ -45,6 +47,7 @@ $dataRoot = Join-Path `
 $appRoot = Join-Path $dataRoot 'app'
 $installedJar = Join-Path $appRoot 'NyTweetDeck.jar'
 $installedLauncher = Join-Path $appRoot 'run-nytweetdeck.ps1'
+$installedBackgroundHelper = Join-Path $appRoot 'run-nytweetdeck.vbs'
 $installedRuntimeHelper = Join-Path $appRoot 'windows-runtime.ps1'
 $installedIntegratedUninstaller = Join-Path $appRoot 'uninstall-nytweetdeck.ps1'
 $installedAutostartUninstaller = Join-Path $appRoot 'uninstall-autostart.ps1'
@@ -55,6 +58,7 @@ $plan = [ordered]@{
     appRoot = $appRoot
     installedJar = $installedJar
     installedLauncher = $installedLauncher
+    installedBackgroundHelper = $installedBackgroundHelper
     installedUninstaller = $installedIntegratedUninstaller
     installsLocalHttps = $true
     registersAutostart = $true
@@ -78,6 +82,11 @@ $installFiles = @(
         Source = $sourceLauncher
         Staged = Join-Path $stagingRoot 'run-nytweetdeck.ps1'
         Destination = $installedLauncher
+    },
+    [pscustomobject]@{
+        Source = $sourceBackgroundHelper
+        Staged = Join-Path $stagingRoot 'run-nytweetdeck.vbs'
+        Destination = $installedBackgroundHelper
     },
     [pscustomobject]@{
         Source = $sourceRuntimeHelper
@@ -115,17 +124,31 @@ try {
         Copy-Item -LiteralPath $file.Source -Destination $file.Staged -Force
         $backupPath = "$($file.Destination).bak"
         $file.HadDestination = Test-Path -LiteralPath $file.Destination
-        if ($file.HadDestination) {
-            if (Test-Path -LiteralPath $backupPath) {
-                Remove-Item -LiteralPath $backupPath -Force
+        $lastFileError = $null
+        $fileUpdated = $false
+        for ($attempt = 0; $attempt -lt 20 -and -not $fileUpdated; $attempt++) {
+            try {
+                if ($file.HadDestination) {
+                    if (Test-Path -LiteralPath $backupPath) {
+                        Remove-Item -LiteralPath $backupPath -Force
+                    }
+                    [IO.File]::Replace($file.Staged, $file.Destination, $backupPath, $true)
+                }
+                else {
+                    if (Test-Path -LiteralPath $backupPath) {
+                        Remove-Item -LiteralPath $backupPath -Force
+                    }
+                    Move-Item -LiteralPath $file.Staged -Destination $file.Destination
+                }
+                $fileUpdated = $true
             }
-            [IO.File]::Replace($file.Staged, $file.Destination, $backupPath, $true)
+            catch {
+                $lastFileError = $_
+                Start-Sleep -Milliseconds 250
+            }
         }
-        else {
-            if (Test-Path -LiteralPath $backupPath) {
-                Remove-Item -LiteralPath $backupPath -Force
-            }
-            Move-Item -LiteralPath $file.Staged -Destination $file.Destination
+        if (-not $fileUpdated) {
+            throw $lastFileError
         }
         $file.Changed = $true
     }

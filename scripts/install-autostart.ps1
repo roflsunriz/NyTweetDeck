@@ -23,6 +23,7 @@ if ([string]::IsNullOrWhiteSpace($JarPath)) {
 }
 $resolvedLauncher = (Resolve-Path -LiteralPath $LauncherPath).Path
 $resolvedJar = (Resolve-Path -LiteralPath $JarPath).Path
+$resolvedVbs = Join-Path (Split-Path -Parent $resolvedLauncher) 'run-nytweetdeck.vbs'
 $runtimeHelper = Join-Path (Split-Path -Parent $resolvedLauncher) 'windows-runtime.ps1'
 if (-not (Test-Path -LiteralPath $resolvedLauncher)) {
     throw "ランチャーが見つかりません: $resolvedLauncher"
@@ -44,12 +45,25 @@ if ([string]::IsNullOrWhiteSpace($UserId)) {
         $UserId = [Security.Principal.WindowsIdentity]::GetCurrent().Name
     }
 }
-$arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -JarPath "{1}" -NoBrowser' -f $resolvedLauncher, $resolvedJar
+$arguments = if (Test-Path -LiteralPath $resolvedVbs) {
+    '//nologo "{0}" --wait -NoBrowser -JarPath "{1}"' -f $resolvedVbs, $resolvedJar
+} else {
+    # 旧配置からの復旧時は、VBSが未配置でも従来の非表示起動で登録を継続する。
+    '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -JarPath "{1}" -NoBrowser' `
+        -f $resolvedLauncher, $resolvedJar
+}
+$executable = if (Test-Path -LiteralPath $resolvedVbs) {
+    'wscript.exe'
+} else {
+    'powershell.exe'
+}
 $definition = [ordered]@{
     taskName = $script:NyTweetDeckTaskName
     userId = $UserId
-    executable = 'powershell.exe'
+    executable = $executable
     arguments = $arguments
+    launcher = $resolvedLauncher
+    backgroundHelper = $resolvedVbs
     workingDirectory = Split-Path -Parent $resolvedJar
     trigger = 'AtLogOn'
     startNow = [bool]$StartNow

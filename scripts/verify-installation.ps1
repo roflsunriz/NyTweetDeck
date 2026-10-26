@@ -37,9 +37,11 @@ $windowsPlan = & (Join-Path $PSScriptRoot 'install-nytweetdeck.ps1') `
     -SourceScriptDirectory $PSScriptRoot `
     -DryRun | ConvertFrom-Json
 $normalizedInstalledJar = [string]$windowsPlan.installedJar -replace '\\', '/'
+$normalizedInstalledBackgroundHelper = [string]$windowsPlan.installedBackgroundHelper -replace '\\', '/'
 $normalizedInstalledUninstaller = [string]$windowsPlan.installedUninstaller -replace '\\', '/'
 if ($windowsPlan.schemaVersion -ne 1 `
         -or $normalizedInstalledJar -notlike '*NyTweetDeck/app/NyTweetDeck.jar' `
+        -or $normalizedInstalledBackgroundHelper -notlike '*NyTweetDeck/app/run-nytweetdeck.vbs' `
         -or $normalizedInstalledUninstaller -notlike '*NyTweetDeck/app/uninstall-nytweetdeck.ps1' `
         -or -not $windowsPlan.installsLocalHttps `
         -or -not $windowsPlan.registersAutostart `
@@ -50,6 +52,7 @@ $windowsInstallerSource = Get-Content -Raw -LiteralPath (
     Join-Path $PSScriptRoot 'install-nytweetdeck.ps1')
 if ($windowsInstallerSource -notlike '*Repair-NyTweetDeckRootCertificate*' `
         -or $windowsInstallerSource -notlike '*Test-NyTweetDeckHostsMapping*' `
+        -or $windowsInstallerSource -notlike '*run-nytweetdeck.vbs*' `
         -or $windowsInstallerSource -notlike '*File]::Replace*') {
     throw 'Windows統合インストールの既存CA維持または原子的置換経路が不正です。'
 }
@@ -61,7 +64,10 @@ $autostartPlan = & (Join-Path $PSScriptRoot 'install-autostart.ps1') `
     -DryRun | ConvertFrom-Json
 if (-not $autostartPlan.startNow `
         -or -not $autostartPlan.verifiesReadiness `
-        -or $autostartPlan.arguments -notlike '*-NoBrowser*') {
+        -or $autostartPlan.executable -ne 'wscript.exe' `
+        -or $autostartPlan.arguments -notlike '*--wait*' `
+        -or $autostartPlan.arguments -notlike '*-NoBrowser*' `
+        -or $autostartPlan.arguments -notlike '*run-nytweetdeck.vbs*') {
     throw 'Windows自動起動の再起動・準備確認計画が不正です。'
 }
 $windowsLauncherSource = Get-Content -Raw -LiteralPath (
@@ -70,6 +76,37 @@ if ($windowsLauncherSource -like '*--server.ssl.key-store-password*' `
         -or $windowsLauncherSource -notlike '*SERVER_SSL_KEY_STORE_PASSWORD*' `
         -or $windowsLauncherSource -notlike '*Repair-NyTweetDeckRootCertificate*') {
     throw 'Windowsランチャーの秘密情報または専用CA自己修復経路が不正です。'
+}
+if ($windowsLauncherSource -notlike '*$Background*' `
+        -or $windowsLauncherSource -notlike '*javaw.exe*' `
+        -or $windowsLauncherSource -notlike '*CreateNoWindow = $hideConsole*') {
+    throw 'Windowsランチャーの完全バックグラウンド起動経路が不正です。'
+}
+$windowsRuntimeSource = Get-Content -Raw -LiteralPath (
+    Join-Path $PSScriptRoot 'windows-runtime.ps1')
+$certificateTest = [regex]::Match(
+    $windowsRuntimeSource,
+    'function Test-NyTweetDeckRootCertificate \{(?<body>.*?)\n\}',
+    [Text.RegularExpressions.RegexOptions]::Singleline)
+if (-not $certificateTest.Success `
+        -or $certificateTest.Groups['body'].Value -notlike '*X509Store*' `
+        -or $certificateTest.Groups['body'].Value -notlike '*StoreLocation]::CurrentUser*') {
+    throw 'Windowsランタイムの証明書ストア確認経路が不正です。'
+}
+$windowsCommandSource = Get-Content -Raw -LiteralPath (
+    Join-Path $PSScriptRoot 'run-nytweetdeck.cmd')
+$windowsBackgroundSource = Get-Content -Raw -LiteralPath (
+    Join-Path $PSScriptRoot 'run-nytweetdeck.vbs')
+if ($windowsCommandSource -notlike '*run-nytweetdeck.vbs*' `
+        -or $windowsCommandSource -notlike '*--background*') {
+    throw 'Windowsバックグラウンド起動コマンドが不正です。'
+}
+if ($windowsBackgroundSource -notlike '*powershell.exe*' `
+        -or $windowsBackgroundSource -notlike '*-WindowStyle Hidden*' `
+        -or $windowsBackgroundSource -notlike '*--wait*' `
+        -or $windowsBackgroundSource -notlike '*--background*' `
+        -or $windowsBackgroundSource -notlike '*shell.Run(command, 0, waitForExit)*') {
+    throw 'Windowsバックグラウンド起動ヘルパーが不正です。'
 }
 
 $nativeWindows = $PSVersionTable.PSEdition -ne 'Core' -or $IsWindows

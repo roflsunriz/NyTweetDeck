@@ -1,5 +1,18 @@
 # 検証手順
 
+## 2026-10-26: Windows待ち受けサーバーの完全バックグラウンド起動
+
+- 変更内容: `run-nytweetdeck.vbs`を追加し、`wscript.exe`から`run-nytweetdeck.ps1 -Background`をウィンドウ非表示で起動するようにした。`run-nytweetdeck.cmd`は同じVBSを呼ぶ入口とし、ログオン自動起動は`wscript.exe ... --wait -NoBrowser`で監督プロセスを維持する。
+- 原因の修正1: `powershell.exe -WindowStyle Hidden`だけではWindows 11の`PseudoConsoleWindow`が`IsWindowVisible=True`のまま残り、タスクバーへ表示されることを実測した。`wscript.exe`の`Run(command, 0, ...)`で起動すると`ConsoleWindowClass`が`visible=False`になることを確認し、この経路へ変更した。
+- 原因の修正2: 非表示で起動したWindows PowerShell 5.1では`Cert:\CurrentUser\Root`が0件に見えることを実測した（同じ証明書を`X509Store`では1件取得できた）。`Test-NyTweetDeckRootCertificate`を`X509Store`の直接参照へ変更し、非表示5.1で`Repair-NyTweetDeckRootCertificate`が成功することを確認した。
+- 置換失敗の修正: 稼働中JARの置換で`The process cannot access the file because it is being used by another process`を再現した。`Stop-Process`後の終了待機と、`[IO.File]::Replace`の250ms間隔20回再試行を追加し、再実行で配置が成功することを確認した。
+- 静的検証: `scripts\verify-installation.ps1`が成功し、PowerShell構文、統合インストール計画、VBS/WScript経路、`--wait`、`--background`、`javaw.exe`、`CreateNoWindow = $hideConsole`、`X509Store`、VBSの同梱を確認した。`scripts\verify-autostart.ps1`も成功した。
+- 実稼働反映: 稼働JARを入力に`install-nytweetdeck.ps1`を実行し、`%LOCALAPPDATA%\NyTweetDeck\app`の`run-nytweetdeck.ps1`（`B525E78AE3C9882A51BA4742AA9E8D7EEA58CC8D2D8782032846593CB68EA6F2`）、`run-nytweetdeck.vbs`（`83307E514D57C6EA4ADD20EC9FA680A5EC7D8181788BD771062328A936AD4F07`）、`windows-runtime.ps1`（`C055B0644BC705C67C9D3BE6ADD71AA2FE81885E7D6446D9A6FD0352444FD22B`）がリポジトリと一致することを確認した。
+- 自動起動の実測: タスクの実行ファイルは`wscript.exe`、引数は`//nologo "<app>\run-nytweetdeck.vbs" --wait -NoBrowser -JarPath "<app>\NyTweetDeck.jar"`、状態は`Running`だった。`wscript.exe`（`WSH-Timer`/`IME`）、`powershell.exe`（`ConsoleWindowClass`）、`javaw.exe`の全トップレベルウィンドウが`IsWindowVisible=False`で、可視ウィンドウは0件だった。
+- 手動バックグラウンド起動: 自動起動を停止した状態で`wscript.exe //nologo scripts\run-nytweetdeck.vbs --background -NoBrowser -JarPath <稼働JAR>`を実行し、10msで戻ることを確認した。起動中と起動後を通して可視ウィンドウは0件で、起動用の`wscript.exe`と`powershell.exe`は残らず、`javaw.exe`だけが待ち受けを継続した。HTTPとHTTPSは200、`runtime-state.json`は`ready`だった。
+- 最終稼働状態: 自動起動タスクを`Running`へ戻し、`javaw.exe`（PID 18656）で待ち受け、HTTP/HTTPSは200、`runtime-state.json`は`ready`であることを確認した。認証情報、設定、HTTPS証明書、hostsは変更していない。
+- 未実施: Java、Android、フロントエンドのコード変更はないため、アプリの再ビルドとテストは実行していない。配布ZIPの再生成と公開も未実施。
+
 ## 2026-10-19: CI高速化
 
 - 変更したGitHub Actionsをactionlint 1.7.12で検査し、エラー0件を確認した。

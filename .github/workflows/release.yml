@@ -102,7 +102,7 @@ jobs:
         run: |
           mkdir -p dist/NyTweetDeck
           cp "target/nytweetdeck-${RELEASE_VERSION}.jar" dist/NyTweetDeck/NyTweetDeck.jar
-          cp scripts/run-nytweetdeck.ps1 scripts/run-nytweetdeck.cmd scripts/run-nytweetdeck.sh dist/NyTweetDeck/
+          cp scripts/run-nytweetdeck.ps1 scripts/run-nytweetdeck.cmd scripts/run-nytweetdeck.vbs scripts/run-nytweetdeck.sh dist/NyTweetDeck/
           cp scripts/install-autostart.ps1 scripts/uninstall-autostart.ps1 dist/NyTweetDeck/
           cp scripts/install-autostart.sh scripts/uninstall-autostart.sh dist/NyTweetDeck/
           cp scripts/install-local-domain.ps1 scripts/uninstall-local-domain.ps1 dist/NyTweetDeck/
@@ -128,6 +128,7 @@ jobs:
             NyTweetDeck/NyTweetDeck.jar \
             NyTweetDeck/run-nytweetdeck.ps1 \
             NyTweetDeck/run-nytweetdeck.cmd \
+            NyTweetDeck/run-nytweetdeck.vbs \
             NyTweetDeck/run-nytweetdeck.sh \
             NyTweetDeck/install-autostart.ps1 \
             NyTweetDeck/install-autostart.sh \
