@@ -16,3 +16,4 @@
 - 稼働版反映では対象process/配置/起動方法を特定し、認証・設定・HTTPS・autostartを保持してbackup後に置換する。再起動後のhash、HTTP/HTTPS、修正挙動まで確認し、build出力だけの更新で完了扱いしない。
 - Windowsの手動起動は`run-nytweetdeck.vbs`/`run-nytweetdeck.cmd`が`wscript.exe`から非表示のWindows PowerShell 5.1を起動し、`run-nytweetdeck.ps1 -Background`で`javaw.exe`へ切り離す。`powershell.exe -WindowStyle Hidden`だけではWindows 11の`PseudoConsoleWindow`が可視のまま残りタスクバーへ出るため、コンソールを生成しない`wscript.exe`の`Run(command, 0, ...)`を使う。ログオン自動起動はクラッシュ再起動のため`wscript.exe ... --wait`で監督プロセスを維持する。非表示の5.1では`Cert:\CurrentUser\Root`が空に見えるため、専用CAの確認は`X509Store`を直接使う。
 - 旧プロセスの停止直後はJARがまだロックされていることがある。`Stop-Process`後の終了待機と置換の短時間再試行を入れ、稼働中JARの置換失敗を防ぐ。
+- Windowsの`format:check`は作業ツリーのCRLFで失敗することがある。インデックスはLFなので、`git -c core.autocrlf=false checkout-index --force --all`後に再実行して判定する。リリース時の依存監査は`bun audit`と`audit-maven.ps1`の両方を実行し、`happy-dom`は21.0.4以上でCVE-2026-33943を解消する。

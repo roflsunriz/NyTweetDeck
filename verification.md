@@ -11,7 +11,16 @@
 - 自動起動の実測: タスクの実行ファイルは`wscript.exe`、引数は`//nologo "<app>\run-nytweetdeck.vbs" --wait -NoBrowser -JarPath "<app>\NyTweetDeck.jar"`、状態は`Running`だった。`wscript.exe`（`WSH-Timer`/`IME`）、`powershell.exe`（`ConsoleWindowClass`）、`javaw.exe`の全トップレベルウィンドウが`IsWindowVisible=False`で、可視ウィンドウは0件だった。
 - 手動バックグラウンド起動: 自動起動を停止した状態で`wscript.exe //nologo scripts\run-nytweetdeck.vbs --background -NoBrowser -JarPath <稼働JAR>`を実行し、10msで戻ることを確認した。起動中と起動後を通して可視ウィンドウは0件で、起動用の`wscript.exe`と`powershell.exe`は残らず、`javaw.exe`だけが待ち受けを継続した。HTTPとHTTPSは200、`runtime-state.json`は`ready`だった。
 - 最終稼働状態: 自動起動タスクを`Running`へ戻し、`javaw.exe`（PID 18656）で待ち受け、HTTP/HTTPSは200、`runtime-state.json`は`ready`であることを確認した。認証情報、設定、HTTPS証明書、hostsは変更していない。
-- 未実施: Java、Android、フロントエンドのコード変更はないため、アプリの再ビルドとテストは実行していない。配布ZIPの再生成と公開も未実施。
+- 未実施（機能反映時点）: Java、Android、フロントエンドのコード変更はないため、アプリの再ビルドとテストは実行していない。配布ZIPの再生成と公開は次の1.8.3リリースで実施した。
+
+## 1.8.3 リリース（2026-10-26）
+
+- `v1.8.3`（`fbaebdd`）を公開した。Releaseワークフロー`40343266771`は全ステップ成功（4分39秒）し、ZIPとSHA-256を公開した。
+- 公開ZIPは`NyTweetDeck-v1.8.3.zip`（21,179,937 bytes、SHA-256 `085ABD9839E9204257C01419A6C491FB83CD695C1B08A60D8014A7319484EFA5`）で、`sha256sum -c`が成功した。ZIP内に`run-nytweetdeck.vbs`、`run-nytweetdeck.cmd`、`run-nytweetdeck.ps1`、`windows-runtime.ps1`、JAR、README、CHANGELOGがあることを確認した。
+- 公開JARのSHA-256は`BB61E14C53108C59D9D10428A58DBDCAFA3B2966A468BD2A39D919AA09794BCF`、マニフェストの`Implementation-Version`は`1.8.3`だった。
+- ローカル検証: Java 164件、フロントエンド243件、`biome lint`（警告のみ）、`tsc --noEmit`、`bun audit`0件、Maven OSV監査0件、`verify-ui.sh`（1440x900・768x1024・390x844、RTL、設定、動画、引用、画像ビューア等）、`verify-local-domain.ps1`、`verify-autostart.ps1`、`verify-installation.ps1`、`verify-release-notes.ps1`が成功した。`format:check`はWindows作業ツリーのCRLFをLFで再チェックして成功した。
+- 依存監査で`happy-dom` 20.14.6のCVE-2026-33943を検出したため、`happy-dom`と`@happy-dom/global-registrator`を21.0.4へ更新し、再監査0件を確認した。
+- 公開ZIP内のJARを稼働先へ配置して自動起動を再登録した。稼働JARは公開JARとSHA-256一致し、タスクは`wscript.exe ... --wait`で`Running`、HTTP/HTTPS/ルートは200、`runtime-state.json`は`ready`だった。`wscript.exe`・`powershell.exe`・`javaw.exe`の全トップレベルウィンドウは`IsWindowVisible=False`で、保存済みアカウント・設定・証明書・hostsは更新前のまま維持した。
 
 ## 2026-10-19: CI高速化
 
