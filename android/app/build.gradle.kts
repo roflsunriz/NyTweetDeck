@@ -110,7 +110,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.webkit:webkit:1.17.1")
+    implementation("androidx.webkit:webkit:1.18.0")
     implementation("com.squareup.okhttp3:okhttp")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     // Coil 3.6はKotlin 2.4メタデータを含むためKotlin 2.4系とcompileSdk 37が必須。先にKotlinを上げてからCoilを更新する。
