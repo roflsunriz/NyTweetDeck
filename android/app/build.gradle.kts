@@ -122,7 +122,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation(okHttpBom)
     testImplementation("com.squareup.okhttp3:mockwebserver3")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.12.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-intents:3.7.0")
