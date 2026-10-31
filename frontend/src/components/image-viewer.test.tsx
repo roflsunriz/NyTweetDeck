@@ -9,40 +9,54 @@ import { Modal } from "./modal";
 
 afterEach(cleanup);
 
+function EscapeHarness({
+  parentClosed,
+  onSecondEscape,
+}: {
+  parentClosed: () => void;
+  onSecondEscape: () => void;
+}) {
+  const [imageOpen, setImageOpen] = useState(false);
+  const previouslyOpen = useRef(false);
+  const close = useOverlayRoute("post/100", parentClosed);
+  useLayoutEffect(() => {
+    if (previouslyOpen.current && !imageOpen) {
+      expect(document.querySelector(".image-viewer")).toBeNull();
+      onSecondEscape();
+      // DOM removal is committed, but passive effect cleanup has not run yet.
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    }
+    previouslyOpen.current = imageOpen;
+  }, [imageOpen, onSecondEscape]);
+  return (
+    <Modal title="root" closeLabel="root-close" onClose={close}>
+      <button type="button" onClick={() => setImageOpen(true)}>
+        open-image
+      </button>
+      {imageOpen && (
+        <ImageViewer
+          src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+          translation={translate("ja")}
+          onClose={() => setImageOpen(false)}
+        />
+      )}
+    </Modal>
+  );
+}
+
 test("removes Escape capture with the viewer DOM before an immediate second Escape closes its parent", async () => {
   window.history.replaceState(null, "", "/");
   const parentClosed = mock(() => {});
   let secondEscapeIssued = false;
-  function Harness() {
-    const [imageOpen, setImageOpen] = useState(false);
-    const previouslyOpen = useRef(false);
-    const close = useOverlayRoute("post/100", parentClosed);
-    useLayoutEffect(() => {
-      if (previouslyOpen.current && !imageOpen) {
-        expect(document.querySelector(".image-viewer")).toBeNull();
-        secondEscapeIssued = true;
-        // DOM removal is committed, but passive effect cleanup has not run yet.
-        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-      }
-      previouslyOpen.current = imageOpen;
-    }, [imageOpen]);
-    return (
-      <Modal title="root" closeLabel="root-close" onClose={close}>
-        <button type="button" onClick={() => setImageOpen(true)}>
-          open-image
-        </button>
-        {imageOpen && (
-          <ImageViewer
-            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
-            translation={translate("ja")}
-            onClose={() => setImageOpen(false)}
-          />
-        )}
-      </Modal>
-    );
-  }
   try {
-    render(<Harness />);
+    render(
+      <EscapeHarness
+        parentClosed={parentClosed}
+        onSecondEscape={() => {
+          secondEscapeIssued = true;
+        }}
+      />,
+    );
     fireEvent.click(screen.getByText("open-image"));
     expect(window.location.hash).toBe("#/media");
     fireEvent.keyDown(document, { key: "Escape" });

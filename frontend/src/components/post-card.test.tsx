@@ -29,6 +29,19 @@ afterEach(() => {
   globalThis.HTMLMediaElement.prototype.load = originalVideoLoad;
 });
 
+function TranslationHarness({ posts }: { posts: TimelinePost[] }) {
+  const [enabled, setEnabled] = useState(true);
+  return (
+    <PostTranslationProvider
+      value={{ locale: "ja", autoTranslatePosts: enabled, setAutoTranslatePosts: setEnabled }}
+    >
+      {posts.map((item) => (
+        <PostCard key={item.id} post={item} accountId="account-1" translation={translate("ja")} />
+      ))}
+    </PostTranslationProvider>
+  );
+}
+
 describe("post actions", () => {
   test("updates a like immediately while the web mutation continues in the background", async () => {
     const urls: string[] = [];
@@ -1166,22 +1179,11 @@ describe("post actions", () => {
     }) as typeof fetch;
     const user = userEvent.setup();
 
-    function Harness() {
-      const [enabled, setEnabled] = useState(true);
-      return (
-        <PostTranslationProvider
-          value={{ locale: "ja", autoTranslatePosts: enabled, setAutoTranslatePosts: setEnabled }}
-        >
-          <PostCard
-            post={{ ...post(), id: "900", language: "en", text: "Original post" }}
-            accountId="account-1"
-            translation={translate("ja")}
-          />
-        </PostTranslationProvider>
-      );
-    }
-
-    render(<Harness />);
+    render(
+      <TranslationHarness
+        posts={[{ ...post(), id: "900", language: "en", text: "Original post" }]}
+      />,
+    );
 
     expect(await screen.findByText("自動翻訳された本文")).toBeDefined();
     expect(screen.getByText(/から翻訳/u)).toBeDefined();
@@ -1307,27 +1309,14 @@ describe("post actions", () => {
     }) as typeof fetch;
     const user = userEvent.setup();
 
-    function Harness() {
-      const [enabled, setEnabled] = useState(true);
-      return (
-        <PostTranslationProvider
-          value={{ locale: "ja", autoTranslatePosts: enabled, setAutoTranslatePosts: setEnabled }}
-        >
-          <PostCard
-            post={{ ...post(), id: "910", language: "en", text: "Original 910" }}
-            accountId="account-1"
-            translation={translate("ja")}
-          />
-          <PostCard
-            post={{ ...post(), id: "911", language: "en", text: "Original 911" }}
-            accountId="account-1"
-            translation={translate("ja")}
-          />
-        </PostTranslationProvider>
-      );
-    }
-
-    render(<Harness />);
+    render(
+      <TranslationHarness
+        posts={[
+          { ...post(), id: "910", language: "en", text: "Original 910" },
+          { ...post(), id: "911", language: "en", text: "Original 911" },
+        ]}
+      />,
+    );
 
     expect(await screen.findByText("翻訳できませんでした。原文を表示しています。")).toBeDefined();
     expect(await screen.findByText("翻訳 911")).toBeDefined();
