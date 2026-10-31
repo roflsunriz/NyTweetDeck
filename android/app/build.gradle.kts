@@ -112,7 +112,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.webkit:webkit:1.18.0")
     implementation("com.squareup.okhttp3:okhttp")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
     // Coil 3.6はKotlin 2.4メタデータを含むためKotlin 2.4系とcompileSdk 37が必須。先にKotlinを上げてからCoilを更新する。
     implementation("io.coil-kt.coil3:coil-compose:3.6.3")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
