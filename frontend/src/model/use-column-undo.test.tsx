@@ -45,3 +45,17 @@ test("the undo action expires after ten seconds", () => {
   act(() => result.current.undo("b"));
   expect(result.current.layout.columns).toHaveLength(2);
 });
+
+test("consecutive removals at the front restore correctly in either order", () => {
+  for (const order of [
+    ["a", "b"],
+    ["b", "a"],
+  ]) {
+    const { result, unmount } = renderHook(useHarness);
+    act(() => result.current.remove("a"));
+    act(() => result.current.remove("b"));
+    for (const id of order) act(() => result.current.undo(id));
+    expect(result.current.layout.columns.map((column) => column.id)).toEqual(["a", "b", "c"]);
+    unmount();
+  }
+});

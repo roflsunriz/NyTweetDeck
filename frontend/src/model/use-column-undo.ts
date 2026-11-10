@@ -6,16 +6,20 @@ export interface RemovedColumn {
   column: ColumnConfig;
   index: number;
   preceding: string[];
+  following: string[];
   expiresAt: number;
 }
 
 export function restoreColumn(columns: ColumnConfig[], removed: RemovedColumn): ColumnConfig[] {
   if (columns.some((column) => column.id === removed.column.id)) return columns;
   const preceding = removed.preceding.find((id) => columns.some((column) => column.id === id));
+  const following = removed.following.find((id) => columns.some((column) => column.id === id));
   const index =
-    preceding === undefined
-      ? Math.min(removed.index, columns.length)
-      : columns.findIndex((column) => column.id === preceding) + 1;
+    following !== undefined
+      ? columns.findIndex((column) => column.id === following)
+      : preceding === undefined
+        ? Math.min(removed.index, columns.length)
+        : columns.findIndex((column) => column.id === preceding) + 1;
   return [...columns.slice(0, index), removed.column, ...columns.slice(index)];
 }
 
@@ -54,6 +58,7 @@ export function useColumnUndo(
           .slice(0, index)
           .map((item) => item.id)
           .reverse(),
+        following: logicalColumns.slice(index + 1).map((item) => item.id),
         expiresAt: Date.now() + columnUndoMilliseconds,
       },
     ]);

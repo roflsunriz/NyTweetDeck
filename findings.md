@@ -27,3 +27,4 @@
 - 既存`how-to-update.md`のfindings anchorは実体がなく実行手順を失っていたため、実行・配布・反映・復旧の手順を正本へ復元した。Android導入補助スクリプトは`-Serial`必須で対象端末へ限定する。
 
 - PC共有メニューは6項目以上の上向き固定popupだと先頭の短いpostでcolumn領域に切られる。body portal、visible viewport内の上下自動配置、最大高さとscrollで全操作を維持する。Chrome headlessの全画面検証は対象tabを`Page.bringToFront`してから行う。未選択tabではuserActivation=trueでも実Fullscreenが`not granted`で拒否されることを確認した。
+- 連続削除のUndoでは元indexだけでは前方の複数カラムを逆順に復元できない。削除前の前後IDを保持し、生きている隣接カラムから挿入位置を決める。前方2カラムをどちらの順で戻しても元順になる回帰テストを残す。
