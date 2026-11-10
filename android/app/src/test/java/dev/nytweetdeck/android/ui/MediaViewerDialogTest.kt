@@ -6,6 +6,14 @@ import org.junit.Test
 
 class MediaViewerDialogTest {
     @Test
+    fun pagingRequiresExactlyFittedScale() {
+        assertEquals(true, photoPagingAllowed(1f))
+        for (scale in listOf(.1f, .8f, .99f, 1.01f, 1.04f, 2f, 8f)) {
+            assertEquals(false, photoPagingAllowed(scale))
+        }
+    }
+
+    @Test
     fun changesPageOnlyAfterTheAdjacentBoundaryCrossesHalfTheViewport() {
         assertEquals(0, photoPageDirectionForDrag(-499f, 1_000f))
         assertEquals(0, photoPageDirectionForDrag(-500f, 1_000f))

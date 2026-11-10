@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.pinch
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
@@ -92,6 +93,28 @@ class MediaViewerUiTest {
         composeRule.onNodeWithTag("media-image-previous-index-3", useUnmergedTree = true).assertDoesNotExist()
         composeRule.onNodeWithTag("media-image").performTouchInput { swipeRight() }
         composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("media-close").performClick()
+    }
+
+    @Test
+    fun shrunkAndZoomedPhotosCannotChangePagesUntilReset() {
+        composeRule.onNodeWithTag("post-media-1-photo-1").performClick()
+        composeRule.onNodeWithTag("media-image").performTouchInput {
+            pinch(Offset(width * .2f, center.y), Offset(width * .8f, center.y),
+                Offset(width * .4f, center.y), Offset(width * .6f, center.y))
+        }
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag("media-reset").performClick()
+        composeRule.onNodeWithTag("media-image").performTouchInput {
+            pinch(Offset(width * .4f, center.y), Offset(width * .6f, center.y),
+                Offset(width * .2f, center.y), Offset(width * .8f, center.y))
+        }
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag("media-image-index-0", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag("media-reset").performClick()
+        composeRule.onNodeWithTag("media-image").performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag("media-image-index-1", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("media-close").performClick()
     }
 

@@ -189,6 +189,7 @@ private fun PhotoViewer(
     }
     var viewportWidth by remember { mutableFloatStateOf(0f) }
     var navigationLocked by remember { mutableStateOf(false) }
+    var transformedInGesture by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     // Keep animatable in sync with drag offset for spring
@@ -197,9 +198,10 @@ private fun PhotoViewer(
     }
     val transformState = rememberTransformableState { _, zoomChange, panChange, _ ->
         val nextScale = (scale * zoomChange).coerceIn(0.1f, 8f)
-        val isZoomed = nextScale > 1.05f
+        if (zoomChange != 1f) transformedInGesture = true
+        val canPage = photoPagingAllowed(scale) && photoPagingAllowed(nextScale) && !transformedInGesture
         val rawNextOffset = Offset(offset.x + panChange.x, offset.y + panChange.y)
-        val nextOffset = if (isZoomed) rawNextOffset else Offset(
+        val nextOffset = if (!canPage) rawNextOffset else Offset(
             when {
                 currentIndex == 0 && rawNextOffset.x > 0f -> 0f
                 currentIndex == mediaItems.lastIndex && rawNextOffset.x < 0f -> 0f
@@ -207,7 +209,7 @@ private fun PhotoViewer(
             },
             0f,
         )
-        val pageDirection = if (isZoomed) 0 else {
+        val pageDirection = if (!canPage) 0 else {
             photoPageDirectionForDrag(nextOffset.x, viewportWidth)
         }
         val destination = adjacentPhotoIndex(currentIndex, mediaItems.size, pageDirection)
@@ -232,7 +234,8 @@ private fun PhotoViewer(
         snapshotFlow { transformState.isTransformInProgress }.collect { inProgress ->
             if (!inProgress) {
                 navigationLocked = false
-                if (scale <= 1.05f && offset != Offset.Zero) {
+                transformedInGesture = false
+                if (photoPagingAllowed(scale) && offset != Offset.Zero) {
                     scope.launch {
                         offsetAnim.snapTo(offset)
                         offsetAnim.animateTo(
@@ -261,14 +264,14 @@ private fun PhotoViewer(
             .testTag("media-image"),
         contentAlignment = Alignment.Center,
     ) {
-        if (previousIndex != null) {
+        if (photoPagingAllowed(scale) && previousIndex != null) {
             PhotoPage(
                 media = mediaItems[previousIndex],
                 translationX = displayOffset.x - viewportWidth,
                 testTag = "media-image-previous-index-$previousIndex",
             )
         }
-        if (nextIndex != null) {
+        if (photoPagingAllowed(scale) && nextIndex != null) {
             PhotoPage(
                 media = mediaItems[nextIndex],
                 translationX = displayOffset.x + viewportWidth,
@@ -355,6 +358,8 @@ private fun PhotoPage(
         }
     }
 }
+
+internal fun photoPagingAllowed(scale: Float): Boolean = kotlin.math.abs(scale - 1f) <= 0.001f
 
 internal fun photoPageDirectionForDrag(dragOffset: Float, viewportWidth: Float): Int = when {
     viewportWidth <= 0f -> 0
