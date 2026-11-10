@@ -2,6 +2,8 @@ package dev.nytweetdeck.android.xapi.live
 
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,6 +29,7 @@ class LivePipelineHttpException(
 
 class OkHttpLivePipelineConnector(
     client: OkHttpClient,
+    private val closeExecutor: Executor = streamCloseExecutor,
 ) : LivePipelineConnector {
     private val client = client.newBuilder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -50,7 +53,7 @@ class OkHttpLivePipelineConnector(
                 "Live Pipeline接続に失敗しました。HTTP ${response.code}",
             )
         }
-        return OkHttpLivePipelineStream(call, response)
+        return OkHttpLivePipelineStream(call, response, closeExecutor)
     }
 
     override fun updateSubscriptions(request: Request) {
@@ -73,6 +76,7 @@ class OkHttpLivePipelineConnector(
     private class OkHttpLivePipelineStream(
         private val call: okhttp3.Call,
         private val response: Response,
+        private val closeExecutor: Executor,
     ) : LivePipelineStream {
         private val closed = AtomicBoolean()
 
@@ -96,9 +100,22 @@ class OkHttpLivePipelineConnector(
 
         override fun close() {
             if (closed.compareAndSet(false, true)) {
-                call.cancel()
-                response.close()
+                // ActivityのON_STOPから呼ばれる。TLS/gzip bodyのcloseも通信を行うため、
+                // cancelを含めて受信スレッドとは別のIOスレッドで終了させる。
+                closeExecutor.execute {
+                    try {
+                        call.cancel()
+                    } finally {
+                        response.close()
+                    }
+                }
             }
+        }
+    }
+
+    private companion object {
+        val streamCloseExecutor: Executor = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "nytweetdeck-live-close").apply { isDaemon = true }
         }
     }
 }
