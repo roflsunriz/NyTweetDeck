@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_playback_error">无法播放此视频。请重试或选择其他画质。</string>
+</resources>

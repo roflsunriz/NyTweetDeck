@@ -2,7 +2,7 @@ import { afterEach, expect, spyOn, test } from "bun:test";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { translate } from "../i18n/translations";
 import { resetVideoPlaybackForTesting } from "../model/video-playback-coordinator";
-import { ConfiguredVideo } from "./configured-video";
+import { ConfiguredVideo, formatTime } from "./configured-video";
 
 const originalObserver = globalThis.IntersectionObserver;
 const originalPlay = HTMLMediaElement.prototype.play;
@@ -90,26 +90,45 @@ function renderPlayer(mediaId: string) {
   );
 }
 
-test("同時に再生されるのは常に1つ", async () => {
-  const notify = installHarness();
-  const first = renderPlayer("first");
-  const second = renderPlayer("second");
-  act(() => notify(true));
-  const firstVideo = first.container.querySelector("video");
-  const secondVideo = second.container.querySelector("video");
-  if (firstVideo === null || secondVideo === null) throw new Error("Missing videos");
+for (const sameMedia of [false, true]) {
+  test(`同じ投稿の別画面を含め同時再生は1つ (sameMedia=${sameMedia})`, async () => {
+    const notify = installHarness();
+    const first = renderPlayer("first");
+    const second = renderPlayer(sameMedia ? "first" : "second");
+    act(() => notify(true));
+    const firstVideo = first.container.querySelector("video");
+    const secondVideo = second.container.querySelector("video");
+    if (firstVideo === null || secondVideo === null) throw new Error("Missing videos");
 
-  await act(async () => {
-    await firstVideo.play();
+    await act(async () => {
+      await firstVideo.play();
+    });
+    expect(firstVideo.paused).toBe(false);
+    await act(async () => {
+      await secondVideo.play();
+    });
+    expect(secondVideo.paused).toBe(false);
+    expect(firstVideo.paused).toBe(true);
+    first.unmount();
+    expect(secondVideo.paused).toBe(false);
+    second.unmount();
   });
-  expect(firstVideo.paused).toBe(false);
-  await act(async () => {
-    await secondVideo.play();
-  });
-  expect(secondVideo.paused).toBe(false);
-  expect(firstVideo.paused).toBe(true);
-  first.unmount();
-  second.unmount();
+}
+
+test("時間は1時間未満をMM:SS、それ以降をHH:MM:SSで表示する", () => {
+  for (const [seconds, expected] of [
+    [0, "00:00"],
+    [9.9, "00:09"],
+    [125, "02:05"],
+    [3599, "59:59"],
+    [3600, "01:00:00"],
+    [3661, "01:01:01"],
+    [360000, "100:00:00"],
+    [Number.NaN, "00:00"],
+    [Number.POSITIVE_INFINITY, "00:00"],
+    [-1, "00:00"],
+  ] as const)
+    expect(formatTime(seconds)).toBe(expected);
 });
 
 test("どこを触っても暫定ミュートが解除される", async () => {

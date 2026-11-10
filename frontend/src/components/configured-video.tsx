@@ -13,6 +13,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -20,13 +21,13 @@ import {
 import type { Translation } from "../i18n/translations";
 import type { VideoQuality } from "../model/layout";
 import type { VideoVariant } from "../model/timeline";
-import { selectVideoSources } from "../model/video-quality";
 import {
   claimVideoPlayback,
   currentVideoPlayback,
   releaseVideoPlayback,
   subscribeVideoPlayback,
 } from "../model/video-playback-coordinator";
+import { selectVideoSources } from "../model/video-quality";
 import { setVideoScreenWakeLock } from "../model/video-screen-wake-lock";
 
 export const VIDEO_CONTROLS_HIDE_DELAY_MS = 3_000;
@@ -64,6 +65,9 @@ export function ConfiguredVideo({
   quality = "auto",
   translation,
 }: ConfiguredVideoProps) {
+  // The same media can appear in a timeline and its detail at once. Ownership
+  // belongs to the mounted player, otherwise both copies exempt each other.
+  const playbackOwner = useId();
   const playerRef = useRef<HTMLFieldSetElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const loopRef = useRef(loop);
@@ -75,6 +79,8 @@ export function ConfiguredVideo({
   const stallTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const resumeTimeRef = useRef(0);
   const resumePlayingRef = useRef(false);
+  const sourceChangePendingRef = useRef(false);
+  const playbackDesiredRef = useRef<boolean | null>(null);
   const [mediaConnected, setMediaConnected] = useState(
     () => typeof globalThis.IntersectionObserver === "undefined",
   );
@@ -94,6 +100,8 @@ export function ConfiguredVideo({
   const [controlError, setControlError] = useState<string | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [selectedQuality, setSelectedQuality] = useState<VideoQuality>(quality);
+  const selectedQualityRef = useRef(quality);
+  const previousQualityPropRef = useRef(quality);
   const sourceCandidates = useMemo(
     () => selectVideoSources(src, variants, selectedQuality),
     [selectedQuality, src, variants],
@@ -110,15 +118,32 @@ export function ConfiguredVideo({
     pan: Point;
   } | null>(null);
 
+  const changeQuality = useCallback(
+    (next: VideoQuality) => {
+      if (next === selectedQualityRef.current) return;
+      selectedQualityRef.current = next;
+      const nextSource = selectVideoSources(src, variants, next)[0] ?? src;
+      const video = videoRef.current;
+      if (video !== null && nextSource !== selectedSource) {
+        resumeTimeRef.current = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+        resumePlayingRef.current = !video.paused;
+        sourceChangePendingRef.current = true;
+        playbackDesiredRef.current = !video.paused;
+      }
+      setSelectedQuality(next);
+    },
+    [selectedSource, src, variants],
+  );
+
   useEffect(() => {
-    setSelectedQuality(quality);
-  }, [quality]);
+    if (quality === previousQualityPropRef.current) return;
+    previousQualityPropRef.current = quality;
+    changeQuality(quality);
+  }, [changeQuality, quality]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: candidate changes must reset automatic recovery
   useEffect(() => {
     setSourceIndex(0);
-    resumeTimeRef.current = 0;
-    resumePlayingRef.current = false;
   }, [sourceCandidates]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset zoom when video source changes
@@ -161,6 +186,8 @@ export function ConfiguredVideo({
       if (video !== null) {
         resumeTimeRef.current = Number.isFinite(video.currentTime) ? video.currentTime : 0;
         resumePlayingRef.current = !video.paused;
+        sourceChangePendingRef.current = true;
+        playbackDesiredRef.current = !video.paused;
       }
       return current + 1;
     });
@@ -374,14 +401,12 @@ export function ConfiguredVideo({
     };
   }, [hideControlsIfKeyboardIdle, mediaConnected]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a keyed video replacement needs the saved volume
   useEffect(() => {
     const normalized = normalizeVolume(volume);
     setPlaybackVolume(normalized);
-    if (!mediaConnected) return;
     const video = videoRef.current;
     if (video !== null) video.volume = normalized;
-  }, [mediaConnected, selectedSource, volume]);
+  }, [volume]);
 
   useEffect(() => {
     loopRef.current = loop;
@@ -391,19 +416,23 @@ export function ConfiguredVideo({
   // 同時に再生されるのは常に1つ。他が再生を始めたら自分は止まる。
   useEffect(() => {
     return subscribeVideoPlayback((activeId) => {
-      if (activeId === null || activeId === mediaId) return;
+      if (activeId === null || activeId === playbackOwner) return;
       const video = videoRef.current;
-      if (video !== null && !video.paused) video.pause();
+      if (video !== null && !video.paused) {
+        playbackDesiredRef.current = false;
+        video.pause();
+      }
     });
-  }, [mediaId]);
+  }, [playbackOwner]);
 
   useEffect(() => {
-    if (!mediaConnected && currentVideoPlayback() === mediaId) releaseVideoPlayback(mediaId);
-  }, [mediaConnected, mediaId]);
+    if (!mediaConnected && currentVideoPlayback() === playbackOwner)
+      releaseVideoPlayback(playbackOwner);
+  }, [mediaConnected, playbackOwner]);
 
   useEffect(() => {
-    return () => releaseVideoPlayback(mediaId);
-  }, [mediaId]);
+    return () => releaseVideoPlayback(playbackOwner);
+  }, [playbackOwner]);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -473,6 +502,7 @@ export function ConfiguredVideo({
     const video = videoRef.current;
     if (video === null) return;
     if (fullscreenActiveRef.current || pictureInPictureRef.current) return;
+    if (sourceChangePendingRef.current || playbackDesiredRef.current === false) return;
     if (!autoPlay || !inPlaybackZone) {
       video.pause();
       return;
@@ -483,6 +513,7 @@ export function ConfiguredVideo({
   const togglePlayback = () => {
     const video = videoRef.current;
     if (video === null) return;
+    playbackDesiredRef.current = video.paused;
     if (video.paused) void tryPlay(video);
     else video.pause();
   };
@@ -615,7 +646,12 @@ export function ConfiguredVideo({
           key={selectedSource}
           ref={videoRef}
           muted={muted}
-          autoPlay={autoPlay}
+          autoPlay={
+            autoPlay &&
+            inPlaybackZone &&
+            playbackDesiredRef.current !== false &&
+            !sourceChangePendingRef.current
+          }
           loop={loopActive}
           draggable={false}
           playsInline
@@ -631,18 +667,19 @@ export function ConfiguredVideo({
           onDoubleClick={handleVideoDoubleClick}
           onDragStart={(event) => event.preventDefault()}
           onPlay={(event) => {
+            playbackDesiredRef.current = true;
             setPlaying(true);
-            claimVideoPlayback(mediaId);
+            claimVideoPlayback(playbackOwner);
             setVideoScreenWakeLock(event.currentTarget, true);
           }}
           onPause={(event) => {
             setPlaying(false);
-            releaseVideoPlayback(mediaId);
+            releaseVideoPlayback(playbackOwner);
             setVideoScreenWakeLock(event.currentTarget, false);
           }}
           onEnded={(event) => {
             setPlaying(false);
-            releaseVideoPlayback(mediaId);
+            releaseVideoPlayback(playbackOwner);
             setVideoScreenWakeLock(event.currentTarget, false);
           }}
           onLoadedMetadata={(event) => {
@@ -650,15 +687,22 @@ export function ConfiguredVideo({
               ? event.currentTarget.duration
               : 0;
             setDuration(next);
-            if (resumeTimeRef.current > 0 && next > 0) {
-              const restoredTime = Math.min(resumeTimeRef.current, next);
+            if (resumeTimeRef.current > 0) {
+              const restoredTime =
+                next > 0 ? Math.min(resumeTimeRef.current, next) : resumeTimeRef.current;
               event.currentTarget.currentTime = restoredTime;
               setCurrentTime(restoredTime);
             }
             const resumePlaying = resumePlayingRef.current;
+            const sourceChanged = sourceChangePendingRef.current;
             resumeTimeRef.current = 0;
             resumePlayingRef.current = false;
-            if (resumePlaying && inPlaybackZone) void tryPlay(event.currentTarget);
+            sourceChangePendingRef.current = false;
+            if (sourceChanged) {
+              if (resumePlaying && (inPlaybackZone || fullscreenActiveRef.current))
+                void tryPlay(event.currentTarget);
+              else event.currentTarget.pause();
+            }
           }}
           onDurationChange={(event) => {
             const next = Number.isFinite(event.currentTarget.duration)
@@ -692,6 +736,7 @@ export function ConfiguredVideo({
         >
           <button
             type="button"
+            data-video-action="playback"
             aria-label={playing ? translation.pauseVideo : translation.playVideo}
             onClick={togglePlayback}
           >
@@ -717,6 +762,7 @@ export function ConfiguredVideo({
           />
           <button
             type="button"
+            data-video-action="mute"
             aria-label={muted ? translation.unmuteVideo : translation.muteVideo}
             aria-pressed={muted}
             onClick={toggleMute}
@@ -729,6 +775,7 @@ export function ConfiguredVideo({
           </button>
           <input
             className="configured-video-volume"
+            data-video-action="volume"
             type="range"
             aria-label={translation.videoVolume}
             min={0}
@@ -741,10 +788,11 @@ export function ConfiguredVideo({
           {variants.length > 1 && (
             <select
               className="configured-video-quality"
+              data-video-action="quality"
               aria-label={translation.videoQuality}
               value={selectedQuality}
               onClick={(event) => event.stopPropagation()}
-              onChange={(event) => setSelectedQuality(event.target.value as VideoQuality)}
+              onChange={(event) => changeQuality(event.target.value as VideoQuality)}
             >
               <option value="auto">{translation.videoQualityAuto}</option>
               <option value="low">{translation.videoQualityLow}</option>
@@ -841,10 +889,12 @@ async function tryPlay(video: HTMLVideoElement): Promise<void> {
   }
 }
 
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+export function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
   const wholeSeconds = Math.floor(seconds);
-  const minutes = Math.floor(wholeSeconds / 60);
+  const hours = Math.floor(wholeSeconds / 3600);
+  const minutes = Math.floor(wholeSeconds / 60) % 60;
   const remainder = wholeSeconds % 60;
-  return `${minutes}:${String(remainder).padStart(2, "0")}`;
+  const clock = `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+  return hours > 0 ? `${String(hours).padStart(2, "0")}:${clock}` : clock;
 }

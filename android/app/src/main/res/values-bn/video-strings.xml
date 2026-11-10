@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_playback_error">ভিডিওটি চালানো যায়নি। আবার চেষ্টা করুন বা অন্য মান বেছে নিন।</string>
+</resources>

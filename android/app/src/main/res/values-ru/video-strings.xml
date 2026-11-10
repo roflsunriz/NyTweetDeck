@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_playback_error">Не удалось воспроизвести видео. Повторите попытку или выберите другое качество.</string>
+</resources>

@@ -58,6 +58,22 @@ class InlineVideoPlayerTest {
     }
 
     @Test
+    fun zoomedVideoCannotBeDraggedCompletelyOutsideTheViewport() {
+        val transformed = updateVideoViewportTransform(
+            scale = 2f, offset = Offset.Zero, centroid = Offset(100f, 100f),
+            viewportCenter = Offset(200f, 150f), zoomChange = 1f,
+            panChange = Offset(10_000f, -10_000f),
+        )
+        assertEquals(Offset(0f, -300f), transformed.offset)
+        val invalid = updateVideoViewportTransform(
+            scale = 0f, offset = Offset.Zero, centroid = Offset.Unspecified,
+            viewportCenter = Offset(200f, 150f), zoomChange = Float.NaN, panChange = Offset.Zero,
+        )
+        assertEquals(1f, invalid.scale, 0.001f)
+        assertEquals(Offset.Zero, invalid.offset)
+    }
+
+    @Test
     fun selectsTheConfiguredVideoQualityFromTheAvailableMp4Variants() {
         val media = Media(
             id = "video-1",

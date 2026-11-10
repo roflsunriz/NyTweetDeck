@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_playback_error">No se puede reproducir el vídeo. Reinténtalo o elige otra calidad.</string>
+</resources>

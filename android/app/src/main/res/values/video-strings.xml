@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_playback_error">動画を再生できません。再試行するか画質を変更してください。</string>
+</resources>

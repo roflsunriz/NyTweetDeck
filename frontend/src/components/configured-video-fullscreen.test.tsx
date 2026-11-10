@@ -67,6 +67,10 @@ for (const scenario of [
           mediaId="full"
           src="https://video.example/clip.mp4"
           poster="https://video.example/poster.jpg"
+          variants={[
+            { url: "https://video.example/low.mp4", bitrate: 100 },
+            { url: "https://video.example/clip.mp4", bitrate: 1000 },
+          ]}
           autoPlay={scenario.autoPlay}
           loop
           volume={35}
@@ -96,16 +100,21 @@ for (const scenario of [
       }
     };
     act(() => notify(true));
-    const video = container.querySelector("video");
+    let video = container.querySelector("video");
     if (video === null) throw new Error("Missing connected video");
+    const initialVideo = video;
     await act(async () => {
-      if (scenario.paused) video.pause();
+      if (scenario.paused) initialVideo.pause();
       else {
-        await video.play();
-        fireEvent.playing(video);
+        await initialVideo.play();
+        fireEvent.playing(initialVideo);
       }
     });
     video.currentTime = 7;
+    fireEvent.click(video);
+    const volume = container.querySelector<HTMLInputElement>(".configured-video-volume");
+    if (volume === null) throw new Error("Missing volume control");
+    fireEvent.change(volume, { target: { value: "23" } });
     let finish: (() => void) | undefined;
     Object.defineProperty(player, "requestFullscreen", {
       configurable: true,
@@ -128,8 +137,23 @@ for (const scenario of [
     expect(container.querySelector("video")).toBe(video);
     expect(video.getAttribute("src")).toBe("https://video.example/clip.mp4");
     expect(video.currentTime).toBe(7);
+    expect(video.muted).toBe(false);
+    expect(video.volume).toBe(0.23);
     expect(video.paused).toBe(scenario.paused);
     expect(video.hasAttribute("poster")).toBe(scenario.paused);
+    const quality = container.querySelector<HTMLSelectElement>(".configured-video-quality");
+    if (quality === null) throw new Error("Missing quality control");
+    fireEvent.change(quality, { target: { value: "low" } });
+    video = container.querySelector("video");
+    if (video === null) throw new Error("Missing replacement video");
+    const replacementVideo = video;
+    Object.defineProperty(video, "duration", { configurable: true, value: 125 });
+    await act(async () => fireEvent.loadedMetadata(replacementVideo));
+    expect(video.currentTime).toBe(7);
+    expect(video.paused).toBe(scenario.paused);
+    expect(video.muted).toBe(false);
+    expect(video.volume).toBe(0.23);
+    expect(quality.value).toBe("low");
     act(() => {
       fullscreen = null;
       document.dispatchEvent(new Event("fullscreenchange"));
@@ -138,8 +162,10 @@ for (const scenario of [
     act(() => notify(true));
     expect(container.querySelector("video")).toBe(video);
     expect(video.currentTime).toBe(7);
+    expect(video.muted).toBe(false);
+    expect(video.volume).toBe(0.23);
+    expect(quality.value).toBe("low");
     expect(video.paused).toBe(scenario.paused);
-    expect(video.hasAttribute("poster")).toBe(scenario.paused);
     act(() => notify(false));
     expect(container.querySelector("video")).toBeNull();
   });

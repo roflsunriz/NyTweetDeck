@@ -2,8 +2,6 @@ package dev.nytweetdeck.android.ui
 
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +27,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -61,12 +60,14 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -76,12 +77,14 @@ import dev.nytweetdeck.android.model.VideoQuality
 import dev.nytweetdeck.android.model.selectVideoUrl
 import kotlin.math.max
 import kotlin.math.min
+import java.util.UUID
 import kotlinx.coroutines.delay
 
 private const val INLINE_PLAYBACK_VISIBLE_FRACTION = 0.6f
 private const val VIDEO_MIN_SCALE = 1f
 private const val VIDEO_MAX_SCALE = 4f
 internal const val VIDEO_CONTROLS_HIDE_DELAY_MILLIS = 3_000L
+internal val VideoZoomScale = SemanticsPropertyKey<Float>("VideoZoomScale")
 
 internal data class VideoViewportTransform(
     val scale: Float,
@@ -96,15 +99,22 @@ internal fun updateVideoViewportTransform(
     zoomChange: Float,
     panChange: Offset,
 ): VideoViewportTransform {
+    if (!scale.isFinite() || scale <= 0f || !zoomChange.isFinite() || zoomChange <= 0f) {
+        return VideoViewportTransform(VIDEO_MIN_SCALE, Offset.Zero)
+    }
     val nextScale = (scale * zoomChange).coerceIn(VIDEO_MIN_SCALE, VIDEO_MAX_SCALE)
     val effectiveCentroid = centroid.takeIf { it.isSpecified } ?: viewportCenter
     val scaleRatio = nextScale / scale
+    val translated = effectiveCentroid - (effectiveCentroid - offset) * scaleRatio + panChange
     return VideoViewportTransform(
         scale = nextScale,
         offset = if (nextScale <= VIDEO_MIN_SCALE) {
             Offset.Zero
         } else {
-            effectiveCentroid - (effectiveCentroid - offset) * scaleRatio + panChange
+            Offset(
+                translated.x.coerceIn(-viewportCenter.x.coerceAtLeast(0f) * 2f * (nextScale - 1f), 0f),
+                translated.y.coerceIn(-viewportCenter.y.coerceAtLeast(0f) * 2f * (nextScale - 1f), 0f),
+            )
         },
     )
 }
@@ -177,8 +187,9 @@ private fun VideoPlayer(
     onRotateToLandscape: (() -> Unit)? = null,
     suspended: Boolean = false,
 ) {
-    var selectedQuality by remember(media.id, defaultQuality) { mutableStateOf(defaultQuality) }
-    LaunchedEffect(defaultQuality) { selectedQuality = defaultQuality }
+    val owner = remember(media.id) { UUID.randomUUID().toString() }
+    val initialState = remember(media.id) { VideoPlaybackStates.get(media.id) }
+    var selectedQuality by remember(media.id) { mutableStateOf(initialState?.quality ?: defaultQuality) }
     val uri = remember(media.id, media.url, media.variants, selectedQuality) {
         safeMediaUri(selectVideoUrl(media, selectedQuality))
     }
@@ -189,10 +200,10 @@ private fun VideoPlayer(
     }
     var player by remember(media.id) { mutableStateOf<ExoPlayer?>(null) }
     var playing by remember(media.id) { mutableStateOf(false) }
-    var muted by remember(media.id) { mutableStateOf(true) }
-    var loopActive by remember(media.id, loop) { mutableStateOf(loop) }
+    var muted by remember(media.id) { mutableStateOf(initialState?.muted ?: true) }
+    var loopActive by remember(media.id) { mutableStateOf(initialState?.loop ?: loop) }
     var playbackVolume by remember(media.id, volume) {
-        mutableFloatStateOf(volume.coerceIn(0, 100) / 100f)
+        mutableFloatStateOf(initialState?.volume ?: (volume.coerceIn(0, 100) / 100f))
     }
     var position by remember(media.id) { mutableLongStateOf(0L) }
     var duration by remember(media.id) { mutableLongStateOf(0L) }
@@ -202,6 +213,10 @@ private fun VideoPlayer(
     var scale by remember(media.id) { mutableFloatStateOf(1f) }
     var offset by remember(media.id) { mutableStateOf(Offset.Zero) }
     var viewportSize by remember(media.id) { mutableStateOf(Size.Zero) }
+    var playbackFailed by remember(media.id) { mutableStateOf(false) }
+    var retryCount by remember(media.id) { mutableIntStateOf(0) }
+    var boundPlayerView by remember(media.id) { mutableStateOf<PlayerView?>(null) }
+    var mediaAttached by remember(media.id) { mutableStateOf(false) }
     val transformState = rememberTransformableState { centroid, zoomChange, panChange, _ ->
         val transformed = updateVideoViewportTransform(
             scale = scale,
@@ -220,39 +235,74 @@ private fun VideoPlayer(
         controlsInteraction += 1
     }
 
-    // メディアビューアを開いている間はコーデックとバッファを解放し、
-    // 全画面側の1デコーダだけにする。画面外へ外れた場合と同じ扱いで位置は保持しない。
+    fun savePlayback() {
+        val current = player ?: return
+        if (current.mediaItemCount == 0) return
+        position = current.currentPosition.coerceAtLeast(0L)
+        VideoPlaybackStates.save(media.id, VideoPlaybackSnapshot(
+            position = position,
+            playWhenReady = current.playWhenReady,
+            muted = muted,
+            volume = playbackVolume,
+            quality = selectedQuality,
+            loop = loopActive,
+        ))
+    }
+
+    fun startPlayback() {
+        val current = player ?: return
+        VideoPlaybackCoordinator.claim(owner)
+        if (current.mediaItemCount == 0 && uri != null) {
+            position = VideoPlaybackStates.get(media.id)?.position ?: position
+            current.setMediaItem(MediaItem.fromUri(uri), position)
+            current.prepare()
+            mediaAttached = true
+        }
+        current.play()
+    }
+
+    // View間のhandoffはstateを保存してからcodec/surfaceを切り離す。
     val attached = visible && !suspended
-    LaunchedEffect(uri, attached) {
+    DisposableEffect(uri, attached, retryCount) {
         if (attached && uri != null) {
-            player?.run {
-                stop()
-                clearMediaItems()
-                release()
+            VideoPlaybackCoordinator.claim(owner)
+            val restored = VideoPlaybackStates.get(media.id)
+            restored?.let {
+                muted = it.muted
+                playbackVolume = it.volume
+                loopActive = it.loop
+                position = it.position
+                selectedQuality = it.quality
             }
-            player = CachedVideoPlayback.createPlayer(context).apply {
-                this.volume = 0f
-                repeatMode = if (loopActive) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-                setMediaItem(MediaItem.fromUri(uri))
-                prepare()
-                playWhenReady = autoPlay
+            playbackFailed = false
+            try {
+                val created = CachedVideoPlayback.createPlayer(context)
+                player = created
+                created.apply {
+                    this.volume = if (muted) 0f else playbackVolume
+                    repeatMode = if (loopActive) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+                    setMediaItem(MediaItem.fromUri(uri), restored?.position ?: position)
+                    mediaAttached = true
+                    prepare()
+                    playWhenReady = restored?.playWhenReady ?: autoPlay
+                }
+            } catch (_: RuntimeException) {
+                player?.release()
+                player = null
+                playbackFailed = true
             }
-        } else if (!attached && player != null) {
-            player?.run {
-                stop()
-                clearMediaItems()
-                release()
-            }
+        }
+        onDispose {
+            savePlayback()
+            boundPlayerView?.player = null
+            player?.release()
             player = null
+            mediaAttached = false
             playing = false
-            position = 0L
-            duration = 0L
-            muted = true
-            loopActive = loop
             qualityMenuExpanded = false
+            VideoPlaybackCoordinator.release(owner)
         }
     }
-    LaunchedEffect(player, autoPlay) { player?.playWhenReady = autoPlay }
     LaunchedEffect(player, loopActive, muted, playbackVolume) {
         player?.let {
             it.repeatMode = if (loopActive) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -280,14 +330,18 @@ private fun VideoPlayer(
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(value: Boolean) {
                 playing = value
-                if (value) VideoPlaybackCoordinator.claim(media.id)
-                else if (VideoPlaybackCoordinator.current() == media.id) {
-                    VideoPlaybackCoordinator.release(media.id)
-                }
+                if (value) VideoPlaybackCoordinator.claim(owner)
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 duration = activePlayer?.duration?.takeIf { it > 0L } ?: 0L
+                mediaAttached = activePlayer?.mediaItemCount?.let { it > 0 } == true
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                savePlayback()
+                playbackFailed = true
+                playing = false
             }
         }
         activePlayer?.addListener(listener)
@@ -297,21 +351,20 @@ private fun VideoPlayer(
             playing = false
         }
     }
-    DisposableEffect(media.id) {
+    DisposableEffect(owner) {
         val subscription = VideoPlaybackCoordinator.observe { activeId ->
-            if (activeId != null && activeId != media.id) {
-                player?.pause()
+            if (activeId != null && activeId != owner) {
+                savePlayback()
+                // Pausing alone retains decoders and buffers in every visible column.
+                player?.stop()
+                player?.clearMediaItems()
+                mediaAttached = false
+                playing = false
             }
         }
         onDispose {
             subscription.close()
-            VideoPlaybackCoordinator.release(media.id)
-        }
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            player?.release()
-            player = null
+            VideoPlaybackCoordinator.release(owner)
         }
     }
 
@@ -320,7 +373,7 @@ private fun VideoPlayer(
             .fillMaxSize()
             .clipToBounds()
             // PlayerViewのFIT余白は透明なので、下のCropプレビューを接続中だけ覆う。
-            .background(if (player != null) Color.Black else Color.Transparent)
+            .background(if (mediaAttached) Color.Black else Color.Transparent)
             .onGloballyPositioned { coordinates ->
                 if (!attachOnlyWhenVisible) return@onGloballyPositioned
                 val bounds = coordinates.boundsInWindow()
@@ -341,15 +394,6 @@ private fun VideoPlayer(
                     translationY = offset.y
                     transformOrigin = TransformOrigin(0f, 0f)
                 }
-                .transformable(transformState)
-                .pointerInput(media.id) {
-                    detectTapGestures(
-                        onDoubleTap = {
-                            scale = 1f
-                            offset = Offset.Zero
-                        },
-                    )
-                }
                 .testTag("$controlTagPrefix-viewport"),
         ) {
             if (player == null) {
@@ -359,12 +403,15 @@ private fun VideoPlayer(
                     PlayerView(viewContext).apply {
                         useController = false
                         this.player = player
+                        boundPlayerView = this
                         setKeepContentOnPlayerReset(false)
                         setShutterBackgroundColor(android.graphics.Color.BLACK)
                     }
                 },
                 update = {
+                    boundPlayerView = it
                     it.player = player
+                    it.visibility = if (mediaAttached) android.view.View.VISIBLE else android.view.View.INVISIBLE
                     // Androidは同じWindow内のViewの要求を集約する。共有rootへ直接設定せず、
                     // 各Viewを再生中だけ保持することで別プレイヤーの解除と競合させない。
                     it.keepScreenOn = attached && playing && player?.isPlaying == true
@@ -372,6 +419,7 @@ private fun VideoPlayer(
                 onRelease = {
                     it.keepScreenOn = false
                     it.player = null
+                    if (boundPlayerView === it) boundPlayerView = null
                 },
                 modifier = Modifier
                     .fillMaxSize()
@@ -382,19 +430,30 @@ private fun VideoPlayer(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            // どこを触っても暫定ミュートは解除する。解除のタップでは再生状態を変えない。
-                            if (muted) {
-                                muted = false
-                            } else {
-                                player?.let { if (it.isPlaying) it.pause() else it.play() }
-                            }
-                            revealControls()
-                        },
-                    )
+                    // Gesture detection belongs above the native PlayerView, on the same
+                    // surface as taps; a clickable overlay used to intercept every pinch.
+                    .transformable(transformState, canPan = { scale > VIDEO_MIN_SCALE })
+                    .pointerInput(media.id) {
+                        detectTapGestures(
+                            // Show controls on contact, before the double-tap decision delays onTap.
+                            onPress = { revealControls() },
+                            onDoubleTap = {
+                                scale = VIDEO_MIN_SCALE
+                                offset = Offset.Zero
+                                revealControls()
+                            },
+                            onTap = {
+                                // 解除のタップでは再生状態を変えない。
+                                if (muted) {
+                                    muted = false
+                                } else {
+                                    player?.let { if (it.playWhenReady) it.pause() else startPlayback() }
+                                }
+                                revealControls()
+                            },
+                        )
+                    }
+                    .semantics { this[VideoZoomScale] = scale }
                     .testTag("$controlTagPrefix-surface"),
             )
         }
@@ -408,6 +467,11 @@ private fun VideoPlayer(
             Column(
                 modifier = controlsModifier.testTag("$controlTagPrefix-controls"),
             ) {
+                Text(
+                    text = "${formatVideoTime(position)} / ${formatVideoTime(duration)}",
+                    color = Color.White,
+                    modifier = Modifier.testTag("$controlTagPrefix-time"),
+                )
                 Slider(
                     value = if (duration > 0L) position.coerceAtMost(duration).toFloat() else 0f,
                     onValueChange = {
@@ -426,9 +490,12 @@ private fun VideoPlayer(
                     IconButton(
                         onClick = {
                             revealControls()
-                            player?.let { if (it.isPlaying) it.pause() else it.play() }
+                            if (playbackFailed) {
+                                retryCount += 1
+                            } else player?.let { if (it.playWhenReady) it.pause() else startPlayback() }
                         },
-                        modifier = Modifier.size(34.dp).testTag("$controlTagPrefix-play"),
+                        modifier = Modifier.size(34.dp).semantics { selected = playing }
+                            .testTag("$controlTagPrefix-play"),
                     ) {
                         Icon(
                             if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -441,7 +508,8 @@ private fun VideoPlayer(
                             revealControls()
                             muted = !muted
                         },
-                        modifier = Modifier.size(34.dp).testTag("$controlTagPrefix-mute"),
+                        modifier = Modifier.size(34.dp).semantics { selected = muted }
+                            .testTag("$controlTagPrefix-mute"),
                     ) {
                         Icon(
                             if (muted) Icons.AutoMirrored.Filled.VolumeOff
@@ -482,7 +550,11 @@ private fun VideoPlayer(
                                     DropdownMenuItem(
                                         text = { Text(videoQualityLabel(quality)) },
                                         onClick = {
+                                            savePlayback()
                                             selectedQuality = quality
+                                            VideoPlaybackStates.get(media.id)?.let {
+                                                VideoPlaybackStates.save(media.id, it.copy(quality = quality))
+                                            }
                                             qualityMenuExpanded = false
                                             revealControls()
                                         },
@@ -509,6 +581,7 @@ private fun VideoPlayer(
                     IconButton(
                         onClick = {
                             revealControls()
+                            savePlayback()
                             onFullscreen()
                         },
                         modifier = Modifier.size(34.dp).testTag("$controlTagPrefix-fullscreen"),
@@ -538,6 +611,15 @@ private fun VideoPlayer(
                         }
                     }
                 }
+            }
+        }
+        if (playbackFailed) {
+            Column(
+                Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = 0.8f))
+                    .padding(12.dp).testTag("$controlTagPrefix-error"),
+            ) {
+                Text(stringResource(R.string.video_playback_error), color = Color.White)
+                TextButton(onClick = { retryCount += 1 }) { Text(stringResource(R.string.retry)) }
             }
         }
     }

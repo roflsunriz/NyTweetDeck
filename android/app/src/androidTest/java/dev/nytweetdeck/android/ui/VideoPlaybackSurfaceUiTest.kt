@@ -15,9 +15,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.pinch
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -27,6 +34,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import dev.nytweetdeck.android.MainActivity
 import dev.nytweetdeck.android.model.Media
+import dev.nytweetdeck.android.model.VideoQuality
+import dev.nytweetdeck.android.model.VideoVariant
 import dev.nytweetdeck.android.ui.theme.NyTweetDeckTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -39,6 +48,115 @@ import org.junit.Test
 class VideoPlaybackSurfaceUiTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun duplicateMediaInstancesReleaseThePreviousDecoderBeforePlayback() {
+        composeRule.activity.setContent {
+            NyTweetDeckTheme {
+                Column {
+                    repeat(2) {
+                        Box(Modifier.fillMaxWidth().height(180.dp)) {
+                            InlineVideoPlayer(
+                                media = media("duplicate"), autoPlay = false, loop = false,
+                                volume = 42, onFullscreen = {},
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        val (first, second) = awaitPlayerViews(2)
+        startSilentPlayback(first)
+        startSilentPlayback(second)
+        waitForPlayer(second) { it.isPlaying }
+        composeRule.runOnIdle {
+            assertFalse(first.player!!.isPlaying)
+            assertEquals(0, first.player!!.mediaItemCount)
+            assertTrue(second.player!!.isPlaying)
+        }
+    }
+
+    @Test
+    fun fullscreenAndInlineKeepPositionMuteVolumePauseAndLoopInBothDirections() {
+        val fullscreen = mutableStateOf(false)
+        composeRule.activity.setContent {
+            NyTweetDeckTheme {
+                if (fullscreen.value) {
+                    FullscreenVideoPlayer(
+                        media = media("handoff"), autoPlay = true, loop = true, volume = 90,
+                        onExitFullscreen = { fullscreen.value = false }, onRotateToLandscape = {},
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Box(Modifier.fillMaxWidth().height(240.dp)) {
+                        InlineVideoPlayer(
+                            media = media("handoff"), autoPlay = false, loop = false, volume = 90,
+                            defaultQuality = VideoQuality.LOW,
+                            onFullscreen = { fullscreen.value = true },
+                        )
+                    }
+                }
+            }
+        }
+        val inline = awaitPlayerViews(1).single()
+        startSilentPlayback(inline)
+        composeRule.runOnIdle {
+            inline.player!!.pause()
+            inline.player!!.seekTo(12_000L)
+        }
+        composeRule.onNodeWithTag("inline-video-volume", useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(0.42f) }
+        composeRule.onNodeWithTag("inline-video-fullscreen", useUnmergedTree = true).performClick()
+        composeRule.waitUntil(5_000) { playerViews().singleOrNull()?.let { it !== inline } == true }
+        val full = playerViews().single()
+        composeRule.runOnIdle {
+            assertEquals(12_000L, full.player!!.currentPosition)
+            assertFalse(full.player!!.playWhenReady)
+            assertEquals(0.42f, full.player!!.volume, 0.01f)
+            assertEquals(Player.REPEAT_MODE_OFF, full.player!!.repeatMode)
+            assertTrue(full.player!!.currentMediaItem!!.localConfiguration!!.uri.toString().endsWith("low.mp4"))
+        }
+        composeRule.onNodeWithTag("media-video-quality", useUnmergedTree = true).performClick()
+        composeRule.onNodeWithTag("media-video-quality-high", useUnmergedTree = true).performClick()
+        waitForPlayer(full) {
+            it.currentMediaItem?.localConfiguration?.uri?.toString()?.endsWith("high.mp4") == true
+        }
+        composeRule.onNodeWithTag("media-video-volume", useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(0.23f) }
+        composeRule.onNodeWithTag("media-video-fullscreen", useUnmergedTree = true).performClick()
+        composeRule.waitUntil(5_000) { playerViews().singleOrNull()?.let { it !== full } == true }
+        val restored = playerViews().single()
+        composeRule.runOnIdle {
+            assertEquals(12_000L, restored.player!!.currentPosition)
+            assertFalse(restored.player!!.playWhenReady)
+            assertEquals(0.23f, restored.player!!.volume, 0.01f)
+            assertTrue(restored.player!!.currentMediaItem!!.localConfiguration!!.uri.toString().endsWith("high.mp4"))
+        }
+    }
+
+    @Test
+    fun pinchReachesVideoAboveTheNativeSurfaceAndDoubleTapResetsIt() {
+        composeRule.activity.setContent {
+            NyTweetDeckTheme {
+                FullscreenVideoPlayer(
+                    media = media("pinch"), autoPlay = false, loop = false, volume = 0,
+                    onExitFullscreen = {}, onRotateToLandscape = {}, modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+        val view = awaitPlayerViews(1).single()
+        startSilentPlayback(view)
+        val surface = composeRule.onNodeWithTag("media-video-surface", useUnmergedTree = true)
+        surface.performTouchInput {
+            pinch(
+                start0 = center - Offset(40f, 0f), start1 = center + Offset(40f, 0f),
+                end0 = center - Offset(140f, 0f), end1 = center + Offset(140f, 0f),
+            )
+        }
+        assertTrue(surface.fetchSemanticsNode().config[VideoZoomScale] > 1.5f)
+        surface.performTouchInput { doubleClick() }
+        assertEquals(1f, surface.fetchSemanticsNode().config[VideoZoomScale], 0.01f)
+    }
 
     @Test
     fun inlinePlaybackKeepsTheScreenOnlyWhilePlayingAndReleasesOffscreen() {
@@ -256,5 +374,9 @@ class VideoPlaybackSurfaceUiTest {
     private fun media(id: String) = Media(
         id = id, type = "video", url = "https://video.twimg.com/ext_tw_video/fixture.mp4",
         previewUrl = null,
+        variants = if (id == "handoff") listOf(
+            VideoVariant("https://video.twimg.com/ext_tw_video/low.mp4", 100_000L),
+            VideoVariant("https://video.twimg.com/ext_tw_video/high.mp4", 1_000_000L),
+        ) else emptyList(),
     )
 }
