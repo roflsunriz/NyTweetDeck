@@ -48,6 +48,7 @@ export function ShareMenu({
       const right = left + (viewport?.width ?? innerWidth) - 16;
       const bottom = top + (viewport?.height ?? innerHeight) - 16;
       const anchor = trigger.getBoundingClientRect();
+      const scrollTop = menu.scrollTop;
       menu.style.maxWidth = `${Math.max(1, right - left)}px`;
       menu.style.maxHeight = `${Math.max(1, bottom - top)}px`;
       const bounds = menu.getBoundingClientRect();
@@ -60,16 +61,21 @@ export function ShareMenu({
         getComputedStyle(trigger).direction === "rtl" ? anchor.left : anchor.right - bounds.width;
       menu.style.left = `${Math.max(left, Math.min(right - bounds.width, preferredLeft))}px`;
       menu.style.top = `${Math.max(top, Math.min(bottom - height, upwards ? anchor.top - height - 4 : anchor.bottom + 4))}px`;
+      menu.scrollTop = scrollTop;
+    };
+    const repositionAfterScroll = (event: Event) => {
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+      position();
     };
     position();
     menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
     window.addEventListener("resize", position);
-    window.addEventListener("scroll", position, true);
+    window.addEventListener("scroll", repositionAfterScroll, true);
     window.visualViewport?.addEventListener("resize", position);
     window.visualViewport?.addEventListener("scroll", position);
     return () => {
       window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position, true);
+      window.removeEventListener("scroll", repositionAfterScroll, true);
       window.visualViewport?.removeEventListener("resize", position);
       window.visualViewport?.removeEventListener("scroll", position);
     };

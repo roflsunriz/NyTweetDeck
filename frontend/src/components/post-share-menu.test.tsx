@@ -102,5 +102,10 @@ for (const scenario of [
     expect(left + width).toBeLessThanOrEqual(scenario.width - 8);
     expect(top + height).toBeLessThanOrEqual(scenario.height - 8);
     expect(screen.getAllByRole("menuitem")).toHaveLength(4);
+    menu.scrollTop = 72;
+    fireEvent.scroll(menu);
+    expect(menu.scrollTop).toBe(72);
+    fireEvent.resize(window);
+    expect(menu.scrollTop).toBe(72);
   });
 }
