@@ -636,6 +636,10 @@ async function assertBlackVideoBars(client: CdpClient, phase: string): Promise<v
 }
 
 async function verifyVideoAndWakeLock(client: CdpClient): Promise<Record<string, unknown>> {
+  // Native visibility, unlike the fixture's visibilityState override, governs
+  // canvas capture and media decoding. Activate before recording or preloading.
+  await client.call("Page.bringToFront");
+  await waitForPageCondition(client, "document.hasFocus()");
   const videoData = await client.evaluate<string>(`(async () => {
     const canvas = document.createElement("canvas");
     canvas.width = 180; canvas.height = 320;
@@ -646,26 +650,32 @@ async function verifyVideoAndWakeLock(client: CdpClient): Promise<Record<string,
       context.fillStyle = "#0000e0"; context.fillRect(0, 280, 180, 40);
     };
     paint();
-    const stream = canvas.captureStream(20);
-    const recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+    const stream = canvas.captureStream(0);
+    const track = stream.getVideoTracks()[0];
+    const mimeType = "video/webm;codecs=vp8";
+    if (!MediaRecorder.isTypeSupported(mimeType) || typeof track.requestFrame !== "function")
+      throw new Error("Synthetic video capture requires VP8 and manual canvas frames");
+    const recorder = new MediaRecorder(stream, { mimeType });
     const chunks = [];
     recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
     const stopped = new Promise(resolve => { recorder.onstop = resolve; });
-    recorder.start();
-    const timer = setInterval(paint, 40);
-    await new Promise(resolve => setTimeout(resolve, 600));
+    recorder.start(100);
+    for (let frame = 0; frame < 16; frame += 1) {
+      paint();
+      track.requestFrame();
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
     recorder.stop();
     await stopped;
-    clearInterval(timer);
     stream.getTracks().forEach(track => track.stop());
     const blob = new Blob(chunks, { type: "video/webm" });
+    if (blob.size === 0) throw new Error("Synthetic video capture produced no bytes");
     const encoded = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result).split(",")[1]);
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
-    window.__issueFixture.videoUrl = new URL("/__issue-fixture-portrait.webm", location.href).href;
     const posterCanvas = document.createElement("canvas");
     posterCanvas.width = 320; posterCanvas.height = 180;
     const posterContext = posterCanvas.getContext("2d");
@@ -673,15 +683,34 @@ async function verifyVideoAndWakeLock(client: CdpClient): Promise<Record<string,
     window.__issueFixture.posterUrl = posterCanvas.toDataURL("image/png");
     return encoded;
   })()`);
+  await client.evaluate(`(() => {
+    window.__issueMediaProbe = { bytes: ${Buffer.from(videoData, "base64").byteLength}, requests: [], events: [] };
+    for (const name of ["loadstart", "loadedmetadata", "loadeddata", "canplay", "stalled", "error"]) {
+      document.addEventListener(name, event => {
+        const video = event.target;
+        if (!(video instanceof HTMLVideoElement) || video.closest('[data-media-id="issue-video"]') === null) return;
+        window.__issueMediaProbe.events.push({ name, readyState: video.readyState, networkState: video.networkState, error: video.error?.message, source: video.currentSrc });
+      }, true);
+    }
+  })()`);
   const mediaErrors: string[] = [];
   client.on("Fetch.requestPaused", (params) => {
-    const event = params as { requestId: string };
+    const event = params as {
+      requestId: string;
+      request: { url: string; headers?: Record<string, string> };
+    };
+    void client
+      .evaluate(
+        `window.__issueMediaProbe.requests.push(${JSON.stringify({ url: event.request.url, range: event.request.headers?.Range ?? event.request.headers?.range ?? null })})`,
+      )
+      .catch(() => undefined);
     void client
       .call("Fetch.fulfillRequest", {
         requestId: event.requestId,
         responseCode: 200,
         responseHeaders: [
           { name: "Content-Type", value: "video/webm" },
+          { name: "Content-Length", value: String(Buffer.from(videoData, "base64").byteLength) },
           { name: "Accept-Ranges", value: "bytes" },
         ],
         body: videoData,
@@ -694,7 +723,12 @@ async function verifyVideoAndWakeLock(client: CdpClient): Promise<Record<string,
   await client.call("Fetch.enable", {
     patterns: [{ urlPattern: "*/__issue-fixture-portrait.webm*", requestStage: "Request" }],
   });
-  await client.evaluate('document.dispatchEvent(new Event("visibilitychange"))');
+  // Publish only after interception is ready. A timeline refresh may run between
+  // awaited calls; exposing the URL earlier could race a real 404 response.
+  await client.evaluate(`(() => {
+    window.__issueFixture.videoUrl = new URL("/__issue-fixture-portrait.webm", location.href).href;
+    document.dispatchEvent(new Event("visibilitychange"));
+  })()`);
   await waitForPageCondition(
     client,
     'document.querySelector("[data-media-id=issue-video]") !== null',
@@ -815,6 +849,9 @@ export async function verifyIssueRegressions(
       composerPresent: document.querySelector(".composer-form") !== null,
       fullscreenElement: document.fullscreenElement?.tagName,
       videoMetrics: [...document.querySelectorAll('[data-media-id]')].map(player => ({ id: player.dataset.mediaId, fullscreen: player.dataset.fullscreen, connected: player.dataset.mediaConnected, error: player.querySelector('.configured-video-error')?.textContent, controls: player.dataset.controlsVisible })),
+      mediaProbe: window.__issueMediaProbe,
+      videoDecode: [...document.querySelectorAll('[data-media-id="issue-video"] video')].map(video => ({ readyState: video.readyState, networkState: video.networkState, error: video.error?.message, source: video.currentSrc, width: video.videoWidth, height: video.videoHeight })),
+      nativeFocus: document.hasFocus(),
       historyLog: window.__issueFixture?.historyLog?.slice(-30)
     })`);
     console.info("Issue regression fixture history:", JSON.stringify(diagnostic));

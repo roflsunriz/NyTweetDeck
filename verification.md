@@ -2,6 +2,11 @@
 
 ## 2026-11-10: Open Issue #40〜#49の両版対応
 
+- 公開: 同じcommit `0dcd0b9`からPC `v1.9.0`とAndroid `android-v0.7.0`を公開。PC Release `42792695580`・Android release `42792694845`が成功し、公開チェックサムを照合した。PC ZIPのSHA-256は`F3BA7BAF2735BE70A8DA004FD4294E4419485E2A5FFDA9869C6ED59B32A8154C`、APKは`D491DE4985065B7CFCD142A1D084EA4F973209B38A50C6D71D6E544F8A6F574E`。
+- PC反映: 公開ZIP内のJARを既存配布先へ導入し、既存自動起動を再登録して再起動。稼働JARの版1.9.0、公開JARとのSHA-256一致（`8AB555872E31F6D6902EE79F1BC6598F376EB0C3A824A1788E079EF71372AE84`）、HTTP/HTTPS ready、配信JavaScriptとJAR内ファイルの一致、新しい共有/Undoコードの配信を確認した。アカウント・設定・HTTPS設定のファイルハッシュは更新前と一致し、自動起動はRunning、HTTP/HTTPSの待受は同じjavawプロセスの127.0.0.1だけだった。
+- Android反映: 公開APKの署名証明書が既存版と一致することを確認して、指定Pixelへデータを保持したまま上書き。0.7.0/versionCode 20、非debuggable、端末APKと公開物のハッシュ一致、アプリデータ領域の維持を確認した。通常起動と3回の背景/復帰後に起動を継続し、新規クラッシュなし。テスト専用APKを解除した。
+- CI動画fixtureの安定化: 公開Releaseの全ブラウザ検証は成功したが、同commitのmain CIで一度だけ合成動画のdecode待機が失敗した。動画録画前のactive/focus、VP8と実frame生成、通信stubを有効化してからURLを公開する順序を明示し、診断情報を追加した。製品コード・期待値・タイムアウト・検査対象は変更していない。
+
 - 対象: #40はユーザー訂正でAndroidのみ。#45/#49はIssue指定でAndroidのみ。#41〜#44/#46〜#48はPC・Android両方。
 - ローカル検証: フロントエンド261件、Java164件が成功。型・整形・lint（既存警告のみ）、配布JAR生成が成功。Androidは326件中325件成功、実X metadataの明示opt-in 1件は未実行。debug/release lint、debug・test・release APK生成が成功。
 - 実機: 今回指定されたPixel 10aだけを操作し、署名一致を先に確認。本体はデータ保持の上書き、テストAPKだけtestOnlyで導入した。動画排他・通常/全画面の位置/ミュート/音量/停止/画質保持・時間・ピンチ・SSE切断、画像倍率と切替、共有・Undo、既存ナビゲーション/返信/通知/トレンド/DMを含む25件が成功。検証後は既存の非debuggable releaseへ復元した。
