@@ -2,6 +2,8 @@
 
 ## 2026-11-10: Open Issue #40〜#49の両版対応
 
+- 最終結果: 動画fixture安定化後のmain CI `42793927734` が全41ジョブ成功。対象#40〜#49をcompletedでクローズし、Open Issue 0件を確認した。公開タグ以後の差分は検証script・検証記録だけで、PC/Androidの製品ソースは公開・稼働物と同一。最終記録の追記は文書のみのため追加CI・再配置を行わない。
+
 - 公開: 同じcommit `0dcd0b9`からPC `v1.9.0`とAndroid `android-v0.7.0`を公開。PC Release `42792695580`・Android release `42792694845`が成功し、公開チェックサムを照合した。PC ZIPのSHA-256は`F3BA7BAF2735BE70A8DA004FD4294E4419485E2A5FFDA9869C6ED59B32A8154C`、APKは`D491DE4985065B7CFCD142A1D084EA4F973209B38A50C6D71D6E544F8A6F574E`。
 - PC反映: 公開ZIP内のJARを既存配布先へ導入し、既存自動起動を再登録して再起動。稼働JARの版1.9.0、公開JARとのSHA-256一致（`8AB555872E31F6D6902EE79F1BC6598F376EB0C3A824A1788E079EF71372AE84`）、HTTP/HTTPS ready、配信JavaScriptとJAR内ファイルの一致、新しい共有/Undoコードの配信を確認した。アカウント・設定・HTTPS設定のファイルハッシュは更新前と一致し、自動起動はRunning、HTTP/HTTPSの待受は同じjavawプロセスの127.0.0.1だけだった。
 - Android反映: 公開APKの署名証明書が既存版と一致することを確認して、指定Pixelへデータを保持したまま上書き。0.7.0/versionCode 20、非debuggable、端末APKと公開物のハッシュ一致、アプリデータ領域の維持を確認した。通常起動と3回の背景/復帰後に起動を継続し、新規クラッシュなし。テスト専用APKを解除した。
