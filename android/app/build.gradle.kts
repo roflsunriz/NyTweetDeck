@@ -22,8 +22,8 @@ android {
         applicationId = "dev.nytweetdeck.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 19
-        versionName = "0.6.2"
+        versionCode = 20
+        versionName = "0.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

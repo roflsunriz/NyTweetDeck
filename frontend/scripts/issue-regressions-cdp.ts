@@ -1,7 +1,9 @@
-import { type CdpClient, navigatePage, waitForPageCondition } from "./cdp-client";
-import { readSharedLayout, updateSharedLayout } from "./shared-layout-cdp";
-import type { TimelinePost } from "../src/model/timeline";
 import { resolve } from "node:path";
+import type { TimelinePost } from "../src/model/timeline";
+import { type CdpClient, navigatePage, waitForPageCondition } from "./cdp-client";
+import { verifyOpenInteractionIssues } from "./interaction-open-issues-cdp";
+import { verifyOpenVideoIssues } from "./media-open-issues-cdp";
+import { readSharedLayout, updateSharedLayout } from "./shared-layout-cdp";
 
 /** 失敗応答の前から実DOMを監視し、操作後30秒未満の巻き戻しも検出する。 */
 export async function verifyDeferredEngagementRollback(
@@ -177,6 +179,25 @@ function installFixtureInPage(): void {
       depth === 1 ? root.id : `issue-reply-${depth - 1}`,
     ),
   );
+  const makeVideoPost = () => {
+    const video = makePost("issue-video-post", "Synthetic portrait video");
+    video.media = [
+      {
+        id: "issue-video",
+        type: "video",
+        url: state.videoUrl ?? "",
+        previewUrl: state.posterUrl ?? "",
+        variants:
+          state.videoUrl === null
+            ? []
+            : [
+                { url: `${state.videoUrl}?quality=low`, bitrate: 100 },
+                { url: state.videoUrl, bitrate: 1000 },
+              ],
+      },
+    ];
+    return video;
+  };
   const originalFetch = window.fetch.bind(window);
   const fixtureFetch = async (
     input: Parameters<typeof fetch>[0],
@@ -203,15 +224,7 @@ function installFixtureInPage(): void {
                 `Bulk new ${state.timelineVersion} ${index}`,
               ),
             );
-      const video = makePost("issue-video-post", "Synthetic portrait video");
-      video.media = [
-        {
-          id: "issue-video",
-          type: "video",
-          url: state.videoUrl ?? "",
-          previewUrl: state.posterUrl ?? "",
-        },
-      ];
+      const video = makeVideoPost();
       return Response.json({
         posts: [
           ...added,
@@ -242,7 +255,15 @@ function installFixtureInPage(): void {
     }
     if (url.pathname.startsWith("/api/v1/posts/issue-")) {
       const id = url.pathname.split("/")[4];
-      const post = id === root.id ? root : replies.find((item) => item.id === id);
+      const post =
+        id === "issue-video-post"
+          ? makeVideoPost()
+          : id === root.id
+            ? root
+            : (replies.find((item) => item.id === id) ??
+              (id?.startsWith("issue-old-") || id?.startsWith("issue-new-")
+                ? makePost(id, `Synthetic issue detail ${id}`)
+                : undefined));
       if (post) {
         const child = replies.find((item) => item.replyToPostId === post.id);
         return Response.json({
@@ -671,7 +692,7 @@ async function verifyVideoAndWakeLock(client: CdpClient): Promise<Record<string,
   });
   // CSPを緩めず、生成した動画だけを同一originの検証URLへ供給する。
   await client.call("Fetch.enable", {
-    patterns: [{ urlPattern: "*/__issue-fixture-portrait.webm", requestStage: "Request" }],
+    patterns: [{ urlPattern: "*/__issue-fixture-portrait.webm*", requestStage: "Request" }],
   });
   await client.evaluate('document.dispatchEvent(new Event("visibilitychange"))');
   await waitForPageCondition(
@@ -692,6 +713,8 @@ async function verifyVideoAndWakeLock(client: CdpClient): Promise<Record<string,
     'window.__issueFixture.wakeRequests === 1 && document.querySelector("[data-media-id=issue-video] video")?.hasAttribute("poster") === false',
   );
   await assertBlackVideoBars(client, "inline");
+  // Chrome grants fullscreen only to the active tab, including in headless mode.
+  await client.call("Page.bringToFront");
   await click(client, '[data-media-id="issue-video"] [data-video-action=fullscreen]');
   await waitForPageCondition(
     client,
@@ -722,6 +745,7 @@ async function verifyVideoAndWakeLock(client: CdpClient): Promise<Record<string,
     client,
     'window.__issueFixture.wakeReleases === 3 && document.querySelector("[data-media-id=issue-video] video") === null',
   );
+  const openVideoIssues = await verifyOpenVideoIssues(client, click);
   await client.call("Fetch.disable");
   if (mediaErrors.length > 0)
     throw new Error(`合成動画fixture配信に失敗しました: ${mediaErrors.join("; ")}`);
@@ -732,6 +756,7 @@ async function verifyVideoAndWakeLock(client: CdpClient): Promise<Record<string,
     wakeLockRequests: 3,
     wakeLockReleases: 3,
     wakeLockMocked: true,
+    ...openVideoIssues,
   };
 }
 
@@ -780,12 +805,16 @@ export async function verifyIssueRegressions(
       immediateScroll: true,
       topClearsNotification: true,
     });
+    const interaction = await verifyOpenInteractionIssues(client, applicationUrl, click);
+    results.push({ view: "issues-44-46-47-48", ...interaction });
   } catch (error) {
     const diagnostic = await client.evaluate<Record<string, unknown>>(`({
       hash: location.hash, token: history.state?.nytdOverlayToken ?? null,
       detailIndex: history.state?.nytdPostDetailIndex ?? null,
       activeDetail: document.querySelector(".post-detail-content")?.getAttribute("data-detail-post-id"),
       composerPresent: document.querySelector(".composer-form") !== null,
+      fullscreenElement: document.fullscreenElement?.tagName,
+      videoMetrics: [...document.querySelectorAll('[data-media-id]')].map(player => ({ id: player.dataset.mediaId, fullscreen: player.dataset.fullscreen, connected: player.dataset.mediaConnected, error: player.querySelector('.configured-video-error')?.textContent, controls: player.dataset.controlsVisible })),
       historyLog: window.__issueFixture?.historyLog?.slice(-30)
     })`);
     console.info("Issue regression fixture history:", JSON.stringify(diagnostic));

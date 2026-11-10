@@ -17,3 +17,13 @@
 - Windowsの手動起動は`run-nytweetdeck.vbs`/`run-nytweetdeck.cmd`が`wscript.exe`から非表示のWindows PowerShell 5.1を起動し、`run-nytweetdeck.ps1 -Background`で`javaw.exe`へ切り離す。`powershell.exe -WindowStyle Hidden`だけではWindows 11の`PseudoConsoleWindow`が可視のまま残りタスクバーへ出るため、コンソールを生成しない`wscript.exe`の`Run(command, 0, ...)`を使う。ログオン自動起動はクラッシュ再起動のため`wscript.exe ... --wait`で監督プロセスを維持する。非表示の5.1では`Cert:\CurrentUser\Root`が空に見えるため、専用CAの確認は`X509Store`を直接使う。
 - 旧プロセスの停止直後はJARがまだロックされていることがある。`Stop-Process`後の終了待機と置換の短時間再試行を入れ、稼働中JARの置換失敗を防ぐ。
 - Windowsの`format:check`は作業ツリーのCRLFで失敗することがある。インデックスはLFなので、`git -c core.autocrlf=false checkout-index --force --all`後に再実行して判定する。リリース時の依存監査は`bun audit`と`audit-maven.ps1`の両方を実行し、`happy-dom`は21.0.4以上でCVE-2026-33943を解消する。
+
+- 2026-11-10: #40はユーザー訂正によりAndroidだけ、#45/#49もIssue本文の指定でAndroidだけ。他の#41〜#48はPC/Android両方。PCの画像切替制約を変更しない。
+- 今回指定のPixel 10aのクラッシュは、実機R8 map IDと既存mapping.txtの一致で`LiveDeckController`→SSE response.close→gzip/TLSのmain-thread通信へ復号できた。動画形式起因とは断定しない。closeはidempotent flagを先に立て、cancel/response.closeをdaemon executorへ移す。`LivePipelineCloseUiTest`はmainからのcloseで実機回帰を検証する。
+- 同じ動画IDでもtimeline/detailのmounted playerは別ownerで排他する。全画面・画質切替時は位置/ミュート/音量/再生/画質を共有する。AndroidのdetectTapGesturesでdouble tapを扱うとsingle tapが遅延するため、操作バー表示はonPressで即時に行う。
+- PCの既存timeline cacheは64件/各200post、通知・トレンド・詳細の追加memory cacheは32件/5分。account/locale/sortをkeyにして即表示後に再検証する。詳細投機は200msの操作意図、1並列/5秒間隔、429は上流解除時刻または60秒まで停止。先読み通信にも15秒timeoutを使う。同一cache keyの複数columnは共有cacheの変更有無にかかわらず各自の空表示を初期化する。
+- Androidは通知・トレンド初回responseを既存disk cache（24h/64件/128MiB）へ保存、詳細memoryは24件/2分。詳細投機は1並列/6回毎分、画像/動画は近傍4post・8候補・8試行毎分で同URLを2分抑止する。Coil/Media3共通cacheを使い、動画のrange warmingは512KiBまで。UIのlifecycle STARTED中だけ実行する。
+- 10秒Undoは永続layoutへ削除を直ちに保存し、一時snapshotから同じID/元位置/設定を復元する。連続削除はそれぞれ期限管理し、別アカウントのruntimeを混在させない。Androidは削除column自身のruntime/scrollだけ保持し、元state全体を複製しない。
+- 既存`how-to-update.md`のfindings anchorは実体がなく実行手順を失っていたため、実行・配布・反映・復旧の手順を正本へ復元した。Android導入補助スクリプトは`-Serial`必須で対象端末へ限定する。
+
+- PC共有メニューは6項目以上の上向き固定popupだと先頭の短いpostでcolumn領域に切られる。body portal、visible viewport内の上下自動配置、最大高さとscrollで全操作を維持する。Chrome headlessの全画面検証は対象tabを`Page.bringToFront`してから行う。未選択tabではuserActivation=trueでも実Fullscreenが`not granted`で拒否されることを確認した。

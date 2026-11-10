@@ -4,7 +4,7 @@ NyTweetDeckはJava LTS 17・21・25を正式対応とし、配布JARをJava 17 b
 
 ## CI固定行列
 
-GitHub Actionsでは、`actions/setup-java v5`が公式対応する非推奨でない次の全ディストリビューションを、Java 17・21・25の直積で検証します。
+GitHub Actionsでは、`actions/setup-java v6`が公式対応する非推奨でない次の全ディストリビューションを、Java 17・21・25の直積で検証します。
 
 - Eclipse Temurin
 - Azul Zulu OpenJDK
@@ -30,4 +30,4 @@ Oracle JDK 17とOracle GraalVM JDK 17は、`actions/setup-java`公式READMEの�
 - 互換ジョブ: 全メーカー×17・21・25でJava 17 bytecodeのコンパイルと全Javaテスト
 - リリース: Temurin 17で非SNAPSHOT JARを生成し、ブラウザUIを再検証
 
-対応一覧は[actions/setup-java v5の公式README](https://github.com/actions/setup-java/tree/v5#supported-distributions)、Java対応範囲は[Spring Boot 4.1.1の公式要件](https://docs.spring.io/spring-boot/system-requirements.html)を根拠とします。
+対応一覧は[actions/setup-java v6の公式README](https://github.com/actions/setup-java/tree/v6#supported-distributions)、Java対応範囲は[Spring Bootの現行系列の公式要件](https://docs.spring.io/spring-boot/system-requirements.html)を根拠とします。

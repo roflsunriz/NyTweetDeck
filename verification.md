@@ -1,5 +1,15 @@
 # 検証手順
 
+## 2026-11-10: Open Issue #40〜#49の両版対応
+
+- 対象: #40はユーザー訂正でAndroidのみ。#45/#49はIssue指定でAndroidのみ。#41〜#44/#46〜#48はPC・Android両方。
+- ローカル検証: フロントエンド260件、Java164件が成功。型・整形・lint（既存警告のみ）、配布JAR生成が成功。Androidは326件中325件成功、実X metadataの明示opt-in 1件は未実行。debug/release lint、debug・test・release APK生成が成功。
+- 実機: 今回指定されたPixel 10aだけを操作し、署名一致を先に確認。本体はデータ保持の上書き、テストAPKだけtestOnlyで導入した。動画排他・通常/全画面の位置/ミュート/音量/停止/画質保持・時間・ピンチ・SSE切断、画像倍率と切替、共有・Undo、既存ナビゲーション/返信/通知/トレンド/DMを含む25件が成功。検証後は既存の非debuggable releaseへ復元した。
+- 初回実機失敗の修正: ダブルタップ判定待ちで操作バー再表示が約300ms遅れていた。onPressで直ちに表示する製品修正後、既存期待値を保ったまま全25件成功。
+- Android Lint初回はソース編集中にPSI/FIR解析器内部で失敗。編集停止後に全検査を再実行して成功し、抑制・skipは加えていない。
+- 監査: Bun68件、Maven70件、Gradle33件で既知の未撤回脆弱性0件。導入補助スクリプトの対象serial必須化、PowerShell構文、自動起動、統合導入、専用CA付きHTTP/HTTPS、両版の変更履歴抽出が成功。
+- PC実Chromeの最終結果、公開物、稼働版への反映は後続の確定記録へ追記する。
+
 ## 2026-10-26: Windows待ち受けサーバーの完全バックグラウンド起動
 
 - 変更内容: `run-nytweetdeck.vbs`を追加し、`wscript.exe`から`run-nytweetdeck.ps1 -Background`をウィンドウ非表示で起動するようにした。`run-nytweetdeck.cmd`は同じVBSを呼ぶ入口とし、ログオン自動起動は`wscript.exe ... --wait -NoBrowser`で監督プロセスを維持する。
