@@ -6,7 +6,7 @@ import {
   type DisplayPreferences,
   type ReplySort,
 } from "../model/layout";
-import { loadPostDetail, type PostDetail } from "../model/post-detail";
+import { loadPostDetail, readPostDetail, type PostDetail } from "../model/post-detail";
 import { buildReplyThreadLayout, type ReplyThreadLayoutItem } from "../model/reply-thread-layout";
 import type { TimelinePost } from "../model/timeline";
 import { usePostDetailNavigation } from "../model/use-post-detail-navigation";
@@ -52,9 +52,16 @@ export function PostDetailDialog({
   const cachedDetails = useRef(
     new Map<
       string,
-      { detail: PostDetail; scrollTop: number; showPossibleSpam: boolean; cursors: Set<string> }
+      {
+        detail: PostDetail;
+        scrollTop: number;
+        showPossibleSpam: boolean;
+        cursors: Set<string>;
+        firstPageReplyIds: Set<string>;
+      }
     >(),
   );
+  const firstPageReplyIds = useRef(new Set<string>());
   const pendingScroll = useRef<number | null>(null);
   const [detail, setDetail] = useState<PostDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -74,6 +81,7 @@ export function PostDetailDialog({
     pendingScroll.current = cached?.scrollTop ?? 0;
     setDetail(
       cached?.detail ??
+        readPostDetail(accountId, postId, locale, replySort) ??
         (initialPost?.id === postId
           ? { post: initialPost, contextPosts: [], replies: [], nextCursor: null }
           : null),
@@ -85,15 +93,35 @@ export function PostDetailDialog({
     setLoadMoreError(false);
     const requests = { cursors: new Set(cached?.cursors), loading: false, active: true };
     replyRequests.current = requests;
-    if (cached !== undefined) {
-      setLoadingDetail(false);
-      return () => {
-        requests.active = false;
-      };
-    }
     void loadPostDetail(accountId, postId, locale, replySort)
       .then((value) => {
-        if (active) setDetail(value);
+        if (!active) return;
+        const pagedTail =
+          cached !== undefined && cached.cursors.size > 0
+            ? cached.detail.replies.filter(
+                (post) =>
+                  !cached.firstPageReplyIds.has(post.id) &&
+                  !value.replies.some((fresh) => fresh.id === post.id),
+              )
+            : [];
+        firstPageReplyIds.current = new Set(value.replies.map((post) => post.id));
+        const hasPaged = cached !== undefined && cached.cursors.size > 0;
+        const replies = [...value.replies, ...pagedTail];
+        const excluded = new Set([
+          value.post.id,
+          ...(value.contextPosts ?? []).map((post) => post.id),
+          ...replies.map((post) => post.id),
+        ]);
+        const related = new Map(
+          (hasPaged ? (cached.detail.relatedPosts ?? []) : []).map((post) => [post.id, post]),
+        );
+        for (const post of value.relatedPosts ?? []) related.set(post.id, post);
+        setDetail({
+          ...value,
+          replies,
+          relatedPosts: [...related.values()].filter((post) => !excluded.has(post.id)),
+          nextCursor: hasPaged ? cached.detail.nextCursor : value.nextCursor,
+        });
       })
       .catch(() => {
         if (active) setError(translation.timelineLoadError);
@@ -126,6 +154,7 @@ export function PostDetailDialog({
     if (detail !== null && !loadingDetail && error === null)
       cachedDetails.current.set(detailCacheKey, {
         detail,
+        firstPageReplyIds: new Set(firstPageReplyIds.current),
         scrollTop: contentRef.current?.closest(".modal-panel")?.scrollTop ?? 0,
         showPossibleSpam,
         cursors: new Set(

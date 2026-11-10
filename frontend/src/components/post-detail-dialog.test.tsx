@@ -1,3 +1,4 @@
+import { clearPostDetailSnapshots } from "../model/post-detail";
 import { afterEach, expect, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -237,7 +238,8 @@ test("follows replies repeatedly and restores each detail and scroll through Bac
   await screen.findByText("child 901");
   expect(panel.scrollTop).toBe(200);
   expect(closed).not.toHaveBeenCalled();
-  expect(requests.filter((url) => /\/posts\/\d+\?/u.test(url)).length).toBe(4);
+  // Four opens and three background revalidations while returning through history.
+  expect(requests.filter((url) => /\/posts\/\d+\?/u.test(url)).length).toBe(7);
   const reply = container.querySelector<HTMLElement>(
     '[data-reply-thread-id="901"] [data-post-action="reply"]',
   );
@@ -253,6 +255,7 @@ test("follows replies repeatedly and restores each detail and scroll through Bac
 });
 
 afterEach(() => {
+  clearPostDetailSnapshots();
   cleanup();
   globalThis.fetch = originalFetch;
   Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth });

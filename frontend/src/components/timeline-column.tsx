@@ -193,7 +193,7 @@ function TimelineColumnContent({
             (preservingViewport
               ? timelineCache.mergeFirstPage(timelineCacheKey, page)
               : timelineCache.writeFirstPage(timelineCacheKey, page));
-          if (changed) {
+          if (changed || !hadPosts) {
             if (preservingViewport) {
               const current = postsRef.current;
               viewportAnchorRef.current = captureViewportAnchor(scrollRef.current);

@@ -86,6 +86,9 @@ describe("NyTweetDeck shell", () => {
 
     await user.click(screen.getByRole("button", { name: "おすすめを削除" }));
     expect(screen.getByText("カラムがありません")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "復元" }));
+    expect(screen.getByRole("heading", { name: "おすすめ" })).toBeDefined();
+    await waitFor(() => expect(sharedSnapshot?.layout.columns[0]?.sort).toBe("top"));
   });
 
   test("changes language and theme from settings", async () => {

@@ -36,6 +36,8 @@ import { PostTranslationProvider } from "./components/post-translation-context";
 import { SettingsDialog } from "./components/settings-dialog";
 import { TimelineColumn } from "./components/timeline-column";
 import { TrendsColumn } from "./components/trends-column";
+import { interactionLabels } from "./i18n/interaction-labels";
+import { useColumnUndo } from "./model/use-column-undo";
 import { translate } from "./i18n/translations";
 import { fetchWithTimeout } from "./model/fetch-with-timeout";
 import {
@@ -52,6 +54,7 @@ import {
 } from "./model/layout";
 import { useSharedLayout } from "./model/use-shared-layout";
 import { useListCandidates } from "./model/use-list-candidates";
+import { PageSnapshotProvider } from "./model/page-snapshots";
 import { TimelineCacheProvider } from "./model/timeline-cache";
 
 const navIcons: Record<NavItemId, LucideIcon> = {
@@ -108,9 +111,11 @@ const navigationAutoHideDelayMilliseconds = 3_000;
 
 export function App() {
   return (
-    <TimelineCacheProvider>
-      <AppContent />
-    </TimelineCacheProvider>
+    <PageSnapshotProvider>
+      <TimelineCacheProvider>
+        <AppContent />
+      </TimelineCacheProvider>
+    </PageSnapshotProvider>
   );
 }
 
@@ -273,12 +278,11 @@ function AppContent() {
     setDialog(null);
   };
 
-  const removeColumn = (id: string) => {
-    setLayout((current) => ({
-      ...current,
-      columns: current.columns.filter((column) => column.id !== id),
-    }));
-  };
+  const {
+    removed: removedColumns,
+    remove: removeColumn,
+    undo: undoColumn,
+  } = useColumnUndo(layout, setLayout);
 
   const setLocale = (locale: Locale) => setLayout((current) => ({ ...current, locale }));
   const setTranslationLocale = (translationLocale: Locale) =>
@@ -668,6 +672,29 @@ function AppContent() {
           )}
         </main>
 
+        {removedColumns.length > 0 && (
+          <div className="column-undo-stack" aria-live="polite">
+            {removedColumns.map((removed) => (
+              <div
+                className="column-undo"
+                key={removed.column.id}
+                data-removed-column={removed.column.id}
+              >
+                <span>
+                  {interactionLabels(layout.locale).columnRemoved}:{" "}
+                  {removed.column.label ?? translation.column[removed.column.kind].title}
+                </span>
+                <button
+                  type="button"
+                  data-action="undo-column"
+                  onClick={() => undoColumn(removed.column.id)}
+                >
+                  {interactionLabels(layout.locale).undo}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {dialog === "columns" && (
           <AddColumnDialog
             translation={translation}

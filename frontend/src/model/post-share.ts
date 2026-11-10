@@ -39,11 +39,11 @@ function authorHandle(author: TimelineAuthor): string {
   return `${name}@${handle}`;
 }
 
-function directMediaLinks(media: Pick<TimelineMedia, "url">[]): string[] {
+export function directMediaLinks(media: Pick<TimelineMedia, "url">[]): string[] {
   const links: string[] = [];
   for (const item of media) {
     const url = item.url.trim();
-    if (url.length > 0 && !links.includes(url)) {
+    if (/^https?:\/\//iu.test(url) && !links.includes(url)) {
       links.push(url);
     }
   }
@@ -161,13 +161,13 @@ export function formatDetailedShare(
   post: ShareablePost,
   locale: string,
   nowMilliseconds = Date.now(),
-  options: { translated?: boolean } = {},
+  options: { translated?: boolean; includeQuote?: boolean } = {},
 ): string {
   const body =
     options.translated === true
       ? translatedShareBody(post.text, post.preTranslated)
       : post.text.trim();
-  const quoted = post.quotedPost;
+  const quoted = options.includeQuote === false ? null : post.quotedPost;
   const quotedBody =
     quoted === null
       ? null
@@ -196,9 +196,9 @@ export async function formatTranslatedDetailedShare(
   locale: string,
   translationLocale: Locale,
   nowMilliseconds = Date.now(),
-  options: { timeoutMilliseconds?: number } = {},
+  options: { timeoutMilliseconds?: number; includeQuote?: boolean } = {},
 ): Promise<string> {
-  const quoted = post.quotedPost;
+  const quoted = options.includeQuote === false ? null : post.quotedPost;
   const [body, quotedBody] = await Promise.all([
     resolveTranslatedShareBody(
       {

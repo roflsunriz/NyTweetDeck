@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  directMediaLinks,
   formatDetailedShare,
   formatTranslatedDetailedShare,
   postShareUrl,
@@ -234,4 +235,46 @@ describe("resolveTranslatedShareBody", () => {
     expect(text).not.toContain("Hello world");
     expect(text.endsWith("https://x.com/alice/status/live-full-1")).toBe(true);
   });
+});
+
+test("media-only links preserve mixed media order, deduplicate, and reject unsafe links", () => {
+  expect(
+    directMediaLinks([
+      { url: "https://pbs.twimg.com/a.jpg" },
+      { url: "https://video.twimg.com/a.mp4" },
+      { url: "https://pbs.twimg.com/a.jpg" },
+      { url: "javascript:bad" },
+    ]),
+  ).toEqual(["https://pbs.twimg.com/a.jpg", "https://video.twimg.com/a.mp4"]);
+});
+
+test("quote-free copies omit quoted author/body and never request quoted translation", async () => {
+  let requests = 0;
+  globalThis.fetch = (async () => {
+    requests++;
+    throw new Error("unexpected translation");
+  }) as unknown as typeof fetch;
+  const post = {
+    ...basePost(),
+    language: "ja",
+    quotedPost: {
+      ...basePost(),
+      id: "quoted-only",
+      text: "Quoted secret body",
+      language: "en",
+      media: [],
+      author: { ...basePost().author, displayName: "Quoted person" },
+    },
+  };
+  const plain = formatDetailedShare(post, "ja", Date.now(), { includeQuote: false });
+  const translated = await formatTranslatedDetailedShare("no-quote", post, "ja", "ja", Date.now(), {
+    includeQuote: false,
+  });
+  for (const value of [plain, translated]) {
+    expect(value).toContain("本文テスト");
+    expect(value).not.toContain("Quoted person");
+    expect(value).not.toContain("Quoted secret body");
+    expect(value.endsWith("https://x.com/alice/status/123")).toBe(true);
+  }
+  expect(requests).toBe(0);
 });

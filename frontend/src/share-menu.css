@@ -1,0 +1,33 @@
+.post-share-menu {
+  position: fixed;
+  z-index: 210;
+  display: grid;
+  inline-size: min(22rem, calc(100vw - 16px));
+  box-sizing: border-box;
+  margin: 0;
+  padding: 5px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.post-share-menu > button {
+  min-inline-size: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.post-share-menu > button:hover,
+.post-share-menu > button:focus-visible {
+  background: var(--surface-hover);
+}

@@ -880,3 +880,26 @@ class FakeEventSource {
     this.listeners.get(type)?.(event);
   }
 }
+
+test("identical columns each display the shared first response", async () => {
+  globalThis.fetch = (async (input) =>
+    String(input).includes("/api/v1/timelines/")
+      ? Response.json({
+          posts: [post("duplicate-snapshot", "shared first response")],
+          nextCursor: null,
+        })
+      : Response.json({ connected: true, topicCount: 1 })) as typeof fetch;
+  render(
+    <TimelineCacheProvider>
+      {["a", "b"].map((id) => (
+        <TimelineColumn
+          key={id}
+          column={{ id, kind: "home", target: null, label: null }}
+          accountId="duplicate-account"
+          translation={translate("ja")}
+        />
+      ))}
+    </TimelineCacheProvider>,
+  );
+  await waitFor(() => expect(screen.getAllByText("shared first response")).toHaveLength(2));
+});

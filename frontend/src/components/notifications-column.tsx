@@ -1,3 +1,5 @@
+import type { ComponentProps } from "react";
+import { usePageSnapshots } from "../model/page-snapshots";
 import { Bell, Heart, MessageCircle, Repeat2, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
@@ -36,7 +38,7 @@ interface NotificationPage {
   nextCursor: string | null;
 }
 
-export function NotificationsColumn({
+function NotificationsColumnContent({
   accountId,
   translation,
   display = defaultDisplayPreferences,
@@ -47,9 +49,14 @@ export function NotificationsColumn({
   display?: DisplayPreferences;
   locale?: Locale;
 }) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [posts, setPosts] = useState<TimelinePost[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const snapshots = usePageSnapshots();
+  const snapshotKey = JSON.stringify(["notifications", accountId, locale]);
+  const cached = snapshots.read<NotificationPage>(snapshotKey);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(
+    () => cached?.notifications ?? [],
+  );
+  const [posts, setPosts] = useState<TimelinePost[]>(() => cached?.posts ?? []);
+  const [cursor, setCursor] = useState<string | null>(() => cached?.nextCursor ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -79,6 +86,7 @@ export function NotificationsColumn({
           throw new Error(`HTTP ${response.status}`);
         }
         const page = (await response.json()) as NotificationPage;
+        if (nextCursor === undefined) snapshots.write(snapshotKey, page);
         setNotifications((current) =>
           nextCursor === undefined
             ? page.notifications
@@ -105,14 +113,11 @@ export function NotificationsColumn({
         setLoading(false);
       }
     },
-    [accountId, locale],
+    [accountId, locale, snapshots, snapshotKey],
   );
   const { manualRefreshing, manualRefreshHandlers } = useManualRefreshAtTop(load);
 
   useEffect(() => {
-    setNotifications([]);
-    setPosts([]);
-    setCursor(null);
     void load();
   }, [load]);
 
@@ -330,5 +335,11 @@ function NotificationIcon({ kind }: { kind: NotificationItem["kind"] }) {
             : Bell;
   return (
     <Icon className={`notification-kind notification-kind-${kind}`} aria-hidden="true" size={20} />
+  );
+}
+
+export function NotificationsColumn(props: ComponentProps<typeof NotificationsColumnContent>) {
+  return (
+    <NotificationsColumnContent key={JSON.stringify([props.accountId, props.locale])} {...props} />
   );
 }

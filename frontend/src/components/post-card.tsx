@@ -1,31 +1,35 @@
-import { CommunityNoteCard } from "./community-note-card";
 import {
   BarChart3,
-  Bot,
   Bookmark,
+  Bot,
   Download,
   Heart,
   MessageCircle,
   Repeat2,
   Settings,
-  Share2,
 } from "lucide-react";
 import { type KeyboardEvent, type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import { interactionLabels } from "../i18n/interaction-labels";
 import type { Translation } from "../i18n/translations";
-import { defaultDisplayPreferences, type DisplayPreferences } from "../model/layout";
+import { type DisplayPreferences, defaultDisplayPreferences } from "../model/layout";
+import { prefetchImages } from "../model/media-prefetch";
+import { prefetchPostDetail } from "../model/post-detail";
 import {
+  directMediaLinks,
   formatDetailedShare,
   formatTranslatedDetailedShare,
   postShareUrl,
 } from "../model/post-share";
+import { postTextSegments } from "../model/post-text-segments";
 import { formatAbsolutePostTime, useRelativeTime } from "../model/relative-time";
 import type { EmbeddedPost, TimelinePost } from "../model/timeline";
-import { postTextSegments } from "../model/post-text-segments";
-import { ComposerDialog } from "./composer-dialog";
 import { ArticleCard } from "./article-card";
+import { CommunityNoteCard } from "./community-note-card";
+import { ComposerDialog } from "./composer-dialog";
 import { ConfiguredVideo } from "./configured-video";
-import { usePostTranslationSettings } from "./post-translation-context";
 import { PostMenu } from "./post-menu";
+import { ShareMenu } from "./post-share-menu";
+import { usePostTranslationSettings } from "./post-translation-context";
 import { useOptimisticToggle } from "./use-optimistic-toggle";
 import { type PostTranslationView, usePostTranslation } from "./use-post-translation";
 
@@ -70,12 +74,18 @@ export function PostCard({
     () => typeof globalThis.IntersectionObserver === "undefined",
   );
   const cardRef = useRef<HTMLElement | null>(null);
-  const { autoTranslatePosts, setAutoTranslatePosts, translationLocale } =
-    usePostTranslationSettings();
+  const {
+    autoTranslatePosts,
+    setAutoTranslatePosts,
+    translationLocale,
+    locale: detailLocale,
+    replySort,
+  } = usePostTranslationSettings();
   const locale = document.documentElement.lang || "en";
   const relativeTime = useRelativeTime(post.createdAt, locale);
   const time = absoluteTime ? formatAbsolutePostTime(post.createdAt, locale) : relativeTime;
   const postUrl = postShareUrl(post);
+  const shareLabels = interactionLabels(detailLocale);
   const postTranslation = usePostTranslation({
     accountId,
     postId: post.id,
@@ -161,8 +171,47 @@ export function PostCard({
     return () => observer.disconnect();
   }, [post.id]);
 
+  const prefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPrefetch = () => {
+    if (prefetchTimer.current !== null) clearTimeout(prefetchTimer.current);
+    prefetchTimer.current = null;
+  };
+  useEffect(
+    () => () => {
+      if (prefetchTimer.current !== null) clearTimeout(prefetchTimer.current);
+    },
+    [],
+  );
+  const prepareDetail = () => {
+    if (onOpen === undefined) return;
+    cancelPrefetch();
+    prefetchTimer.current = setTimeout(
+      () => prefetchPostDetail(accountId, post.id, detailLocale, replySort),
+      200,
+    );
+    prefetchImages(
+      post.media
+        .filter((media) => media.type === "photo" || media.type === "image")
+        .map((media) => media.url),
+    );
+  };
   const copyUrlOnly = async () => {
     await navigator.clipboard.writeText(postUrl);
+  };
+  const copyMedia = async () => {
+    await navigator.clipboard.writeText(directMediaLinks(post.media).join("\n"));
+  };
+  const copyWithoutQuote = async () => {
+    await navigator.clipboard.writeText(
+      formatDetailedShare(post, locale, Date.now(), { includeQuote: false }),
+    );
+  };
+  const copyTranslatedWithoutQuote = async () => {
+    await navigator.clipboard.writeText(
+      await formatTranslatedDetailedShare(accountId, post, locale, translationLocale, Date.now(), {
+        includeQuote: false,
+      }),
+    );
   };
   const copyWithDetails = async () => {
     await navigator.clipboard.writeText(formatDetailedShare(post, locale));
@@ -209,6 +258,11 @@ export function PostCard({
     <>
       <article
         ref={cardRef}
+        onPointerEnter={prepareDetail}
+        onPointerLeave={cancelPrefetch}
+        onFocus={prepareDetail}
+        onBlur={cancelPrefetch}
+        onTouchStart={prepareDetail}
         className="post-card"
         data-post-id={post.id}
         aria-label={onOpen === undefined ? undefined : translation.postDetail}
@@ -457,6 +511,21 @@ export function PostCard({
             urlLabel={translation.shareCopyUrl}
             detailsLabel={translation.shareCopyDetails}
             translatedDetailsLabel={translation.shareCopyDetailsTranslated}
+            extraActions={[
+              ...(directMediaLinks(post.media).length > 0
+                ? [{ id: "share-media", label: shareLabels.copyMedia, run: copyMedia }]
+                : []),
+              {
+                id: "share-details-without-quote",
+                label: shareLabels.withoutQuote,
+                run: copyWithoutQuote,
+              },
+              {
+                id: "share-details-translated-without-quote",
+                label: shareLabels.translatedWithoutQuote,
+                run: copyTranslatedWithoutQuote,
+              },
+            ]}
             onCopyUrl={copyUrlOnly}
             onCopyDetails={copyWithDetails}
             onCopyTranslatedDetails={copyWithTranslatedDetails}
@@ -679,83 +748,6 @@ function RepostMenu({
           <button type="button" role="menuitem" onClick={() => closeAndRun(onQuote)}>
             <MessageCircle aria-hidden="true" size={16} />
             {quoteLabel}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ShareMenu({
-  label,
-  urlLabel,
-  detailsLabel,
-  translatedDetailsLabel,
-  onCopyUrl,
-  onCopyDetails,
-  onCopyTranslatedDetails,
-}: {
-  label: string;
-  urlLabel: string;
-  detailsLabel: string;
-  translatedDetailsLabel: string;
-  onCopyUrl: () => void;
-  onCopyDetails: () => void;
-  onCopyTranslatedDetails: () => void;
-}) {
-  const menuId = useId();
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [open]);
-  const closeAndRun = (action: () => void) => {
-    setOpen(false);
-    action();
-  };
-  return (
-    <div className="share-menu">
-      <button
-        type="button"
-        className="post-action"
-        data-post-action="share"
-        aria-controls={menuId}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={label}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <Share2 aria-hidden="true" size={16} />
-      </button>
-      {open && (
-        <div id={menuId} role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            data-post-action="share-url"
-            onClick={() => closeAndRun(onCopyUrl)}
-          >
-            {urlLabel}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            data-post-action="share-details"
-            onClick={() => closeAndRun(onCopyDetails)}
-          >
-            {detailsLabel}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            data-post-action="share-details-translated"
-            onClick={() => closeAndRun(onCopyTranslatedDetails)}
-          >
-            {translatedDetailsLabel}
           </button>
         </div>
       )}

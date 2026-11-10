@@ -1,0 +1,32 @@
+.column-undo-stack {
+  position: fixed;
+  inset-block-end: 1rem;
+  inset-inline: 1rem;
+  z-index: 200;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  pointer-events: none;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.column-undo {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: min(100%, 36rem);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface, #15202b);
+  color: var(--text, #fff);
+  box-shadow: 0 2px 12px #0005;
+}
+.column-undo span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.column-undo button {
+  flex-shrink: 0;
+}

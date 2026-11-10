@@ -1,3 +1,5 @@
+import type { ComponentProps } from "react";
+import { usePageSnapshots } from "../model/page-snapshots";
 import { Search, X } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import type { Translation } from "../i18n/translations";
@@ -18,7 +20,7 @@ interface TrendPage {
   nextCursor: string | null;
 }
 
-export function TrendsColumn({
+function TrendsColumnContent({
   accountId,
   translation,
   onSelect,
@@ -37,8 +39,11 @@ export function TrendsColumn({
   onRememberFilter?: (query: string) => void;
   requestTimeoutMilliseconds?: number;
 }) {
-  const [trends, setTrends] = useState<Trend[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const snapshots = usePageSnapshots();
+  const snapshotKey = JSON.stringify(["trends", accountId]);
+  const cached = snapshots.read<TrendPage>(snapshotKey);
+  const [trends, setTrends] = useState<Trend[]>(() => cached?.trends ?? []);
+  const [cursor, setCursor] = useState<string | null>(() => cached?.nextCursor ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const loadingRef = useRef(false);
@@ -67,6 +72,7 @@ export function TrendsColumn({
           throw new Error(`HTTP ${response.status}`);
         }
         const page = (await response.json()) as TrendPage;
+        if (nextCursor === undefined) snapshots.write(snapshotKey, page);
         setTrends((current) =>
           nextCursor === undefined
             ? page.trends
@@ -83,12 +89,10 @@ export function TrendsColumn({
         setLoading(false);
       }
     },
-    [accountId, requestTimeoutMilliseconds],
+    [accountId, requestTimeoutMilliseconds, snapshots, snapshotKey],
   );
 
   useEffect(() => {
-    setTrends([]);
-    setCursor(null);
     void load();
   }, [load]);
 
@@ -223,4 +227,8 @@ export function filterTrends(trends: readonly Trend[], query: string): Trend[] {
       value?.toLocaleLowerCase().includes(normalized),
     ),
   );
+}
+
+export function TrendsColumn(props: ComponentProps<typeof TrendsColumnContent>) {
+  return <TrendsColumnContent key={JSON.stringify([props.accountId])} {...props} />;
 }
