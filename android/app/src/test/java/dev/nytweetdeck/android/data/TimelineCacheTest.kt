@@ -20,6 +20,17 @@ class TimelineCacheTest {
     }
 
     @Test
+    fun expiresOldEntriesAndBoundsStoredPages() {
+        val directory = Files.createTempDirectory("nytd-cache").toFile()
+        val cache = TimelineCache(directory)
+        cache.write("1", "homeForYou", "old", "{}")
+        directory.listFiles()!!.single().setLastModified(System.currentTimeMillis() - 25 * 60 * 60_000L)
+        assertNull(cache.read("1", "homeForYou", "old"))
+        repeat(70) { cache.write("1", "search", "$it", "{}") }
+        assertEquals(64, directory.listFiles()!!.count { it.extension == "json" })
+    }
+
+    @Test
     fun invalidOrOversizedEntriesAreIgnoredOrRejected() {
         val directory = Files.createTempDirectory("nytd-cache").toFile()
         val cache = TimelineCache(directory)

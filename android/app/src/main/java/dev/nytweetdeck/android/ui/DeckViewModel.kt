@@ -91,6 +91,7 @@ class DeckViewModel(
     private val saveRequests = Channel<DeckUiState>(capacity = Channel.CONFLATED)
     @Volatile
     private var accountStore: AccountStore? = null
+    private val columnRemovalController = ColumnRemovalController()
     private var visibleColumnIds: Set<String> = emptySet()
     private val visibilityRefreshJobs = mutableMapOf<String, Job>()
     private val restoredCacheColumnIds = mutableSetOf<String>()
@@ -168,6 +169,10 @@ class DeckViewModel(
         ::savedAccount,
         mutableState,
     )
+    private val secondaryColumnRefreshController = SecondaryColumnRefreshController(
+        notificationRepository, trendRepository, directMessageRepository, viewModelScope, ioDispatcher,
+        mutableState, { restoredCacheColumnIds.remove(it) },
+    )
     private val listPickerController = ListPickerController(
         listDirectoryRepository,
         viewModelScope,
@@ -221,20 +226,9 @@ class DeckViewModel(
                 val loadedAccountStore = accountStoreFile?.let(::AccountStore)
                 accountStore = loadedAccountStore
                 val selectedAccount = loadedAccountStore?.selectedAccount()
-                val cachedTimelines = if (selectedAccount != null && timelineRepository != null) {
-                    loadedLayout.columns.mapNotNull { column ->
-                        val kind = queryKind(column.kind) ?: return@mapNotNull null
-                        timelineRepository.cached(selectedAccount, kind, column.target)?.let { page ->
-                            column.id to ColumnTimelineState(
-                                status = TimelineLoadStatus.READY,
-                                posts = page.posts,
-                                nextCursor = page.nextCursor,
-                            )
-                        }
-                    }.toMap()
-                } else {
-                    emptyMap()
-                }
+                val cached = cachedColumns(loadedLayout, selectedAccount, timelineRepository,
+                    notificationRepository, trendRepository)
+                val cachedTimelines = cached.timelines
                 val loaded = loadedLayout.copy(
                     isInitializing = false,
                     accounts = loadedAccountStore?.accountSummaries()?.map { summary ->
@@ -247,18 +241,18 @@ class DeckViewModel(
                     }.orEmpty(),
                     selectedAccountId = loadedAccountStore?.selectedAccountId(),
                     timelines = cachedTimelines,
+                    notifications = cached.notifications,
+                    trends = cached.trends,
                 )
                 withContext(Dispatchers.Main.immediate) {
                     restoredCacheColumnIds.clear()
-                    restoredCacheColumnIds.addAll(cachedTimelines.keys)
+                    restoredCacheColumnIds.addAll(cachedTimelines.keys + cached.notifications.keys + cached.trends.keys)
                     postEngagementRefreshController?.seed(
                         loaded.selectedAccountId,
                         cachedTimelines.values.flatMap { it.posts },
                     )
                     loaded.selectedAccountId?.let { selectedId ->
-                        accountColumnCaches[selectedId] = AccountColumnSnapshot(
-                            timelines = loaded.timelines,
-                        )
+                        accountColumnCaches[selectedId] = cached
                     }
                     val runtime = mutableState.value
                     mutableState.value = loaded.copy(
@@ -299,16 +293,11 @@ class DeckViewModel(
         visibilityRefreshJobs.remove(id)?.cancel()
         restoredCacheColumnIds.remove(id)
         visibleColumnIds = visibleColumnIds - id
-        mutate { current ->
-            current.copy(
-                columns = current.columns.filterNot { it.id == id },
-                timelines = current.timelines - id,
-                notifications = current.notifications - id,
-                trends = current.trends - id,
-                messages = current.messages - id,
-                columnScrollPositions = current.columnScrollPositions - id,
-            )
-        }
+        mutate { columnRemovalController.remove(it, id) }
+    }
+    fun restoreColumn(id: String) = mutate { columnRemovalController.restore(it, id) }
+    fun expireRemovedColumn(id: String) {
+        mutableState.update { columnRemovalController.expire(it, id) }
     }
 
     fun moveColumn(id: String, direction: Int) {
@@ -443,6 +432,8 @@ class DeckViewModel(
     }
 
     fun selectAccount(accountId: String) {
+        columnRemovalController.clear()
+        mutableState.update { it.copy(removedColumns = emptyList()) }
         val store = accountStore ?: return
         if (mutableState.value.selectedAccountId == accountId) return
         rememberSelectedAccountColumns()
@@ -451,28 +442,15 @@ class DeckViewModel(
             runCatching { store.selectAccount(accountId) }
                 .onSuccess {
                     val account = runCatching { store.requireAccount(accountId) }.getOrNull()
-                    val diskTimelines = if (
-                        retainedSnapshot == null && account != null && timelineRepository != null
-                    ) {
-                        mutableState.value.columns.mapNotNull { column ->
-                            val kind = queryKind(column.kind) ?: return@mapNotNull null
-                            timelineRepository.cached(account, kind, column.target)?.let { page ->
-                                column.id to ColumnTimelineState(
-                                    status = TimelineLoadStatus.READY,
-                                    posts = page.posts,
-                                    nextCursor = page.nextCursor,
-                                )
-                            }
-                        }.toMap()
-                    } else {
-                        emptyMap()
-                    }
+                    val diskColumns = if (retainedSnapshot == null) cachedColumns(
+                        mutableState.value, account, timelineRepository, notificationRepository, trendRepository,
+                    ) else AccountColumnSnapshot()
                     withContext(Dispatchers.Main.immediate) {
                         postDetailController?.reset()
                         userProfileController?.reset()
-                        val restored = retainedSnapshot ?: AccountColumnSnapshot(timelines = diskTimelines)
+                        val restored = retainedSnapshot ?: diskColumns
                         restoredCacheColumnIds.clear()
-                        if (retainedSnapshot == null) restoredCacheColumnIds.addAll(diskTimelines.keys)
+                        if (retainedSnapshot == null) restoredCacheColumnIds.addAll(diskColumns.timelines.keys + diskColumns.notifications.keys + diskColumns.trends.keys)
                         postEngagementRefreshController?.seed(
                             accountId,
                             restored.timelines.values.flatMap { it.posts },
@@ -504,15 +482,15 @@ class DeckViewModel(
         val column = snapshot.columns.firstOrNull { it.id == columnId } ?: return
         when (column.kind) {
             ColumnKind.NOTIFICATIONS -> {
-                refreshNotifications(columnId, accountId, account)
+                secondaryColumnRefreshController.refreshNotifications(columnId, accountId, account)
                 return
             }
             ColumnKind.TRENDS -> {
-                refreshTrends(columnId, accountId, account)
+                secondaryColumnRefreshController.refreshTrends(columnId, accountId, account)
                 return
             }
             ColumnKind.MESSAGES -> {
-                refreshMessages(columnId, accountId, account)
+                secondaryColumnRefreshController.refreshMessages(columnId, accountId, account)
                 return
             }
             else -> Unit
@@ -607,226 +585,6 @@ class DeckViewModel(
                             ),
                         )
                     }
-                }
-            }
-        }
-    }
-
-    private fun refreshNotifications(columnId: String, accountId: String, account: AccountSecrets) {
-        val repository = notificationRepository ?: return
-        val previous = mutableState.value.notifications[columnId]
-        if (previous?.status == TimelineLoadStatus.LOADING || previous?.isRefreshing == true) return
-        mutableState.update { current ->
-            current.copy(
-                notifications = current.notifications + (
-                    columnId to if (previous?.status == TimelineLoadStatus.READY) {
-                        previous.copy(isRefreshing = true, refreshFailed = false)
-                    } else {
-                        NotificationColumnState(status = TimelineLoadStatus.LOADING)
-                    }
-                ),
-            )
-        }
-        viewModelScope.launch(ioDispatcher) {
-            val result = runCatching {
-                    repository.load(account, language = mutableState.value.appLanguageTag)
-            }
-            withContext(Dispatchers.Main.immediate) {
-                if (mutableState.value.selectedAccountId != accountId) return@withContext
-                mutableState.update { current ->
-                    val existing = current.notifications[columnId]
-                    current.copy(
-                        notifications = current.notifications + (
-                            columnId to result.fold(
-                                onSuccess = { page ->
-                                    val existingIds = existing?.page?.notifications
-                                        ?.mapTo(HashSet()) { it.id }
-                                        .orEmpty()
-                                    val newItems = if (existing?.status == TimelineLoadStatus.READY) {
-                                        page.notifications.filterNot { it.id in existingIds }
-                                    } else {
-                                        emptyList()
-                                    }
-                                    val mergedNotifications = LinkedHashMap<String, dev.nytweetdeck.android.model.Notification>()
-                                    page.notifications.forEach { mergedNotifications[it.id] = it }
-                                    existing?.page?.notifications?.forEach { mergedNotifications.putIfAbsent(it.id, it) }
-                                    val mergedPosts = LinkedHashMap<String, dev.nytweetdeck.android.model.Post>()
-                                    page.posts.forEach { mergedPosts[it.id] = it }
-                                    existing?.page?.posts?.forEach { mergedPosts.putIfAbsent(it.id, it) }
-                                    NotificationColumnState(
-                                        status = TimelineLoadStatus.READY,
-                                        page = page.copy(
-                                            notifications = mergedNotifications.values.toList(),
-                                            posts = mergedPosts.values.toList(),
-                                            nextCursor = existing?.page?.nextCursor ?: page.nextCursor,
-                                        ),
-                                        newItemCount = newItems.size,
-                                        newItemAvatarUrls = newItems.flatMap { item ->
-                                            item.actors.mapNotNull { it.avatarUrl }
-                                        }.distinct().take(5),
-                                        refreshGeneration = if (existing?.status == TimelineLoadStatus.READY) {
-                                            existing.refreshGeneration + 1
-                                        } else {
-                                            existing?.refreshGeneration ?: 0
-                                        },
-                                    )
-                                },
-                                onFailure = {
-                                    if (existing?.page != null) {
-                                        existing.copy(
-                                            status = TimelineLoadStatus.READY,
-                                            isRefreshing = false,
-                                            refreshFailed = true,
-                                            refreshGeneration = existing.refreshGeneration + 1,
-                                        )
-                                    } else {
-                                        NotificationColumnState(status = TimelineLoadStatus.FAILED)
-                                    }
-                                },
-                            )
-                        ),
-                    )
-                }
-            }
-        }
-    }
-
-    private fun refreshTrends(columnId: String, accountId: String, account: AccountSecrets) {
-        val repository = trendRepository ?: return
-        val previous = mutableState.value.trends[columnId]
-        if (previous?.status == TimelineLoadStatus.LOADING || previous?.isRefreshing == true) return
-        mutableState.update { current ->
-            current.copy(
-                trends = current.trends + (
-                    columnId to if (previous?.status == TimelineLoadStatus.READY) {
-                        previous.copy(isRefreshing = true, refreshFailed = false)
-                    } else {
-                        TrendColumnState(status = TimelineLoadStatus.LOADING)
-                    }
-                ),
-            )
-        }
-        viewModelScope.launch(ioDispatcher) {
-            val result = runCatching {
-                    repository.load(account, language = mutableState.value.appLanguageTag)
-            }
-            withContext(Dispatchers.Main.immediate) {
-                if (mutableState.value.selectedAccountId != accountId) return@withContext
-                mutableState.update { current ->
-                    val existing = current.trends[columnId]
-                    current.copy(
-                        trends = current.trends + (
-                            columnId to result.fold(
-                                onSuccess = { page ->
-                                    val existingKeys = existing?.page?.trends
-                                        ?.mapTo(HashSet()) { it.url }
-                                        .orEmpty()
-                                    val newCount = if (existing?.status == TimelineLoadStatus.READY) {
-                                        page.trends.count { it.url !in existingKeys }
-                                    } else {
-                                        0
-                                    }
-                                    TrendColumnState(
-                                        status = TimelineLoadStatus.READY,
-                                        page = page,
-                                        newItemCount = newCount,
-                                        refreshGeneration = if (existing?.status == TimelineLoadStatus.READY) {
-                                            existing.refreshGeneration + 1
-                                        } else {
-                                            existing?.refreshGeneration ?: 0
-                                        },
-                                    )
-                                },
-                                onFailure = {
-                                    if (existing?.page != null) {
-                                        existing.copy(
-                                            status = TimelineLoadStatus.READY,
-                                            isRefreshing = false,
-                                            refreshFailed = true,
-                                            refreshGeneration = existing.refreshGeneration + 1,
-                                        )
-                                    } else {
-                                        TrendColumnState(status = TimelineLoadStatus.FAILED)
-                                    }
-                                },
-                            )
-                        ),
-                    )
-                }
-            }
-        }
-    }
-
-    private fun refreshMessages(columnId: String, accountId: String, account: AccountSecrets) {
-        val repository = directMessageRepository ?: return
-        val previous = mutableState.value.messages[columnId]
-        if (previous?.status == TimelineLoadStatus.LOADING || previous?.isRefreshing == true) return
-        mutableState.update { current ->
-            current.copy(
-                messages = current.messages + (
-                    columnId to if (previous?.status == TimelineLoadStatus.READY) {
-                        previous.copy(isRefreshing = true, refreshFailed = false)
-                    } else {
-                        DirectMessageColumnState(status = TimelineLoadStatus.LOADING)
-                    }
-                ),
-            )
-        }
-        viewModelScope.launch(ioDispatcher) {
-            val result = runCatching {
-                    repository.load(account, language = mutableState.value.appLanguageTag)
-            }
-            withContext(Dispatchers.Main.immediate) {
-                if (mutableState.value.selectedAccountId != accountId) return@withContext
-                mutableState.update { current ->
-                    val existing = current.messages[columnId]
-                    current.copy(
-                        messages = current.messages + (
-                            columnId to result.fold(
-                                onSuccess = { page ->
-                                    val existingIds = existing?.page?.messages
-                                        ?.mapTo(HashSet()) { it.id }
-                                        .orEmpty()
-                                    val newItems = if (existing?.status == TimelineLoadStatus.READY) {
-                                        page.messages.filterNot { it.id in existingIds }
-                                    } else {
-                                        emptyList()
-                                    }
-                                    val merged = LinkedHashMap<String, dev.nytweetdeck.android.model.DirectMessage>()
-                                    page.messages.forEach { merged[it.id] = it }
-                                    existing?.page?.messages?.forEach { merged.putIfAbsent(it.id, it) }
-                                    DirectMessageColumnState(
-                                        status = TimelineLoadStatus.READY,
-                                        page = page.copy(
-                                            messages = merged.values.toList(),
-                                            nextCursor = existing?.page?.nextCursor ?: page.nextCursor,
-                                        ),
-                                        newItemCount = newItems.size,
-                                        newItemAvatarUrls = newItems.mapNotNull { it.senderAvatarUrl }
-                                            .distinct()
-                                            .take(5),
-                                        refreshGeneration = if (existing?.status == TimelineLoadStatus.READY) {
-                                            existing.refreshGeneration + 1
-                                        } else {
-                                            existing?.refreshGeneration ?: 0
-                                        },
-                                    )
-                                },
-                                onFailure = {
-                                    if (existing?.page != null) {
-                                        existing.copy(
-                                            status = TimelineLoadStatus.READY,
-                                            isRefreshing = false,
-                                            refreshFailed = true,
-                                            refreshGeneration = existing.refreshGeneration + 1,
-                                        )
-                                    } else {
-                                        DirectMessageColumnState(status = TimelineLoadStatus.FAILED)
-                                    }
-                                },
-                            )
-                        ),
-                    )
                 }
             }
         }
@@ -954,7 +712,9 @@ class DeckViewModel(
     }
 
     fun refreshVisiblePostStates(postIds: Set<String>) {
+        val restoring = postEngagementRefreshController?.hasStalePosts(postIds) == true
         postEngagementRefreshController?.refreshVisible(postIds)
+        if (!restoring) postDetailController?.prefetch(postIds.mapNotNull(::findLoadedPost))
     }
 
     fun saveColumnScrollPosition(
@@ -1026,6 +786,7 @@ class DeckViewModel(
     override fun onCleared() {
         visibilityRefreshJobs.values.forEach(Job::cancel)
         visibilityRefreshJobs.clear()
+        columnRemovalController.clear()
         liveDeckController.close()
         metadataRefreshController.close()
         super.onCleared()

@@ -8,7 +8,7 @@ import java.security.MessageDigest
 class TimelineCache(private val directory: File) {
     fun read(accountId: String, kind: String, target: String?): String? {
         val file = cacheFile(accountId, kind, target)
-        if (!file.isFile || file.length() !in 1..MAX_CACHE_ENTRY_BYTES.toLong()) return null
+        if (!file.isFile || System.currentTimeMillis() - file.lastModified() > 24 * 60 * 60_000L || file.length() !in 1..MAX_CACHE_ENTRY_BYTES.toLong()) return null
         return runCatching { file.readText(StandardCharsets.UTF_8) }.getOrNull()
     }
 
@@ -31,6 +31,12 @@ class TimelineCache(private val directory: File) {
         } finally {
             temporary.delete()
         }
+        var totalBytes = 0L
+        directory.listFiles()?.filter { it.extension == "json" }?.sortedByDescending { it.lastModified() }
+            ?.forEachIndexed { index, file ->
+                totalBytes += file.length()
+                if (index >= 64 || totalBytes > 128L * 1024 * 1024) file.delete()
+            }
     }
 
     fun clearAccount(accountId: String) {

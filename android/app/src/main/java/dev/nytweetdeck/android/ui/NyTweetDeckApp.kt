@@ -31,9 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -123,8 +125,8 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                 TimelineResponseParser(),
                 TimelineCache(context.cacheDir.resolve("timelines")),
             ),
-            NotificationRepository(graphQlClient),
-            TrendRepository(graphQlClient),
+            NotificationRepository(graphQlClient, cache = TimelineCache(context.cacheDir.resolve("timelines"))),
+            TrendRepository(graphQlClient, cache = TimelineCache(context.cacheDir.resolve("timelines"))),
             DirectMessageRepository(environment.restClient()),
             ListDirectoryRepository(graphQlClient),
             UserDirectoryRepository(graphQlClient),
@@ -141,6 +143,8 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
     }
     val viewModel = providedViewModel ?: viewModel(factory = factory)
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var visiblePostIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val mediaPrefetch = remember(context, state.selectedAccountId) { MediaPrefetch(context) }
     var openDialog by remember { mutableStateOf<OpenDialog?>(null) }
     var transferStatus by remember { mutableStateOf(TransferStatus.NONE) }
     var followNotification by remember { mutableStateOf<DeckNotification?>(null) }
@@ -182,6 +186,14 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
         if (openDialog == OpenDialog.SETTINGS) apkUpdateController.check()
     }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val mediaCandidates = remember(state.timelines, state.notifications, visiblePostIds) {
+        nearbyMediaPosts(state, visiblePostIds)
+    }
+    LaunchedEffect(mediaCandidates, state.videoQuality, state.mediaPreview, mediaPrefetch) {
+        if (state.mediaPreview) lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            mediaPrefetch.warm(mediaCandidates, state.videoQuality)
+        }
+    }
     LaunchedEffect(state.isInitializing, state.appLanguageTag) {
         if (!state.isInitializing && AppLocaleController.currentLanguageTag(context) != state.appLanguageTag) {
             (context as? Activity)?.let { AppLocaleController.apply(it, state.appLanguageTag) }
@@ -447,6 +459,12 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                         NavigationPosition.BOTTOM -> Modifier.fillMaxSize().padding(bottom = 60.dp)
                     }
                 }
+                ColumnRemovalNotice(
+                    notices = state.removedColumns,
+                    onRestore = viewModel::restoreColumn,
+                    onExpire = viewModel::expireRemovedColumn,
+                    modifier = Modifier.align(Alignment.BottomCenter).then(Modifier.zIndex(10f)),
+                )
                 Box(modifier = deckModifier) {
                     DeckContent(
                         state = state,
@@ -458,7 +476,10 @@ fun NyTweetDeckApp(providedViewModel: DeckViewModel? = null) {
                         onLoadMoreColumn = viewModel::loadMore,
                         onClearNewPostsColumn = viewModel::clearNewPosts,
                         onVisibleColumnsChanged = viewModel::setVisibleColumns,
-                        onVisiblePostIdsChanged = viewModel::refreshVisiblePostStates,
+                        onVisiblePostIdsChanged = { ids ->
+                            visiblePostIds = ids
+                            viewModel.refreshVisiblePostStates(ids)
+                        },
                         onMoveColumn = viewModel::moveColumn,
                         onSaveColumnScrollPosition = viewModel::saveColumnScrollPosition,
                         onRepostClick = { postId ->

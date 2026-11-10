@@ -92,7 +92,7 @@
     <string name="post_share_copy_url">केवल लिंक कॉपी करें</string>
     <string name="post_share_copy_details">विवरण सहित कॉपी करें</string>
     <string name="post_share_copy_details_translated">विवरण सहित कॉपी करें (अनुवाद)</string>
-    <string name="post_details_copied">पोस्ट विवरण कॉपी किया गया।</string>
+    <string name="post_details_copied">क्लिपबोर्ड पर कॉपी किया गया।</string>
     <string name="post_share">शेयर करें</string>
     <string name="post_download">मीडिया डाउनलोड करें</string>
     <string name="post_time_now">now</string>
@@ -304,4 +304,8 @@
     <string name="translation_language_unknown">अज्ञात भाषा</string>
     <string name="setting_lock_column_swipe">कॉलम की क्षैतिज गति लॉक करें</string>
     <string name="column_select">कॉलम चुनें</string>
+    <string name="post_share_copy_media_urls">केवल मीडिया URL कॉपी करें</string>
+    <string name="post_share_copy_details_without_quote">उद्धरण के बिना विवरण कॉपी करें</string>
+    <string name="column_removed">कॉलम हटाया गया</string>
+    <string name="column_restore">पूर्ववत करें</string>
 </resources>

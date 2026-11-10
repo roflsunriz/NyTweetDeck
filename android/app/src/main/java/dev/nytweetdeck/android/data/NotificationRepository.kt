@@ -8,7 +8,13 @@ import dev.nytweetdeck.android.xapi.XSessionCredentials
 class NotificationRepository(
     private val graphQlExecutor: GraphQlExecutor,
     private val parser: NotificationResponseParser = NotificationResponseParser(),
+    private val cache: TimelineCache? = null,
 ) {
+    fun cached(account: AccountSecrets, language: String = "ja"): NotificationPage? =
+        cache?.read(account.accountId, "notifications", language)?.let { body ->
+            runCatching { parser.parse(body) }.getOrNull()
+        }
+
     fun load(account: AccountSecrets, cursor: String? = null, language: String = "ja"): NotificationPage {
         val variables = linkedMapOf<String, Any?>(
             "timeline_type" to "All",
@@ -21,6 +27,8 @@ class NotificationRepository(
             variables,
             language,
         )
-        return parser.parse(body)
+        val page = parser.parse(body)
+        if (cursor.isNullOrBlank()) cache?.write(account.accountId, "notifications", language, body)
+        return page
     }
 }

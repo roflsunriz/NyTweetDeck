@@ -13,6 +13,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import dev.nytweetdeck.android.security.verifiedExternalHttpsUrl
 
 internal enum class PostShareOutcome { SHARED, COPIED, INVALID }
 
@@ -59,7 +60,10 @@ internal fun shareAuthorLabel(author: Author): String {
 internal fun directShareMediaLinks(media: List<Media>): List<String> {
     val links = mutableListOf<String>()
     for (item in media) {
-        val url = (item.url ?: item.previewUrl)?.trim().orEmpty()
+        val rawUrl = if (item.type == "photo") item.url ?: item.previewUrl else {
+            item.variants.maxByOrNull { it.bitrate ?: 0L }?.url ?: item.url
+        }
+        val url = rawUrl?.trim()?.let { verifiedExternalHttpsUrl(it, setOf("twimg.com")) }.orEmpty()
         if (url.isNotEmpty() && url !in links) {
             links.add(url)
         }
@@ -142,9 +146,10 @@ internal fun formatDetailedPostShare(
     absoluteTime: String?,
     relativeTime: String?,
     translated: Boolean = false,
+    includeQuote: Boolean = true,
 ): String? {
     val url = postShareUrl(post.id) ?: return null
-    return formatDetailedPostShare(post, post.quotedPost, absoluteTime, relativeTime, url, translated)
+    return formatDetailedPostShare(post, post.quotedPost.takeIf { includeQuote }, absoluteTime, relativeTime, url, translated)
 }
 
 internal fun formatDetailedPostShare(

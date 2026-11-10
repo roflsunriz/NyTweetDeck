@@ -92,7 +92,7 @@
     <string name="post_share_copy_url">Copier le lien uniquement</string>
     <string name="post_share_copy_details">Copier avec détails</string>
     <string name="post_share_copy_details_translated">Copier avec détails (traduit)</string>
-    <string name="post_details_copied">Détails du post copiés.</string>
+    <string name="post_details_copied">Copié dans le presse-papiers.</string>
     <string name="post_share">Partager</string>
     <string name="post_download">Télécharger le média</string>
     <string name="post_time_now">now</string>
@@ -305,4 +305,8 @@
     <string name="translation_language_unknown">Langue inconnue</string>
     <string name="setting_lock_column_swipe">Verrouiller le déplacement horizontal des colonnes</string>
     <string name="column_select">Sélectionner une colonne</string>
+    <string name="post_share_copy_media_urls">Copier les URL des médias</string>
+    <string name="post_share_copy_details_without_quote">Copier les détails sans citation</string>
+    <string name="column_removed">Colonne supprimée</string>
+    <string name="column_restore">Annuler</string>
 </resources>

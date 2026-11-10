@@ -23,6 +23,7 @@ internal class PostDetailController(
     private val accountProvider: (String) -> AccountSecrets?,
     private val state: MutableStateFlow<DeckUiState>,
 ) {
+    private val memory = PostDetailMemory(scope, ioDispatcher)
     private val history = ArrayDeque<PostDetailUiState>()
     private val requestedReplyCursors = mutableMapOf<String, MutableSet<String>>()
     private var requestGeneration = 0L
@@ -35,7 +36,9 @@ internal class PostDetailController(
             if (history.size == MAX_DETAIL_HISTORY) history.removeFirst()
             history.addLast(current)
         }
-        val initialPage = knownPost
+        val snapshot = state.value
+        val cached = snapshot.selectedAccountId?.let { memory.cached(memoryKey(it, postId, snapshot)) }
+        val initialPage = cached?.let { page -> page.copy(post = knownPost ?: page.post) } ?: knownPost
             ?.takeIf { it.id == postId }
             ?.let {
                 PostDetailPage(
@@ -191,6 +194,22 @@ internal class PostDetailController(
         state.update { it.copy(postDetail = PostDetailUiState()) }
     }
 
+    fun prefetch(posts: List<Post>) {
+        val snapshot = state.value
+        val accountId = snapshot.selectedAccountId ?: return
+        val account = accountProvider(accountId) ?: return
+        posts.firstOrNull { it.id != snapshot.postDetail.postId &&
+            memory.cached(memoryKey(accountId, it.id, snapshot)) == null }?.let { post ->
+            memory.prefetch(memoryKey(accountId, post.id, snapshot)) {
+                repository.load(account, post.id, language = snapshot.appLanguageTag,
+                    replySort = snapshot.replySort.name.lowercase(Locale.ROOT), knownFocalPost = post)
+            }
+        }
+    }
+
+    private fun memoryKey(accountId: String, postId: String, snapshot: DeckUiState) =
+        DetailMemoryKey(accountId, postId, snapshot.appLanguageTag, snapshot.replySort.name)
+
     private fun load(postId: String, knownPost: Post? = null) {
         val snapshot = state.value
         val generation = requestGeneration
@@ -198,13 +217,15 @@ internal class PostDetailController(
         val account = accountProvider(accountId) ?: return fail(postId)
         scope.launch(ioDispatcher) {
             val result = runCatching {
-                repository.load(
-                    account = account,
-                    postId = postId,
-                    knownFocalPost = knownPost,
-                    language = snapshot.appLanguageTag,
-                    replySort = snapshot.replySort.name.lowercase(Locale.ROOT),
-                )
+                memory.request(memoryKey(accountId, postId, snapshot)) {
+                    repository.load(
+                        account = account,
+                        postId = postId,
+                        knownFocalPost = knownPost,
+                        language = snapshot.appLanguageTag,
+                        replySort = snapshot.replySort.name.lowercase(Locale.ROOT),
+                    )
+                }.await()
             }
             withContext(Dispatchers.Main.immediate) {
                 if (requestGeneration != generation || state.value.selectedAccountId != accountId ||

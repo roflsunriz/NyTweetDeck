@@ -92,7 +92,7 @@
     <string name="post_share_copy_url">仅复制链接</string>
     <string name="post_share_copy_details">复制详细信息</string>
     <string name="post_share_copy_details_translated">复制详细信息（翻译）</string>
-    <string name="post_details_copied">已复制帖子详细信息。</string>
+    <string name="post_details_copied">已复制到剪贴板。</string>
     <string name="post_share">分享</string>
     <string name="post_download">下载媒体</string>
     <string name="post_time_now">now</string>
@@ -303,4 +303,8 @@
     <string name="translation_language_unknown">未知语言</string>
     <string name="setting_lock_column_swipe">锁定列的水平移动</string>
     <string name="column_select">选择列</string>
+    <string name="post_share_copy_media_urls">仅复制媒体链接</string>
+    <string name="post_share_copy_details_without_quote">复制详情（不含引用）</string>
+    <string name="column_removed">已删除栏目</string>
+    <string name="column_restore">撤销</string>
 </resources>

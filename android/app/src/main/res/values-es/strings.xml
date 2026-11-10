@@ -92,7 +92,7 @@
     <string name="post_share_copy_url">Copiar solo el enlace</string>
     <string name="post_share_copy_details">Copiar con detalles</string>
     <string name="post_share_copy_details_translated">Copiar con detalles (traducido)</string>
-    <string name="post_details_copied">Detalles del post copiados.</string>
+    <string name="post_details_copied">Copiado al portapapeles.</string>
     <string name="post_share">Compartir</string>
     <string name="post_download">Descargar contenido multimedia</string>
     <string name="post_time_now">now</string>
@@ -305,4 +305,8 @@
     <string name="translation_language_unknown">Idioma desconocido</string>
     <string name="setting_lock_column_swipe">Bloquear movimiento horizontal de columnas</string>
     <string name="column_select">Seleccionar columna</string>
+    <string name="post_share_copy_media_urls">Copiar solo URL multimedia</string>
+    <string name="post_share_copy_details_without_quote">Copiar detalles sin cita</string>
+    <string name="column_removed">Columna eliminada</string>
+    <string name="column_restore">Deshacer</string>
 </resources>

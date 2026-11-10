@@ -24,6 +24,32 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PostDetailControllerTest {
     @Test
+    fun reopeningCachedDetailImmediatelyShowsRepliesAndRevalidates() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            var calls = 0
+            val executor = GraphQlExecutor { _, purpose, _, _ ->
+                if (purpose == "postDetail") detailResponse() else {
+                    calls++
+                    conversationResponse(if (calls == 1) "201" else "202", "next")
+                }
+            }
+            val state = MutableStateFlow(DeckUiState(selectedAccountId = "7"))
+            val controller = PostDetailController(PostDetailRepository(executor), this, dispatcher, { account() }, state)
+            val known = TimelineResponseParser().parse(detailResponse()).posts.single()
+            controller.open("123", known)
+            advanceUntilIdle()
+            controller.close()
+            controller.open("123", known)
+            assertEquals(listOf("201"), state.value.postDetail.page?.replies?.map { it.post.id })
+            advanceUntilIdle()
+            assertEquals(listOf("202"), state.value.postDetail.page?.replies?.map { it.post.id })
+            assertEquals(2, calls)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test
     fun paginationMergesRelatedSeparatelyAndPromotesDuplicateToReply() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

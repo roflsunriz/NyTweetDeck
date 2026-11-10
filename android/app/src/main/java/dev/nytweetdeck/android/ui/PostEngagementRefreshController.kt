@@ -36,6 +36,8 @@ internal class PostEngagementRefreshController(
         if (accountId == restoredAccountId) staleIds.removeAll(posts.map(Post::id).toSet())
     }
 
+    fun hasStalePosts(postIds: Set<String>): Boolean = postIds.any { it in staleIds }
+
     fun refreshVisible(postIds: Set<String>) {
         val snapshot = state.value
         val accountId = snapshot.selectedAccountId ?: return

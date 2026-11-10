@@ -211,6 +211,26 @@ private fun ShareMenuButton(
                 modifier = Modifier.testTag("share-menu-details-" + post.id),
             )
             DropdownMenuItem(
+                text = { Text(stringResource(R.string.post_share_copy_media_urls)) },
+                enabled = directShareMediaLinks(post.media).isNotEmpty(),
+                onClick = {
+                    expanded = false
+                    directShareMediaLinks(post.media).joinToString("\n").takeIf(String::isNotEmpty)
+                        ?.let(onShareDetailsCopy)
+                },
+                modifier = Modifier.testTag("share-menu-media-" + post.id),
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.post_share_copy_details_without_quote)) },
+                onClick = {
+                    expanded = false
+                    formatDetailedPostShare(post, absoluteTime, relativeLabel, includeQuote = false)
+                        ?.let(onShareDetailsCopy)
+                        ?: onShareClick(post.id)
+                },
+                modifier = Modifier.testTag("share-menu-details-without-quote-" + post.id),
+            )
+            DropdownMenuItem(
                 text = { Text(stringResource(R.string.post_share_copy_details_translated)) },
                 onClick = {
                     expanded = false

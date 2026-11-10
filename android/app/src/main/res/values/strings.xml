@@ -114,7 +114,7 @@
     <string name="post_share_copy_url">URLのみコピー</string>
     <string name="post_share_copy_details">詳細形式でコピー</string>
     <string name="post_share_copy_details_translated">詳細形式でコピー（翻訳）</string>
-    <string name="post_details_copied">ポストの詳細形式をコピーしました。</string>
+    <string name="post_details_copied">コピーしました。</string>
     <string name="post_share">共有</string>
     <string name="post_download">メディアをダウンロード</string>
     <string name="post_time_now">たった今</string>
@@ -305,4 +305,8 @@
     <string name="translation_language_unknown">言語不明</string>
     <string name="setting_lock_column_swipe">カラムの横移動をロック</string>
     <string name="column_select">カラムを選択</string>
+    <string name="post_share_copy_media_urls">メディアURLのみコピー</string>
+    <string name="post_share_copy_details_without_quote">詳細形式でコピー（引用なし）</string>
+    <string name="column_removed">カラムを削除しました</string>
+    <string name="column_restore">復元</string>
 </resources>

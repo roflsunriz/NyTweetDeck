@@ -92,7 +92,7 @@
     <string name="post_share_copy_url">نسخ الرابط فقط</string>
     <string name="post_share_copy_details">نسخ مع التفاصيل</string>
     <string name="post_share_copy_details_translated">نسخ مع التفاصيل (مترجم)</string>
-    <string name="post_details_copied">تم نسخ تفاصيل المنشور.</string>
+    <string name="post_details_copied">تم النسخ إلى الحافظة.</string>
     <string name="post_share">مشاركة</string>
     <string name="post_download">تنزيل الوسائط</string>
     <string name="post_time_now">now</string>
@@ -308,4 +308,8 @@
     <string name="translation_language_unknown">لغة غير معروفة</string>
     <string name="setting_lock_column_swipe">قفل الحركة الأفقية للأعمدة</string>
     <string name="column_select">اختيار عمود</string>
+    <string name="post_share_copy_media_urls">نسخ روابط الوسائط فقط</string>
+    <string name="post_share_copy_details_without_quote">نسخ التفاصيل دون الاقتباس</string>
+    <string name="column_removed">تم حذف العمود</string>
+    <string name="column_restore">تراجع</string>
 </resources>

@@ -262,11 +262,14 @@ enum class AccountAuthStatus {
     FAILED,
 }
 
+data class RemovedColumnNotice(val id: String, val title: String, val deadlineMillis: Long)
+
 data class DeckUiState(
     val isInitializing: Boolean = false,
     val settingsConflict: Boolean = false,
     val layoutRevision: Long = 0,
     val columns: List<DeckColumn> = emptyList(),
+    val removedColumns: List<RemovedColumnNotice> = emptyList(),
     val selectedMenu: ColumnKind = ColumnKind.HOME_FOR_YOU,
     val useDarkTheme: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.DARK,

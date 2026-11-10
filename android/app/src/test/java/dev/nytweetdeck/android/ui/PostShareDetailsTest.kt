@@ -47,6 +47,34 @@ class PostShareDetailsTest {
     )
 
     @Test
+    fun copyWithoutQuoteKeepsOriginalTextMediaTimeAndUrl() {
+        val quoted = EmbeddedPost("99", "SECRET_QUOTED_BODY", "en", null,
+            author().copy(displayName = "QuotedAuthor"), null, null, emptyList())
+        val text = formatDetailedPostShare(post().copy(quotedPost = quoted), "2026-11-10", "now",
+            includeQuote = false)!!
+        assertTrue(text.contains("本文テスト"))
+        assertTrue(text.contains("2026-11-10 (now)"))
+        assertTrue(text.endsWith("https://x.com/i/status/123"))
+        assertFalse(text.contains("SECRET_QUOTED_BODY"))
+        assertFalse(text.contains("QuotedAuthor"))
+    }
+
+    @Test
+    fun mediaCopyIncludesAllDistinctPhotosAndPlayableVideosWithoutPosterOrUnsafeUrls() {
+        val media = listOf(
+            Media("1", "photo", "https://pbs.twimg.com/1.jpg", null),
+            Media("2", "video", null, "https://pbs.twimg.com/poster.jpg", listOf(
+                dev.nytweetdeck.android.model.VideoVariant("https://video.twimg.com/low.mp4", 10),
+                dev.nytweetdeck.android.model.VideoVariant("https://video.twimg.com/high.mp4", 20))),
+            Media("3", "photo", "https://pbs.twimg.com/1.jpg", null),
+            Media("4", "photo", "javascript:alert(1)", null),
+        )
+        assertEquals(listOf("https://pbs.twimg.com/1.jpg", "https://video.twimg.com/high.mp4"),
+            directShareMediaLinks(media))
+        assertTrue(directShareMediaLinks(emptyList()).isEmpty())
+    }
+
+    @Test
     fun formatsBasicDetailedShare() {
         val text = formatDetailedPostShare(
             post().copy(
